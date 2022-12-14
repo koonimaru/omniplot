@@ -1,0 +1,11 @@
+README.md
+setup.py
+omniplot/__init__.py
+omniplot/igraph_classes.py
+omniplot/networkplot.py
+omniplot/omniplot.py
+omniplot.egg-info/PKG-INFO
+omniplot.egg-info/SOURCES.txt
+omniplot.egg-info/dependency_links.txt
+omniplot.egg-info/requires.txt
+omniplot.egg-info/top_level.txt
