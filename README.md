@@ -1,14 +1,14 @@
-# radialtree
+# omniplot
 
-## What is radialtree
+## What is omniplot
 
-radialtree is a python module to draw a circular dendrogram using a output from scipy dendrogram.
+radialtree is a python module to draw a scientific plot with hassle free.
 ![example](example.png "example")
 
 ## Install
 
-git clone https://github.com/koonimaru/radialtree.git <br>
-cd radialtree <br>
+git clone https://github.com/koonimaru/omniplot.git <br>
+cd omniplot <br>
 pip install .
 
 ## Example usage
