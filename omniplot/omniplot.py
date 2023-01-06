@@ -17,7 +17,6 @@ import numpy as np
 import seaborn as sns
 import pandas as pd
 from matplotlib import cm
-import matplotlib as mpl
 from matplotlib.lines import Line2D
 from scipy.cluster.hierarchy import leaves_list
 from scipy.cluster import hierarchy
@@ -27,7 +26,6 @@ from natsort import natsort_keygen
 from matplotlib.patches import Rectangle
 import scipy.cluster.hierarchy as sch
 import fastcluster as fcl
-from bokeh.layouts import column
 from sklearn.decomposition import TruncatedSVD
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.ensemble import RandomTreesEmbedding
@@ -42,6 +40,10 @@ from sklearn.neighbors import NeighborhoodComponentsAnalysis
 from sklearn.pipeline import make_pipeline
 from sklearn.random_projection import SparseRandomProjection
 import sys 
+import matplotlib as mpl
+plt.rcParams['font.family']= 'sans-serif'
+plt.rcParams['font.sans-serif'] = ['Arial']
+plt.rcParams['svg.fonttype'] = 'none'
 sns.set_theme()
 def dotplot(df: pd.DataFrame,
             row: str="",
@@ -89,10 +91,10 @@ def dotplot(df: pd.DataFrame,
         The value is the list of RGB color codes, each corresponds to the color of a leaf. 
         e.g., {"color1":[[1,0,0,1], ....]}   
     size_title : string
-        
+        The title for size values. If not set, "size_val" will be used.
     
     color_title : string
-        
+        The title for color values. If not set, "color_val" will be used.
     Returns
     -------
     Raises
@@ -311,9 +313,7 @@ def radialtree(Z2,fontsize=8,figsize=None, pallete="gist_rainbow", addlabels=Tru
         print(offset)
     else:
         offset=0
-    plt.rcParams['font.family']= 'sans-serif'
-    plt.rcParams['font.sans-serif'] = ['Arial']
-    plt.rcParams['svg.fonttype'] = 'none'
+    
     xmax=np.amax(Z2['icoord'])
     ymax=np.amax(Z2['dcoord'])
     
@@ -610,7 +610,53 @@ def complex_clustermap(df,
                        method="ward",
                        return_col_cluster=True, 
                        **kwargs):
-    #print(kwargs)
+    """
+    Drawing a clustered heatmap with merginal plots.
+    
+    Parameters
+    ----------
+    df : pandas DataFrame
+    row_colormap: dict
+        the column name of a category that is going to be placed in the row of the dotplot
+    col_colormap: dict
+        the column name of a category that is going to be placed in the column of the dotplot
+    row_plot : dict
+        The column name for the values represented as dot colors.
+    col_plot : dict
+        The column name for the values represented as dot sizes. 
+    row_color_legend: dict
+        The scale of dots. If resulting dots are too large (or small), you can reduce (or increase) dot sizes by adjusting this value.
+    col_color_legend: dict
+        The scale of dots. If resulting dots are too large (or small), you can reduce (or increase) dot sizes by adjusting this value.
+    
+    approx_clusternum : int
+        The approximate number of row clusters to be created. Labeling the groups of leaves with different colors. The result of hierarchical clustering won't change.    
+    approx_clusternum_col : int
+        The approximate number of column clusters to be created. Labeling the groups of leaves with different colors. The result of hierarchical clustering won't change.
+    
+    color_var : int
+        The title for color values. If not set, "color_val" will be used.
+    merginalsum : bool
+        Whether or not to draw bar plots for merginal distribution.
+    show : bool
+        Whether or not to show the figure.
+    method : string
+        Method for hierarchical clustering.
+    return_col_cluster : string
+        The title for color values. If not set, "color_val" will be used.
+    Returns
+    -------
+    Raises
+    ------
+    Notes
+    -----
+    References
+    ----------
+    See Also
+    --------
+    Examples
+    --------
+    """#print(kwargs)
     rnum, cnum=df.shape
     sns.set(font_scale=1)
     
@@ -1063,7 +1109,7 @@ def manifoldplot(df,category="", method="isomap",n_components=2,n_neighbors=4, *
     else:    
         x = df.values
         assert x.dtype==float, "data must contain only float values."
-        
+    x=zscore(x, axis=0)
     features=df.columns
     
     if method=="random_projection": 
@@ -1112,7 +1158,7 @@ def manifoldplot(df,category="", method="isomap",n_components=2,n_neighbors=4, *
             n_iter=500,
             n_iter_without_progress=150,
             n_jobs=2,
-            random_state=0,
+            random_state=0,perplexity=10
         )
     elif method=="nca": 
         embedding=NeighborhoodComponentsAnalysis(
@@ -1146,6 +1192,7 @@ if __name__=="__main__":
     #test="triangle_heatmap"
     test="decomp"
     test="manifold"
+    test="triangle_heatmap"
     if test=="dotplot":
         # df=pd.read_csv("/home/koh/ews/idr_revision/clustering_analysis/cellloc_pval_co.csv",index_col=0)
         # dfc=pd.read_csv("/home/koh/ews/idr_revision/clustering_analysis/cellloc_odds_co.csv",index_col=0)

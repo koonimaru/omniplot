@@ -2,7 +2,7 @@
 
 ## What is omniplot
 
-omniplot is a python module to draw a scientific plot with hassle free.
+omniplot is a python module to draw a scientific plot with hassle free. It mainly focuses on bioinfomatics data.
 ![example](example.png "example")
 
 ## Install
