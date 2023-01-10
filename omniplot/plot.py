@@ -422,7 +422,7 @@ def radialtree(Z2,fontsize=8,figsize=None, pallete="gist_rainbow", addlabels=Tru
                     radius=outerrad,
                     counterclock=True,
                     startangle=label_coords[0][2]*0.5)
-            circle=plt.Circle((0,0),innerrad, fc='whitesmoke')
+            circle=plt.Circle((0,0),innerrad, fc='white')
             plt.gca().add_patch(circle)
             labelnames.append(labelname)
             j+=1
@@ -471,7 +471,7 @@ def radialtree(Z2,fontsize=8,figsize=None, pallete="gist_rainbow", addlabels=Tru
                     radius=outerrad,
                     counterclock=True,
                     startangle=label_coords[0][2]*0.5)
-            circle=plt.Circle((0,0),innerrad, fc='whitesmoke')
+            circle=plt.Circle((0,0),innerrad, fc='white')
             plt.gca().add_patch(circle)
             labelnames.append(labelname)
             colorlabels_legend[labelname]={}
@@ -1185,14 +1185,15 @@ def boxplot():
 if __name__=="__main__":
     
     
-    test="radialtree"
-    
     test="complex_clustermap"
     #test="dotplot"
     #test="triangle_heatmap"
     test="decomp"
     test="manifold"
     test="triangle_heatmap"
+    test="radialtree"
+    test="manifold"
+    
     if test=="dotplot":
         # df=pd.read_csv("/home/koh/ews/idr_revision/clustering_analysis/cellloc_pval_co.csv",index_col=0)
         # dfc=pd.read_csv("/home/koh/ews/idr_revision/clustering_analysis/cellloc_odds_co.csv",index_col=0)
