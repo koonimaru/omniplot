@@ -4,3 +4,5 @@ numpy
 pandas
 scipy
 seaborn
+tensorflow
+umap-learn

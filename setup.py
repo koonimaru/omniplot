@@ -45,7 +45,7 @@ setup(
     author_email='koh.onimaru@gmail.com',
     url='',
 
-    packages=['omniplot'],
+    packages=find_packages(),#['omniplot'],
     #provides=['omniplot'],
     #package_data = {
     #     '': ['enhancer_prediction/*', '*.pyx', '*.pxd', '*.c', '*.h'],
@@ -65,6 +65,6 @@ setup(
         
     
     ],
-    install_requires=[ 'numpy', 'matplotlib','scipy',"seaborn","pandas","igraph"],
+    install_requires=[ 'numpy', 'matplotlib','scipy',"seaborn","pandas","igraph","umap-learn","tensorflow"],
     long_description=open('README.md').read(),
 )
