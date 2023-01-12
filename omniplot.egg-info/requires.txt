@@ -1,3 +1,4 @@
+fastcluster
 igraph
 matplotlib
 numpy
