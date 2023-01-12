@@ -65,6 +65,12 @@ setup(
         
     
     ],
-    install_requires=[ 'numpy', 'matplotlib','scipy',"seaborn","pandas","igraph","umap-learn","tensorflow"],
+    install_requires=[ 'numpy', 
+                      'matplotlib',
+                      'scipy',"seaborn",
+                      "pandas","igraph",
+                      "umap-learn",
+                      "tensorflow",
+                      "fastcluster"],
     long_description=open('README.md').read(),
 )

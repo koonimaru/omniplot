@@ -95,6 +95,8 @@ def dotplot(df: pd.DataFrame,
     
     color_title : string
         The title for color values. If not set, "color_val" will be used.
+    show : bool
+        Whether or not to show the figure.
     Returns
     -------
     Raises
@@ -281,7 +283,8 @@ def radialtree(Z2,fontsize=8,figsize=None, pallete="gist_rainbow", addlabels=Tru
         the color label. The value is a dictionary that has two keys "colors" and "labels". 
         The value of "colors" is the list of RGB color codes, each corresponds to the class of a leaf. 
         e.g., {"color1":{"colors":[[1,0,0,1], ....], "labels":["label1","label2",...]}}   
-    
+    show : bool
+        Whether or not to show the figure.
     Returns
     -------
     Raises
@@ -422,7 +425,7 @@ def radialtree(Z2,fontsize=8,figsize=None, pallete="gist_rainbow", addlabels=Tru
                     radius=outerrad,
                     counterclock=True,
                     startangle=label_coords[0][2]*0.5)
-            circle=plt.Circle((0,0),innerrad, fc='whitesmoke')
+            circle=plt.Circle((0,0),innerrad, fc='white')
             plt.gca().add_patch(circle)
             labelnames.append(labelname)
             j+=1
@@ -471,7 +474,7 @@ def radialtree(Z2,fontsize=8,figsize=None, pallete="gist_rainbow", addlabels=Tru
                     radius=outerrad,
                     counterclock=True,
                     startangle=label_coords[0][2]*0.5)
-            circle=plt.Circle((0,0),innerrad, fc='whitesmoke')
+            circle=plt.Circle((0,0),innerrad, fc='white')
             plt.gca().add_patch(circle)
             labelnames.append(labelname)
             colorlabels_legend[labelname]={}
@@ -884,7 +887,35 @@ def complex_clustermap(df,
 
 
 def triangle_heatmap(df, grid_pos=[],grid_labels=[],show=True):
-    """creating a heatmap with 45 degree rotation"""
+    
+    """
+    Creating a heatmap with 45 degree rotation.
+    
+    Parameters
+    ----------
+    df : pandas DataFrame
+    grid_pos: list
+        the column name of a category that is going to be placed in the row of the dotplot
+    grid_labels: list
+        the column name of a category that is going to be placed in the column of the dotplot
+    show : bool
+        Whether or not to show the figure.
+    
+    Returns
+    -------
+    Raises
+    ------
+    Notes
+    -----
+    References
+    ----------
+    See Also
+    --------
+    Examples
+    --------
+    """
+    
+    
     genes=df.index
     fig, ax = plt.subplots(figsize=[8,6])
     dmat=df.to_numpy()
@@ -976,8 +1007,37 @@ from sklearn.decomposition import PCA, NMF
 import umap 
 from scipy.stats import zscore
 from itertools import combinations
-def decomplot(df,category="", method: str="pca", component: int=3,show=False, explained_variance=True) :
+def decomplot(df,category: str="", method: str="pca", component: int=3,show=False, explained_variance=True) :
     
+    """
+    Decomposing data and drawing a scatter plot and some plots for explained variables. 
+    
+    Parameters
+    ----------
+    df : pandas DataFrame
+    category: str
+        the column name of a known sample category (if exists). 
+    method: str
+        Method name for decomposition. Available methods: ["pca", "nmf"]
+    component: int
+        The component number
+    
+    show : bool
+        Whether or not to show the figure.
+    
+    Returns
+    -------
+    Raises
+    ------
+    Notes
+    -----
+    References
+    ----------
+    See Also
+    --------
+    Examples
+    --------
+    """    
     if category !="":
         category_val=df[category].values
         df=df.drop([category], axis=1)
@@ -1098,8 +1158,49 @@ def decomplot(df,category="", method: str="pca", component: int=3,show=False, ex
         if show==True:
             plt.show()
         return dfpc_list, W, H
-
-def manifoldplot(df,category="", method="isomap",n_components=2,n_neighbors=4, **kwargs):
+    else:
+        raise Exception('{} is not in options. Available options are: pca, nmf'.format(method))
+def manifoldplot(df,category="", method="tsne",n_components=2,n_neighbors=4, show=False, **kwargs):
+    """
+    Reducing the dimensionality of data and drawing a scatter plot. 
+    
+    Parameters
+    ----------
+    df : pandas DataFrame
+    category: str
+        the column name of a known sample category (if exists). 
+    method: str
+        Method name for decomposition. 
+        Available methods: ["tsne", 
+                            "isomap",
+                            "random_projection",
+                            "linear_discriminant",
+                            "lle",
+                            "modlle",
+                            "hessian_lle",
+                            "mds"]
+    component: int
+        The number of components
+    n_neighbors: int
+        The number of neighbors related to isomap and lle methods.
+    
+    show : bool
+        Whether or not to show the figure.
+    
+    Returns
+    -------
+    Raises
+    ------
+    Notes
+    -----
+    References
+    ----------
+    See Also
+    --------
+    Examples
+    --------
+    """    
+    
     if category !="":
         category_val=df[category].values
         df=df.drop([category], axis=1)
@@ -1165,13 +1266,17 @@ def manifoldplot(df,category="", method="isomap",n_components=2,n_neighbors=4, *
             n_components=n_components, init="pca", random_state=0
         )
     else:
-        sys.exit(f"Medthod {method} does not exist.")
+        raise Exception(f"Medthod {method} does not exist.")
     Xt=embedding.fit_transform(x)
     dft = pd.DataFrame(data = np.array([Xt[:,0],Xt[:,1]]).T, columns = ["d1", "d2"])
     if category !="":
         fig, ax=plt.subplots()
         dft[category]=category_val
         sns.scatterplot(data=dft, x="d1", y="d2", hue=category, ax=ax,**kwargs)
+    else:
+        sns.scatterplot(data=dft, x="d1", y="d2", ax=ax,**kwargs)
+    if show==True:
+        plt.show()
     return dft, ax
 def clusterplot():
     pass
@@ -1185,14 +1290,15 @@ def boxplot():
 if __name__=="__main__":
     
     
-    test="radialtree"
-    
     test="complex_clustermap"
     #test="dotplot"
     #test="triangle_heatmap"
     test="decomp"
     test="manifold"
     test="triangle_heatmap"
+    test="radialtree"
+    test="manifold"
+    
     if test=="dotplot":
         # df=pd.read_csv("/home/koh/ews/idr_revision/clustering_analysis/cellloc_pval_co.csv",index_col=0)
         # dfc=pd.read_csv("/home/koh/ews/idr_revision/clustering_analysis/cellloc_odds_co.csv",index_col=0)
