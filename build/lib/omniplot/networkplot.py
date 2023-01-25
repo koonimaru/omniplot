@@ -84,7 +84,7 @@ def pienodes(g,
     fig, ax = plt.subplots(figsize=[8,8])
     
     mgd=igraph_classes.MatplotlibGraphDrawer(ax)
-    mgd.draw(g,vertex_size=0.01,**kwargs)
+    mgd.draw(g,vertex_size=0.02,**kwargs)
     trans=ax.transData.transform
     trans2=fig.transFigure.inverted().transform
     
@@ -102,8 +102,7 @@ def pienodes(g,
         xx,yy=trans(pos[i]) # figure coordinates
         #print(xx,yy, pos[i])
         xa,ya=trans2((xx,yy)) # axes coordinates
-        a = plt.axes([xa-deg[i]/2,ya-deg[i]/2, deg[i], deg[i]], 
-                     zorder=0,
+        a = plt.axes([xa-deg[i]/2,ya-deg[i]/2, deg[i], deg[i]],
                      rasterized=True,
                      adjustable="datalim")
         #a.set_zorder(1)
@@ -118,10 +117,11 @@ def pienodes(g,
             if deg[i] > np.quantile(deg, 0.9):
                 text_pos.append([a, xa,ya,n])
             #a.text(xa,ya,n)
-    for a, xa,ya,n in text_pos:
+        a.zorder=i
+    for j, (a, xa,ya,n) in enumerate(text_pos):
         a.set_zorder(10)
         a.text(xa,ya,n)
-    
+        a.zorder=i+j
     legend_elements = [Line2D([0], [0], marker='o', color='lavender', label=ul,markerfacecolor=colors[ul], markersize=10)
                       for ul in unique_labels]
     

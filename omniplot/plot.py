@@ -11,6 +11,7 @@
        /  /|        |\ \
            |        |
 """
+from typing import Union
 import matplotlib.collections as mc
 import matplotlib.pyplot as plt
 import numpy as np
@@ -41,6 +42,8 @@ from sklearn.pipeline import make_pipeline
 from sklearn.random_projection import SparseRandomProjection
 import sys 
 import matplotlib as mpl
+from sklearn.cluster import KMeans
+
 plt.rcParams['font.family']= 'sans-serif'
 plt.rcParams['font.sans-serif'] = ['Arial']
 plt.rcParams['svg.fonttype'] = 'none'
@@ -1007,7 +1010,13 @@ from sklearn.decomposition import PCA, NMF
 import umap 
 from scipy.stats import zscore
 from itertools import combinations
-def decomplot(df,category: str="", method: str="pca", component: int=3,show=False, explained_variance=True) :
+def decomplot(df,category: str="", 
+              method: str="pca", 
+              component: int=3,
+              arrow_color: str="yellow",
+              arrow_text_color: str="black",
+              show: bool=False, 
+              explained_variance=True) :
     
     """
     Decomposing data and drawing a scatter plot and some plots for explained variables. 
@@ -1061,28 +1070,36 @@ def decomplot(df,category: str="", method: str="pca", component: int=3,show=Fals
             axes=[axes]
         else:
             fig, axes=plt.subplots(ncols=2, nrows=len(comb)//2+int(len(comb)%2!=0))
+            plt.subplots_adjust(top=0.9,right=0.8)
             axes=axes.flatten()
         loadings = pca.components_.T * np.sqrt(pca.explained_variance_)
+        combnum=0
         for (i, j), ax in zip(comb, axes):
             xlabel, ylabel='pc'+str(i+1), 'pc'+str(j+1)
             dfpc = pd.DataFrame(data = np.array([pccomp[:,i],pccomp[:,j]]).T, columns = [xlabel, ylabel])
             if category!="":
                 dfpc[category]=category_val
-                sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=category, ax=ax)
+                if combnum==1:
+                    sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=category, ax=ax)
+                    ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0)
+                else:
+                    sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=category, ax=ax,
+                                    legend=False)
             else:
                 sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, ax=ax)
             _loadings=np.array([loadings[:,i],loadings[:,j]]).T
             a=np.sum(_loadings**2, axis=1)
-            srtindx=np.argsort(a)[::-1]
+            srtindx=np.argsort(a)[::-1][:3]
             _loadings=_loadings[srtindx]
             _features=np.array(features)[srtindx]
             for k, feature in enumerate(_features):
                 
-                ax.plot([0,_loadings[k, 0] ], [0,_loadings[k, 1] ],color="gray")
-                ax.text(_loadings[k, 0],_loadings[k, 1],feature,color="gray")
+                ax.plot([0,_loadings[k, 0] ], [0,_loadings[k, 1] ],color=arrow_color)
+                ax.text(_loadings[k, 0],_loadings[k, 1],feature,color=arrow_text_color)
     
             dfpc_list.append(dfpc)
-        
+            combnum+=1
+        plt.tight_layout(pad=0.5)
         if explained_variance==True:
             fig, ax=plt.subplots()
             exp_var_pca = pca.explained_variance_ratio_
@@ -1120,7 +1137,7 @@ def decomplot(df,category: str="", method: str="pca", component: int=3,show=Fals
         fig.tight_layout()
         
         if explained_variance==True:
-            fig, axes=plt.subplots(nrows=component, figsize=[5,8])
+            fig, axes=plt.subplots(nrows=component, figsize=[5,5])
             axes=axes.flatten()
             for i, ax in enumerate(axes):
                 if i==0:
@@ -1265,6 +1282,10 @@ def manifoldplot(df,category="", method="tsne",n_components=2,n_neighbors=4, sho
         embedding=NeighborhoodComponentsAnalysis(
             n_components=n_components, init="pca", random_state=0
         )
+    elif method=="umap": 
+        embedding=umap.UMAP(
+            min_dist=0.25,n_neighbors=15
+        )
     else:
         raise Exception(f"Medthod {method} does not exist.")
     Xt=embedding.fit_transform(x)
@@ -1278,9 +1299,89 @@ def manifoldplot(df,category="", method="tsne",n_components=2,n_neighbors=4, sho
     if show==True:
         plt.show()
     return dft, ax
-def clusterplot():
-    pass
+def clusterplot(df,category: str="", 
+              method: str="kmeans",
+              x="",
+              y="",
+              reduce_dimension="umap", 
+              n_clusters: Union[str , int]=3,
+              show: bool=False,
+              min_dist=0.25,n_neighbors=15):
+    if category !="":
+        category_val=df[category].values
+        df=df.drop([category], axis=1)
+        x = df.values
+        assert x.dtype==float, f"data must contain only float values except {category} column."
+        
+    else:    
+        x = df.values
+        assert x.dtype==float, "data must contain only float values."
+    
+    
+    x=zscore(x, axis=0)
+    
+    if reduce_dimension=="umap":
+        import umap
+        if 20<x.shape[1]:
+            pca=PCA(n_components=20, random_state=1)
+        elif 10<x.shape[1]:
+            pca=PCA(n_components=10, random_state=1)
+        else:
+            pca=PCA(n_components=2, random_state=1)
+        xpca=pca.fit_transform(x)
+        u=umap.UMAP(random_state=42, min_dist=min_dist,n_neighbors=n_neighbors)
+        xu=u.fit_transform(xpca)
 
+        if method=="kmeans":
+            kmean = KMeans(n_clusters=n_clusters, random_state=0)
+            kmX=kmean.fit(xu)
+    
+            labels=np.unique(kmX.labels_)
+            
+            
+            
+            dfnew=pd.DataFrame(data = np.array([xu[:,0],xu[:,1]]).T, columns = ["UMAP1", "UMAP2"])
+            dfnew["kmeans"]=kmX.labels_
+            if category=="":
+                axnum=1
+                fig, ax=plt.subplots(ncols=1)
+                ax=[ax]
+            else:
+                fig, ax=plt.subplots(ncols=2)
+            
+            sns.scatterplot(data=dfnew,x="UMAP1",y="UMAP2",hue="kmeans", ax=ax[0])
+            
+            
+            if category !="":
+                dfnew[category]=category_val
+                sns.scatterplot(data=dfnew,x="UMAP1",y="UMAP2",hue=category, ax=ax[1])
+        
+        if show==True:
+            plt.show()
+        return dfnew
+    
+    elif reduce_dimension=="":
+        if method=="kmeans":
+            kmean = KMeans(n_clusters=n_clusters, random_state=0)
+            kmX=kmean.fit(x)            
+            dfnew=pd.DataFrame(data = np.array([x[:,0],x[:,1]]).T, columns = [x, y])
+            dfnew["kmeans"]=kmX.labels_
+            if category=="":
+                axnum=1
+                fig, ax=plt.subplots(ncols=1)
+                ax=[ax]
+            else:
+                fig, ax=plt.subplots(ncols=2)
+            
+            sns.scatterplot(data=dfnew,x="UMAP1",y="UMAP2",hue="kmeans", ax=ax[0])
+
+            if category !="":
+                dfnew[category]=category_val
+                sns.scatterplot(data=dfnew,x="UMAP1",y="UMAP2",hue=category, ax=ax[1])
+        
+        if show==True:
+            plt.show()
+        return dfnew
 def volcanoplot():
     pass
 
@@ -1297,8 +1398,8 @@ if __name__=="__main__":
     test="manifold"
     test="triangle_heatmap"
     test="radialtree"
-    test="manifold"
-    
+    test="decomp"
+    test="cluster"
     if test=="dotplot":
         # df=pd.read_csv("/home/koh/ews/idr_revision/clustering_analysis/cellloc_pval_co.csv",index_col=0)
         # dfc=pd.read_csv("/home/koh/ews/idr_revision/clustering_analysis/cellloc_odds_co.csv",index_col=0)
@@ -1351,7 +1452,7 @@ if __name__=="__main__":
         df=df.dropna(axis=0)
         features=["species","bill_length_mm","bill_depth_mm","flipper_length_mm","body_mass_g"]
         df=df[features]
-        decomplot(df,category="species",method="nmf")
+        decomplot(df,category="species",method="pca")
         plt.show()
     elif test=="manifold":
         df=sns.load_dataset("penguins")
@@ -1359,4 +1460,11 @@ if __name__=="__main__":
         features=["species","bill_length_mm","bill_depth_mm","flipper_length_mm","body_mass_g"]
         df=df[features]
         manifoldplot(df,category="species",method="tsne")
+        plt.show()
+    elif test=="cluster":
+        df=sns.load_dataset("penguins")
+        df=df.dropna(axis=0)
+        features=["species","bill_length_mm","bill_depth_mm","flipper_length_mm","body_mass_g"]
+        df=df[features]
+        clusterplot(df,category="species",method="kmeans")
         plt.show()
