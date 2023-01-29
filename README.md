@@ -8,7 +8,8 @@ omniplot is a python module to draw a scientific plot with hassle free. It mainl
 <img src="example3.png" width="425"/> <img src="example4.png" width="300"/> <br>
 ## Motivation
 Although there exist many good python data visualization libraries, such as matplotlib, pandas, seaborn, plotly, vedo and so on,
-still several kinds of plots cannot be drawn without hassle.   
+still several kinds of plots cannot be drawn without hassle. This module is aimed to provide convenient 
+tools that allow users to draw complex plots, such as a scatter plot with PCA and loadings in one liner.
 
 ## Install
 
