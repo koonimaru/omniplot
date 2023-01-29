@@ -45,7 +45,7 @@ import matplotlib as mpl
 from sklearn.cluster import KMeans, DBSCAN
 from sklearn.metrics import silhouette_score
 from scipy.spatial.distance import pdist, squareform
-colormap_list=["nipy_spectral", "terrain","gist_rainbow","CMRmap","coolwarm","gnuplot","gist_stern","brg","rainbow"]
+colormap_list=["nipy_spectral", "terrain","tab20b","gist_rainbow","CMRmap","coolwarm","gnuplot","gist_stern","brg","rainbow"]
 plt.rcParams['font.family']= 'sans-serif'
 plt.rcParams['font.sans-serif'] = ['Arial']
 plt.rcParams['svg.fonttype'] = 'none'
@@ -288,7 +288,8 @@ def dotplot(df: pd.DataFrame,
 
 
 def radialtree(df,n_clusters: int=3,
-               category: List[str]=[]):
+               category: List[str]=[], **kwargs):
+    
     if len(category) !=0:
         category_df=df[category]
         df=df.drop(category, axis=1)
@@ -305,10 +306,10 @@ def radialtree(df,n_clusters: int=3,
     Z = sch.dendrogram(Y,labels=df.index,no_plot=True)
     t=_dendrogram_threshold(Z, n_clusters)
     Z=sch.dendrogram(Y,
-                        labels = labels,
+                        labels = df.index,
                         color_threshold=t,no_plot=True)
     sample_classes={k: list(category_df[k]) for k in category_df.columns}
-    _radialtree(Z, sample_classes=sample_classes,addlabels=False)
+    _radialtree(Z, sample_classes=sample_classes,addlabels=False, **kwargs)
     
 
 def _radialtree(Z2,fontsize: int=8,
@@ -364,9 +365,9 @@ def _radialtree(Z2,fontsize: int=8,
     --------
     """
     if figsize==None and colorlabels != None:
-        figsize=[10,5]
+        figsize=[7,5]
     elif figsize==None and sample_classes != None:
-        figsize=[10,5]
+        figsize=[7,5]
     elif figsize==None :
         figsize=[5,5]
     linewidth=0.5
@@ -421,25 +422,25 @@ def _radialtree(Z2,fontsize: int=8,
         #if y[0]>0 and y[3]>0:
             #_color="black"
         #plotting radial lines
-        plt.plot([_xr0, _xr1], [_yr0, _yr1], c=_color,linewidth=linewidth)
-        plt.plot([_xr2, _xr3], [_yr2,_yr3], c=_color,linewidth=linewidth)
+        plt.plot([_xr0, _xr1], [_yr0, _yr1], c=_color,linewidth=linewidth, rasterized=True)
+        plt.plot([_xr2, _xr3], [_yr2,_yr3], c=_color,linewidth=linewidth, rasterized=True)
         
         #plotting circular links between nodes
         if _yr1> 0 and _yr2>0:
             link=np.sqrt(r[1]**2-np.linspace(_xr1, _xr2, 100)**2)
-            plt.plot(np.linspace(_xr1, _xr2, 100), link, c=_color,linewidth=linewidth)
+            plt.plot(np.linspace(_xr1, _xr2, 100), link, c=_color,linewidth=linewidth, rasterized=True)
         elif _yr1 <0 and _yr2 <0:
             link=-np.sqrt(r[1]**2-np.linspace(_xr1, _xr2, 100)**2)
             
-            plt.plot(np.linspace(_xr1, _xr2, 100), link, c=_color,linewidth=linewidth)
+            plt.plot(np.linspace(_xr1, _xr2, 100), link, c=_color,linewidth=linewidth, rasterized=True)
         elif _yr1> 0 and _yr2 < 0:
             _r=r[1]
             if _xr1 <0 or _xr2 <0:
                 _r=-_r
             link=np.sqrt(r[1]**2-np.linspace(_xr1, _r, 100)**2)
-            plt.plot(np.linspace(_xr1, _r, 100), link, c=_color,linewidth=linewidth)
+            plt.plot(np.linspace(_xr1, _r, 100), link, c=_color,linewidth=linewidth, rasterized=True)
             link=-np.sqrt(r[1]**2-np.linspace(_r, _xr2, 100)**2)
-            plt.plot(np.linspace(_r, _xr2, 100), link, c=_color,linewidth=linewidth)
+            plt.plot(np.linspace(_r, _xr2, 100), link, c=_color,linewidth=linewidth, rasterized=True)
         
         #Calculating the x, y coordinates and rotation angles of labels
         
@@ -531,7 +532,7 @@ def _radialtree(Z2,fontsize: int=8,
         for labelname, colorlist in sample_classes.items():
             ucolors=sorted(list(np.unique(colorlist)))
             type_num=len(ucolors)
-            _cmp=cm.get_cmap(colormap_list[j], type_num)
+            _cmp=cm.get_cmap(colormap_list[j])
             _colorlist=[_cmp(ucolors.index(c)/(type_num-1)) for c in colorlist]
             _colorlist=np.array(_colorlist)[Z2['leaves']]
             if j!=0:
@@ -566,8 +567,10 @@ def _radialtree(Z2,fontsize: int=8,
     ax.spines.top.set_visible(False)
     ax.spines.left.set_visible(False)
     ax.spines.bottom.set_visible(False)
+    ax.set_rasterization_zorder(None)
     plt.xticks([])
     plt.yticks([])
+    
     if colorlabels!=None:
         maxr=R*1.05+width*len(colorlabels)+space*(len(colorlabels)-1)
     elif sample_classes !=None:
@@ -576,6 +579,7 @@ def _radialtree(Z2,fontsize: int=8,
         maxr=R*1.05
     plt.xlim(-maxr,maxr)
     plt.ylim(-maxr,maxr)
+    plt.subplots_adjust(left=0.05, right=0.85)
     if show==True:
         plt.show()
     else:
@@ -1620,9 +1624,10 @@ if __name__=="__main__":
     test="decomp"
     test="manifold"
     test="triangle_heatmap"
-    test="decomp"
+    
     test="cluster"
     test="radialtree"
+    test="decomp"
     if test=="dotplot":
         # df=pd.read_csv("/home/koh/ews/idr_revision/clustering_analysis/cellloc_pval_co.csv",index_col=0)
         # dfc=pd.read_csv("/home/koh/ews/idr_revision/clustering_analysis/cellloc_odds_co.csv",index_col=0)
@@ -1672,7 +1677,7 @@ if __name__=="__main__":
         # radialtree(Z2, sample_classes=sample_classes)
         df=sns.load_dataset("penguins")
         df=df.dropna(axis=0)
-        radialtree(df, ["species","island","sex"])
+        radialtree(df, category=["species","island","sex"])
         plt.show()
     elif test=="decomp":
         df=sns.load_dataset("penguins")
