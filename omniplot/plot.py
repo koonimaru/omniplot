@@ -11,6 +11,7 @@
        /  /|        |\ \
            |        |
 """
+from typing import Union, Optional
 import matplotlib.collections as mc
 import matplotlib.pyplot as plt
 import numpy as np
@@ -41,10 +42,25 @@ from sklearn.pipeline import make_pipeline
 from sklearn.random_projection import SparseRandomProjection
 import sys 
 import matplotlib as mpl
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
+
 plt.rcParams['font.family']= 'sans-serif'
 plt.rcParams['font.sans-serif'] = ['Arial']
 plt.rcParams['svg.fonttype'] = 'none'
 sns.set_theme()
+
+
+def _dendrogram_threshold(Z, approx_clusternum):
+    lbranches=np.array(Z["dcoord"])[:,:2]
+    rbranches=np.array(Z["dcoord"])[:,2:]
+    thre=np.linspace(0, np.amax(Z["dcoord"]), 100)[::-1]
+    for t in thre:
+        crossbranches=np.sum(lbranches[:,1]>t)+np.sum(rbranches[:,0]>t)-np.sum(lbranches[:,0]>t)-np.sum(rbranches[:,1]>t)
+        if crossbranches>=approx_clusternum:
+            break 
+    return t
+
 def dotplot(df: pd.DataFrame,
             row: str="",
             col: str="",
@@ -60,7 +76,7 @@ def dotplot(df: pd.DataFrame,
             row_clustering: bool=True,
             xtickrotation: float=90,
             column_order: list=[],
-            show: bool=True) -> None:
+            show: bool=False) -> dict[str, plt.Axes]:
     """
     Drawing a dotplot that can represent two different variables as dot sizes and colors on a regular grid.
     This function is assumed to plot GO enrichment analysis with multiple gene sets.
@@ -99,6 +115,8 @@ def dotplot(df: pd.DataFrame,
         Whether or not to show the figure.
     Returns
     -------
+    axes: dict
+    
     Raises
     ------
     Notes
@@ -214,7 +232,8 @@ def dotplot(df: pd.DataFrame,
                                      facecolors=_colors,
                                      linewidths=2)
     ax1.add_collection(collection)
-    ax1.margins(0.05)
+    ax1.margins(0.1)
+    ax1.set_xlim(-1,len(_x)+1)
     ax1.set_xticks(np.arange(len(_x)))
     ax1.set_xticklabels(_x,rotation=xtickrotation)
     ax1.set_yticks(np.arange(len(_y)))
@@ -231,13 +250,13 @@ def dotplot(df: pd.DataFrame,
         cb1.set_label(color_title)
     #ax[1]=fig.add_axes([1,0.3,0.1,1])
     
-    lxy=[[0.5, i*1] for i in range(3)]
+    lxy=[[0.25, i*1] for i in range(3)]
     collection2 = mc.CircleCollection([middle0*scaling,middle1*scaling, maxsize*scaling], offsets=lxy, transOffset=ax2.transData, facecolors='gray',edgecolors="black")
     ax2.add_collection(collection2)
     ax2.axis('off')
     ax2.margins(0.3)
     for text, (x, y) in zip([middle0,middle1, maxsize], lxy):
-        ax2.text(x*1.01, y,str(text),va="center")
+        ax2.text(x+0.25, y,str(text),va="center")
     if size_title=="":
         size_title=size_val
     ax2.text(0.5,-0.5, size_title,va="center",ha="center")
@@ -248,13 +267,21 @@ def dotplot(df: pd.DataFrame,
         plt.savefig(save+".svg")
     if show==True:
         plt.show()
-
+    else:
+        return {"ax1":ax1,"ax2":ax2,"ax3":ax3}
 
 
 colormap_list=["nipy_spectral", "terrain","gist_rainbow","CMRmap","coolwarm","gnuplot","gist_stern","brg","rainbow"]
 
-def radialtree(Z2,fontsize=8,figsize=None, pallete="gist_rainbow", addlabels=True, show=True,sample_classes=None,colorlabels=None,
-         colorlabels_legend=None):
+def radialtree(Z2,fontsize: int=8,
+               figsize: Optional[list]=None, 
+               palette: str="gist_rainbow", 
+               addlabels: bool=True, 
+               show: bool=False,
+               sample_classes: Optional[dict]=None,
+               colorlabels: Optional[dict]=None,
+         colorlabels_legend: Optional[dict]=None
+         ) -> plt.Axes:
     """
     Drawing a radial dendrogram from a scipy dendrogram output.
     Parameters
@@ -267,7 +294,7 @@ def radialtree(Z2,fontsize=8,figsize=None, pallete="gist_rainbow", addlabels=Tru
         A float to specify the font size
     figsize : [x, y] array-like
         1D array-like of floats to specify the figure size
-    pallete : string
+    palette : string
         Matlab colormap name.
     sample_classes : dict
         A dictionary that contains lists of sample subtypes or classes. These classes appear 
@@ -322,7 +349,7 @@ def radialtree(Z2,fontsize=8,figsize=None, pallete="gist_rainbow", addlabels=Tru
     
     ucolors=sorted(set(Z2["color_list"]))
     #cmap = cm.gist_rainbow(np.linspace(0, 1, len(ucolors)))
-    cmp=cm.get_cmap(pallete, len(ucolors))
+    cmp=cm.get_cmap(palette, len(ucolors))
     #print(cmp)
     if type(cmp) == matplotlib.colors.LinearSegmentedColormap:
         cmap = cmp(np.linspace(0, 1, len(ucolors)))
@@ -609,7 +636,7 @@ def complex_clustermap(df,
                        approx_clusternum_col=3,
                        color_var=0,
                        merginalsum=False,
-                       show=True,
+                       show=False,
                        method="ward",
                        return_col_cluster=True, 
                        **kwargs):
@@ -803,16 +830,17 @@ def complex_clustermap(df,
     
     """coloring the row dendrogram based on branch numbers crossed with the threshold"""
     if g.dendrogram_row != None:
-        lbranches=np.array(g.dendrogram_row.dendrogram["dcoord"])[:,:2]
-        rbranches=np.array(g.dendrogram_row.dendrogram["dcoord"])[:,2:]
-        thre=np.linspace(0, np.amax(g.dendrogram_row.dendrogram["dcoord"]), 100)[::-1]
-        for t in thre:
-            #print(np.sum(lbranches[:,1]>t),np.sum(rbranches[:,0]>t),np.sum(lbranches[:,0]>t),np.sum(rbranches[:,1]>t))
-            crossbranches=np.sum(lbranches[:,1]>t)+np.sum(rbranches[:,0]>t)-np.sum(lbranches[:,0]>t)-np.sum(rbranches[:,1]>t)
-            #print(crossbranches)
-            
-            if crossbranches>approx_clusternum:
-                break
+        t=_dendrogram_threshold(g.dendrogram_row.dendrogram)
+        # lbranches=np.array(g.dendrogram_row.dendrogram["dcoord"])[:,:2]
+        # rbranches=np.array(g.dendrogram_row.dendrogram["dcoord"])[:,2:]
+        # thre=np.linspace(0, np.amax(g.dendrogram_row.dendrogram["dcoord"]), 100)[::-1]
+        # for t in thre:
+        #     #print(np.sum(lbranches[:,1]>t),np.sum(rbranches[:,0]>t),np.sum(lbranches[:,0]>t),np.sum(rbranches[:,1]>t))
+        #     crossbranches=np.sum(lbranches[:,1]>t)+np.sum(rbranches[:,0]>t)-np.sum(lbranches[:,0]>t)-np.sum(rbranches[:,1]>t)
+        #     #print(crossbranches)
+        #
+        #     if crossbranches>approx_clusternum:
+        #         break
         
         den=hierarchy.dendrogram(g.dendrogram_row.linkage,
                                                  labels = g.data.index,
@@ -840,17 +868,17 @@ def complex_clustermap(df,
     
     
     """coloring the col dendrogram based on branch numbers crossed with the threshold"""
-    
-    lbranches=np.array(g.dendrogram_col.dendrogram["dcoord"])[:,:2]
-    rbranches=np.array(g.dendrogram_col.dendrogram["dcoord"])[:,2:]
-    thre=np.linspace(0, np.amax(g.dendrogram_col.dendrogram["dcoord"]), 100)[::-1]
-    for t in thre:
-        #print(np.sum(lbranches[:,1]>t),np.sum(rbranches[:,0]>t),np.sum(lbranches[:,0]>t),np.sum(rbranches[:,1]>t))
-        crossbranches=np.sum(lbranches[:,1]>t)+np.sum(rbranches[:,0]>t)-np.sum(lbranches[:,0]>t)-np.sum(rbranches[:,1]>t)
-        #print(crossbranches)
-        
-        if crossbranches>approx_clusternum_col:
-            break
+    t=_dendrogram_threshold(g.dendrogram_col.dendrogram)
+    # lbranches=np.array(g.dendrogram_col.dendrogram["dcoord"])[:,:2]
+    # rbranches=np.array(g.dendrogram_col.dendrogram["dcoord"])[:,2:]
+    # thre=np.linspace(0, np.amax(g.dendrogram_col.dendrogram["dcoord"]), 100)[::-1]
+    # for t in thre:
+    #     #print(np.sum(lbranches[:,1]>t),np.sum(rbranches[:,0]>t),np.sum(lbranches[:,0]>t),np.sum(rbranches[:,1]>t))
+    #     crossbranches=np.sum(lbranches[:,1]>t)+np.sum(rbranches[:,0]>t)-np.sum(lbranches[:,0]>t)-np.sum(rbranches[:,1]>t)
+    #     #print(crossbranches)
+    #
+    #     if crossbranches>approx_clusternum_col:
+    #         break
     
     den=hierarchy.dendrogram(g.dendrogram_col.linkage,
                                              labels = g.data.columns,
@@ -886,7 +914,10 @@ def complex_clustermap(df,
         return pd.DataFrame(cdata), g
 
 
-def triangle_heatmap(df, grid_pos=[],grid_labels=[],show=True):
+def triangle_heatmap(df, 
+                     grid_pos: list=[],
+                     grid_labels: list=[],
+                     show: bool=False):
     
     """
     Creating a heatmap with 45 degree rotation.
@@ -1002,12 +1033,20 @@ def triangle_heatmap(df, grid_pos=[],grid_labels=[],show=True):
     ax.spines['left'].set_visible(False)
     if show:
         plt.show()
-        
+    return ax
+    
+    
 from sklearn.decomposition import PCA, NMF
 import umap 
 from scipy.stats import zscore
 from itertools import combinations
-def decomplot(df,category: str="", method: str="pca", component: int=3,show=False, explained_variance=True) :
+def decomplot(df,category: str="", 
+              method: str="pca", 
+              component: int=3,
+              arrow_color: str="yellow",
+              arrow_text_color: str="black",
+              show: bool=False, 
+              explained_variance: bool=True) :
     
     """
     Decomposing data and drawing a scatter plot and some plots for explained variables. 
@@ -1027,6 +1066,8 @@ def decomplot(df,category: str="", method: str="pca", component: int=3,show=Fals
     
     Returns
     -------
+    
+    
     Raises
     ------
     Notes
@@ -1061,28 +1102,36 @@ def decomplot(df,category: str="", method: str="pca", component: int=3,show=Fals
             axes=[axes]
         else:
             fig, axes=plt.subplots(ncols=2, nrows=len(comb)//2+int(len(comb)%2!=0))
+            plt.subplots_adjust(top=0.9,right=0.8)
             axes=axes.flatten()
         loadings = pca.components_.T * np.sqrt(pca.explained_variance_)
+        combnum=0
         for (i, j), ax in zip(comb, axes):
             xlabel, ylabel='pc'+str(i+1), 'pc'+str(j+1)
             dfpc = pd.DataFrame(data = np.array([pccomp[:,i],pccomp[:,j]]).T, columns = [xlabel, ylabel])
             if category!="":
                 dfpc[category]=category_val
-                sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=category, ax=ax)
+                if combnum==1:
+                    sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=category, ax=ax)
+                    ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0)
+                else:
+                    sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=category, ax=ax,
+                                    legend=False)
             else:
                 sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, ax=ax)
             _loadings=np.array([loadings[:,i],loadings[:,j]]).T
             a=np.sum(_loadings**2, axis=1)
-            srtindx=np.argsort(a)[::-1]
+            srtindx=np.argsort(a)[::-1][:3]
             _loadings=_loadings[srtindx]
             _features=np.array(features)[srtindx]
             for k, feature in enumerate(_features):
                 
-                ax.plot([0,_loadings[k, 0] ], [0,_loadings[k, 1] ],color="gray")
-                ax.text(_loadings[k, 0],_loadings[k, 1],feature,color="gray")
+                ax.plot([0,_loadings[k, 0] ], [0,_loadings[k, 1] ],color=arrow_color)
+                ax.text(_loadings[k, 0],_loadings[k, 1],feature,color=arrow_text_color)
     
             dfpc_list.append(dfpc)
-        
+            combnum+=1
+        plt.tight_layout(pad=0.5)
         if explained_variance==True:
             fig, ax=plt.subplots()
             exp_var_pca = pca.explained_variance_ratio_
@@ -1120,7 +1169,7 @@ def decomplot(df,category: str="", method: str="pca", component: int=3,show=Fals
         fig.tight_layout()
         
         if explained_variance==True:
-            fig, axes=plt.subplots(nrows=component, figsize=[5,8])
+            fig, axes=plt.subplots(nrows=component, figsize=[5,5])
             axes=axes.flatten()
             for i, ax in enumerate(axes):
                 if i==0:
@@ -1265,6 +1314,10 @@ def manifoldplot(df,category="", method="tsne",n_components=2,n_neighbors=4, sho
         embedding=NeighborhoodComponentsAnalysis(
             n_components=n_components, init="pca", random_state=0
         )
+    elif method=="umap": 
+        embedding=umap.UMAP(
+            min_dist=0.25,n_neighbors=15
+        )
     else:
         raise Exception(f"Medthod {method} does not exist.")
     Xt=embedding.fit_transform(x)
@@ -1278,8 +1331,188 @@ def manifoldplot(df,category="", method="tsne",n_components=2,n_neighbors=4, sho
     if show==True:
         plt.show()
     return dft, ax
-def clusterplot():
-    pass
+
+def clusterplot(df,category: str="", 
+              method: str="kmeans",
+              x: str="",
+              y: str="",
+              reduce_dimension: str="umap", 
+              n_clusters: Union[str , int]=3,
+              testrange=[1,20],
+              show: bool=False,
+              min_dist: float=0.25,
+              n_neighbors: int=15,
+              pcacomponent: Optional[int]=None):
+    if category !="":
+        category_val=df[category].values
+        df=df.drop([category], axis=1)
+        X = df.values
+        assert X.dtype==float, f"data must contain only float values except {category} column."
+        
+    else:    
+        X = df.values
+        assert X.dtype==float, "data must contain only float values."
+    
+    
+    X=zscore(X, axis=0)
+    if pcacomponent==None:
+            
+        if 20<X.shape[1]:
+            pcacomponent=20
+        elif 10<X.shape[1]:
+            pcacomponent=10
+        else:
+            pcacomponent=2
+    pca=PCA(n_components=pcacomponent, random_state=1)
+    xpca=pca.fit_transform(X)
+    
+    if reduce_dimension=="umap":
+        import umap
+        u=umap.UMAP(random_state=42, min_dist=min_dist,n_neighbors=n_neighbors)
+        X=u.fit_transform(xpca)
+    
+    if n_clusters=="auto" and method=="kmeans":
+        Sum_of_squared_distances = []
+        K = list(range(*testrange))
+        for k in K:
+            km = KMeans(n_clusters=k)
+            km = km.fit(X)
+            Sum_of_squared_distances.append(km.inertia_)
+        normy=np.array(Sum_of_squared_distances)/np.amax(Sum_of_squared_distances)
+        normy=1-normy
+        normx=np.linspace(0,1, len(K))
+        perp=[]
+        for i, (nx, ny) in enumerate(zip(normx, normy)):
+            if i==0:
+                perp.append(0)
+                continue
+            r=(nx**2+ny**2)**0.5
+            sina=ny/r
+            cosa=nx/r
+            sinamb=sina*np.cos(np.pi*0.25)-cosa*np.sin(np.pi*0.25)
+            perp.append(r*sinamb)
+        perp=np.array(perp)
+        srtindex=np.argsort(perp)[::-1]
+        
+        
+        plt.subplots()
+        plt.plot(K, Sum_of_squared_distances, '-', label='Sum of squared distances')
+        plt.plot(K, perp*np.amax(Sum_of_squared_distances), label="curveture")
+        
+        plt.plot([K[srtindex[0]],K[srtindex[0]]],[0,np.amax(Sum_of_squared_distances)], "--", color="r")
+        plt.text(K[srtindex[0]], np.amax(Sum_of_squared_distances)*0.95, "K="+str(K[srtindex[0]]))
+        plt.plot([K[srtindex[1]],K[srtindex[1]]],[0,np.amax(Sum_of_squared_distances)], "--", color="r")
+        plt.text(K[srtindex[1]], np.amax(Sum_of_squared_distances)*0.95, "K="+str(K[srtindex[1]]))
+        plt.xticks(K)
+        plt.xlabel('K')
+        plt.ylabel('Sum of squared distances')
+        plt.title('Elbow method for optimal K')    
+        
+        print("Top two optimal Ks are: {}, {}".format(K[srtindex[0]],K[srtindex[1]]))
+        n_clusters=[K[srtindex[0]],K[srtindex[1]]]
+    elif n_clusters=="auto" and method=="hierarchical":
+        import scipy.spatial.distance as ssd
+        
+        labels=df.index
+        D=ssd.squareform(ssd.pdist(xpca))
+        Y = sch.linkage(D, method='ward')
+        Z = sch.dendrogram(Y,labels=labels,no_plot=True)
+        scores=[]
+        K = list(range(*testrange))
+        newK=[]
+        for k in K:
+            t=_dendrogram_threshold(Z, k)
+            Z2=sch.dendrogram(Y,
+                                labels = labels,
+                                color_threshold=t,no_plot=True) 
+            clusters=_get_cluster_classes(Z2, label='ivl')
+            _k=len(clusters)
+            if not _k in newK:
+                newK.append(_k)
+                sample2cluster={}
+                i=1
+                for k, v in clusters.items():
+                    for sample in v:
+                        sample2cluster[sample]="C"+str(i)
+                    i+=1
+                scores.append(silhouette_score(X, [sample2cluster[sample] for sample in labels], metric = 'euclidean'))
+        print(scores)
+        scores=np.array(scores)
+        srtindex=np.argsort(scores)[::-1]
+        
+        
+        plt.subplots()
+        plt.plot(newK, scores, '-')
+        
+        plt.plot([newK[srtindex[0]],newK[srtindex[0]]],[0,np.amax(scores)], "--", color="r")
+        plt.text(newK[srtindex[0]], np.amax(scores)*0.95, "K="+str(newK[srtindex[0]]))
+        plt.plot([newK[srtindex[1]],newK[srtindex[1]]],[0,np.amax(scores)], "--", color="r")
+        plt.text(newK[srtindex[1]], np.amax(scores)*0.95, "K="+str(newK[srtindex[1]]))
+        plt.xticks(newK)
+        plt.xlabel('K')
+        plt.ylabel('Silhouette scores')
+        plt.title('Optimal K searches by silhouette method')    
+        
+        print("Top two optimal Ks are: {}, {}".format(newK[srtindex[0]],newK[srtindex[1]]))
+        n_clusters=[newK[srtindex[0]],newK[srtindex[1]]]
+    else:
+        n_clusters=[n_clusters]
+    if method=="kmeans":
+        dfnews=[]
+        if reduce_dimension=="umap":
+            x="UMAP1"
+            y="UMAP2"
+        for nc in n_clusters:
+            kmean = KMeans(n_clusters=nc, random_state=0)
+            kmX=kmean.fit(X)
+            labels=np.unique(kmX.labels_)
+            
+            dfnew=pd.DataFrame(data = np.array([X[:,0],X[:,1]]).T, columns = [x, y])
+            dfnew["kmeans"]=kmX.labels_
+            dfnews.append(dfnew)
+        hue="kmeans"
+        
+    elif method=="hierarchical":
+        import scipy.spatial.distance as ssd
+        labels=df.index
+        D=ssd.squareform(ssd.pdist(xpca))
+        Y = sch.linkage(D, method='ward')
+        Z = sch.dendrogram(Y,labels=labels,no_plot=True)
+        if reduce_dimension=="umap":
+            x="UMAP1"
+            y="UMAP2"
+        dfnews=[]
+        for nc in n_clusters:
+            t=_dendrogram_threshold(Z, nc)
+            Z2=sch.dendrogram(Y,
+                                labels = labels,
+                                color_threshold=t,no_plot=True) 
+            clusters=_get_cluster_classes(Z2, label='ivl')
+            sample2cluster={}
+            i=1
+            for k, v in clusters.items():
+                for sample in v:
+                    sample2cluster[sample]="C"+str(i)
+                i+=1
+                
+            dfnew=pd.DataFrame(data = np.array([X[:,0],X[:,1]]).T, columns = [x, y])
+            dfnew["hierarchical"]=[sample2cluster[sample] for sample in labels]       
+            dfnews.append(dfnew)
+        hue="hierarchical"
+    for dfnew, K in zip(dfnews, n_clusters): 
+        if category=="":
+            axnum=1
+            fig, ax=plt.subplots(ncols=1, figsize=[8,3])
+            ax=[ax]
+        else:
+            fig, ax=plt.subplots(ncols=2)
+        sns.scatterplot(data=dfnew,x=x,y=y,hue=hue, ax=ax[0], palette="colorblind")
+        ax[0].set_title("Cluster number="+str(K))
+        if category !="":
+            dfnew[category]=category_val
+            sns.scatterplot(data=dfnew,x=x,y=y,hue=category, ax=ax[1], palette="muted")
+    
+    return dfnew
 
 def volcanoplot():
     pass
@@ -1297,8 +1530,8 @@ if __name__=="__main__":
     test="manifold"
     test="triangle_heatmap"
     test="radialtree"
-    test="manifold"
-    
+    test="decomp"
+    test="cluster"
     if test=="dotplot":
         # df=pd.read_csv("/home/koh/ews/idr_revision/clustering_analysis/cellloc_pval_co.csv",index_col=0)
         # dfc=pd.read_csv("/home/koh/ews/idr_revision/clustering_analysis/cellloc_odds_co.csv",index_col=0)
@@ -1351,7 +1584,7 @@ if __name__=="__main__":
         df=df.dropna(axis=0)
         features=["species","bill_length_mm","bill_depth_mm","flipper_length_mm","body_mass_g"]
         df=df[features]
-        decomplot(df,category="species",method="nmf")
+        decomplot(df,category="species",method="pca")
         plt.show()
     elif test=="manifold":
         df=sns.load_dataset("penguins")
@@ -1359,4 +1592,11 @@ if __name__=="__main__":
         features=["species","bill_length_mm","bill_depth_mm","flipper_length_mm","body_mass_g"]
         df=df[features]
         manifoldplot(df,category="species",method="tsne")
+        plt.show()
+    elif test=="cluster":
+        df=sns.load_dataset("penguins")
+        df=df.dropna(axis=0)
+        features=["species","bill_length_mm","bill_depth_mm","flipper_length_mm","body_mass_g"]
+        df=df[features]
+        clusterplot(df,category="species",method="hierarchical",n_clusters="auto")
         plt.show()
