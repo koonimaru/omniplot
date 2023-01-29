@@ -82,7 +82,7 @@ def pienodes(g,
     else:
         raise Exception("Unknown pie_palette type.")
     fig, ax = plt.subplots(figsize=[8,8])
-    
+    plt.subplots_adjust(right=0.8)
     mgd=igraph_classes.MatplotlibGraphDrawer(ax)
     mgd.draw(g,vertex_size=0.02,**kwargs)
     trans=ax.transData.transform
