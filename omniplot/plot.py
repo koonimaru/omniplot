@@ -45,11 +45,31 @@ import matplotlib as mpl
 from sklearn.cluster import KMeans, DBSCAN
 from sklearn.metrics import silhouette_score
 from scipy.spatial.distance import pdist, squareform
+
+from sklearn.decomposition import PCA, NMF
+import umap 
+from scipy.stats import zscore
+from itertools import combinations
+
 colormap_list=["nipy_spectral", "terrain","tab20b","gist_rainbow","CMRmap","coolwarm","gnuplot","gist_stern","brg","rainbow"]
 plt.rcParams['font.family']= 'sans-serif'
 plt.rcParams['font.sans-serif'] = ['Arial']
 plt.rcParams['svg.fonttype'] = 'none'
 sns.set_theme()
+
+def _calc_curveture(normx, normy):
+    perp=[]
+    for i, (nx, ny) in enumerate(zip(normx, normy)):
+        if i==0:
+            perp.append(0)
+            continue
+        r=(nx**2+ny**2)**0.5
+        sina=ny/r
+        cosa=nx/r
+        sinamb=sina*np.cos(np.pi*0.25)-cosa*np.sin(np.pi*0.25)
+        perp.append(r*sinamb)
+    perp=np.array(perp)
+    return perp
 
 def _get_cluster_classes(den, label='ivl'):
     cluster_idxs = defaultdict(list)
@@ -940,10 +960,11 @@ def complex_clustermap(df,
     
     if show:
         plt.show()
-    if return_col_cluster==True:
-        return pd.DataFrame(cdata), pd.DataFrame(col_cdata), g
     else:
-        return pd.DataFrame(cdata), g
+        if return_col_cluster==True:
+            return pd.DataFrame(cdata), pd.DataFrame(col_cdata), g
+        else:
+            return pd.DataFrame(cdata), g
 
 
 def triangle_heatmap(df, 
@@ -1068,10 +1089,7 @@ def triangle_heatmap(df,
     return ax
     
     
-from sklearn.decomposition import PCA, NMF
-import umap 
-from scipy.stats import zscore
-from itertools import combinations
+
 def decomplot(df,category: str="", 
               method: str="pca", 
               component: int=3,
@@ -1382,7 +1400,10 @@ def clusterplot(df,category: str="",
               show: bool=False,
               min_dist: float=0.25,
               n_neighbors: int=15,
-              pcacomponent: Optional[int]=None):
+              eps: Union[List[float], float]=0.5,
+              pcacomponent: Optional[int]=None,
+              ztranform=True,
+              palette=["Spectral","cubehelix"]):
     """
     Clustering data and draw them as a scatter plot optionally with dimensionality reduction.  
     
@@ -1399,7 +1420,10 @@ def clusterplot(df,category: str="",
                             "dbscan",
                             ]
     n_clusters: int or str
-        The number of clusters to be created. If "auto" is provided, it will estimate optimal cluster numbers. 
+        The number of clusters to be created. If "auto" is provided, it will estimate optimal 
+        cluster numbers with "Sum of squared distances" for k-mean clustering and silhouette method for others. 
+    eps: int or list[int]
+        DBSCAN's hyper parameter. It will affect the total number of clusters. 
     reduce_dimension: str
         Dimensionality reduction method. Default: umap. 
         if "" is passed, no reduction methods are applied. In this case, data must be 2 dimention or x and y options must be specified.
@@ -1434,8 +1458,8 @@ def clusterplot(df,category: str="",
         X = df.values
         assert X.dtype==float, "data must contain only float values."
     
-    
-    X=zscore(X, axis=0)
+    if ztranform:
+        X=zscore(X, axis=0)
     if pcacomponent==None:
             
         if 20<X.shape[1]:
@@ -1462,32 +1486,33 @@ def clusterplot(df,category: str="",
         normy=np.array(Sum_of_squared_distances)/np.amax(Sum_of_squared_distances)
         normy=1-normy
         normx=np.linspace(0,1, len(K))
-        perp=[]
-        for i, (nx, ny) in enumerate(zip(normx, normy)):
-            if i==0:
-                perp.append(0)
-                continue
-            r=(nx**2+ny**2)**0.5
-            sina=ny/r
-            cosa=nx/r
-            sinamb=sina*np.cos(np.pi*0.25)-cosa*np.sin(np.pi*0.25)
-            perp.append(r*sinamb)
-        perp=np.array(perp)
+        perp=_calc_curveture(normx, normy)
+        # perp=[]
+        # for i, (nx, ny) in enumerate(zip(normx, normy)):
+        #     if i==0:
+        #         perp.append(0)
+        #         continue
+        #     r=(nx**2+ny**2)**0.5
+        #     sina=ny/r
+        #     cosa=nx/r
+        #     sinamb=sina*np.cos(np.pi*0.25)-cosa*np.sin(np.pi*0.25)
+        #     perp.append(r*sinamb)
+        # perp=np.array(perp)
         srtindex=np.argsort(perp)[::-1]
         plt.subplots()
         plt.plot(K, Sum_of_squared_distances, '-', label='Sum of squared distances')
         plt.plot(K, perp*np.amax(Sum_of_squared_distances), label="curveture")
         
         plt.plot([K[srtindex[0]],K[srtindex[0]]],[0,np.amax(Sum_of_squared_distances)], "--", color="r")
-        plt.text(K[srtindex[0]], np.amax(Sum_of_squared_distances)*0.95, "K="+str(K[srtindex[0]]))
+        plt.text(K[srtindex[0]], np.amax(Sum_of_squared_distances)*0.95, "N="+str(K[srtindex[0]]))
         plt.plot([K[srtindex[1]],K[srtindex[1]]],[0,np.amax(Sum_of_squared_distances)], "--", color="r")
-        plt.text(K[srtindex[1]], np.amax(Sum_of_squared_distances)*0.95, "K="+str(K[srtindex[1]]))
+        plt.text(K[srtindex[1]], np.amax(Sum_of_squared_distances)*0.95, "N="+str(K[srtindex[1]]))
         plt.xticks(K)
         plt.xlabel('K')
         plt.ylabel('Sum of squared distances')
-        plt.title('Elbow method for optimal K')    
+        plt.title('Elbow method for optimal cluster number')    
         
-        print("Top two optimal Ks are: {}, {}".format(K[srtindex[0]],K[srtindex[1]]))
+        print("Top two optimal No are: {}, {}".format(K[srtindex[0]],K[srtindex[1]]))
         n_clusters=[K[srtindex[0]],K[srtindex[1]]]
     elif n_clusters=="auto" and method=="hierarchical":
         import scipy.spatial.distance as ssd
@@ -1496,9 +1521,10 @@ def clusterplot(df,category: str="",
         D=ssd.squareform(ssd.pdist(xpca))
         Y = sch.linkage(D, method='ward')
         Z = sch.dendrogram(Y,labels=labels,no_plot=True)
-        scores=[]
+        
         K = list(range(*testrange))
         newK=[]
+        scores=[]
         for k in K:
             t=_dendrogram_threshold(Z, k)
             Z2=sch.dendrogram(Y,
@@ -1514,27 +1540,76 @@ def clusterplot(df,category: str="",
                     for sample in v:
                         sample2cluster[sample]="C"+str(i)
                     i+=1
-                scores.append(silhouette_score(X, [sample2cluster[sample] for sample in labels], metric = 'euclidean'))
+                scores.append(silhouette_score(X, [sample2cluster[sample] for sample in labels], metric = 'euclidean')/_k)
         print(scores)
         scores=np.array(scores)
         srtindex=np.argsort(scores)[::-1]
         plt.subplots()
         plt.plot(newK, scores, '-')
         plt.plot([newK[srtindex[0]],newK[srtindex[0]]],[0,np.amax(scores)], "--", color="r")
-        plt.text(newK[srtindex[0]], np.amax(scores)*0.95, "K="+str(newK[srtindex[0]]))
+        plt.text(newK[srtindex[0]], np.amax(scores)*0.95, "N="+str(newK[srtindex[0]]))
         plt.plot([newK[srtindex[1]],newK[srtindex[1]]],[0,np.amax(scores)], "--", color="r")
-        plt.text(newK[srtindex[1]], np.amax(scores)*0.95, "K="+str(newK[srtindex[1]]))
+        plt.text(newK[srtindex[1]], np.amax(scores)*0.95, "N="+str(newK[srtindex[1]]))
         plt.xticks(newK)
         plt.xlabel('K')
         plt.ylabel('Silhouette scores')
-        plt.title('Optimal K searches by silhouette method')    
+        plt.title('Optimal cluster number searches by silhouette method')    
         
-        print("Top two optimal Ks are: {}, {}".format(newK[srtindex[0]],newK[srtindex[1]]))
+        print("Top two optimal No are: {}, {}".format(newK[srtindex[0]],newK[srtindex[1]]))
         n_clusters=[newK[srtindex[0]],newK[srtindex[1]]]
         
     elif n_clusters=="auto" and method=="dbscan":
-        pass
-    
+        # import scipy.spatial.distance as ssd
+        # D=ssd.pdist(X)
+        #
+        from sklearn.neighbors import NearestNeighbors
+        neigh = NearestNeighbors(n_neighbors=2)
+        nbrs = neigh.fit(X)
+        distances, indices = nbrs.kneighbors(X)
+        distances = np.sort(distances[:,1], axis=0)
+        #
+        # plt.plot(distances)
+        # plt.show()
+        # sys.exit()
+        print(np.amin(distances), np.amax(distances))
+        K=np.linspace(np.amin(distances), np.amax(distances),20)
+        newK=[]
+        scores=[]
+        _K=[]
+        for k in K:
+            db = DBSCAN(eps=k, min_samples=5, n_jobs=-1)
+            dbX=db.fit(X)
+            labels=np.unique(dbX.labels_[dbX.labels_>=0])
+            print(k,labels)
+            if len(labels)<2:
+                continue
+            _k=len(labels)
+            if not _k in newK:
+                newK.append(_k)
+                _K.append(k)
+                scores.append(silhouette_score(X[dbX.labels_>=0], dbX.labels_[dbX.labels_>=0], metric = 'euclidean')/_k)
+        print(scores)
+        scores=np.array(scores)
+        
+        _ksort=np.argsort(newK)
+        _K=np.array(_K)[_ksort]
+        newK=np.array(newK)[_ksort]
+        scores=np.array(scores)[_ksort]
+        srtindex=np.argsort(scores)[::-1]
+        plt.subplots()
+        plt.plot(newK, scores, '-')
+        plt.plot([newK[srtindex[0]],newK[srtindex[0]]],[0,np.amax(scores)], "--", color="r")
+        plt.text(newK[srtindex[0]], np.amax(scores)*0.95, "N="+str(newK[srtindex[0]]))
+        plt.plot([newK[srtindex[1]],newK[srtindex[1]]],[0,np.amax(scores)], "--", color="r")
+        plt.text(newK[srtindex[1]], np.amax(scores)*0.95, "N="+str(newK[srtindex[1]]))
+        plt.xticks(newK)
+        plt.xlabel('eps')
+        plt.ylabel('Silhouette scores')
+        plt.title('Optimal cluster number searches by silhouette method')    
+        
+        print("Top two optimal No are: {}, {}".format(newK[srtindex[0]],newK[srtindex[1]]))
+        eps=[_K[srtindex[0]],_K[srtindex[1]]]
+        
     else:
         n_clusters=[n_clusters]
     if method=="kmeans":
@@ -1584,37 +1659,178 @@ def clusterplot(df,category: str="",
         if reduce_dimension=="umap":
             x="UMAP1"
             y="UMAP2"
-        for nc in n_clusters:
-            db = DBSCAN(eps=1, min_samples=5, n_jobs=-1)
+        if type(eps)==float:
+            eps=[eps]
+        n_clusters=[]
+        for e in eps:
+            db = DBSCAN(eps=e, min_samples=5, n_jobs=-1)
             dbX=db.fit(X)
             labels=np.unique(dbX.labels_)
             
             dfnew=pd.DataFrame(data = np.array([X[:,0],X[:,1]]).T, columns = [x, y])
             dfnew["dbscan"]=dbX.labels_
             dfnews.append(dfnew)
+            tmp=0
+            for c in set(dbX.labels_):
+                if c >=0:
+                    tmp+=1
+            n_clusters.append(str(tmp)+", eps="+str(np.round(e,2)))
+            
+            
         hue="dbscan"
     _dfnews={}
     for dfnew, K in zip(dfnews, n_clusters): 
         if category=="":
             axnum=1
-            fig, ax=plt.subplots(ncols=1, figsize=[8,3])
+            fig, ax=plt.subplots(ncols=1, figsize=[4,4])
             ax=[ax]
         else:
-            fig, ax=plt.subplots(ncols=2)
-        sns.scatterplot(data=dfnew,x=x,y=y,hue=hue, ax=ax[0], palette="colorblind")
+            fig, ax=plt.subplots(ncols=2, figsize=[8,4])
+        sns.scatterplot(data=dfnew,x=x,y=y,hue=hue, ax=ax[0], palette=palette[0])
         ax[0].set_title("Cluster number="+str(K))
         if category !="":
             dfnew[category]=category_val
-            sns.scatterplot(data=dfnew,x=x,y=y,hue=category, ax=ax[1], palette="muted")
+            sns.scatterplot(data=dfnew,x=x,y=y,hue=category, ax=ax[1], palette=palette[1])
         _dfnews[K]=dfnew 
     return _dfnews
 
 def volcanoplot():
     pass
 
-def boxplot():
-    pass
-
+def violinplot(df, 
+               x: Optional[str]=None, 
+               y: Optional[str]=None,
+               pairs: list=[], 
+               test: str="ttest_ind",
+               alternative: str="two-sided",
+               significance: str="numeric",
+               significance_ranges: Dict[str, float]={"*":-np.log10(0.05),"**":4,"***":10},
+               swarm: bool=False,
+               xorder: list=[],
+               equal_var: bool=False,**kwargs):
+    """
+    Draw a boxplot with a statistical test 
+    
+    Parameters
+    ----------
+    df : pandas DataFrame
+    
+    x,y: str
+        names of variables in data
+    pairs: list, optional
+        Category pairs for the statistical test.
+        Examples: [["Adelie","Chinstrap" ],
+                    ["Gentoo","Chinstrap" ],
+                    ["Adelie","Gentoo" ]]
+    test: str, optional
+        Method name for the statistical test. Defalt: ttest_ind
+        Available methods: ["ttest_ind",
+                            "ttest_rel",
+                            "kruskal",
+                            "mannwhitneyu",
+                            "wilcoxon",
+                            "brunnermunzel",
+                            "median_test"]
+    alternative: str ['two-sided', 'less', 'greater'], optional
+        Defines the alternative hypothesis. Defalt: "two-sided"
+    
+    show : bool, optional
+        Whether or not to show the figure.
+    significance: str ['numeric', 'symbol'], optional
+        How to show the significance. 'numeric' will show -log10(p values) in the plot and 
+        'symbol' will represent significance as asterisks.
+    significance_ranges: dict, optional 
+        thresholds of -log10(p values) that each asterisk number represents. Ignored when  significance="numeric".
+        example: {"*":-np.log10(0.05),"**":4,"***":10}
+    swarm: bool, optional
+        Whether or not to superpose a swarm plot. Not recommended if the sample size is too large.
+    xorder: list, optional
+        The order of x axis labels
+    equal_var: bool, optional
+        Related to ttest_ind method. The default is True, which will produce a p value equal to t-test in R.
+    kwargs: any options accepted by scipy statistical test functions
+    
+     
+    Returns
+    -------
+    dict("p values":pvalues,"ax":ax)
+    
+    Raises
+    ------
+    Notes
+    -----
+    References
+    ----------
+    See Also
+    --------
+    Examples
+    --------
+    """
+    tests=["ttest_ind","ttest_rel","kruskal","mannwhitneyu","wilcoxon","brunnermunzel","median_test"]
+    
+    import scipy.stats as stats
+    if len(xorder)==0:
+        xorder=sorted(list(set(df[x])))
+    pvals=[]
+    for p1,p2 in pairs:
+        
+        statstest=getattr(stats, test)
+        if test=="wilcoxon" or test=="ttest_rel":
+            _, pval,_=statstest(df[y][df[x]==p1],df[y][df[x]==p2],alternative=alternative,**kwargs)
+        elif test=="median_test":
+            _, pval,_,_=statstest(df[y][df[x]==p1],df[y][df[x]==p2],alternative=alternative,**kwargs)
+        elif test=="ttest_ind":
+            _, pval=statstest(df[y][df[x]==p1],df[y][df[x]==p2],alternative=alternative,equal_var=equal_var,**kwargs)
+        
+        else:
+            _, pval=statstest(df[y][df[x]==p1],df[y][df[x]==p2],alternative=alternative,**kwargs)
+        
+        p1ind=xorder.index(p1)
+        p2ind=xorder.index(p2)
+        if pval==0:
+            pval=np.inf
+        else:
+            pval=-np.log10(pval)
+        pvals.append([np.abs(p2ind-p1ind), np.amin([p2ind, p1ind]),np.amax([p2ind, p1ind]), pval])
+    pvals = sorted(pvals, key = lambda x: (x[0], x[1]))
+        
+    fig, ax=plt.subplots()
+    sns.violinplot(data=df, x=x,y=y,inner="quartile")
+    if swarm==True:
+        sns.swarmplot(data=df, x=x,y=y,color="black",alpha=0.5)
+    ymax=np.amax(df[y])
+    newpvals={}
+    for i, pval in enumerate(pvals):
+        plt.plot([pval[1],pval[2]], [ymax*(1.05+i*0.05),ymax*(1.05+i*0.05)], color="black")
+        p=np.round(pval[-1],2)
+        
+        newpvals[xorder[pval[1]]+"_"+xorder[pval[2]]]=p
+        if significance=="numeric":
+            annotate="-log10(p)="+str(p)
+        elif significance=="symbol":
+            keys=sorted(significance_ranges.keys())
+            annotate="NA"
+            for j in range(len(keys)):
+                if j==0:
+                    if p <= significance_ranges[keys[j]]:
+                        annotate=""
+                        break
+                else:
+                    if significance_ranges[keys[j-1]] < p <=significance_ranges[keys[j]]:
+                        annotate=keys[i]
+                        break
+            if annotate=="NA":
+                annotate=keys[-1]
+        plt.text((pval[1]+pval[2])/2, ymax*(1.055+i*0.05), annotate)
+    if significance=="symbol":
+        ax.annotate("\n".join(["{}: p < {:.2E}".format(k, 10**(-significance_ranges[k])) for k in keys]),
+            xy=(0.9,0.9), xycoords='axes fraction',
+            textcoords='offset points',
+            size=12,
+            bbox=dict(boxstyle="round", fc=(0.9, 0.9, 0.9), ec="none"))
+        plt.subplots_adjust(right=0.850)
+    
+    return {"p values":newpvals,"ax":ax}
 if __name__=="__main__":
     
     
@@ -1624,10 +1840,10 @@ if __name__=="__main__":
     test="decomp"
     test="manifold"
     test="triangle_heatmap"
-    
-    test="cluster"
     test="radialtree"
     test="decomp"
+    test="cluster"
+    test="violinplot"
     if test=="dotplot":
         # df=pd.read_csv("/home/koh/ews/idr_revision/clustering_analysis/cellloc_pval_co.csv",index_col=0)
         # dfc=pd.read_csv("/home/koh/ews/idr_revision/clustering_analysis/cellloc_odds_co.csv",index_col=0)
@@ -1660,21 +1876,6 @@ if __name__=="__main__":
                            approx_clusternum=3,
                            merginalsum=True)
     elif test=="radialtree":
-        # np.random.seed(1)
-        # numleaf=100
-        # _alphabets=[chr(i) for i in range(97, 97+24)]
-        # labels=sorted(["".join(list(np.random.choice(_alphabets, 10))) for i in range(numleaf)])
-        # x = np.random.rand(numleaf)
-        # D = np.zeros([numleaf,numleaf])
-        # for i in range(numleaf):
-        #     for j in range(numleaf):
-        #         D[i,j] = abs(x[i] - x[j])
-        # Y = sch.linkage(D, method='single')
-        # Z2 = sch.dendrogram(Y,labels=labels,no_plot=True)
-        # type_num=6
-        # type_list=["ex"+str(i) for i in range(type_num)]
-        # sample_classes={"example_color": [np.random.choice(type_list) for i in range(numleaf)]}
-        # radialtree(Z2, sample_classes=sample_classes)
         df=sns.load_dataset("penguins")
         df=df.dropna(axis=0)
         radialtree(df, category=["species","island","sex"])
@@ -1698,5 +1899,16 @@ if __name__=="__main__":
         df=df.dropna(axis=0)
         features=["species","bill_length_mm","bill_depth_mm","flipper_length_mm","body_mass_g"]
         df=df[features]
-        clusterplot(df,category="species",method="dbscan",n_clusters="auto")
+        clusterplot(df,category="species",method="hierarchical",n_clusters="auto")
+        #clusterplot(df,category="species",method="dbscan",eps=0.35)
         plt.show()
+    elif test=="violinplot":
+        df=sns.load_dataset("penguins")
+        df=df.dropna(axis=0)
+        violinplot(df,x="species",y="bill_length_mm", 
+                   pairs=[["Adelie","Chinstrap" ],["Gentoo","Chinstrap" ],["Adelie","Gentoo" ]],
+                   test="mannwhitneyu",
+                   significance="symbol",swarm=True)
+        plt.show()
+        
+        
