@@ -727,7 +727,7 @@ def _radialtree2(Z2,fontsize: int=8,
         plt.plot([_xr2, _xr3], [_yr2,_yr3], c=_color,linewidth=linewidth, rasterized=True)
         
         #plotting circular links between nodes
-        lineres=int(np.abs(xinterval[0]-xinterval[1])*_lineres)
+        lineres=np.amax([int(np.abs(xinterval[0]-xinterval[1])*_lineres),10])
         if _yr1> 0 and _yr2>0:
             link=np.sqrt(r[1]**2-np.linspace(_xr1, _xr2, lineres)**2)
             plt.plot(np.linspace(_xr1, _xr2, lineres), link, c=_color,linewidth=linewidth, rasterized=True)

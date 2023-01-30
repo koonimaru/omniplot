@@ -1,3 +1,5 @@
+[![omniplot logo][logo-image]]
+
 # omniplot
 
 ## What is omniplot
@@ -70,3 +72,5 @@ keep_aspect_ratio=True)
 plt.show()
 
 ```
+
+[logo-image]: images/logo.png
