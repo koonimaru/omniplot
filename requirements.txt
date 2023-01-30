@@ -2,3 +2,8 @@ numpy
 matplotlib
 scipy
 fastcluster
+pandas
+seaborn
+sklearn
+umap-learn
+igraph
