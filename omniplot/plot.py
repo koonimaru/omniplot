@@ -2090,9 +2090,11 @@ if __name__=="__main__":
     test="triangle_heatmap"
     
     test="decomp"
+    
+    
+    test="radialtree"
     test="cluster"
     test="violinplot"
-    test="radialtree"
     if test=="dotplot":
         # df=pd.read_csv("/home/koh/ews/idr_revision/clustering_analysis/cellloc_pval_co.csv",index_col=0)
         # dfc=pd.read_csv("/home/koh/ews/idr_revision/clustering_analysis/cellloc_odds_co.csv",index_col=0)
@@ -2148,7 +2150,7 @@ if __name__=="__main__":
         df=df.dropna(axis=0)
         features=["species","bill_length_mm","bill_depth_mm","flipper_length_mm","body_mass_g"]
         df=df[features]
-        clusterplot(df,category="species",method="hierarchical",n_clusters="auto")
+        clusterplot(df,category="species",method="kmeans",n_clusters="auto")
         #clusterplot(df,category="species",method="dbscan",eps=0.35)
         plt.show()
     elif test=="violinplot":

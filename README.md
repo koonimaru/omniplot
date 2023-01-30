@@ -1,4 +1,4 @@
-[![omniplot logo][logo-image]]
+![omniplot logo][logo-image]
 
 # omniplot
 
