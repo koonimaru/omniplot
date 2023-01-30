@@ -128,6 +128,11 @@ def pienodes(g,
     ax.legend(handles=legend_elements,bbox_to_anchor=(0.95, 1))
     return ax
 
+def sankey():
+    
+    pass
+
+
 if __name__=="__main__":
     edges=[[0,0],[0,1],[0,2],[2,1],[2,3],[3,4]]
     edge_width=[1 for i in range(len(edges))]
