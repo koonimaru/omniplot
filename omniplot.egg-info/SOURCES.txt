@@ -5,6 +5,7 @@ omniplot/chipseq.py
 omniplot/igraph_classes.py
 omniplot/networkplot.py
 omniplot/plot.py
+omniplot/utils.py
 omniplot.egg-info/PKG-INFO
 omniplot.egg-info/SOURCES.txt
 omniplot.egg-info/dependency_links.txt
