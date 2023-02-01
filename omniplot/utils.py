@@ -10,6 +10,7 @@ from matplotlib.lines import Line2D
 from scipy.cluster.hierarchy import leaves_list
 from matplotlib import cm
 from scipy.cluster import hierarchy
+import scipy.stats as stats
 colormap_list=["nipy_spectral", "terrain","tab20b","gist_rainbow","CMRmap","coolwarm","gnuplot","gist_stern","brg","rainbow"]
 plt.rcParams['font.family']= 'sans-serif'
 plt.rcParams['font.sans-serif'] = ['Arial']
@@ -643,3 +644,41 @@ def _complex_clustermap(df,row_plot=[],col_plot=[],approx_clusternum=10,color_va
     if show:
         plt.show()
     return pd.DataFrame(cdata), g
+
+def calc_r2(X,Y):
+    x_mean = np.mean(X)
+    y_mean = np.mean(Y)
+    numerator = np.sum((X - x_mean)*(Y - y_mean))
+    denominator = ( np.sum((X - x_mean)**2) * np.sum((Y - y_mean)**2) )**.5
+    correlation_coef = numerator / denominator
+    r2 = correlation_coef**2
+    return r2
+
+def ci_pi(X,Y, plotline_X, y_model):
+    x_mean = np.mean(X)
+    y_mean = np.mean(Y)
+    n = X.shape[0]                        # number of samples
+    m = 2                             # number of parameters
+    dof = n - m                       # degrees of freedom
+    t = stats.t.ppf(0.975, dof)       # Students statistic of interval confidence
+    residual = Y - y_model
+        
+    std_error = (np.sum(residual**2) / dof)**.5   # Standard deviation of the error
+    # to plot the adjusted model
+    x_line = plotline_X.flatten()
+    y_line = y_model
+    
+    # confidence interval
+    ci = t * std_error * (1/n + (x_line - x_mean)**2 / np.sum((X - x_mean)**2))**.5
+    # predicting interval
+    pi = t * std_error * (1 + 1/n + (x_line - x_mean)**2 / np.sum((X - x_mean)**2))**.5
+    return ci, pi,std_error
+def draw_ci_pi(ax, ci, pi,x_line, y_line):
+    ax.fill_between(x_line, y_line + pi, y_line - pi, 
+                color = 'lightcyan', 
+                label = '95% prediction interval',
+                alpha=0.5)
+    ax.fill_between(x_line, y_line + ci, 
+                    y_line - ci, color = 'skyblue', 
+                    label = '95% confidence interval',
+                    alpha=0.5)

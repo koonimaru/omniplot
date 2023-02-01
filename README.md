@@ -10,7 +10,12 @@ omniplot is a python module to draw a scientific plot with hassle free. It mainl
 <img src="images/example3.png" width="300"/> <img src="images/example7.png" width="300"/> <br>
 <img src="images/example5.png" width="300"/> <img src="images/example6.png" width="300"/> <br>
 ## Motivation
-Although there exist many good python data visualization libraries, such as matplotlib, pandas, seaborn, plotly, vedo and so on,
+Although there exist many good python data visualization libraries, such as 
+[matplotlib](https://matplotlib.org/), 
+[pandas](https://pandas.pydata.org/), 
+[seaborn](https://seaborn.pydata.org/), 
+[plotly](https://plotly.com/), 
+[vedo](https://vedo.embl.es/) and so on,
 still several kinds of plots cannot be drawn without hassle. This module is aimed to provide convenient 
 tools that allow users to draw complex plots, such as a scatter plot with PCA and loadings or clustering analysis in one liner.
 
@@ -21,8 +26,8 @@ cd omniplot <br>
 pip install .
 
 ## How to use
-I created jupyter notebook to demonstrate the usage of omniplot [Link](https://github.com/koonimaru/omniplot/tree/main/ipynb).
-
+I created jupyter notebooks to demonstrate the usage of omniplot [Link](https://github.com/koonimaru/omniplot/tree/main/ipynb).
+You can open jupyter notebooks with [jupyter lab](https://jupyterlab.readthedocs.io/en/stable/) or [VScode](https://code.visualstudio.com/).
 
 ## Example usage
 ```python

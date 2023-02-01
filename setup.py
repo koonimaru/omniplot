@@ -39,18 +39,12 @@ ext_modules = [ ]
 setup(
     name='omniplot',
     #version=VERSION,
-    version="0.1.0",
+    version="0.2.0",
     description='To draw scientific plots easily',
     author='Koh Onimaru',
     author_email='koh.onimaru@gmail.com',
     url='',
-
-    packages=find_packages(),#['omniplot'],
-    #provides=['omniplot'],
-    #package_data = {
-    #     '': ['enhancer_prediction/*', '*.pyx', '*.pxd', '*.c', '*.h'],
-    #},
-    #packages=find_packages(),
+    packages=find_packages(),
     cmdclass = cmdclass,
     ext_modules=ext_modules,
     classifiers=[
