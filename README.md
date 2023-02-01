@@ -6,8 +6,9 @@
 
 omniplot is a python module to draw a scientific plot with hassle free. It mainly focuses on bioinfomatics data.
 
-<img src="example.png" width="425"/> <img src="example2.png" width="300"/> <br>
-<img src="example3.png" width="425"/> <img src="example4.png" width="300"/> <br>
+<img src="images/example.png" width="300"/> <img src="images/example2.png" width="300"/> <br>
+<img src="images/example3.png" width="300"/> <img src="images/example7.png" width="300"/> <br>
+<img src="images/example5.png" width="300"/> <img src="images/example6.png" width="300"/> <br>
 ## Motivation
 Although there exist many good python data visualization libraries, such as matplotlib, pandas, seaborn, plotly, vedo and so on,
 still several kinds of plots cannot be drawn without hassle. This module is aimed to provide convenient 
@@ -18,6 +19,10 @@ tools that allow users to draw complex plots, such as a scatter plot with PCA an
 git clone https://github.com/koonimaru/omniplot.git <br>
 cd omniplot <br>
 pip install .
+
+## How to use
+I created jupyter notebook to demonstrate the usage of omniplot [Link](https://github.com/koonimaru/omniplot/tree/main/ipynb).
+
 
 ## Example usage
 ```python
