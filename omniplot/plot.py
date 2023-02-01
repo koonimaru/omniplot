@@ -28,16 +28,6 @@ from matplotlib.patches import Rectangle
 import scipy.cluster.hierarchy as sch
 import fastcluster as fcl
 from sklearn.decomposition import TruncatedSVD
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-from sklearn.ensemble import RandomTreesEmbedding
-from sklearn.manifold import (
-    Isomap,
-    LocallyLinearEmbedding,
-    MDS,
-    SpectralEmbedding,
-    TSNE,
-)
-from sklearn.neighbors import NeighborhoodComponentsAnalysis
 from sklearn.pipeline import make_pipeline
 from sklearn.random_projection import SparseRandomProjection
 import sys 
@@ -45,13 +35,12 @@ import matplotlib as mpl
 from sklearn.cluster import KMeans, DBSCAN
 from sklearn.metrics import silhouette_score
 from scipy.spatial.distance import pdist, squareform
-
 from sklearn.decomposition import PCA, NMF
-import umap 
+
 from scipy.stats import zscore
 from itertools import combinations
 from omniplot.utils import _dendrogram_threshold, _radialtree2,_get_cluster_classes,_calc_curveture
-
+import scipy.stats as stats
 
 colormap_list=["nipy_spectral", "terrain","tab20b","gist_rainbow","CMRmap","coolwarm","gnuplot","gist_stern","brg","rainbow"]
 plt.rcParams['font.family']= 'sans-serif'
@@ -764,7 +753,8 @@ def decomplot(df,category: str="",
               show: bool=False, 
               explained_variance: bool=True,
               arrow_num: int=3,
-              figsize=[]) :
+              figsize=[],
+              regularization: bool=True) :
     
     """
     Decomposing data and drawing a scatter plot and some plots for explained variables. 
@@ -810,7 +800,8 @@ def decomplot(df,category: str="",
     features=df.columns
     dfpc_list=[]
     if method=="pca":
-        x=zscore(x, axis=0)
+        if regularization:
+            x=zscore(x, axis=0)
         pca = PCA(n_components=component, random_state=0)
         pccomp = pca.fit_transform(x)
         
@@ -878,11 +869,23 @@ def decomplot(df,category: str="",
             return {"dataframe": dfpc_list,"pca_val": pccomp}
     elif method=="nmf":
         nmf=NMF(n_components=component)
+        if regularization:
+            x=x/np.sum(x,axis=0)[None,:]
         W = nmf.fit_transform(x)
         H = nmf.components_
         comb=list(combinations(np.arange(component), 2))
-        fig, axes=plt.subplots(ncols=2, nrows=len(comb)//2+int(len(comb)%2!=0))
-        axes=axes.flatten()
+        if len(comb)==1:
+            fig, axes=plt.subplots()
+            axes=[axes]
+        else:
+            nrows=len(comb)//2+int(len(comb)%2!=0)
+            if len(figsize)==0:
+                figsize=[8,3*nrows]
+            
+            fig, axes=plt.subplots(ncols=2, nrows=nrows, figsize=figsize)
+            plt.subplots_adjust(top=0.9,right=0.8)
+            axes=axes.flatten()
+
         for (i, j), ax in zip(comb, axes):
             xlabel, ylabel='p'+str(i+1), 'p'+str(j+1)
             dfpc = pd.DataFrame(data = np.array([W[:,i],W[:,j]]).T, columns = [xlabel, ylabel])
@@ -933,7 +936,10 @@ def decomplot(df,category: str="",
         return dfpc_list, W, H
     else:
         raise Exception('{} is not in options. Available options are: pca, nmf'.format(method))
-def manifoldplot(df,category="", method="tsne",n_components=2,n_neighbors=4, show=False, **kwargs):
+def manifoldplot(df,category="", 
+                 method="tsne",
+                 n_components=2,
+                 n_neighbors=4, show=False, **kwargs):
     """
     Reducing the dimensionality of data and drawing a scatter plot. 
     
@@ -973,7 +979,15 @@ def manifoldplot(df,category="", method="tsne",n_components=2,n_neighbors=4, sho
     Examples
     --------
     """    
-    
+    from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+    from sklearn.ensemble import RandomTreesEmbedding
+    from sklearn.manifold import (
+        Isomap,
+        LocallyLinearEmbedding,
+        MDS,
+        SpectralEmbedding,
+        TSNE,)
+    from sklearn.neighbors import NeighborhoodComponentsAnalysis
     if category !="":
         category_val=df[category].values
         df=df.drop([category], axis=1)
@@ -1038,7 +1052,8 @@ def manifoldplot(df,category="", method="tsne",n_components=2,n_neighbors=4, sho
         embedding=NeighborhoodComponentsAnalysis(
             n_components=n_components, init="pca", random_state=0
         )
-    elif method=="umap": 
+    elif method=="umap":
+        import umap 
         embedding=umap.UMAP(
             min_dist=0.25,n_neighbors=15
         )
@@ -1180,7 +1195,7 @@ def clusterplot(df,category: Union[List[str], str]="",
         plt.xlabel('K')
         plt.ylabel('Sum of squared distances')
         plt.title('Elbow method for optimal cluster number')    
-        
+        plt.legend()
         print("Top two optimal cluster No are: {}, {}".format(K[srtindex[0]],K[srtindex[1]]))
         n_clusters=[K[srtindex[0]],K[srtindex[1]]]
     elif n_clusters=="auto" and method=="hierarchical":
@@ -1367,6 +1382,237 @@ def clusterplot(df,category: Union[List[str], str]="",
 def volcanoplot():
     pass
 
+def calc_r2(X,Y):
+    x_mean = np.mean(X)
+    y_mean = np.mean(Y)
+    numerator = np.sum((X - x_mean)*(Y - y_mean))
+    denominator = ( np.sum((X - x_mean)**2) * np.sum((Y - y_mean)**2) )**.5
+    correlation_coef = numerator / denominator
+    r2 = correlation_coef**2
+    return r2
+
+def ci_pi(X,Y, plotline_X, y_model):
+    x_mean = np.mean(X)
+    y_mean = np.mean(Y)
+    n = X.shape[0]                        # number of samples
+    m = 2                             # number of parameters
+    dof = n - m                       # degrees of freedom
+    t = stats.t.ppf(0.975, dof)       # Students statistic of interval confidence
+    residual = Y - y_model
+        
+    std_error = (np.sum(residual**2) / dof)**.5   # Standard deviation of the error
+    # to plot the adjusted model
+    x_line = plotline_X.flatten()
+    y_line = y_model
+    
+    # confidence interval
+    ci = t * std_error * (1/n + (x_line - x_mean)**2 / np.sum((X - x_mean)**2))**.5
+    # predicting interval
+    pi = t * std_error * (1 + 1/n + (x_line - x_mean)**2 / np.sum((X - x_mean)**2))**.5
+    return ci, pi,std_error
+def draw_ci_pi(ax, ci, pi,x_line, y_line):
+    ax.fill_between(x_line, y_line + pi, y_line - pi, 
+                color = 'lightcyan', 
+                label = '95% prediction interval',
+                alpha=0.5)
+    ax.fill_between(x_line, y_line + ci, 
+                    y_line - ci, color = 'skyblue', 
+                    label = '95% confidence interval',
+                    alpha=0.5)
+def regression_single(df, 
+                      x: str="",
+                      y: str="", 
+                      method: str="ransac",
+                      category: str="", 
+                      figsize: List[int]=[5,5],
+                      show=False, ransac_param={"max_trials":1000},
+                      robust_param={}) -> plt.Axes:
+    """
+    Drawing a scatter plot with a single variable linear regression.  
+    
+    Parameters
+    ----------
+    df : pandas DataFrame
+    
+    x: str
+        the column name of x axis. 
+    y: str
+        the column name of y axis. 
+
+    method: str
+        Method name for regression. Default: ransac
+        Available methods: ["ransac", 
+                            "robust",
+                            "lasso","elastic_net"
+                            ]
+    figsize: list[int]
+        figure size
+    show : bool
+        Whether or not to show the figure.
+    
+    Returns
+    -------
+    ax: plt.Axes
+        axis object
+    dict: dict
+        dictionary containing estimated parameters
+    Raises
+    ------
+    Notes
+    -----
+    References
+    ----------
+    See Also
+    --------
+    Examples
+    --------
+    """ 
+    
+    
+    Y=df[y]
+    _X=np.array(df[x]).reshape([-1,1])
+    X=np.array(df[x])
+    plotline_X = np.arange(X.min(), X.max()).reshape(-1, 1)
+    n = X.shape[0]
+    plt.rcParams.update({'font.size': 14})
+    fig, ax = plt.subplots(figsize=figsize)
+    plt.subplots_adjust(left=0.15)
+    if method=="ransac":
+        from sklearn.linear_model import RANSACRegressor
+        
+        
+        
+        fit_df=pd.DataFrame()
+        ransac = RANSACRegressor(random_state=42,**ransac_param).fit(_X,Y)
+        fit_df["ransac_regression"] = ransac.predict(plotline_X)
+        coef = ransac.estimator_.coef_[0]
+        intercept=ransac.estimator_.intercept_
+        inlier_mask = ransac.inlier_mask_
+        outlier_mask = ~inlier_mask
+        
+                                # number of samples
+        y_model=ransac.predict(_X)
+
+        r2 = calc_r2(X,Y)
+        # mean squared error
+        MSE = 1/n * np.sum( (Y - y_model)**2 )
+        
+        # to plot the adjusted model
+        x_line = plotline_X.flatten()
+        y_line = fit_df["ransac_regression"]
+         
+        ci, pi, std_error=ci_pi(X,Y,plotline_X.flatten(),y_model)
+        sigma=std_error*(X.transpose() @ X)**(-0.5)
+        #sigma=stats.t.sf(, df=X.shape[0]-2)
+        coef_p=stats.t.sf(abs(ransac.estimator_.coef_[0]/sigma), df=X.shape[0]-2)
+        ############### Ploting
+
+        draw_ci_pi(ax, ci, pi,x_line, y_line)
+        sns.scatterplot(x=X[inlier_mask], y=Y[inlier_mask], color="blue", label="Inliers")
+        sns.scatterplot(x=X[outlier_mask], y=Y[outlier_mask], color="red", label="Outliers")
+        plt.xlabel(x)
+        plt.ylabel(y)
+        #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
+        plt.title("RANSAC regression, r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x, coefficient p-value: {:.2E}".format(
+            r2, MSE,coef,intercept,coef_p
+            )
+        )
+        plt.plot(plotline_X.flatten(),fit_df["ransac_regression"])
+        if len(category)!=0:
+            fig, ax=plt.subplots(figsize=figsize)
+            plt.subplots_adjust(left=0.15)
+            draw_ci_pi(ax, ci, pi,x_line, y_line)
+            sns.scatterplot(data=df,x=x, y=y, hue=category)
+            
+            plt.xlabel(x)
+            plt.ylabel(y)
+            #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
+            plt.title("RANSAC regression, r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x, coefficient p-value: {:.2E}".format(
+                r2, MSE,coef,intercept,coef_p
+                )
+            )
+            plt.plot(plotline_X.flatten(),fit_df["ransac_regression"])
+    elif method=="robust":
+        import statsmodels.api as sm
+        rlm_model = sm.RLM(Y, sm.add_constant(X),
+        M=sm.robust.norms.HuberT(),**robust_param)
+        rlm_results = rlm_model.fit()
+        summary=rlm_results.summary()
+        coef=rlm_results.params[1]
+        intercept=rlm_results.params[0]
+        intercept_p=rlm_results.pvalues[0]
+        coef_p=rlm_results.pvalues[1]
+        y_model=rlm_results.predict(sm.add_constant(X))
+        r2 = calc_r2(X,Y)
+        x_line = plotline_X.flatten()
+        y_line = rlm_results.predict(sm.add_constant(x_line))
+        ci, pi=ci_pi(X,Y,plotline_X.flatten(),y_model)
+        MSE = 1/n * np.sum( (Y - y_model)**2 )
+
+        draw_ci_pi(ax, ci, pi,x_line, y_line)
+        sns.scatterplot(data=df,x=x, y=y, color="blue")
+        #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
+        plt.title("Robust linear regression, r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x , p-values: coefficient {:.2f}, \
+        intercept {:.2f}".format(
+            r2, MSE,coef,intercept,coef_p,intercept_p
+            )
+        )
+        plt.plot(plotline_X.flatten(),y_line)
+        if len(category)!=0:
+            fig, ax=plt.subplots(figsize=figsize)
+            plt.subplots_adjust(left=0.15)
+            draw_ci_pi(ax, ci, pi,x_line, y_line)
+            sns.scatterplot(data=df,x=x, y=y, hue=category)
+            #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
+            plt.title("Robust linear regression, r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x , p-values: coefficient {:.2f}, \
+            intercept {:.2f}".format(
+                r2, MSE,coef,intercept,coef_p,intercept_p
+                )
+            )
+            plt.plot(plotline_X.flatten(),y_line)
+    elif method=="lasso" or method=="elastic_net":
+        if method=="lasso":
+            method="sqrt_lasso"
+        import statsmodels.api as sm
+        rlm_model = sm.OLS(Y, sm.add_constant(X))
+        rlm_results = rlm_model.fit_regularized(method)
+        print(vars(rlm_results))
+        print(vars(rlm_results._results))
+        #summary=rlm_results.summary()
+        coef=rlm_results.params[1]
+        intercept=rlm_results.params[0]
+        y_model=rlm_results.predict(sm.add_constant(X))
+        r2 = calc_r2(X,Y)
+        x_line = plotline_X.flatten()
+        y_line = rlm_results.predict(sm.add_constant(x_line))
+        ci, pi, std_error=ci_pi(X,Y,plotline_X.flatten(),y_model)
+        sigma=std_error*(X.transpose() @ X)**(-0.5)
+        print(sigma,coef )
+        coef_p=stats.t.sf(abs(coef/sigma), df=X.shape[0]-2)
+        MSE = 1/n * np.sum( (Y - y_model)**2 )
+
+        draw_ci_pi(ax, ci, pi,x_line, y_line)   
+        sns.scatterplot(data=df,x=x, y=y, color="blue")
+        #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
+        plt.title("OLS ({}), r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x, coefficient p-value: {:.2E}".format(method,
+            r2, MSE,coef,intercept,coef_p
+            )
+        )
+        plt.plot(plotline_X.flatten(),y_line)
+        if len(category)!=0:
+            fig, ax=plt.subplots(figsize=figsize)
+            plt.subplots_adjust(left=0.15)
+            draw_ci_pi(ax, ci, pi,x_line, y_line)
+            sns.scatterplot(data=df,x=x, y=y, color="blue",hue=category)
+            #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
+            plt.title("OLS ({}), r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x, coefficient p-value: {:.2E}".format(method,
+                r2, MSE,coef,intercept,coef_p
+                )
+            )
+            plt.plot(plotline_X.flatten(),y_line)
+    return ax, {"coefficient":coef,"intercept":intercept,"coefficient_pval":coef_p, "r2":r2}
+
+
 def violinplot(df, 
                x: Optional[str]=None, 
                y: Optional[str]=None,
@@ -1518,7 +1764,13 @@ if __name__=="__main__":
     
     test="violinplot"
     test="cluster"
-    if test=="dotplot":
+    test="regression"
+    if test=="regression":
+        df=sns.load_dataset("penguins")
+        df=df.dropna(axis=0)
+        regression_single(df, x="bill_length_mm",y="body_mass_g", method="ransac",category="species")
+        plt.show()
+    elif test=="dotplot":
         # df=pd.read_csv("/home/koh/ews/idr_revision/clustering_analysis/cellloc_pval_co.csv",index_col=0)
         # dfc=pd.read_csv("/home/koh/ews/idr_revision/clustering_analysis/cellloc_odds_co.csv",index_col=0)
         # from natsort import natsort_keygen

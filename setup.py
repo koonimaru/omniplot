@@ -71,6 +71,7 @@ setup(
                       "pandas","igraph",
                       "umap-learn",
                       "tensorflow",
-                      "fastcluster"],
+                      "fastcluster","cvxopt","statsmodels"
+                      ],
     long_description=open('README.md').read(),
 )

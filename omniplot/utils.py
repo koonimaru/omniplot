@@ -643,3 +643,61 @@ def _complex_clustermap(df,row_plot=[],col_plot=[],approx_clusternum=10,color_va
     if show:
         plt.show()
     return pd.DataFrame(cdata), g
+
+def plot_ci_manual(t, s_err, n, x, x2, y2, ax=None):
+    """Return an axes of confidence bands using a simple approach.
+    
+    Notes
+    -----
+    .. math:: \left| \: \hat{\mu}_{y|x0} - \mu_{y|x0} \: \right| \; \leq \; T_{n-2}^{.975} \; \hat{\sigma} \; \sqrt{\frac{1}{n}+\frac{(x_0-\bar{x})^2}{\sum_{i=1}^n{(x_i-\bar{x})^2}}}
+    .. math:: \hat{\sigma} = \sqrt{\sum_{i=1}^n{\frac{(y_i-\hat{y})^2}{n-2}}}
+    
+    References
+    ----------
+    .. [1] M. Duarte.  "Curve fitting," Jupyter Notebook.
+       http://nbviewer.ipython.org/github/demotu/BMC/blob/master/notebooks/CurveFitting.ipynb
+    
+    """
+    if ax is None:
+        ax = plt.gca()
+    
+    ci = t * s_err * np.sqrt(1/n + (x2 - np.mean(x))**2 / np.sum((x - np.mean(x))**2))
+    ax.fill_between(x2, y2 + ci, y2 - ci, color="#b9cfe7", edgecolor="")
+
+    return ax
+
+
+def plot_ci_bootstrap(xs, ys, resid, nboot=500, ax=None):
+    """Return an axes of confidence bands using a bootstrap approach.
+
+    Notes
+    -----
+    The bootstrap approach iteratively resampling residuals.
+    It plots `nboot` number of straight lines and outlines the shape of a band.
+    The density of overlapping lines indicates improved confidence.
+
+    Returns
+    -------
+    ax : axes
+        - Cluster of lines
+        - Upper and Lower bounds (high and low) (optional)  Note: sensitive to outliers
+
+    References
+    ----------
+    .. [1] J. Stults. "Visualizing Confidence Intervals", Various Consequences.
+       http://www.variousconsequences.com/2010/02/visualizing-confidence-intervals.html
+
+    """ 
+    if ax is None:
+        ax = plt.gca()
+
+    bootindex = sp.random.randint
+
+    for _ in range(nboot):
+        resamp_resid = resid[bootindex(0, len(resid) - 1, len(resid))]
+        # Make coeffs of for polys
+        pc = sp.polyfit(xs, ys + resamp_resid, 1)                   
+        # Plot bootstrap cluster
+        ax.plot(xs, sp.polyval(pc, xs), "b-", linewidth=2, alpha=3.0 / float(nboot))
+
+    return ax
