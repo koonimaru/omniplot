@@ -39,7 +39,10 @@ from sklearn.decomposition import PCA, NMF
 
 from scipy.stats import zscore
 from itertools import combinations
-from omniplot.utils import _dendrogram_threshold, _radialtree2,_get_cluster_classes,_calc_curveture
+import os
+script_dir = os.path.dirname( __file__ )
+sys.path.append( script_dir )
+from utils import _dendrogram_threshold, _radialtree2,_get_cluster_classes,_calc_curveture, draw_ci_pi,calc_r2,ci_pi
 import scipy.stats as stats
 
 colormap_list=["nipy_spectral", "terrain","tab20b","gist_rainbow","CMRmap","coolwarm","gnuplot","gist_stern","brg","rainbow"]
@@ -1382,43 +1385,7 @@ def clusterplot(df,category: Union[List[str], str]="",
 def volcanoplot():
     pass
 
-def calc_r2(X,Y):
-    x_mean = np.mean(X)
-    y_mean = np.mean(Y)
-    numerator = np.sum((X - x_mean)*(Y - y_mean))
-    denominator = ( np.sum((X - x_mean)**2) * np.sum((Y - y_mean)**2) )**.5
-    correlation_coef = numerator / denominator
-    r2 = correlation_coef**2
-    return r2
 
-def ci_pi(X,Y, plotline_X, y_model):
-    x_mean = np.mean(X)
-    y_mean = np.mean(Y)
-    n = X.shape[0]                        # number of samples
-    m = 2                             # number of parameters
-    dof = n - m                       # degrees of freedom
-    t = stats.t.ppf(0.975, dof)       # Students statistic of interval confidence
-    residual = Y - y_model
-        
-    std_error = (np.sum(residual**2) / dof)**.5   # Standard deviation of the error
-    # to plot the adjusted model
-    x_line = plotline_X.flatten()
-    y_line = y_model
-    
-    # confidence interval
-    ci = t * std_error * (1/n + (x_line - x_mean)**2 / np.sum((X - x_mean)**2))**.5
-    # predicting interval
-    pi = t * std_error * (1 + 1/n + (x_line - x_mean)**2 / np.sum((X - x_mean)**2))**.5
-    return ci, pi,std_error
-def draw_ci_pi(ax, ci, pi,x_line, y_line):
-    ax.fill_between(x_line, y_line + pi, y_line - pi, 
-                color = 'lightcyan', 
-                label = '95% prediction interval',
-                alpha=0.5)
-    ax.fill_between(x_line, y_line + ci, 
-                    y_line - ci, color = 'skyblue', 
-                    label = '95% confidence interval',
-                    alpha=0.5)
 def regression_single(df, 
                       x: str="",
                       y: str="", 
@@ -1455,7 +1422,7 @@ def regression_single(df,
     ax: plt.Axes
         axis object
     dict: dict
-        dictionary containing estimated parameters
+    z    dictionary containing estimated parameters
     Raises
     ------
     Notes
@@ -1502,8 +1469,8 @@ def regression_single(df,
         y_line = fit_df["ransac_regression"]
          
         ci, pi, std_error=ci_pi(X,Y,plotline_X.flatten(),y_model)
-        sigma=std_error*(X.transpose() @ X)**(-0.5)
-        #sigma=stats.t.sf(, df=X.shape[0]-2)
+        q=((X-X.mean()).transpose() @ (X-X.mean()))
+        sigma=std_error*(q**-1)**(0.5)
         coef_p=stats.t.sf(abs(ransac.estimator_.coef_[0]/sigma), df=X.shape[0]-2)
         ############### Ploting
 
@@ -1586,7 +1553,8 @@ def regression_single(df,
         x_line = plotline_X.flatten()
         y_line = rlm_results.predict(sm.add_constant(x_line))
         ci, pi, std_error=ci_pi(X,Y,plotline_X.flatten(),y_model)
-        sigma=std_error*(X.transpose() @ X)**(-0.5)
+        q=((X-X.mean()).transpose() @ (X-X.mean()))
+        sigma=std_error*(q**-1)**(0.5)
         print(sigma,coef )
         coef_p=stats.t.sf(abs(coef/sigma), df=X.shape[0]-2)
         MSE = 1/n * np.sum( (Y - y_model)**2 )

@@ -14,4 +14,10 @@
 	<natures>
 		<nature>org.python.pydev.pythonNature</nature>
 	</natures>
+	<variableList>
+		<variable>
+			<name>modulepath</name>
+			<value>file:/home/koh/ews/omniplot/omniplot</value>
+		</variable>
+	</variableList>
 </projectDescription>
