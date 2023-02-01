@@ -28,16 +28,8 @@ from matplotlib.patches import Rectangle
 import scipy.cluster.hierarchy as sch
 import fastcluster as fcl
 from sklearn.decomposition import TruncatedSVD
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-from sklearn.ensemble import RandomTreesEmbedding
-from sklearn.manifold import (
-    Isomap,
-    LocallyLinearEmbedding,
-    MDS,
-    SpectralEmbedding,
-    TSNE,
-)
-from sklearn.neighbors import NeighborhoodComponentsAnalysis
+
+
 from sklearn.pipeline import make_pipeline
 from sklearn.random_projection import SparseRandomProjection
 import sys 
@@ -273,13 +265,48 @@ def dotplot(df: pd.DataFrame,
 
 
 def radialtree(df,n_clusters: int=3,
-               category: List[str]=[], **kwargs):
+               category: Union[str, List[str]]=[], **kwargs) -> plt.Axes:
+    """
+    Drawing a radial dendrogram with color labels.
     
+    Parameters
+    ----------
+    df : pandas DataFrame
+        
+    n_clusters: int
+        Approximate number of clusters to produce
+    category: str or list of str
+        the column name of a category that is going to presented as colors around the dendrogram.
+    show : bool
+        Whether or not to show the figure.
+    fontsize : float
+        A float to specify the font size
+    figsize : [x, y] array-like
+        1D array-like of floats to specify the figure size
+    palette : string
+        Matlab colormap name.
+    Returns
+    -------
+    axes: ax
+
+    Raises
+    ------
+    Notes
+    -----
+    References
+    ----------
+    See Also
+    --------
+    Examples
+    --------
+    """
     if len(category) !=0:
+        if type(category)==str:
+            category=[category]
         category_df=df[category]
         df=df.drop(category, axis=1)
         X = df.values
-        print(X)
+        #print(X)
         assert X.dtype==float, f"data must contain only float values except {category} column."
         
     else:    
@@ -294,7 +321,8 @@ def radialtree(df,n_clusters: int=3,
                         labels = df.index,
                         color_threshold=t,no_plot=True)
     sample_classes={k: list(category_df[k]) for k in category_df.columns}
-    _radialtree2(Z, sample_classes=sample_classes,addlabels=False, **kwargs)
+    ax=_radialtree2(Z, sample_classes=sample_classes,addlabels=False, **kwargs)
+    return ax
 
 def baumkuchen(ax, start, theta, rin, rout,res, _color):
     move=np.linspace(0, theta,res)
@@ -728,7 +756,8 @@ def decomplot(df,category: str="",
               show: bool=False, 
               explained_variance: bool=True,
               arrow_num: int=3,
-              figsize=[]) :
+              figsize=[],
+              regularization: bool=True) :
     
     """
     Decomposing data and drawing a scatter plot and some plots for explained variables. 
@@ -774,7 +803,8 @@ def decomplot(df,category: str="",
     features=df.columns
     dfpc_list=[]
     if method=="pca":
-        x=zscore(x, axis=0)
+        if regularization:
+            x=zscore(x, axis=0)
         pca = PCA(n_components=component, random_state=0)
         pccomp = pca.fit_transform(x)
         
@@ -842,11 +872,23 @@ def decomplot(df,category: str="",
             return {"dataframe": dfpc_list,"pca_val": pccomp}
     elif method=="nmf":
         nmf=NMF(n_components=component)
+        if regularization:
+            x=x/np.sum(x,axis=0)[None,:]
         W = nmf.fit_transform(x)
         H = nmf.components_
         comb=list(combinations(np.arange(component), 2))
-        fig, axes=plt.subplots(ncols=2, nrows=len(comb)//2+int(len(comb)%2!=0))
-        axes=axes.flatten()
+        if len(comb)==1:
+            fig, axes=plt.subplots()
+            axes=[axes]
+        else:
+            nrows=len(comb)//2+int(len(comb)%2!=0)
+            if len(figsize)==0:
+                figsize=[8,3*nrows]
+            
+            fig, axes=plt.subplots(ncols=2, nrows=nrows, figsize=figsize)
+            plt.subplots_adjust(top=0.9,right=0.8)
+            axes=axes.flatten()
+
         for (i, j), ax in zip(comb, axes):
             xlabel, ylabel='p'+str(i+1), 'p'+str(j+1)
             dfpc = pd.DataFrame(data = np.array([W[:,i],W[:,j]]).T, columns = [xlabel, ylabel])
@@ -897,7 +939,10 @@ def decomplot(df,category: str="",
         return dfpc_list, W, H
     else:
         raise Exception('{} is not in options. Available options are: pca, nmf'.format(method))
-def manifoldplot(df,category="", method="tsne",n_components=2,n_neighbors=4, show=False, **kwargs):
+def manifoldplot(df,category="", 
+                 method="tsne",
+                 n_components=2,
+                 n_neighbors=4, show=False, **kwargs):
     """
     Reducing the dimensionality of data and drawing a scatter plot. 
     
@@ -937,7 +982,15 @@ def manifoldplot(df,category="", method="tsne",n_components=2,n_neighbors=4, sho
     Examples
     --------
     """    
-    
+    from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+    from sklearn.ensemble import RandomTreesEmbedding
+    from sklearn.manifold import (
+        Isomap,
+        LocallyLinearEmbedding,
+        MDS,
+        SpectralEmbedding,
+        TSNE,)
+    from sklearn.neighbors import NeighborhoodComponentsAnalysis
     if category !="":
         category_val=df[category].values
         df=df.drop([category], axis=1)
@@ -1033,7 +1086,7 @@ def clusterplot(df,category: Union[List[str], str]="",
               eps: Union[List[float], float]=0.5,
               pcacomponent: Optional[int]=None,
               ztranform=True,
-              palette=["Spectral","cubehelix"]):
+              palette=["Spectral","cubehelix"],**kwargs):
     """
     Clustering data and draw them as a scatter plot optionally with dimensionality reduction.  
     
@@ -1144,7 +1197,7 @@ def clusterplot(df,category: Union[List[str], str]="",
         plt.xlabel('K')
         plt.ylabel('Sum of squared distances')
         plt.title('Elbow method for optimal cluster number')    
-        
+        plt.legend()
         print("Top two optimal cluster No are: {}, {}".format(K[srtindex[0]],K[srtindex[1]]))
         n_clusters=[K[srtindex[0]],K[srtindex[1]]]
     elif n_clusters=="auto" and method=="hierarchical":
@@ -1319,12 +1372,12 @@ def clusterplot(df,category: Union[List[str], str]="",
             ax=[ax]
         else:
             fig, ax=plt.subplots(ncols=1+len(category), figsize=[4+4*len(category),4])
-        sns.scatterplot(data=dfnew,x=x,y=y,hue=hue, ax=ax[0], palette=palette[0])
+        sns.scatterplot(data=dfnew,x=x,y=y,hue=hue, ax=ax[0], palette=palette[0],**kwargs)
         ax[0].set_title("Cluster number="+str(K))
         if len(category)!=0:
             for i, cat in enumerate(category):
                 dfnew[cat]=category_val[:,i]
-                sns.scatterplot(data=dfnew,x=x,y=y,hue=cat, ax=ax[i+1], palette=palette[1])
+                sns.scatterplot(data=dfnew,x=x,y=y,hue=cat, ax=ax[i+1], palette=palette[1],**kwargs)
         _dfnews[K]=dfnew 
     return _dfnews
 

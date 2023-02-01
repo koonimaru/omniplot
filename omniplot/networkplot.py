@@ -11,7 +11,11 @@ from typing import Union, List, Dict, Optional
 from matplotlib.collections import PatchCollection
 from matplotlib.patches import Rectangle
 import pandas as pd
+plt.rcParams['font.family']= 'sans-serif'
+plt.rcParams['font.sans-serif'] = ['Arial']
+plt.rcParams['svg.fonttype'] = 'none'
 sns.set_theme()
+
 def pienodes(g,
              vertex_label: list=[], 
              node_features: dict={}, 
@@ -135,8 +139,11 @@ def sankey_category(df,
                     category: list=[], 
                     palette: str="tab20c", 
                     colormode: str="independent",
-                    altcat: str="") -> plt.Axes:
-    
+                    altcat: str="",
+                    show_percentage=False,
+                    show_percentage_target=False,
+                    fontsize: int=12) -> plt.Axes:
+    #plt.rcParams.update({'font.size': 12})
     """
     Drawing a sankey plot to compare multiple categories in a data. The usage example may be 
     to compare between clustering results.
@@ -152,7 +159,8 @@ def sankey_category(df,
     colormode: str ['shared', 'independent', 'alternative', 'trace'], optional
         The way to color categories. 'independent' will give each category a distinct (unrelated) colorset. 
         'shared' will give a shared color if categories share the same names of labels. 'alternative' will
-        color bars based on additional category specified by altcat.  
+        color bars based on additional category specified by altcat. 'trace' will color all bars according
+        to the first category.  
         
     altcat : str, optional (but required when colormode='alternative')
         
@@ -220,10 +228,16 @@ def sankey_category(df,
             _tmp=plt.get_cmap(palette, v[0].shape[0])
             cmap[cat]={v[0][i]: _tmp(i) for i in range(v[0].shape[0])}
     elif colormode=="trace":
-        cat=category[0]
-        v=heights[cat]
-        _tmp=plt.get_cmap(palette, v[0].shape[0])
-        cmap={cat: {v[0][i]:_tmp(i) for i in range(v[0].shape[0])}}
+        altcat=category[0]
+        altcat_list=list(df[altcat])
+        altcat_unique=list(np.unique(altcat_list))
+        _tmp=plt.get_cmap(palette, len(altcat_unique))
+        altcat_dict={}
+        for a in altcat_unique:
+            altcat_dict[a]=_tmp(altcat_unique.index(a))
+        altcat_colors=[]
+        for a in altcat_list:
+            altcat_colors.append(_tmp(altcat_unique.index(a)))
     elif colormode=="alternative":
         if altcat=="":
             raise Exception("If colormode is 'alternative', altcat must be specified")
@@ -240,15 +254,14 @@ def sankey_category(df,
     fig, ax=plt.subplots(figsize=[2+len(category),7])
     blocks=[]
     facecolors=[]
+    hs=[]
     for i,(cat, (u, ac)) in enumerate(heights.items()):
         xyh[cat]={}
         c=ac/np.sum(ac)
         h=0
         for _u, _c, _ac in zip(u,c,ac):
             blocks.append(Rectangle([i*xinterval, h],blockwidth,_c))
-            if colormode=="trace" and i >0:
-                facecolors.append([1,1,1,1])
-            elif colormode=="alternative":
+            if colormode=="alternative" or colormode=="trace":
                 facecolors.append([1,1,1,1])
             else:
                 facecolors.append(cmap[cat][_u])
@@ -256,20 +269,21 @@ def sankey_category(df,
             xyh[cat][str(_u)]=[i*xinterval, h, _c,_ac]
             ax.text(i*xinterval+blockwidth/2,h-space-_c/2, _u,
                     bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="b", lw=1, alpha=0.7))
-    
-    if colormode=="alternative":
+        hs.append(h)
+    if colormode=="alternative" or colormode=="trace":
         
         for i,(cat, (u, ac)) in enumerate(heights.items()):
             k=0
             for j, _u in enumerate(u):
                 dfcat=np.array(df[cat], dtype=str)
-                _df=df.loc[dfcat==_u]                
+                _df=df.loc[dfcat==_u]
+                _df=_df.sort_values(altcat)                
                 x, h, _c, _ac=xyh[cat][_u]
                 for l, label in enumerate(_df[altcat]):
                     plt.plot([x,x+blockwidth],[h-_c-space+_c*l/_ac,h-_c-space+_c*l/_ac], color=altcat_dict[label])
                     k+=1
         plt.legend([Line2D([0], [0], color=altcat_dict[label]) for label in altcat_dict.keys()],
-                   altcat_dict.keys(),loc=[1.01,0.9])
+                   altcat_dict.keys(),loc=[1.01,0.9], fontsize=fontsize)
         plt.subplots_adjust(right=0.7)
         
     # draw links between categories
@@ -311,7 +325,23 @@ def sankey_category(df,
                 color="b"
             )
             
-            
+            if show_percentage==True:
+                plt.text(sx, sh/2+sy-space-sh,str(np.round(100*sh,1))+"%",ha="right",
+                         va="center",
+                         rotation=90,
+                         bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="y", lw=1, alpha=0.8))
+                if i==len(link_counts)-1:
+                    plt.text(tx, th/2+ty-space-th,str(np.round(100*th,1))+"%",ha="right",
+                             va="center",
+                             rotation=90,
+                             bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="y", lw=1, alpha=0.8))
+            if show_percentage_target==True:
+                plt.text(sx+blockwidth, _scl/2+sbottom[s],
+                         str(np.round(100*_scl,1))+"%",
+                         ha="left",va="center",
+                         rotation=90,
+                         bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="y", lw=1, alpha=0.8))
+                
             sbottom[s]+=_scl
             tbottom[t]+=_tcl
             
@@ -326,8 +356,10 @@ def sankey_category(df,
     
     
     plt.xlim(-blockwidth*0.5, xinterval*(len(heights)-1)+blockwidth*1.5)
-    plt.ylim(-0.01, 1.1)
-    plt.xticks([i*xinterval+blockwidth/2 for i in range(len(category))],category, rotation=90)
+    plt.ylim(-0.01, np.amax(hs)*1.1)
+    plt.xticks([i*xinterval+blockwidth/2 for i in range(len(category))],category, rotation=90, 
+               fontsize=fontsize)
+    plt.yticks([])
     plt.subplots_adjust(bottom=0.2)
     return ax
     
@@ -341,7 +373,11 @@ if __name__=="__main__":
     test="sankey_category"
     if test=="sankey_category":
         df=pd.read_csv("../data/kmeans_result.csv")
-        sankey_category(df, ["kmeans2","kmeans3","sex"],colormode="alternative",altcat="species")
+        sankey_category(df, ["kmeans2","kmeans3","sex"],
+                        colormode="alternative",
+                        altcat="species",
+                        show_percentage=True,
+                        show_percentage_target=True)
         plt.show()
     elif test=="pienode":
         edges=[[0,0],[0,1],[0,2],[2,1],[2,3],[3,4]]
