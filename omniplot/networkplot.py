@@ -376,8 +376,8 @@ if __name__=="__main__":
         sankey_category(df, ["kmeans2","kmeans3","sex"],
                         colormode="alternative",
                         altcat="species",
-                        show_percentage=True,
-                        show_percentage_target=True)
+                        show_percentage=False,
+                        show_percentage_target=False)
         plt.show()
     elif test=="pienode":
         edges=[[0,0],[0,1],[0,2],[2,1],[2,3],[3,4]]
