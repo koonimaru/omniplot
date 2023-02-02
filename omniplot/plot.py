@@ -640,7 +640,7 @@ def complex_clustermap(df: pd.DataFrame,
                        ztranform=True,
                        xticklabels=True, 
                        yticklabels=False,
-                       show_plot_labels=False,
+                       show_plot_labels=False,figsize=[],
                        **kwargs):
     """
     Drawing a clustered heatmap with merginal plots.
@@ -693,7 +693,8 @@ def complex_clustermap(df: pd.DataFrame,
     """#print(kwargs)
     rnum, cnum=df.shape
     cnum=len(heatmap_col)
-    figsize=[2*cnum,10]
+    if len(figsize)==0:
+        figsize=[2*cnum,10]
     scatterpointsize=5
     sns.set(font_scale=1)
     if ztranform:
