@@ -223,10 +223,10 @@ def regression_single_nonlinear():
     pass
 
 
-def regression_multivariate():
+def regression_multivariable():
     pass
 
-def regression_multivariate_nonlinear():
+def regression_multivariable_nonlinear():
     pass
 
 def regression_glm():

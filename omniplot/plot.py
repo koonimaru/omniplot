@@ -733,7 +733,7 @@ def complex_clustermap(df: pd.DataFrame,
             _row_colors_title.append("Sum")
             _col_colors.append(np.ones([cnum, 4]))
             _col_colors_title.append("Sum")
-        print(np.shape(_col_colors))
+        #print(np.shape(_col_colors))
         if len(row_colors)>0:
             for k in row_colors:
                 
@@ -787,7 +787,7 @@ def complex_clustermap(df: pd.DataFrame,
                 _col_colors_title.append(k) 
         
         if len(_row_colors) >0 and len(_col_colors) >0:
-            print(np.shape(_col_colors))
+            #print(np.shape(_col_colors))
             g=sns.clustermap(df[heatmap_col],col_colors=_col_colors, 
                              row_colors=_row_colors,
                              method=method,xticklabels=xticklabels, yticklabels=yticklabels,
@@ -833,7 +833,7 @@ def complex_clustermap(df: pd.DataFrame,
                 g.ax_row_colors.barh(np.arange(r.shape[0])+0.5, r/np.amax(r),height=1)
             #g.ax_row_colors.set_xticks([0,1],labels=[0,np.amax(r)])
             c=np.sum(mat, axis=0)
-            print(mat, c)
+            #print(mat, c)
             col_cluster=True
             if "col_cluster" in kwargs:
                 col_cluster=kwargs["col_cluster"]

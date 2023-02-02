@@ -35,7 +35,7 @@ import matplotlib as mpl
 from sklearn.cluster import KMeans, DBSCAN
 from sklearn.metrics import silhouette_score
 from scipy.spatial.distance import pdist, squareform
-from sklearn.decomposition import PCA, NMF
+from sklearn.decomposition import PCA, NMF, LatentDirichletAllocation
 
 from scipy.stats import zscore
 from itertools import combinations
@@ -45,7 +45,7 @@ import os
 from omniplot.utils import _dendrogram_threshold, _radialtree2,_get_cluster_classes,_calc_curveture, draw_ci_pi,calc_r2,ci_pi
 import scipy.stats as stats
 
-colormap_list=["nipy_spectral", "terrain","tab20b","gist_rainbow","CMRmap","coolwarm","gnuplot","gist_stern","brg","rainbow"]
+colormap_list=["nipy_spectral", "terrain","tab20b","tab20c","gist_rainbow","hsv","CMRmap","coolwarm","gnuplot","gist_stern","brg","rainbow","jet"]
 plt.rcParams['font.family']= 'sans-serif'
 plt.rcParams['font.sans-serif'] = ['Arial']
 plt.rcParams['svg.fonttype'] = 'none'
@@ -264,7 +264,7 @@ def dotplot(df: pd.DataFrame,
         return {"ax1":ax1,"ax2":ax2,"ax3":ax3}
 
 
-def radialtree(df,n_clusters: int=3,
+def radialtree(df: pd.DataFrame,n_clusters: int=3,
                category: Union[str, List[str]]=[], **kwargs) -> plt.Axes:
     """
     Drawing a radial dendrogram with color labels.
@@ -324,31 +324,323 @@ def radialtree(df,n_clusters: int=3,
     ax=_radialtree2(Z, sample_classes=sample_classes,addlabels=False, **kwargs)
     return ax
 
-def baumkuchen(ax, start, theta, rin, rout,res, _color):
-    move=np.linspace(0, theta,res)
-    xf=np.concatenate([rin*np.cos(start+move),[rin*np.cos(start+theta),rout*np.cos(start+theta)],rout*np.cos(start+move)[::-1],[rin*np.cos(start),rout*np.cos(start)][::-1]])
-    yf=np.concatenate([rin*np.sin(start+move),[rin*np.sin(start+theta),rout*np.sin(start+theta)],rout*np.sin(start+move)[::-1],[rin*np.sin(start),rout*np.sin(start)][::-1]])
-    ax.fill(xf, yf, color=_color)
+# def _complex_clustermap(df: pd.DataFrame,
+#                        row_colormap: dict={},
+#                        col_colormap: dict={},
+#                        row_plot: dict={},
+#                        col_plot: dict={},
+#                        row_color_legend: dict={},
+#                        col_color_legend: dict={},
+#                        approx_clusternum: int=10,
+#                        approx_clusternum_col: int=3,
+#                        color_var: int=0,
+#                        merginalsum: bool=False,
+#                        show: bool=False,
+#                        method: str="ward",
+#                        return_col_cluster: bool=True, 
+#                        **kwargs):
+#     """
+#     Drawing a clustered heatmap with merginal plots.
+#
+#     Parameters
+#     ----------
+#     df : pandas DataFrame
+#     row_colormap: dict
+#         the column name of a category that is going to be placed in the row of the dotplot
+#     col_colormap: dict
+#         the column name of a category that is going to be placed in the column of the dotplot
+#     row_plot : dict
+#         The column name for the values represented as dot colors.
+#     col_plot : dict
+#         The column name for the values represented as dot sizes. 
+#     row_color_legend: dict
+#         The scale of dots. If resulting dots are too large (or small), you can reduce (or increase) dot sizes by adjusting this value.
+#     col_color_legend: dict
+#         The scale of dots. If resulting dots are too large (or small), you can reduce (or increase) dot sizes by adjusting this value.
+#
+#     approx_clusternum : int
+#         The approximate number of row clusters to be created. Labeling the groups of leaves with different colors. The result of hierarchical clustering won't change.    
+#     approx_clusternum_col : int
+#         The approximate number of column clusters to be created. Labeling the groups of leaves with different colors. The result of hierarchical clustering won't change.
+#
+#     color_var : int
+#         The title for color values. If not set, "color_val" will be used.
+#     merginalsum : bool
+#         Whether or not to draw bar plots for merginal distribution.
+#     show : bool
+#         Whether or not to show the figure.
+#     method : string
+#         Method for hierarchical clustering.
+#     return_col_cluster : string
+#         The title for color values. If not set, "color_val" will be used.
+#     Returns
+#     -------
+#         dict 
+#         {"row_clusters":pd.DataFrame,"col_clusters":pd.DataFrame, "grid":g}
+#     Raises
+#     ------
+#     Notes
+#     -----
+#     References
+#     ----------
+#     See Also
+#     --------
+#     Examples
+#     --------
+#     """#print(kwargs)
+#
+#     rnum, cnum=df.shape
+#     sns.set(font_scale=1)
+#
+#     totalrowplot=0
+#     if merginalsum==True:
+#         totalrowplot+=1
+#     totalrowplot+=len(row_plot)
+#     totalrowplot+=len(row_colormap)
+#     totalcolplot=0
+#     if merginalsum==True:
+#         totalcolplot+=1
+#     totalcolplot+=len(col_plot) 
+#     totalcolplot+=len(col_colormap)
+#
+#
+#     if totalrowplot + totalcolplot >0:
+#         rowplotcount=0
+#         colplotcount=0
+#         row_colors=[]
+#         row_colors_title=[]
+#         col_colors=[]
+#         col_colors_title=[]
+#
+#         if merginalsum:
+#             row_colors.append(np.ones([rnum, 4]))
+#             row_colors_title.append("Sum")
+#             col_colors.append(np.ones([rnum, 4]))
+#             col_colors_title.append("Sum")
+#         if len(row_colormap)>0:
+#             for k, v in row_colormap.items():
+#                 row_colors.append(v)
+#                 row_colors_title.append(k)
+#
+#         if len(col_colormap)>0:
+#             for k, v in col_colormap.items():
+#                 col_colors.append(v)
+#                 col_colors_title.append(k)
+#
+#         if len(row_plot)>0:
+#             for k, v in row_plot.items():
+#                 row_colors.append(np.ones([rnum, 4]))
+#                 row_colors_title.append(k)
+#         if len(col_plot)>0:
+#             for k, v in col_plot.items():
+#                 col_colors.append(np.ones([rnum, 4]))
+#                 col_colors_title.append(k)        
+#
+#
+#
+#
+#
+#         if len(row_colors) >0 and len(col_colors) >0:
+#             g=sns.clustermap(df,col_colors=col_colors, row_colors=row_colors,method=method,**kwargs)
+#             g.ax_col_colors.invert_yaxis()
+#             g.ax_row_colors.invert_xaxis()
+#         elif len(col_colors) >0:
+#
+#             g=sns.clustermap(df,col_colors=col_colors,method=method,**kwargs)
+#             g.ax_col_colors.invert_yaxis()
+#         elif len(row_colors) >0:
+#             g=sns.clustermap(df,row_colors=row_colors,method=method,**kwargs)
+#             g.ax_row_colors.invert_xaxis()
+#
+#         rowplotcount=0
+#         colplotcount=0
+#         if merginalsum:
+#             mat=df.to_numpy()
+#             r=np.sum(mat, axis=1)
+#             g.ax_row_colors.barh(np.arange(r.shape[0])+0.5, r[leaves_list(g.dendrogram_row.linkage)]/np.amax(r))
+#
+#
+#             c=np.sum(mat, axis=0)
+#             #print(leaves_list(g.dendrogram_col.linkage))
+#             g.ax_col_colors.bar(np.arange(c.shape[0])+0.5,c[leaves_list(g.dendrogram_col.linkage)]/np.amax(c))
+#
+#             rowplotcount=1
+#             colplotcount=1
+#         rowplotcount+=len(row_colormap)
+#
+#         if len(row_plot)>0:
+#             row_cluster=True
+#             if "row_cluster" in kwargs:
+#                 row_cluster=kwargs["row_cluster"]
+#
+#             for i, (lname, r) in enumerate(row_plot.items()):
+#                 r=np.array(r)
+#                 if row_cluster==True:
+#                     tmpindx=leaves_list(g.dendrogram_row.linkage)
+#                     r=r[tmpindx]
+#                     r=r-np.amin(r)
+#                     r=r/np.amax(r)
+#                     r=0.9*r
+#                     g.ax_row_colors.plot(r+rowplotcount, np.arange(r.shape[0])+0.5)
+#                 else:
+#                     g.ax_row_colors.plot(r/(np.amax(r)*1.1)+rowplotcount, np.arange(r.shape[0])+0.5)
+#
+#                 rowplotcount+=1
+#
+#
+#         colplotcount+=len(col_colormap)
+#
+#         if len(col_plot)>0:
+#             col_cluster=True
+#             if "col_cluster" in kwargs:
+#                 col_cluster=kwargs["col_cluster"]
+#             for i, (lname, r) in enumerate(col_plot.items()):
+#                 r=np.array(r)
+#                 if col_cluster==True:
+#                     g.ax_col_colors.plot(np.arange(r.shape[0])+0.5,r[leaves_list(g.dendrogram_col.linkage)]/(np.amax(r)*1.1)+colplotcount)
+#                 else:
+#                     g.ax_col_colors.plot(np.arange(r.shape[0])+0.5,r/(np.amax(r)*1.1)+colplotcount)
+#
+#                 colplotcount+=1
+#
+#         g.ax_row_colors.set_xticks(np.arange(len(row_colors_title))+0.5)
+#         g.ax_row_colors.set_xticklabels(row_colors_title, rotation=90)
+#         g.ax_col_colors.set_yticks(np.arange(len(col_colors_title))+0.5)
+#         g.ax_col_colors.set_yticklabels(col_colors_title)
+#
+#         for title, colorlut in row_color_legend.items():
+#             legendhandles=[]
+#             for label, color in colorlut.items():
+#                 legendhandles.append(Line2D([0], [0], color=color,linewidth=5, label=label))
+#             #g.add_legend(legend_data=legendhandles,title="Aroma",label_order=["W","F","Y"])
+#             legend1=g.ax_col_dendrogram.legend(handles=legendhandles, loc='upper right', title=title)
+#             g.ax_col_dendrogram.add_artist(legend1)
+#         for title, colorlut in col_color_legend.items():
+#             legendhandles=[]
+#             for label, color in colorlut.items():
+#                 legendhandles.append(Line2D([0], [0], color=color,linewidth=5, label=label))
+#             #g.add_legend(legend_data=legendhandles,title="Aroma",label_order=["W","F","Y"])
+#             legend1=g.ax_col_dendrogram.legend(handles=legendhandles, loc='upper right', title=title)
+#             g.ax_col_dendrogram.add_artist(legend1)
+#
+#     else:
+#         g=sns.clustermap(df,method=method,**kwargs)
+#     if color_var>0:
+#         cmap = cm.nipy_spectral(np.linspace(0, 1, color_var))
+#     else:
+#         cmap = cm.nipy_spectral(np.linspace(0, 1, approx_clusternum+5))
+#     hierarchy.set_link_color_palette([mpl.colors.rgb2hex(rgb[:3]) for rgb in cmap])
+#
+#     """coloring the row dendrogram based on branch numbers crossed with the threshold"""
+#     if g.dendrogram_row != None:
+#         t=_dendrogram_threshold(g.dendrogram_row.dendrogram)
+#         # lbranches=np.array(g.dendrogram_row.dendrogram["dcoord"])[:,:2]
+#         # rbranches=np.array(g.dendrogram_row.dendrogram["dcoord"])[:,2:]
+#         # thre=np.linspace(0, np.amax(g.dendrogram_row.dendrogram["dcoord"]), 100)[::-1]
+#         # for t in thre:
+#         #     #print(np.sum(lbranches[:,1]>t),np.sum(rbranches[:,0]>t),np.sum(lbranches[:,0]>t),np.sum(rbranches[:,1]>t))
+#         #     crossbranches=np.sum(lbranches[:,1]>t)+np.sum(rbranches[:,0]>t)-np.sum(lbranches[:,0]>t)-np.sum(rbranches[:,1]>t)
+#         #     #print(crossbranches)
+#         #
+#         #     if crossbranches>approx_clusternum:
+#         #         break
+#
+#         den=hierarchy.dendrogram(g.dendrogram_row.linkage,
+#                                                  labels = g.data.index,
+#                                                  color_threshold=t,ax=g.ax_row_dendrogram,
+#                             orientation="left")  
+#         g.ax_row_dendrogram.invert_yaxis()
+#         clusters = _get_cluster_classes(den)
+#         cdata={"Cluster":[],"Index":[],"RGB":[]}
+#         keys=list(clusters.keys())
+#         ckeys={}
+#         i=1
+#         for k in keys:
+#             if k=="C0":
+#                 ckeys[k]="C0"
+#             else:
+#                 ckeys[k]="C"+str(i)
+#                 i+=1
+#         for c, v in clusters.items():
+#             _c=ckeys[c]
+#             for _v in v:
+#                 cdata["Cluster"].append(_c)
+#                 cdata["Index"].append(_v)
+#                 cdata["RGB"].append(matplotlib.colors.to_rgb(c))
+#         """Setting the row dendrogram ends here"""
+#
+#
+#     """coloring the col dendrogram based on branch numbers crossed with the threshold"""
+#     t=_dendrogram_threshold(g.dendrogram_col.dendrogram)
+#     # lbranches=np.array(g.dendrogram_col.dendrogram["dcoord"])[:,:2]
+#     # rbranches=np.array(g.dendrogram_col.dendrogram["dcoord"])[:,2:]
+#     # thre=np.linspace(0, np.amax(g.dendrogram_col.dendrogram["dcoord"]), 100)[::-1]
+#     # for t in thre:
+#     #     #print(np.sum(lbranches[:,1]>t),np.sum(rbranches[:,0]>t),np.sum(lbranches[:,0]>t),np.sum(rbranches[:,1]>t))
+#     #     crossbranches=np.sum(lbranches[:,1]>t)+np.sum(rbranches[:,0]>t)-np.sum(lbranches[:,0]>t)-np.sum(rbranches[:,1]>t)
+#     #     #print(crossbranches)
+#     #
+#     #     if crossbranches>approx_clusternum_col:
+#     #         break
+#
+#     den=hierarchy.dendrogram(g.dendrogram_col.linkage,
+#                                              labels = g.data.columns,
+#                                              color_threshold=t,ax=g.ax_col_dendrogram,
+#                         orientation="top")  
+#     #g.ax_col_dendrogram.invert_yaxis()
+#     col_clusters = _get_cluster_classes(den)
+#     col_cdata={"Cluster":[],"Index":[],"RGB":[]}
+#     col_keys=list(col_clusters.keys())
+#     col_ckeys={}
+#     i=1
+#     for k in col_keys:
+#         if k=="C0":
+#             col_ckeys[k]="C0"
+#         else:
+#             col_ckeys[k]="C"+str(i)
+#             i+=1
+#     for c, v in col_clusters.items():
+#         _c=col_ckeys[c]
+#         for _v in v:
+#             col_cdata["Cluster"].append(_c)
+#             col_cdata["Index"].append(_v)
+#             col_cdata["RGB"].append(matplotlib.colors.to_rgb(c))
+#     """Setting the col dendrogram ends here"""
+#
+#
+#
+#     if show:
+#         plt.show()
+#     else:
+#         if return_col_cluster==True:
+#             return {"row_clusters":pd.DataFrame(cdata),"col_clusters":pd.DataFrame(col_cdata), "grid":g}
+#         else:
+#             return {"row_clusters":pd.DataFrame(cdata),"col_clusters":None, "grid":g}
 
 
-
-
-
-
-def complex_clustermap(df,
-                       row_colormap={},
-                       col_colormap={},
-                       row_plot={},
-                       col_plot={},
-                       row_color_legend={},
-                       col_color_legend={},
-                       approx_clusternum=10,
-                       approx_clusternum_col=3,
-                       color_var=0,
-                       merginalsum=False,
-                       show=False,
-                       method="ward",
-                       return_col_cluster=True, 
+def complex_clustermap(df: pd.DataFrame,
+                       dfcol: Optional[pd.DataFrame]=None, 
+                       heatmap_col: list=[],
+                       row_colors: list=[],
+                       col_colors: list=[],
+                       row_plot: list=[],
+                       col_plot: list=[],
+                       row_scatter: list=[],
+                       col_scatter: list=[],
+                       row_bar: list=[],
+                       col_bar: list=[],
+                       
+                       approx_clusternum: int=10,
+                       approx_clusternum_col: int=3,
+                       color_var: int=0,
+                       merginalsum: bool=False,
+                       show: bool=False,
+                       method: str="ward",
+                       return_col_cluster: bool=True,
+                       ztranform=True,
+                       xticklabels=True, 
+                       yticklabels=False,
+                       show_plot_labels=False,
                        **kwargs):
     """
     Drawing a clustered heatmap with merginal plots.
@@ -386,6 +678,8 @@ def complex_clustermap(df,
         The title for color values. If not set, "color_val" will be used.
     Returns
     -------
+        dict 
+        {"row_clusters":pd.DataFrame,"col_clusters":pd.DataFrame, "grid":g}
     Raises
     ------
     Notes
@@ -398,137 +692,327 @@ def complex_clustermap(df,
     --------
     """#print(kwargs)
     rnum, cnum=df.shape
+    cnum=len(heatmap_col)
+    figsize=[2*cnum,10]
+    scatterpointsize=5
     sns.set(font_scale=1)
+    if ztranform:
+        df[heatmap_col]=df[heatmap_col].apply(zscore)
+    
+    if len(col_plot)!=0 or len(col_scatter)!=0 or len(col_bar)!=0:
+        if dfcol==None:
+            raise Exception("if you want to plot along the x axis, you need provide dfcol option containing values to plot.")
     
     totalrowplot=0
     if merginalsum==True:
         totalrowplot+=1
     totalrowplot+=len(row_plot)
-    totalrowplot+=len(row_colormap)
+    totalrowplot+=len(row_colors)
+    totalrowplot+=len(row_scatter)
+    totalrowplot+=len(row_bar)
     totalcolplot=0
     if merginalsum==True:
         totalcolplot+=1
     totalcolplot+=len(col_plot) 
-    totalcolplot+=len(col_colormap)
-    
-    
+    totalcolplot+=len(col_colors)
+    totalcolplot+=len(col_scatter)
+    totalcolplot+=len(col_bar)
+    _row_color_legend={}
+    _col_color_legend={}
+    colormap_index=0
     if totalrowplot + totalcolplot >0:
         rowplotcount=0
         colplotcount=0
-        row_colors=[]
-        row_colors_title=[]
-        col_colors=[]
-        col_colors_title=[]
+        _row_colors=[]
+        _row_colors_title=[]
+        _col_colors=[]
+        _col_colors_title=[]
         
         if merginalsum:
-            row_colors.append(np.ones([rnum, 4]))
-            row_colors_title.append("Sum")
-            col_colors.append(np.ones([rnum, 4]))
-            col_colors_title.append("Sum")
-        if len(row_colormap)>0:
-            for k, v in row_colormap.items():
-                row_colors.append(v)
-                row_colors_title.append(k)
+            _row_colors.append(np.ones([rnum, 4]))
+            _row_colors_title.append("Sum")
+            _col_colors.append(np.ones([cnum, 4]))
+            _col_colors_title.append("Sum")
+        print(np.shape(_col_colors))
+        if len(row_colors)>0:
+            for k in row_colors:
                 
-        if len(col_colormap)>0:
-            for k, v in col_colormap.items():
-                col_colors.append(v)
-                col_colors_title.append(k)
+                u=np.unique(df[k])
+                _cmap=plt.get_cmap(colormap_list[colormap_index],u.shape[0])
+                lut={}
+                for _i, _u in enumerate(u):
+                    lut[_u]=_cmap(_i)
+                _row_color_legend[k]=lut
+                colormap_index+=1
+                _row_colors.append([lut[cat] for cat in df[k]])
+                _row_colors_title.append(k)
+                
+        if len(col_colors)>0:
+            for k in col_colors:
+                u=np.unique(dfcol[k])
+                _cmap=plt.get_cmap(colormap_list[colormap_index],u.shape[0])
+                lut={}
+                for _i, _u in enumerate(u):
+                    lut[_u]=_cmap(_i)
+                _col_color_legend[k]=lut
+                colormap_index+=1
+                _col_colors.append([lut[cat] for cat in dfcol[k]])
+                _col_colors_title.append(k)
         
         if len(row_plot)>0:
-            for k, v in row_plot.items():
-                row_colors.append(np.ones([rnum, 4]))
-                row_colors_title.append(k)
+            for k in row_plot:
+                _row_colors.append(np.ones([rnum, 4]))
+                _row_colors_title.append(k)
         if len(col_plot)>0:
-            for k, v in col_plot.items():
-                col_colors.append(np.ones([rnum, 4]))
-                col_colors_title.append(k)        
+            for k in col_plot:
+                _col_colors.append(np.ones([rnum, 4]))
+                _col_colors_title.append(k)        
         
+        if len(row_scatter)>0:
+            for k in row_scatter:
+                _row_colors.append(np.ones([rnum, 4]))
+                _row_colors_title.append(k)
+        if len(col_scatter)>0:
+            for k in col_scatter:
+                _col_colors.append(np.ones([rnum, 4]))
+                _col_colors_title.append(k) 
         
+        if len(row_bar)>0:
+            for k in row_bar:
+                _row_colors.append(np.ones([rnum, 4]))
+                _row_colors_title.append(k)
+        if len(col_bar)>0:
+            for k in col_bar:
+                _col_colors.append(np.ones([rnum, 4]))
+                _col_colors_title.append(k) 
         
-        
-        
-        if len(row_colors) >0 and len(col_colors) >0:
-            g=sns.clustermap(df,col_colors=col_colors, row_colors=row_colors,method=method,**kwargs)
+        if len(_row_colors) >0 and len(_col_colors) >0:
+            print(np.shape(_col_colors))
+            g=sns.clustermap(df[heatmap_col],col_colors=_col_colors, 
+                             row_colors=_row_colors,
+                             method=method,xticklabels=xticklabels, yticklabels=yticklabels,
+                             figsize=figsize,dendrogram_ratio=0.1,
+                             **kwargs)
             g.ax_col_colors.invert_yaxis()
             g.ax_row_colors.invert_xaxis()
-        elif len(col_colors) >0:
+        elif len(_col_colors) >0:
            
-            g=sns.clustermap(df,col_colors=col_colors,method=method,**kwargs)
+            g=sns.clustermap(df[heatmap_col],
+                             col_colors=_col_colors,
+                             method=method,
+                             xticklabels=xticklabels, 
+                             yticklabels=yticklabels,
+                             dendrogram_ratio=0.1,
+                             figsize=figsize,**kwargs)
             g.ax_col_colors.invert_yaxis()
-        elif len(row_colors) >0:
-            g=sns.clustermap(df,row_colors=row_colors,method=method,**kwargs)
+        elif len(_row_colors) >0:
+            g=sns.clustermap(df[heatmap_col],row_colors=_row_colors,method=method,xticklabels=xticklabels, yticklabels=yticklabels,dendrogram_ratio=0.1,figsize=figsize,**kwargs)
             g.ax_row_colors.invert_xaxis()
         
         rowplotcount=0
         colplotcount=0
+        tickpos=0.9
+        row_labels=[]
+        col_labels=[]
+        row_ticks=[]
+        col_ticks=[]
         if merginalsum:
-            mat=df.to_numpy()
+            mat=df[heatmap_col].to_numpy()
             r=np.sum(mat, axis=1)
-            g.ax_row_colors.barh(np.arange(r.shape[0])+0.5, r[leaves_list(g.dendrogram_row.linkage)]/np.amax(r))
-            
-            
+            row_labels.append(0)
+            row_labels.append(np.amax(r))
+            row_ticks.append(rowplotcount)
+            row_ticks.append(rowplotcount+tickpos)
+            row_cluster=True
+            if "row_cluster" in kwargs:
+                row_cluster=kwargs["row_cluster"]
+            if row_cluster==True:
+                g.ax_row_colors.barh(np.arange(r.shape[0])+0.5, r[leaves_list(g.dendrogram_row.linkage)]/np.amax(r),height=1)
+                
+            else:
+                g.ax_row_colors.barh(np.arange(r.shape[0])+0.5, r/np.amax(r),height=1)
+            #g.ax_row_colors.set_xticks([0,1],labels=[0,np.amax(r)])
             c=np.sum(mat, axis=0)
-            #print(leaves_list(g.dendrogram_col.linkage))
-            g.ax_col_colors.bar(np.arange(c.shape[0])+0.5,c[leaves_list(g.dendrogram_col.linkage)]/np.amax(c))
+            print(mat, c)
+            col_cluster=True
+            if "col_cluster" in kwargs:
+                col_cluster=kwargs["col_cluster"]
+            if col_cluster==True:
             
+            #print(leaves_list(g.dendrogram_col.linkage))
+                g.ax_col_colors.bar(np.arange(c.shape[0])+0.5,c[leaves_list(g.dendrogram_col.linkage)]/np.amax(c),width=1)
+            else:
+                g.ax_col_colors.bar(np.arange(c.shape[0])+0.5,c/np.amax(c),width=1)
+            #g.ax_col_colors.set_yticks([0,1],labels=[0,np.amax(c)])
+            col_labels.append(0)
+            col_labels.append(np.amax(c))
+            col_ticks.append(colplotcount)
+            col_ticks.append(colplotcount+tickpos)
             rowplotcount=1
             colplotcount=1
-        rowplotcount+=len(row_colormap)
-        
+        rowplotcount+=len(row_colors)
+        colplotcount+=len(col_colors)
         if len(row_plot)>0:
             row_cluster=True
             if "row_cluster" in kwargs:
                 row_cluster=kwargs["row_cluster"]
             
-            for i, (lname, r) in enumerate(row_plot.items()):
-                r=np.array(r)
+            for i, lname in enumerate(row_plot):
+                r=np.array(df[lname])
+                row_labels.append(np.amin(r))
+                row_labels.append(np.amax(r))
+                row_ticks.append(rowplotcount)
+                row_ticks.append(rowplotcount+tickpos)
+
+                r=r-np.amin(r)
+                r=r/np.amax(r)
+                r=0.9*r
                 if row_cluster==True:
                     tmpindx=leaves_list(g.dendrogram_row.linkage)
                     r=r[tmpindx]
-                    r=r-np.amin(r)
-                    r=r/np.amax(r)
-                    r=0.9*r
+                    
                     g.ax_row_colors.plot(r+rowplotcount, np.arange(r.shape[0])+0.5)
                 else:
-                    g.ax_row_colors.plot(r/(np.amax(r)*1.1)+rowplotcount, np.arange(r.shape[0])+0.5)
+                    g.ax_row_colors.plot(r+rowplotcount, np.arange(r.shape[0])+0.5)
             
                 rowplotcount+=1
                 
-        
-        colplotcount+=len(col_colormap)
-        
         if len(col_plot)>0:
             col_cluster=True
             if "col_cluster" in kwargs:
                 col_cluster=kwargs["col_cluster"]
-            for i, (lname, r) in enumerate(col_plot.items()):
-                r=np.array(r)
+            for i, lname in enumerate(col_plot):
+                r=np.array(dfcol[lname])
+                col_labels.append(np.amin(r))
+                col_labels.append(np.amax(r))
+                col_ticks.append(colplotcount)
+                col_ticks.append(colplotcount+tickpos)
+                
+                r=r-np.amin(r)
+                r=r/np.amax(r)
+                r=0.9*r
                 if col_cluster==True:
-                    g.ax_col_colors.plot(np.arange(r.shape[0])+0.5,r[leaves_list(g.dendrogram_col.linkage)]/(np.amax(r)*1.1)+colplotcount)
+                    g.ax_col_colors.plot(np.arange(r.shape[0])+0.5,r[leaves_list(g.dendrogram_col.linkage)]+colplotcount)
                 else:
-                    g.ax_col_colors.plot(np.arange(r.shape[0])+0.5,r/(np.amax(r)*1.1)+colplotcount)
+                    g.ax_col_colors.plot(np.arange(r.shape[0])+0.5,r+colplotcount)
+                
+                colplotcount+=1
+        if len(row_scatter)>0:
+            row_cluster=True
+            if "row_cluster" in kwargs:
+                row_cluster=kwargs["row_cluster"]
+            
+            for i, lname in enumerate(row_scatter):
+                r=np.array(df[lname])
+                row_labels.append(np.amin(r))
+                row_labels.append(np.amax(r))
+                row_ticks.append(rowplotcount)
+                row_ticks.append(rowplotcount+tickpos)
+                
+                r=r-np.amin(r)
+                r=r/np.amax(r)
+                r=0.9*r
+                if row_cluster==True:
+                    tmpindx=leaves_list(g.dendrogram_row.linkage)
+                    r=r[tmpindx]
+                    g.ax_row_colors.scatter(r+rowplotcount, np.arange(r.shape[0])+0.5,s=scatterpointsize)
+                else:
+                    g.ax_row_colors.scatter(r+rowplotcount, np.arange(r.shape[0])+0.5,s=scatterpointsize)
+            
+                rowplotcount+=1
+        if len(col_scatter)>0:
+            col_cluster=True
+            if "col_cluster" in kwargs:
+                col_cluster=kwargs["col_cluster"]
+            for i, lname in enumerate(col_scatter):
+                r=np.array(dfcol[lname])
+                col_labels.append(np.amin(r))
+                col_labels.append(np.amax(r))
+                col_ticks.append(colplotcount)
+                col_ticks.append(colplotcount+tickpos)
+                
+                r=r-np.amin(r)
+                r=r/np.amax(r)
+                r=0.9*r
+                if col_cluster==True:
+                    g.ax_col_colors.bar(np.arange(r.shape[0])+0.5,r[leaves_list(g.dendrogram_col.linkage)]+colplotcount,s=scatterpointsize)
+                else:
+                    g.ax_col_colors.bar(np.arange(r.shape[0])+0.5,r+colplotcount,s=scatterpointsize)
                 
                 colplotcount+=1
         
-        g.ax_row_colors.set_xticks(np.arange(len(row_colors_title))+0.5)
-        g.ax_row_colors.set_xticklabels(row_colors_title, rotation=90)
-        g.ax_col_colors.set_yticks(np.arange(len(col_colors_title))+0.5)
-        g.ax_col_colors.set_yticklabels(col_colors_title)
+        if len(row_bar)>0:
+            row_cluster=True
+            if "row_cluster" in kwargs:
+                row_cluster=kwargs["row_cluster"]
+            
+            for i, lname in enumerate(row_bar):
+                r=np.array(df[lname])
+                row_labels.append(np.amin(r))
+                row_labels.append(np.amax(r))
+                row_ticks.append(rowplotcount)
+                row_ticks.append(rowplotcount+tickpos)
+                    
+                r=r-np.amin(r)
+                r=r/np.amax(r)
+                r=0.9*r
+                if row_cluster==True:
+                    g.ax_row_colors.barh(y=np.arange(r.shape[0])+0.5, width=r[leaves_list(g.dendrogram_row.linkage)],left=[rowplotcount]*r.shape[0])
+                else:
+                    g.ax_row_colors.barh(r, np.arange(r.shape[0])+0.5,left=[rowplotcount]*r.shape[0])
+            
+                rowplotcount+=1
+        if len(col_bar)>0:
+            col_cluster=True
+            if "col_cluster" in kwargs:
+                col_cluster=kwargs["col_cluster"]
+            for i, lname in enumerate(col_bar):
+                r=np.array(dfcol[lname])
+                col_labels.append(np.amin(r))
+                col_labels.append(np.amax(r))
+                col_ticks.append(colplotcount)
+                col_ticks.append(colplotcount+tickpos)
+
+                if col_cluster==True:
+                    g.ax_col_colors.scatter(np.arange(r.shape[0])+0.5,r[leaves_list(g.dendrogram_col.linkage)]/(np.amax(r)*1.1)+colplotcount)
+                else:
+                    g.ax_col_colors.scatter(np.arange(r.shape[0])+0.5,r/(np.amax(r)*1.1)+colplotcount)
+                
+                colplotcount+=1
+        g.ax_row_colors.set_xticks(np.arange(len(_row_colors_title))+0.5)
+        g.ax_row_colors.set_xticklabels(_row_colors_title, rotation=90)
+        colax_otherside = g.ax_col_colors.twinx()
+        colax_otherside.set_yticks(0.5*(np.arange(len(_col_colors_title))+0.5),labels=_col_colors_title)
+        colax_otherside.grid(False)
+        col = g.ax_col_dendrogram.get_position()
+        g.ax_col_dendrogram.set_position([col.x0, col.y0, col.width*0.5, col.height*0.5])
         
-        for title, colorlut in row_color_legend.items():
+        if show_plot_labels==True:
+            
+            rowax_otherside = g.ax_row_colors.twiny()
+            rowax_otherside.invert_xaxis()
+            rowax_otherside.grid(False)
+            rowax_otherside.set_xticks(row_ticks, labels=np.round(row_labels,2), rotation=90, fontsize=8)
+            col_ticks=np.array(col_ticks)
+            g.ax_col_colors.set_yticks(col_ticks, labels=np.round(col_labels,2), fontsize=8)
+        
+        legend_num=0
+        for title, colorlut in _row_color_legend.items():
             legendhandles=[]
             for label, color in colorlut.items():
                 legendhandles.append(Line2D([0], [0], color=color,linewidth=5, label=label))
             #g.add_legend(legend_data=legendhandles,title="Aroma",label_order=["W","F","Y"])
-            g.ax_col_dendrogram.legend(handles=legendhandles, loc='upper right', title=title)
-        for title, colorlut in col_color_legend.items():
+            legend1=g.ax_heatmap.legend(handles=legendhandles, loc=[1.15,0.8-0.2*legend_num], title=title)
+            g.ax_heatmap.add_artist(legend1)
+            legend_num+=1
+        for title, colorlut in _col_color_legend.items():
             legendhandles=[]
             for label, color in colorlut.items():
                 legendhandles.append(Line2D([0], [0], color=color,linewidth=5, label=label))
             #g.add_legend(legend_data=legendhandles,title="Aroma",label_order=["W","F","Y"])
-            g.ax_col_dendrogram.legend(handles=legendhandles, loc='upper right', title=title)
-        
+            legend1=g.ax_heatmap.legend(handles=legendhandles, loc=[1.15,0.8-0.2*legend_num], title=title)
+            g.ax_heatmap.add_artist(legend1)
+            legend_num+=1
         
     else:
         g=sns.clustermap(df,method=method,**kwargs)
@@ -540,7 +1024,7 @@ def complex_clustermap(df,
     
     """coloring the row dendrogram based on branch numbers crossed with the threshold"""
     if g.dendrogram_row != None:
-        t=_dendrogram_threshold(g.dendrogram_row.dendrogram)
+        t=_dendrogram_threshold(g.dendrogram_row.dendrogram,approx_clusternum)
         # lbranches=np.array(g.dendrogram_row.dendrogram["dcoord"])[:,:2]
         # rbranches=np.array(g.dendrogram_row.dendrogram["dcoord"])[:,2:]
         # thre=np.linspace(0, np.amax(g.dendrogram_row.dendrogram["dcoord"]), 100)[::-1]
@@ -578,52 +1062,41 @@ def complex_clustermap(df,
     
     
     """coloring the col dendrogram based on branch numbers crossed with the threshold"""
-    t=_dendrogram_threshold(g.dendrogram_col.dendrogram)
-    # lbranches=np.array(g.dendrogram_col.dendrogram["dcoord"])[:,:2]
-    # rbranches=np.array(g.dendrogram_col.dendrogram["dcoord"])[:,2:]
-    # thre=np.linspace(0, np.amax(g.dendrogram_col.dendrogram["dcoord"]), 100)[::-1]
-    # for t in thre:
-    #     #print(np.sum(lbranches[:,1]>t),np.sum(rbranches[:,0]>t),np.sum(lbranches[:,0]>t),np.sum(rbranches[:,1]>t))
-    #     crossbranches=np.sum(lbranches[:,1]>t)+np.sum(rbranches[:,0]>t)-np.sum(lbranches[:,0]>t)-np.sum(rbranches[:,1]>t)
-    #     #print(crossbranches)
-    #
-    #     if crossbranches>approx_clusternum_col:
-    #         break
-    
-    den=hierarchy.dendrogram(g.dendrogram_col.linkage,
-                                             labels = g.data.columns,
-                                             color_threshold=t,ax=g.ax_col_dendrogram,
-                        orientation="top")  
-    #g.ax_col_dendrogram.invert_yaxis()
-    col_clusters = _get_cluster_classes(den)
-    col_cdata={"Cluster":[],"Index":[],"RGB":[]}
-    col_keys=list(col_clusters.keys())
-    col_ckeys={}
-    i=1
-    for k in col_keys:
-        if k=="C0":
-            col_ckeys[k]="C0"
-        else:
-            col_ckeys[k]="C"+str(i)
-            i+=1
-    for c, v in col_clusters.items():
-        _c=col_ckeys[c]
-        for _v in v:
-            col_cdata["Cluster"].append(_c)
-            col_cdata["Index"].append(_v)
-            col_cdata["RGB"].append(matplotlib.colors.to_rgb(c))
+    if g.dendrogram_col != None:
+        t=_dendrogram_threshold(g.dendrogram_col.dendrogram,approx_clusternum_col)
+        den=hierarchy.dendrogram(g.dendrogram_col.linkage,
+                                                 labels = g.data.columns,
+                                                 color_threshold=t,ax=g.ax_col_dendrogram,
+                            orientation="top")  
+        #g.ax_col_dendrogram.invert_yaxis()
+        col_clusters = _get_cluster_classes(den)
+        col_cdata={"Cluster":[],"Index":[],"RGB":[]}
+        col_keys=list(col_clusters.keys())
+        col_ckeys={}
+        i=1
+        for k in col_keys:
+            if k=="C0":
+                col_ckeys[k]="C0"
+            else:
+                col_ckeys[k]="C"+str(i)
+                i+=1
+        for c, v in col_clusters.items():
+            _c=col_ckeys[c]
+            for _v in v:
+                col_cdata["Cluster"].append(_c)
+                col_cdata["Index"].append(_v)
+                col_cdata["RGB"].append(matplotlib.colors.to_rgb(c))
     """Setting the col dendrogram ends here"""
     
-    
-    
+    plt.setp(g.ax_heatmap.xaxis.get_majorticklabels(), rotation=90)
+    plt.subplots_adjust(bottom=0.165, right=0.75)
     if show:
         plt.show()
     else:
         if return_col_cluster==True:
-            return pd.DataFrame(cdata), pd.DataFrame(col_cdata), g
+            return {"row_clusters":pd.DataFrame(cdata),"col_clusters":pd.DataFrame(col_cdata), "grid":g}
         else:
-            return pd.DataFrame(cdata), g
-
+            return {"row_clusters":pd.DataFrame(cdata),"col_clusters":None, "grid":g}
 
 def triangle_heatmap(df, 
                      grid_pos: list=[],
@@ -757,7 +1230,9 @@ def decomplot(df,category: str="",
               explained_variance: bool=True,
               arrow_num: int=3,
               figsize=[],
-              regularization: bool=True) :
+              regularization: bool=True,
+              pcapram={"random_state":0},
+              nmfparam={"random_state":0}) :
     
     """
     Decomposing data and drawing a scatter plot and some plots for explained variables. 
@@ -799,13 +1274,13 @@ def decomplot(df,category: str="",
     else:    
         x = df.values
         assert x.dtype==float, "data must contain only float values."
-        
+    original_index=df.index
     features=df.columns
     dfpc_list=[]
     if method=="pca":
         if regularization:
             x=zscore(x, axis=0)
-        pca = PCA(n_components=component, random_state=0)
+        pca = PCA(n_components=component,**pcapram)
         pccomp = pca.fit_transform(x)
         
         comb=list(combinations(np.arange(component), 2))
@@ -824,7 +1299,7 @@ def decomplot(df,category: str="",
         combnum=0
         for (i, j), ax in zip(comb, axes):
             xlabel, ylabel='pc'+str(i+1), 'pc'+str(j+1)
-            dfpc = pd.DataFrame(data = np.array([pccomp[:,i],pccomp[:,j]]).T, columns = [xlabel, ylabel])
+            dfpc = pd.DataFrame(data = np.array([pccomp[:,i],pccomp[:,j]]).T, columns = [xlabel, ylabel],index=original_index)
             if category!="":
                 dfpc[category]=category_val
                 if combnum==1:
@@ -869,9 +1344,9 @@ def decomplot(df,category: str="",
         if show==True:
             plt.show()
         else:
-            return {"dataframe": dfpc_list,"pca_val": pccomp}
+            return {"dataframe": dfpc_list,"pca": pca}
     elif method=="nmf":
-        nmf=NMF(n_components=component)
+        nmf=NMF(n_components=component,**nmfparam)
         if regularization:
             x=x/np.sum(x,axis=0)[None,:]
         W = nmf.fit_transform(x)
@@ -891,7 +1366,7 @@ def decomplot(df,category: str="",
 
         for (i, j), ax in zip(comb, axes):
             xlabel, ylabel='p'+str(i+1), 'p'+str(j+1)
-            dfpc = pd.DataFrame(data = np.array([W[:,i],W[:,j]]).T, columns = [xlabel, ylabel])
+            dfpc = pd.DataFrame(data = np.array([W[:,i],W[:,j]]).T, columns = [xlabel, ylabel],index=original_index)
             dfpc[category]=category_val
             sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=category, ax=ax)
             dfpc_list.append(dfpc)
@@ -936,7 +1411,12 @@ def decomplot(df,category: str="",
             
         if show==True:
             plt.show()
-        return dfpc_list, W, H
+        return {"dfpc": dfpc_list, "W":W, "H":H}
+    elif method=="lda":
+        lda=LatentDirichletAllocation(n_components=component, random_state=0)
+        if regularization:
+            x=x/np.sum(x,axis=0)[None,:]
+        
     else:
         raise Exception('{} is not in options. Available options are: pca, nmf'.format(method))
 def manifoldplot(df,category="", 
@@ -1002,7 +1482,7 @@ def manifoldplot(df,category="",
         assert x.dtype==float, "data must contain only float values."
     x=zscore(x, axis=0)
     features=df.columns
-    
+    original_index=df.index
     if method=="random_projection": 
         embedding=SparseRandomProjection(
             n_components=n_components, random_state=42
@@ -1063,7 +1543,7 @@ def manifoldplot(df,category="",
     else:
         raise Exception(f"Medthod {method} does not exist.")
     Xt=embedding.fit_transform(x)
-    dft = pd.DataFrame(data = np.array([Xt[:,0],Xt[:,1]]).T, columns = ["d1", "d2"])
+    dft = pd.DataFrame(data = np.array([Xt[:,0],Xt[:,1]]).T, columns = ["d1", "d2"],index=original_index)
     if category !="":
         fig, ax=plt.subplots()
         dft[category]=category_val
@@ -1130,7 +1610,7 @@ def clusterplot(df,category: Union[List[str], str]="",
     """ 
     
     
-    
+    original_index=df.index
     
     if len(category) !=0:
         if type(category)==str:
@@ -1309,7 +1789,7 @@ def clusterplot(df,category: Union[List[str], str]="",
             kmX=kmean.fit(X)
             labels=np.unique(kmX.labels_)
             
-            dfnew=pd.DataFrame(data = np.array([X[:,0],X[:,1]]).T, columns = [x, y])
+            dfnew=pd.DataFrame(data = np.array([X[:,0],X[:,1]]).T, columns = [x, y], index=original_index)
             dfnew["kmeans"]=kmX.labels_
             dfnews.append(dfnew)
         hue="kmeans"
@@ -1337,7 +1817,7 @@ def clusterplot(df,category: Union[List[str], str]="",
                     sample2cluster[sample]="C"+str(i)
                 i+=1
                 
-            dfnew=pd.DataFrame(data = np.array([X[:,0],X[:,1]]).T, columns = [x, y])
+            dfnew=pd.DataFrame(data = np.array([X[:,0],X[:,1]]).T, columns = [x, y], index=original_index)
             dfnew["hierarchical"]=[sample2cluster[sample] for sample in labels]       
             dfnews.append(dfnew)
         hue="hierarchical"
@@ -1354,7 +1834,7 @@ def clusterplot(df,category: Union[List[str], str]="",
             dbX=db.fit(X)
             labels=np.unique(dbX.labels_)
             
-            dfnew=pd.DataFrame(data = np.array([X[:,0],X[:,1]]).T, columns = [x, y])
+            dfnew=pd.DataFrame(data = np.array([X[:,0],X[:,1]]).T, columns = [x, y], index=original_index)
             dfnew["dbscan"]=dbX.labels_
             dfnews.append(dfnew)
             tmp=0
@@ -1450,15 +1930,15 @@ def regression_single(df,
         
         
         fit_df=pd.DataFrame()
-        ransac = RANSACRegressor(random_state=42,**ransac_param).fit(_X,Y)
-        fit_df["ransac_regression"] = ransac.predict(plotline_X)
-        coef = ransac.estimator_.coef_[0]
-        intercept=ransac.estimator_.intercept_
-        inlier_mask = ransac.inlier_mask_
+        fitted_model = RANSACRegressor(random_state=42,**ransac_param).fit(_X,Y)
+        fit_df["ransac_regression"] = fitted_model.predict(plotline_X)
+        coef = fitted_model.estimator_.coef_[0]
+        intercept=fitted_model.estimator_.intercept_
+        inlier_mask = fitted_model.inlier_mask_
         outlier_mask = ~inlier_mask
         
                                 # number of samples
-        y_model=ransac.predict(_X)
+        y_model=fitted_model.predict(_X)
 
         r2 = calc_r2(X,Y)
         # mean squared error
@@ -1471,7 +1951,7 @@ def regression_single(df,
         ci, pi, std_error=ci_pi(X,Y,plotline_X.flatten(),y_model)
         q=((X-X.mean()).transpose() @ (X-X.mean()))
         sigma=std_error*(q**-1)**(0.5)
-        coef_p=stats.t.sf(abs(ransac.estimator_.coef_[0]/sigma), df=X.shape[0]-2)
+        coef_p=stats.t.sf(abs(fitted_model.estimator_.coef_[0]/sigma), df=X.shape[0]-2)
         ############### Ploting
 
         draw_ci_pi(ax, ci, pi,x_line, y_line)
@@ -1503,16 +1983,16 @@ def regression_single(df,
         import statsmodels.api as sm
         rlm_model = sm.RLM(Y, sm.add_constant(X),
         M=sm.robust.norms.HuberT(),**robust_param)
-        rlm_results = rlm_model.fit()
-        summary=rlm_results.summary()
-        coef=rlm_results.params[1]
-        intercept=rlm_results.params[0]
-        intercept_p=rlm_results.pvalues[0]
-        coef_p=rlm_results.pvalues[1]
-        y_model=rlm_results.predict(sm.add_constant(X))
+        fitted_model = rlm_model.fit()
+        summary=fitted_model.summary()
+        coef=fitted_model.params[1]
+        intercept=fitted_model.params[0]
+        intercept_p=fitted_model.pvalues[0]
+        coef_p=fitted_model.pvalues[1]
+        y_model=fitted_model.predict(sm.add_constant(X))
         r2 = calc_r2(X,Y)
         x_line = plotline_X.flatten()
-        y_line = rlm_results.predict(sm.add_constant(x_line))
+        y_line = fitted_model.predict(sm.add_constant(x_line))
         ci, pi=ci_pi(X,Y,plotline_X.flatten(),y_model)
         MSE = 1/n * np.sum( (Y - y_model)**2 )
 
@@ -1537,21 +2017,21 @@ def regression_single(df,
                 )
             )
             plt.plot(plotline_X.flatten(),y_line)
-    elif method=="lasso" or method=="elastic_net":
+    elif method=="lasso" or method=="elastic_net" or method=="ols":
         if method=="lasso":
             method="sqrt_lasso"
         import statsmodels.api as sm
         rlm_model = sm.OLS(Y, sm.add_constant(X))
-        rlm_results = rlm_model.fit_regularized(method)
-        print(vars(rlm_results))
-        print(vars(rlm_results._results))
-        #summary=rlm_results.summary()
-        coef=rlm_results.params[1]
-        intercept=rlm_results.params[0]
-        y_model=rlm_results.predict(sm.add_constant(X))
+        if method=="ols":
+            fitted_model = rlm_model.fit()
+        else:
+            fitted_model = rlm_model.fit_regularized(method)
+        coef=fitted_model.params[1]
+        intercept=fitted_model.params[0]
+        y_model=fitted_model.predict(sm.add_constant(X))
         r2 = calc_r2(X,Y)
         x_line = plotline_X.flatten()
-        y_line = rlm_results.predict(sm.add_constant(x_line))
+        y_line = fitted_model.predict(sm.add_constant(x_line))
         ci, pi, std_error=ci_pi(X,Y,plotline_X.flatten(),y_model)
         q=((X-X.mean()).transpose() @ (X-X.mean()))
         sigma=std_error*(q**-1)**(0.5)
@@ -1578,7 +2058,7 @@ def regression_single(df,
                 )
             )
             plt.plot(plotline_X.flatten(),y_line)
-    return ax, {"coefficient":coef,"intercept":intercept,"coefficient_pval":coef_p, "r2":r2}
+    return ax, {"coefficient":coef,"intercept":intercept,"coefficient_pval":coef_p, "r2":r2, "fitted_model":fitted_model}
 
 
 def violinplot(df, 
@@ -1718,7 +2198,7 @@ def violinplot(df,
 if __name__=="__main__":
     
     
-    test="complex_clustermap"
+    
     #test="dotplot"
     #test="triangle_heatmap"
     test="decomp"
@@ -1733,6 +2213,8 @@ if __name__=="__main__":
     test="violinplot"
     test="cluster"
     test="regression"
+    
+    test="complex_clustermap"
     if test=="regression":
         df=sns.load_dataset("penguins")
         df=df.dropna(axis=0)
@@ -1762,13 +2244,28 @@ if __name__=="__main__":
         df=pd.DataFrame(data=mat, index=labels, columns=labels)
         triangle_heatmap(df,grid_pos=[2*s//10,5*s//10,7*s//10],grid_labels=["A","B","C","D"])
     elif test=="complex_clustermap":
-        _df=pd.DataFrame(np.arange(100).reshape([10,10]))
-        cmap=plt.get_cmap("tab20b")
-        complex_clustermap(_df,
-                           row_colormap={"test1":[cmap(v) for v in np.linspace(0,1,10)]},
-                           row_plot={"sine":np.sin(np.linspace(0,np.pi,10))},
-                           approx_clusternum=3,
-                           merginalsum=True)
+        # _df=pd.DataFrame(np.arange(100).reshape([10,10]))
+        # cmap=plt.get_cmap("tab20b")
+        # complex_clustermap(_df,
+        #                    row_colormap={"test1":[cmap(v) for v in np.linspace(0,1,10)]},
+        #                    row_plot={"sine":np.sin(np.linspace(0,np.pi,10))},
+        #                    approx_clusternum=3,
+        #                    merginalsum=True)
+        df=sns.load_dataset("penguins")
+        
+        df=df.dropna(axis=0)
+        dfcol=pd.DataFrame({"features":["bill","bill","flipper"]})
+        complex_clustermap(df,dfcol=dfcol,
+                           
+                            heatmap_col=["bill_length_mm","bill_depth_mm","flipper_length_mm"],
+                            row_colors=["species","sex"],
+                            row_scatter=["body_mass_g"],
+                            row_plot=["body_mass_g"],
+                            row_bar=["body_mass_g"],
+                            col_colors=["features"],
+                            approx_clusternum=3,
+                            merginalsum=True)
+        plt.show()
     elif test=="radialtree":
         df=sns.load_dataset("penguins")
         df=df.dropna(axis=0)
