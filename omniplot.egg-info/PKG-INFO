@@ -1,6 +1,6 @@
 Metadata-Version: 1.1
 Name: omniplot
-Version: 0.1.0
+Version: 0.2.0
 Summary: To draw scientific plots easily
 Home-page: UNKNOWN
 Author: Koh Onimaru
@@ -14,10 +14,16 @@ Description: ![omniplot logo][logo-image]
         
         omniplot is a python module to draw a scientific plot with hassle free. It mainly focuses on bioinfomatics data.
         
-        <img src="example.png" width="425"/> <img src="example2.png" width="300"/> <br>
-        <img src="example3.png" width="425"/> <img src="example4.png" width="300"/> <br>
+        <img src="images/example.png" width="300"/> <img src="images/example2.png" width="300"/> <br>
+        <img src="images/example3.png" width="300"/> <img src="images/example7.png" width="300"/> <br>
+        <img src="images/example5.png" width="300"/> <img src="images/example6.png" width="300"/> <br>
         ## Motivation
-        Although there exist many good python data visualization libraries, such as matplotlib, pandas, seaborn, plotly, vedo and so on,
+        Although there exist many good python data visualization libraries, such as 
+        [matplotlib](https://matplotlib.org/), 
+        [pandas](https://pandas.pydata.org/), 
+        [seaborn](https://seaborn.pydata.org/), 
+        [plotly](https://plotly.com/), 
+        [vedo](https://vedo.embl.es/) and so on,
         still several kinds of plots cannot be drawn without hassle. This module is aimed to provide convenient 
         tools that allow users to draw complex plots, such as a scatter plot with PCA and loadings or clustering analysis in one liner.
         
@@ -26,6 +32,10 @@ Description: ![omniplot logo][logo-image]
         git clone https://github.com/koonimaru/omniplot.git <br>
         cd omniplot <br>
         pip install .
+        
+        ## How to use
+        I created jupyter notebooks to demonstrate the usage of omniplot [Link](https://github.com/koonimaru/omniplot/tree/main/ipynb).
+        You can open jupyter notebooks with [jupyter lab](https://jupyterlab.readthedocs.io/en/stable/) or [VScode](https://code.visualstudio.com/).
         
         ## Example usage
         ```python

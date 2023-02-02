@@ -1,3 +1,4 @@
+cvxopt
 fastcluster
 igraph
 matplotlib
@@ -5,5 +6,6 @@ numpy
 pandas
 scipy
 seaborn
+statsmodels
 tensorflow
 umap-learn
