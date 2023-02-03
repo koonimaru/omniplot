@@ -14,7 +14,7 @@ import pandas as pd
 plt.rcParams['font.family']= 'sans-serif'
 plt.rcParams['font.sans-serif'] = ['Arial']
 plt.rcParams['svg.fonttype'] = 'none'
-sns.set_theme()
+sns.set_theme(font="Arial")
 
 def pienodes(g,
              vertex_label: list=[], 

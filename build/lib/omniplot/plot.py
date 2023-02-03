@@ -36,13 +36,13 @@ from sklearn.cluster import KMeans, DBSCAN
 from sklearn.metrics import silhouette_score
 from scipy.spatial.distance import pdist, squareform
 from sklearn.decomposition import PCA, NMF, LatentDirichletAllocation
-
+from scipy.stats import fisher_exact
 from scipy.stats import zscore
 from itertools import combinations
 import os
 #script_dir = os.path.dirname( __file__ )
 #sys.path.append( script_dir )
-from omniplot.utils import _dendrogram_threshold, _radialtree2,_get_cluster_classes,_calc_curveture, draw_ci_pi,calc_r2,ci_pi
+from omniplot.utils import line_annotate, _dendrogram_threshold, _radialtree2,_get_cluster_classes,_calc_curveture, draw_ci_pi,calc_r2,ci_pi
 import scipy.stats as stats
 
 colormap_list=["nipy_spectral", "terrain","tab20b","tab20c","gist_rainbow","hsv","CMRmap","coolwarm","gnuplot","gist_stern","brg","rainbow","jet"]
@@ -50,6 +50,9 @@ plt.rcParams['font.family']= 'sans-serif'
 plt.rcParams['font.sans-serif'] = ['Arial']
 plt.rcParams['svg.fonttype'] = 'none'
 sns.set_theme()
+
+
+
 
 
 
@@ -640,7 +643,7 @@ def complex_clustermap(df: pd.DataFrame,
                        ztranform=True,
                        xticklabels=True, 
                        yticklabels=False,
-                       show_plot_labels=False,
+                       show_plot_labels=False,figsize=[],
                        **kwargs):
     """
     Drawing a clustered heatmap with merginal plots.
@@ -693,7 +696,8 @@ def complex_clustermap(df: pd.DataFrame,
     """#print(kwargs)
     rnum, cnum=df.shape
     cnum=len(heatmap_col)
-    figsize=[2*cnum,10]
+    if len(figsize)==0:
+        figsize=[2*cnum,10]
     scatterpointsize=5
     sns.set(font_scale=1)
     if ztranform:
@@ -2195,6 +2199,130 @@ def violinplot(df,
         plt.subplots_adjust(right=0.850)
     
     return {"p values":newpvals,"ax":ax}
+
+def stacked_barplot(df,
+                    x: str="",
+                    hue: str="",
+                    scale: str="fraction",
+                    order: list=[],
+                    hue_order: list=[],
+                    test_pairs: List[List[str]]=[],
+                    show_number: bool=True,
+                    figsize=[4,6]):
+    
+    data={}
+    if len(order)==0:
+        u=np.unique(df[x])
+        keys=sorted(list(u))
+    else:
+        keys=order
+    if len(hue_order)==0:
+        u=np.unique(df[hue])
+        hues=sorted(list(u))
+    else:
+    
+        hues=hue_order
+    for key in keys:
+        data[key]=[]
+        for h in hues:
+            data[key].append(np.sum((df[x]==key) & (df[hue]==h)))
+    pvals={}
+    if len(test_pairs) >0:
+        
+        for i, h in enumerate(hues):
+            pvals[h]=[]
+            for p1,p2 in test_pairs:
+                idx1=keys.index(p1)
+                idx2=keys.index(p2)
+                yes_total=np.sum(data[keys[idx1]])
+                no_total=np.sum(data[keys[idx2]])
+                yes_and_hue=data[keys[idx1]][i]
+                no_and_hue=data[keys[idx2]][i]
+                table=[[yes_and_hue, no_and_hue],
+                       [yes_total-yes_and_hue, no_total-no_and_hue]]
+                
+                odd, pval=fisher_exact(table)
+                pvals[h].append([idx1, idx2, pval])
+    if scale=="fraction":
+        for key in keys:
+            data[key]=np.array(data[key])/np.sum(data[key])
+    elif scale=="percentage":
+        for key in keys:
+            data[key]=np.array(data[key])/np.sum(data[key])*100
+    bottom=np.zeros([len(keys)])
+    cmap=plt.get_cmap("tab20b")
+    fig, ax=plt.subplots(figsize=figsize)
+    plt.subplots_adjust(left=0.2,right=0.6)
+    if scale=="absolute":
+        unit=""
+    elif scale=="fraction":
+        unit=""
+    elif scale=="percentage":
+        unit="%"
+    pos={}
+    for i, h in enumerate(hues):
+        
+        heights=np.array([data[key][i] for key in keys])
+        
+        
+        plt.bar(keys, heights,width=0.5, bottom=bottom, color=cmap(i/len(hues)), label=h)
+        if show_number==True:
+            for j in range(len(keys)):
+                if scale=="absolute":
+                    plt.text(j,bottom[j]+heights[j]/2,"{}{}".format(heights[j],unit), 
+                         bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="y", lw=1, alpha=0.8))
+                else:
+                    plt.text(j,bottom[j]+heights[j]/2,"{:.2f}{}".format(heights[j],unit), 
+                         bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="y", lw=1, alpha=0.8))
+        
+        pos[h]={key: [he, bo] for key, he, bo in zip(keys, heights, bottom)}
+        bottom+=heights
+    ax.legend(loc=[1.01,0])
+    ax.set_xlabel(x)
+    if scale=="absolute":
+        ylabel="Counts"
+    elif scale=="fraction":
+        ylabel="Fraction"
+    elif scale=="percentage":
+        ylabel="Percentage"
+    ax.set_ylabel(ylabel)
+    
+    if len(pvals)>0:
+        for i, h in enumerate(hues):
+            _pos=pos[h]
+            for idx1, idx2, pval in pvals[h]:
+                if pval < 0.05:
+                    he1, bot1=_pos[keys[idx1]]
+                    he2, bot2=_pos[keys[idx2]]
+                    line, =plt.plot([idx1,idx2],[he1/2+bot1,he2/2+bot2],color="gray")
+                    # r1=ax.transData.transform([idx1, he1/2+bot1])
+                    # r2=ax.transData.transform([idx2, he2/2+bot2])
+                    r1=np.array([idx1, he1/2+bot1])
+                    r2=np.array([idx2, he2/2+bot2])
+                    r=r2-r1
+                    print(ax.get_xlim(),ax.get_ylim())
+                    r=np.array([1,3])*r/np.array([ax.get_xlim()[1]-ax.get_xlim()[0],ax.get_ylim()[1]-ax.get_ylim()[0]])
+                    #r=ax.transData.transform(r)
+                    if idx2<idx1:
+                        r=-r
+                    print(r)
+                    r=r*(r @ r)**(-0.5)
+                    print(h,r)
+                    angle=np.arccos(r[0])
+                    if r[1]<0:
+                        angle= -angle
+                    print(angle)
+                    line_annotate( "mlp="+str(np.round(-np.log10(pval), decimals=1)), line, (idx1+idx2)/2, color="magenta")
+                    # plt.text((idx1+idx2)/2, 0.5*(he1/2+bot1+he2/2+bot2), "mlp="+str(np.round(-np.log10(pval), decimals=1)), 
+                    #          color="magenta", va="center",ha="center", rotation=360*angle/(2*np.pi),)
+                    # plt.annotate("mlp="+str(np.round(-np.log10(pval), decimals=1)),[(r1[0]+r2[0])/2, 0.5*(r1[1]+r2[1])],   
+                    #          color="magenta",ha="center", rotation=360*angle/(2*np.pi),xycoords='figure pixels')
+                    #
+
+    
+    plt.show()
+
+
 if __name__=="__main__":
     
     
@@ -2215,6 +2343,7 @@ if __name__=="__main__":
     test="regression"
     
     test="complex_clustermap"
+    test="stacked"
     if test=="regression":
         df=sns.load_dataset("penguins")
         df=df.dropna(axis=0)
@@ -2301,5 +2430,8 @@ if __name__=="__main__":
                    test="mannwhitneyu",
                    significance="symbol",swarm=True)
         plt.show()
-        
+    elif test=="stacked": 
+        df=sns.load_dataset("penguins")
+        df=df.dropna(axis=0)
+        stacked_barplot(df, x="species",hue="island", scale="percentage", test_pairs=[["Adelie","Gentoo"]])
         

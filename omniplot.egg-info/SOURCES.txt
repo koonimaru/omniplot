@@ -6,6 +6,7 @@ omniplot/igraph_classes.py
 omniplot/networkplot.py
 omniplot/plot.py
 omniplot/regressionplot.py
+omniplot/statistics.py
 omniplot/utils.py
 omniplot.egg-info/PKG-INFO
 omniplot.egg-info/SOURCES.txt
