@@ -29,6 +29,7 @@ pip install .
 I created jupyter notebooks to demonstrate the usage of omniplot [Link](https://github.com/koonimaru/omniplot/tree/main/ipynb).
 You can open jupyter notebooks with [jupyter lab](https://jupyterlab.readthedocs.io/en/stable/) or [VScode](https://code.visualstudio.com/).
 
+
 ## Example usage
 ```python
 import numpy as np
@@ -57,6 +58,8 @@ op.triangle_heatmap(df,grid_pos=[2*s//10,5*s//10,7*s//10],grid_labels=["A","B","
 ```python
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+import igraph
 from omniplot import networkplot as netp
 edges=[[0,0],[0,1],[0,2],[2,1],[2,3],[3,4]]
 edge_width=[1 for i in range(len(edges))]
