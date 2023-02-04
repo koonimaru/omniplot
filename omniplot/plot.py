@@ -2380,7 +2380,48 @@ def stacked_barplot(df: pd.DataFrame,
     
     return {"pval":pvals,"ax":ax}
 
-
+def nice_piechart(df: pd.DataFrame, 
+                  category: Union[str, List[str]],
+                  palette: str="tab20c",
+                  ncols: int=2,
+                  ignore: float=0.05):
+    
+    if type(category)==str:
+        category=[category]
+    nrows=len(category)//ncols+int(len(category)%ncols!=0)
+    fig, axes=plt.subplots(nrows=nrows, ncols=ncols, figsize=[ncols*2,
+                                                        nrows*2])
+    axes=axes.flatten()
+    for cat, ax in zip(category, axes):
+        u, c=np.unique(df[cat], return_counts=True)
+        
+        srt=np.argsort(c)[::-1]
+        u=u[srt]
+        c=c[srt]
+        _c=c/np.sum(c)
+        
+        
+        
+        _cmap=plt.get_cmap(palette, c.shape[0])
+        colors=[_cmap(i) for i in range(c.shape[0])]
+        for j in range(c.shape[0]):
+            if _c[j]<ignore:
+                colors[j]=[0,0,0,1]
+                u[j]=""
+        
+        
+        ax.pie(c, labels=u, 
+               counterclock=False,
+               startangle=90, 
+               colors=colors,
+               labeldistance=0.6,
+               radius=1.25)
+        ax.set_title(cat,backgroundcolor='lavender',pad=10)
+    if len(category)%ncols!=0:
+        for i in range(len(category)%ncols-2):
+            fig.delaxes(axes[-(i+1)])
+    plt.tight_layout(h_pad=1)
+    plt.subplots_adjust(top=0.9)
 if __name__=="__main__":
     
     
@@ -2403,7 +2444,22 @@ if __name__=="__main__":
     test="complex_clustermap"
     test="stacked"
     test="dotplot"
-    if test=="regression":
+    test="nice_piechart"
+    
+    if test=="nice_piechart":
+        df=sns.load_dataset("penguins")
+        df=df.dropna(axis=0)
+        tmp=[]
+        for num, (sp, i ,se) in enumerate(zip(df["species"], df["island"],df["sex"])):
+            if num/df.shape[0] > 0.98:
+                tmp.append("NA")
+            else:
+                tmp.append(sp[0]+"_"+i[0]+"_"+se[0])
+        df["combine"]=tmp
+        print(df)
+        nice_piechart(df, category=["species", "island","sex","species", "island","sex","combine"],ncols=4)
+        plt.show()
+    elif test=="regression":
         df=sns.load_dataset("penguins")
         df=df.dropna(axis=0)
         regression_single(df, x="bill_length_mm",y="body_mass_g", method="ransac",category="species")
