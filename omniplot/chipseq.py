@@ -11,82 +11,25 @@ from scipy.spatial import distance
 from joblib import Parallel, delayed
 import itertools as it
 from joblib.externals.loky import get_reusable_executor
-
-sns.set_theme(font="Arial", style={'grid.linestyle': "",'axes.facecolor': 'white'})
+from chipseq_utils import gff_parser, read_peaks, read_bw, calc_pearson,stitching,read_tss, remove_close_to_tss,find_extremes
+sns.set_theme(font="Arial", style={'grid.linestyle': "",'axes.facecolor': 'whitesmoke'})
 import itertools
+import random
+import string
+from matplotlib.colors import LogNorm
+from sklearn.decomposition import PCA, NMF, LatentDirichletAllocation
+from scipy.stats import fisher_exact
+from scipy.stats import zscore
+from sklearn.cluster import KMeans
+from utils import optimal_kmeans
 
-def range_diff(r1, r2):
-    s1, e1 = r1
-    s2, e2 = r2
-    endpoints = sorted((s1, s2, e1, e2))
-    result = []
-    if endpoints[0] == s1 and endpoints[1] != s1:
-        result.append((endpoints[0], endpoints[1]))
-    if endpoints[3] == e1 and endpoints[2] != e1:
-        result.append((endpoints[2], endpoints[3]))
-    return result
 
-def multirange_diff(r1_list, r2_list):
-    for r2 in r2_list:
-        r1_list = list(itertools.chain(*[range_diff(r1, r2) for r1 in r1_list]))
-    return r1_list
-
-class gff_parser():
-    
-    def __init__(self,gff):
-        data={}
-        with open(gff) as fin:
-            for l in fin:
-                if l.startswith("#"):
-                    continue
-                chrom, source, kind, s, e, _, ori, _, meta=l.split()
-                if not chrom in data:
-                    data[chrom]={"pos":[], "kind":[],"ori":[],"meta":[]}
-                
-                meta=meta.split(";")
-                tmp={}
-                for m in meta:
-                    k, v=m.split("=")
-                    tmp[k]=v
-                data[chrom]["pos"].append([int(s)-1, int(e)])
-                data[chrom]["kind"].append(kind)
-                data[chrom]["ori"].append(ori)
-                data[chrom]["meta"].append(tmp)        
-        self.data=data
-        
-    
-    def get_genes(self, chrom: str,
-                  start: int, 
-                  end: int,
-                  gene_type: set=set(["protein_coding"])) -> list:
-        
-        _data=self.data[chrom]
-        genes=[]
-        for i, (s,e) in enumerate(_data["pos"]):
-            if start<=s and e<=end:
-                if _data["kind"][i]=="gene" and _data["meta"][i]["gene_type"] in gene_type:
-                    genename=_data["meta"][i]["gene_name"]
-                    ori=_data["ori"][i]
-                    genes.append([genename,s,e,ori])
-            elif start<=s<=end and end<e:
-                if _data["kind"][i]=="gene"  and _data["meta"][i]["gene_type"] in gene_type:
-                    genename=_data["meta"][i]["gene_name"]
-                    ori=_data["ori"][i]
-                    genes.append([genename,s,end,ori])
-            elif s<start and start<=e<=end  and _data["meta"][i]["gene_type"] in gene_type:
-                if _data["kind"][i]=="gene":
-                    genename=_data["meta"][i]["gene_name"]
-                    ori=_data["ori"][i]
-                    genes.append([genename,start,e,ori])
-            
-                
-            if s>end:
-                break
-        return genes
 def plot_bigwig(files: dict, 
-                bed: str, 
+                bed: Union[str, list], 
                 gff: str,
-                step: int=100):
+                step: int=100,
+                stack_regions: str="horizontal", 
+                highlight: Union[str, list]=[]):
     """
     Plotting bigwig files in specified genomic regions in the bed file.  
     
@@ -117,12 +60,24 @@ def plot_bigwig(files: dict,
     Examples
     --------
     """ 
-    pos=[]
-    with open(bed) as fin:
-        for l in fin:
-            l=l.split()
-            chrom, s, e=l[0],l[1],l[2]
-            pos.append([chrom,int(s.replace(",","")),int(e.replace(",",""))])
+    if type(bed)==str:
+        pos=[]
+        with open(bed) as fin:
+            for l in fin:
+                l=l.split()
+                chrom, s, e=l[0],l[1],l[2]
+                pos.append([chrom,int(s.replace(",","")),int(e.replace(",",""))])
+    else:
+        pos=bed
+        
+    if type(highlight)==str:
+        _highlight=[]
+        with open(bed) as fin:
+            for l in fin:
+                l=l.split()
+                chrom, s, e=l[0],l[1],l[2]
+                _highlight.append([chrom,int(s.replace(",","")),int(e.replace(",",""))])
+        highlight=_highlight
     gff_ob=gff_parser(gff)
     
     geneset=[]
@@ -159,228 +114,177 @@ def plot_bigwig(files: dict,
             val=bw.values(chrom, s, e)
             
             mat[samplename].append(val)
-    
-    fig, axes=plt.subplots(nrows=len(files)+1,ncols=len(pos),gridspec_kw={
-                           'height_ratios': [2]*len(files)+[1]})
-    sample_order=sorted(mat.keys())
-    for si, sample in enumerate(sample_order):
-        vals=mat[sample]
-        ymax=0
-        
-        
-        print(ymax)
-        for posi, (genes, val) in enumerate(zip(geneset, vals)):
-            if len(val)==0:
-                continue
-            ax=axes[si,posi]
-            chrom, s, e=pos[posi]
-            val=np.array(val)
-            vallen=val.shape[0]
-            remains=vallen%step
-            _e=e-remains
-            x=np.arange(s, _e,step)
+    if stack_regions=="vertical":
+        fig, axes=plt.subplots(nrows=len(pos)*2,ncols=len(files),figsize=[10,10],gridspec_kw={
+                           'height_ratios': [2,1]*len(pos),"hspace":0},
+                       constrained_layout = True)
+        if len(axes.shape)==1:
+            axes=axes.reshape([-1,1])
+        sample_order=sorted(mat.keys())
+        ticks_labels=[]
+        for si, sample in enumerate(sample_order):
             
-            print(s, e, _e, vallen, step)
-            val=val[:vallen-remains].reshape(-1, step).mean(axis=1)
-            _ymax=np.amax(val)
-            if _ymax >  ymax:
-                ymax =_ymax
-            
-            ax.fill_between(x, val)
-            
-            
-            
-            
-            if posi==0:
-                ax.set_ylabel(sample)
-
-            ax.set_xticks([],labels=[])
-            if si==0:
-                ax.set_title(chrom+":"+str(s)+"-"+str(e))
-
+            vals=mat[sample]
+            ymax=0
+            print(ymax)
+            for posi, (genes, val) in enumerate(zip(geneset, vals)):
+                if len(val)==0:
+                    continue
+                ax=axes[posi*2,si]
+                chrom, s, e=pos[posi]
+                val=np.array(val)
+                vallen=val.shape[0]
+                remains=vallen%step
+                _e=e-remains
+                x=np.arange(s, _e,step)
+                print(s, e, _e, vallen, step)
+                val=val[:vallen-remains].reshape(-1, step).mean(axis=1)
+                _ymax=np.amax(val)
+                if _ymax >  ymax:
+                    ymax =_ymax
+                if len(highlight)!=0:
+                    hchrom, hs, he=highlight[posi]
+                    ax.fill_between([hs, he], [_ymax, _ymax], alpha=0.5, color="r")
+                ax.fill_between(x, val)
                 
-        occupied=[[] for i in range(8)]
+                
+                if si==0:
+                    ax.set_title(sample+" "+chrom+":"+str(s)+"-"+str(e))
+                    ticks_labels.append([[np.amin(x),np.amax(x)],ax.get_xticks(), ax.get_xticklabels()])
+                ax.set_xticks([],labels=[])
+            occupied=[[] for i in range(8)]
+            for posi in range(len(pos)):
+                axes[posi, si].set_ylim(0,ymax*1.01)
+
+        
         for posi in range(len(pos)):
-            axes[si,posi].set_ylim(0,ymax*1.01)
-            if posi >0:
-                axes[si,posi].set_yticks([],labels=[])
-    
-    for posi in range(len(pos)):
-        interval=pos[posi][2]-pos[posi][1]
-        for genename, gs, ge,ori in geneset[posi]:
-            slot=0
-            for oi in range(len(occupied)):
-                oc=False
-                if len(occupied[oi])==0:
-                    occupied[oi].append([gs, ge])
+            interval=pos[posi][2]-pos[posi][1]
+            axes[posi*2+1,si].plot(ticks_labels[posi][0],[0,0],alpha=0)
+            for genename, gs, ge,ori in geneset[posi]:
+                slot=0
+                for oi in range(len(occupied)):
                     oc=False
-                    slot=oi
-                else:
-                    for tmps, tmpe in occupied[oi]:
-                        if tmps<=gs<= tmpe or tmps<=ge<=tmpe:
-                            oc=True
-                    if oc==False:
+                    if len(occupied[oi])==0:
                         occupied[oi].append([gs, ge])
+                        oc=False
                         slot=oi
-                if oc==False:
+                    else:
+                        for tmps, tmpe in occupied[oi]:
+                            if tmps<=gs<= tmpe or tmps<=ge<=tmpe:
+                                oc=True
+                        if oc==False:
+                            occupied[oi].append([gs, ge])
+                            slot=oi
+                    if oc==False:
+                        break
+                if gs < pos[posi][1]:
+                    gs=pos[posi][1]
+                if ge > pos[posi][2]:
+                    ge=pos[posi][2]
+                axes[posi*2+1,si].plot([gs, ge], [slot*1,slot*1], color="gray")
+                if ori=="+":
+                    axes[posi*2+1,si].plot([ge-interval/32, ge], [slot*1+0.1,slot*1], color="gray")
+                elif ori=="-":
+                    axes[posi*2+1,si].plot([gs, gs+interval/32], [slot*1,slot*1+0.1], color="gray")
+                
+                axes[posi*2+1,si].text((gs+ge)/2, slot*1, genename, ha="center")
+            for oi, ol in enumerate(occupied):
+                if len(ol)==0:
+                    maxslot=oi
                     break
-            if gs < pos[posi][1]:
-                gs=pos[posi][1]
-            if ge > pos[posi][2]:
-                ge=pos[posi][2]
-            axes[si+1,posi].plot([gs, ge], [slot*1,slot*1], color="gray")
-            if ori=="+":
-                axes[si+1,posi].plot([ge-interval/32, ge], [slot*1+0.1,slot*1], color="gray")
-            elif ori=="-":
-                axes[si+1,posi].plot([gs, gs+interval/32], [slot*1,slot*1+0.1], color="gray")
-            
-            axes[si+1,posi].text((gs+ge)/2, slot*1, genename, ha="center")
-        for oi, ol in enumerate(occupied):
-            if len(ol)==0:
-                maxslot=oi
-                break
-        axes[si+1,posi].set_ylim(-0.5,maxslot+0.5)
-        axes[si+1,posi].ticklabel_format(useOffset=False)
-        axes[si+1,posi].set_yticks([],labels=[])
-    plt.tight_layout(h_pad=-1,w_pad=-1)
+            axes[posi*2+1,si].set_ylim(-0.5,maxslot+0.5)
+            #axes[posi*2+1,si].ticklabel_format(useOffset=False)
+            axes[posi*2+1,si].set_yticks([],labels=[])
+            axes[posi*2+1,si].set_xticks(ticks_labels[posi][1])
+        
+    else:
+        fig, axes=plt.subplots(nrows=len(files)+1,ncols=len(pos),gridspec_kw={
+                           'height_ratios': [2]*len(files)+[1]})
+        
+        if len(axes.shape)==1:
+            axes=axes.reshape([-1,1])
+        sample_order=sorted(mat.keys())
+        for si, sample in enumerate(sample_order):
+            vals=mat[sample]
+            ymax=0
+            print(ymax)
+            for posi, (genes, val) in enumerate(zip(geneset, vals)):
+                if len(val)==0:
+                    continue
+                ax=axes[si,posi]
+                chrom, s, e=pos[posi]
+                val=np.array(val)
+                vallen=val.shape[0]
+                remains=vallen%step
+                _e=e-remains
+                x=np.arange(s, _e,step)
+                
+                print(s, e, _e, vallen, step)
+                val=val[:vallen-remains].reshape(-1, step).mean(axis=1)
+                _ymax=np.amax(val)
+                if _ymax >  ymax:
+                    ymax =_ymax
+                
+                ax.fill_between(x, val)
+                
+                
+                
+                
+                if posi==0:
+                    ax.set_ylabel(sample)
+    
+                ax.set_xticks([],labels=[])
+                if si==0:
+                    ax.set_title(chrom+":"+str(s)+"-"+str(e))
+    
+                    
+            occupied=[[] for i in range(8)]
+            for posi in range(len(pos)):
+                axes[si,posi].set_ylim(0,ymax*1.01)
+                if posi >0:
+                    axes[si,posi].set_yticks([],labels=[])
+        
+        for posi in range(len(pos)):
+            interval=pos[posi][2]-pos[posi][1]
+            for genename, gs, ge,ori in geneset[posi]:
+                slot=0
+                for oi in range(len(occupied)):
+                    oc=False
+                    if len(occupied[oi])==0:
+                        occupied[oi].append([gs, ge])
+                        oc=False
+                        slot=oi
+                    else:
+                        for tmps, tmpe in occupied[oi]:
+                            if tmps<=gs<= tmpe or tmps<=ge<=tmpe:
+                                oc=True
+                        if oc==False:
+                            occupied[oi].append([gs, ge])
+                            slot=oi
+                    if oc==False:
+                        break
+                if gs < pos[posi][1]:
+                    gs=pos[posi][1]
+                if ge > pos[posi][2]:
+                    ge=pos[posi][2]
+                axes[si+1,posi].plot([gs, ge], [slot*1,slot*1], color="gray")
+                if ori=="+":
+                    axes[si+1,posi].plot([ge-interval/32, ge], [slot*1+0.1,slot*1], color="gray")
+                elif ori=="-":
+                    axes[si+1,posi].plot([gs, gs+interval/32], [slot*1,slot*1+0.1], color="gray")
+                
+                axes[si+1,posi].text((gs+ge)/2, slot*1, genename, ha="center")
+            for oi, ol in enumerate(occupied):
+                if len(ol)==0:
+                    maxslot=oi
+                    break
+            axes[si+1,posi].set_ylim(-0.5,maxslot+0.5)
+            axes[si+1,posi].ticklabel_format(useOffset=False)
+            axes[si+1,posi].set_yticks([],labels=[])
+        plt.tight_layout(h_pad=-1,w_pad=-1)
     return {"ax":axes,"values":mat,"genes":geneset,"positions":pos}
 
-def calc_pearson2(_ind, _mat):
-    _a, _b=_mat[_ind[0]], _mat[_ind[1]]
-    _af=_a>np.quantile(_a, 0.75)
-    _bf=_b>np.quantile(_b, 0.75)
-    #_ab=
-    #filt=_ab>0.02
-    filt=_af+_bf
-    _a=_a[filt]
-    _b=_b[filt]
-    p=scipy.stats.pearsonr(_a, _b)[0]
-    return p
-def calc_pearson(_ind, _mat):
-    p=scipy.stats.pearsonr(_mat[_ind[0]], _mat[_ind[1]])[0]
-    #p=scipy.stats.spearmanr(_mat[_ind[0]], _mat[_ind[1]])[0]
-    #p=distance.cdist([_mat[_ind[0]]], [_mat[_ind[1]]])[0][0]
-    return p
 
-def read_bw(f, chrom, chrom_size, step):
-        bw=pwg.open(f)
-        val=np.array(bw.values(chrom,0,chrom_size))
-        rem=chrom_size%step
-        val=val[:val.shape[0]-rem]
-        val=np.nan_to_num(val)
-        val=val.reshape([-1,step]).mean(axis=1)
-        return val
-def read_peaks(peakfile):
-    peaks={}
-    with open(peakfile) as fin:
-        for l in fin:
-            l=l.split()
-            if not l[0] in peaks:
-                peaks[l[0]]=[]
-            peaks[l[0]].append([int(l[1]),int(l[2])])
-    return peaks
-
-def stitching(peakfile, stitchdist):
-    speaks={}
-    
-    for chrom, intervals in peakfile.items():
-        intervals.sort()
-        stack = []
-        # insert first interval into stack
-        stack.append(intervals[0])
-        for i in intervals[1:]:
-            # Check for overlapping interval,
-            # if interval overlap
-            if i[0] - stack[-1][-1] <stitchdist:
-                stack[-1][-1] = max(stack[-1][-1], i[-1])
-            else:
-                stack.append(i)
-        speaks[chrom]=stack
-    return speaks
-
-def read_tss(tss, tss_dist):
-    tss_pos={}
-    with open(tss) as fin:
-        for l in fin:
-            l=l.split()
-            if not l[0] in tss_pos:
-                tss_pos[l[0]]=[]
-            if l[4]=="+":
-                tss_pos[l[0]].append([int(l[1])-tss_dist,int(l[1])+tss_dist])
-            elif l[4]=="-":
-                tss_pos[l[0]].append([int(l[2])-tss_dist,int(l[2])+tss_dist])
-            
-            else:
-                raise Exception("TSS bed file format must look like 'chromsome\tstart\tend\tname\torientation'")
-            
-    return tss_pos
-def remove_close_to_tss(stitched, tss_pos):
-    _stitched={}
-    chroms=stitched.keys()
-    tmp=Parallel(n_jobs=-1)(delayed(multirange_diff)(stitched[chrom], tss_pos[chrom]) for chrom in chroms)
-    _stitched={chrom: _tmp for chrom, _tmp in zip(chroms,tmp) }
-    # for chrom, se in stitched.items():
-    #
-    #     tsslist=tss_pos[chrom]
-    #     _stitched[chrom]=multirange_diff(se, tsslist)
-        
-    #
-    # for s, e in se:
-    #     news=[s]
-    #     newe=[e]
-    #     tss_inbetween=False
-    #     for _tss, ori in tsslist:
-    #         if s+tss_dist<_tss:
-    #             continue
-    #         if _tss >e+tss_dist:
-    #             break
-    #         if s <= _tss <= e:
-    #             newe.append(_tss-tss_dist)
-    #             news.append(_tss+tss_dist)
-    #             tss_inbetween=True
-    #             continue
-    #         if 0< _tss-e< tss_dist:
-    #             _e=_tss-tss_dist
-    #             newe.append(_e)
-    #         if 0 < s-_tss < tss_dist:
-    #             _s=_tss+tss_dist
-    #             news.append(_s)
-    #     _e=min(newe)
-    #     _s=max(news)
-    #     if _s==107683009:
-    #         print(chrom, s,e)
-    #     if _e <=s:
-    #         continue
-    #     if e <=_s:
-    #         continue
-    #     if tss_inbetween:
-    #         _stitched[chrom].append([_s,e])
-    #         _stitched[chrom].append([s,_e])
-    #     else:
-    #         _stitched[chrom].append([_s,_e])
-    return _stitched
-
-def find_extremes(signals, pos):
-    signals=np.array(signals)
-    srt=np.argsort(signals)
-    signals=signals[srt]
-    pos=np.array(pos)
-    pos=pos[srt]
-    
-    y=signals
-    _y=y/np.amax(y)
-    x=np.linspace(0,1, y.shape[0])
-    b=0
-    possitives=[]
-    for i in reversed(range(x.shape[0])):
-        __y=x-i/x.shape[0] + _y[i]
-        #print(y)
-        possitives.append(np.sum(_y-__y>0))
-
-    index=len(possitives)-np.argmax(possitives)
-    
-    
-    return x, y, pos, index
 def plot_bigwig_correlation(files: dict, 
                             chrom: str="chr1",
                             step: int=1000,
@@ -496,8 +400,39 @@ def call_superenhancer(bigwig: str,
                        peakfile: str,
                        tss: str="",
                        stitch=25000,
-                       tss_dist: int=5000):
+                       tss_dist: int=5000,
+                       plot_signals=False,
+                       gff: str=""):
+    """
+    Find super enhancers and plot an enhancer rank.  
     
+    Parameters
+    ----------
+    bigwig : str
+        A bigwig file.
+    peakfile : str
+        A peak file.
+    tss : str, optional
+        A bed file containing transcriptional start sites. If you want to exclude enhancers that overlap with TSSs. 
+        You could create this file by scripts/gff2tss.py.
+    stitch: int, optional
+        The maximum distance of enhancers to stitch together.
+    tss_dist : int, optional
+        The distance of enhancers from TSSs to exclude.
+    Returns
+    -------
+    
+    Raises
+    ------
+    Notes
+    -----
+    References
+    ----------
+    See Also
+    --------
+    Examples
+    --------
+    """ 
     
     bw=pwg.open(bigwig)
     chrom_sizes=bw.chroms()
@@ -536,19 +471,169 @@ def call_superenhancer(bigwig: str,
     stitched_out=os.path.splitext(peakfile)[0]+"_SE.bed"
     with open(stitched_out, "w") as fout:
         rank=1
-        for pos, sig in zip(reversed(pos[sindex:]), reversed(y[sindex:])):
-            chrom, se=pos.split(":")
+        for _pos, _sig in zip(reversed(pos[sindex:]), reversed(y[sindex:])):
+            chrom, se=_pos.split(":")
             s, e=se.split("-")
-            fout.write("\t".join([chrom,str(s),str(e), str(sig),str(rank)+"\n"]))
+            fout.write("\t".join([chrom,str(s),str(e), str(_sig),str(rank)+"\n"]))
             rank+=1
-def plot_average():
-    pass
-
-
+    
+    if plot_signals:
+        letters = string.ascii_lowercase
+        tmpfile=''.join(random.choice(letters) for i in range(10))+".bed"
+        highlights=[]
+        with open(tmpfile, "w") as fout:
+            rank=1
+            for pos, sig in zip(reversed(pos[sindex:]), reversed(y[sindex:])):
+                chrom, se=pos.split(":")
+                s, e=se.split("-")
+                fout.write("\t".join([chrom,str(int(s)-10000),str(int(e)+10000), str(sig),str(rank)+"\n"]))
+                highlights.append([chrom,int(s),int(e)])
+                rank+=1
+                if rank==6:
+                    break
+                    
+        plot_bigwig(files={"Sample": bigwig}, 
+                    bed=tmpfile, gff=gff, 
+                    step=100,
+                    stack_regions="vertical",
+                    highlight=highlights)
+        os.remove(tmpfile)
+def plot_average(files: dict, 
+                 bed: Union[str,list], 
+                 order: list=[], extend: int=500, 
+                 palette: str="coolwarm",
+                 binsize: int=10,
+                 clustering: str="kmeans_auto",
+                 n_clusters: int=5):
+    
+    if type(bed)==str:
+        pos=[]
+        with open(bed) as fin:
+            for l in fin:
+                l=l.split()
+                chrom, s, e=l[0],l[1],l[2]
+                s, e=int(s.replace(",","")),int(e.replace(",",""))
+                center=(s+e)//2
+                pos.append([chrom,center-extend,center+extend])
+    else:
+        pos=bed
+    
+    if len(order)==0:
+        order=list(files.keys())
+    data={}
+    data_mean=[]
+    
+    for i, sample in enumerate(order):
+        bigwig=files[sample]
+        bw=pwg.open(bigwig)
+        data[sample]=[]
+        
+        for chrom, s, e in pos:
+            val=bw.values(chrom, s, e)
+            #print(val)
+            val=np.array(val)
+            #print(val.shape)
+            val=val.reshape([-1,binsize]).mean(axis=1)
+            #print(val.shape)
+            data[sample].append(val)
+            if i==0:
+                data_mean.append(bw.stats(chrom, s, e, exact=True)[0])
+    if clustering=="kmeans_all":
+        mat=[]
+        for sample in order:
+            print(np.array(data[sample]).shape)
+            mat.append(data[sample])
+        mat=np.concatenate(mat, axis=1)
+        print(mat.shape)
+        mat=zscore(mat, axis=0)
+        pca=PCA(n_components=5, random_state=1)
+        xpca=pca.fit_transform(mat)
+        kmean = KMeans(n_clusters=n_clusters, random_state=0,n_init=10)
+        kmX=kmean.fit(xpca)
+        labels=kmX.labels_
+    elif clustering=="kmeans":
+        mat=np.array(data[order[0]])
+        kmean = KMeans(n_clusters=n_clusters, random_state=0,n_init=10)
+        kmX=kmean.fit(mat)
+        labels=kmX.labels_
+    elif clustering=="kmeans_auto":
+        mat=np.array(data[order[0]])
+        optimalclusternum=optimal_kmeans(mat, [2, 10])
+        n_clusters=np.amax(optimalclusternum)
+        kmean = KMeans(n_clusters=n_clusters, random_state=0,n_init=10)
+        kmX=kmean.fit(mat)
+        labels=kmX.labels_
+        
+    sortindex=np.argsort(data_mean)[::-1]
+    print(sortindex.shape)
+    print(len(pos))
+    plotindex=np.arange(0, len(pos), len(pos)//1000)
+    fig, axes=plt.subplots(ncols=len(order), figsize=[2*len(order), 6])
+    for i, (sample, ax) in enumerate(zip(order, axes)):
+        vals=data[sample]
+        print(len(vals))
+        vals=np.array(vals)
+        print(vals.shape)
+        vals=vals[sortindex]
+        if clustering!="":
+            labels=np.array(labels)[sortindex]
+            sortindex2=np.argsort(labels)
+            vals=vals[sortindex2]
+            labels=labels[sortindex2]
+            _labels=labels[plotindex]
+            ulabel, clabel=np.unique(_labels, return_counts=True)
+            print(ulabel, clabel)
+        print(vals.shape)
+        vals=vals[plotindex]
+        im=ax.imshow(vals,aspect="auto", cmap=palette, interpolation="none",norm=LogNorm(vmin=np.quantile(vals,0.05)))
+        
+        
+        
+        cbaxes = fig.add_axes([0.8*(i+1)/len(order), 0.93, 0.03, 0.06]) 
+        cb = plt.colorbar(im, cax = cbaxes)
+        
+            
+        # print(np.arange(0, vals.shape[1]+vals.shape[1]//4, vals.shape[1]//4))
+        # print(np.arange(-extend, extend+extend//2, extend//2))
+        ax.set_xticks(np.arange(0, vals.shape[1]+vals.shape[1]//4, vals.shape[1]//4),labels=np.arange(-extend, extend+extend//2, extend//2))
+        ax.set_xlabel("Peak range [bp]")
+        ax.set_title(sample)
+        
+        if clustering!="":
+            total=0
+            isep=0
+            for label, count in zip(ulabel, clabel):
+                
+                total+=count
+                if isep==ulabel.shape[0]-1:
+                    break
+                ax.plot([0, vals.shape[1]-1], [total,total], color="black")
+                isep+=1
+        ax.set_yticks([])
+    fig, axes=plt.subplots(ncols=len(order), figsize=[4*len(order), 3])
+    maxval=0
+    for i, (sample, ax) in enumerate(zip(order, axes)):
+        vals=data[sample]
+        print(len(vals))
+        vals=np.array(vals)
+        vals=vals.mean(axis=0)
+        ax.plot(np.arange(-extend, extend, 2*extend//(vals.shape[0])),vals)
+            
+        # print(np.arange(0, vals.shape[1]+vals.shape[1]//4, vals.shape[1]//4))
+        # print(np.arange(-extend, extend+extend//2, extend//2))
+        #ax.set_xticks(np.arange(0, vals.shape[1]+vals.shape[1]//4, vals.shape[1]//4),labels=np.arange(-extend, extend+extend//2, extend//2))
+        ax.set_xlabel("Peak range [bp]")
+        ax.set_title(sample)
+        _maxval=np.max(vals)
+        if maxval < _maxval:
+            maxval=_maxval 
+    for ax in axes:
+        ax.set_ylim(0, maxval*1.05)
 if __name__=="__main__":
     #test="plot_bigwig"
     test="plot_bigwig_correlation"
     test="call_superenhancer"
+    test="plot_average"
     import glob
     if test=="plot_bigwig":
         fs= {"KMT2A":"/media/koh/grasnas/home/data/omniplot/HepG2_KMT2A-human_ENCFF406SHU.bw",
@@ -569,9 +654,21 @@ if __name__=="__main__":
         plot_bigwig_correlation(fs,step=1000)
         plt.show()
     elif test=="call_superenhancer":
+        gff="/media/koh/grasnas/home/data/omniplot/gencode.v40.annotation.gff3"
         f="/media/koh/grasnas/home/data/omniplot/HepG2_HNF1A-human_ENCFF397BTX.bw"
         peak="/media/koh/grasnas/home/data/omniplot/HNF1A_ENCFF696TGC_srt.bed"
         tss="/media/koh/grasnas/home/data/omniplot/gencode.v40.annotation_tss_srt.bed"
-        call_superenhancer(bigwig=f, peakfile=peak,tss=tss)
+        call_superenhancer(bigwig=f, peakfile=peak,tss=tss,plot_signals=True , gff=gff)
+        plt.show()
+    elif test=="plot_average":
+        gff="/media/koh/grasnas/home/data/omniplot/gencode.v40.annotation.gff3"
+        f="/media/koh/grasnas/home/data/omniplot/HepG2_HNF1A-human_ENCFF397BTX.bw"
+        peak="/media/koh/grasnas/home/data/omniplot/HNF1A_ENCFF696TGC_srt.bed"
+        tss="/media/koh/grasnas/home/data/omniplot/gencode.v40.annotation_tss_srt.bed"
+        plot_average(files={"HNF1A_rep1":"/media/koh/grasnas/home/data/omniplot/HepG2_HNF1A-human_ENCFF397BTX.bw",
+                            "KMT2A":"/media/koh/grasnas/home/data/omniplot/HepG2_KMT2A-human_ENCFF406SHU.bw"},
+                            bed=peak,
+                            order=["HNF1A_rep1",  "KMT2A"],
+                            )
         plt.show()
     #raise NotImplementedError("This function will plot ChIP-seq data.")
