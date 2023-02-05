@@ -797,3 +797,33 @@ def draw_ci_pi(ax, ci, pi,x_line, y_line):
                     y_line - ci, color = 'skyblue', 
                     label = '95% confidence interval',
                     alpha=0.5)
+    
+from sklearn.cluster import KMeans
+def optimal_kmeans(X, testrange):
+    Sum_of_squared_distances = []
+    K = list(range(*testrange))
+    for k in K:
+        km = KMeans(n_clusters=k,n_init=10)
+        km = km.fit(X)
+        Sum_of_squared_distances.append(km.inertia_)
+    normy=np.array(Sum_of_squared_distances)/np.amax(Sum_of_squared_distances)
+    normy=1-normy
+    normx=np.linspace(0,1, len(K))
+    perp=_calc_curveture(normx, normy)
+    srtindex=np.argsort(perp)[::-1]
+    plt.subplots()
+    plt.plot(K, Sum_of_squared_distances, '-', label='Sum of squared distances')
+    plt.plot(K, perp*np.amax(Sum_of_squared_distances), label="curveture")
+    
+    plt.plot([K[srtindex[0]],K[srtindex[0]]],[0,np.amax(Sum_of_squared_distances)], "--", color="r")
+    plt.text(K[srtindex[0]], np.amax(Sum_of_squared_distances)*0.95, "N="+str(K[srtindex[0]]))
+    plt.plot([K[srtindex[1]],K[srtindex[1]]],[0,np.amax(Sum_of_squared_distances)], "--", color="r")
+    plt.text(K[srtindex[1]], np.amax(Sum_of_squared_distances)*0.95, "N="+str(K[srtindex[1]]))
+    plt.xticks(K)
+    plt.xlabel('K')
+    plt.ylabel('Sum of squared distances')
+    plt.title('Elbow method for optimal cluster number')    
+    plt.legend()
+    print("Top two optimal cluster No are: {}, {}".format(K[srtindex[0]],K[srtindex[1]]))
+    n_clusters=[K[srtindex[0]],K[srtindex[1]]]
+    return n_clusters
