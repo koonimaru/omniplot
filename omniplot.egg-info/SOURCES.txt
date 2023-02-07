@@ -2,6 +2,7 @@ README.md
 setup.py
 omniplot/__init__.py
 omniplot/chipseq.py
+omniplot/chipseq_utils.py
 omniplot/igraph_classes.py
 omniplot/networkplot.py
 omniplot/plot.py
@@ -13,3 +14,6 @@ omniplot.egg-info/SOURCES.txt
 omniplot.egg-info/dependency_links.txt
 omniplot.egg-info/requires.txt
 omniplot.egg-info/top_level.txt
+omniplot/cython_utils/__init__.py
+omniplot/scripts/__init__.py
+omniplot/scripts/gff2tss.py

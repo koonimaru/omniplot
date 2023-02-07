@@ -3,6 +3,8 @@ from distutils.extension import Extension
 import re
 import os
 import codecs
+from Cython.Build import cythonize
+
 here = os.path.abspath(os.path.dirname(__file__))
 
 
@@ -33,7 +35,7 @@ else:
     use_cython = True
 
 cmdclass = { }
-ext_modules = [ ]
+ext_modules = []#cythonize("omniplot/cython/chipseq_utils.pyx")
 
 #print(find_version("deepgmap", "version.py"))
 setup(
@@ -65,7 +67,7 @@ setup(
                       "pandas","igraph",
                       "umap-learn",
                       "tensorflow",
-                      "fastcluster","cvxopt","statsmodels","natsort"
+                      "fastcluster","cvxopt","statsmodels","natsort","joblib","pyranges"
                       ],
     long_description=open('README.md').read(),
 )

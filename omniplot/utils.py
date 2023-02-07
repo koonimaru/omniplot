@@ -769,7 +769,7 @@ def calc_r2(X,Y):
     r2 = correlation_coef**2
     return r2
 
-def ci_pi(X,Y, plotline_X, y_model):
+def ci_pi(X: np.array,Y: np.array, plotline_X: np.array, y_model: np.array) -> list:
     x_mean = np.mean(X)
     y_mean = np.mean(Y)
     n = X.shape[0]                        # number of samples
@@ -788,7 +788,16 @@ def ci_pi(X,Y, plotline_X, y_model):
     # predicting interval
     pi = t * std_error * (1 + 1/n + (x_line - x_mean)**2 / np.sum((X - x_mean)**2))**.5
     return ci, pi,std_error
-def draw_ci_pi(ax, ci, pi,x_line, y_line):
+def draw_ci_pi(ax: plt.Axes, 
+               ci: np.array, 
+               pi: np.array,
+               x_line: np.array, 
+               y_line: np.array):
+    """
+    Drawing a confidence interval and a prediction interval 
+    """
+    
+    
     ax.fill_between(x_line, y_line + pi, y_line - pi, 
                 color = 'lightcyan', 
                 label = '95% prediction interval',
@@ -799,7 +808,7 @@ def draw_ci_pi(ax, ci, pi,x_line, y_line):
                     alpha=0.5)
     
 from sklearn.cluster import KMeans
-def optimal_kmeans(X, testrange):
+def optimal_kmeans(X: Union[np.array, list], testrange: list, topn: int=2)-> List[int]:
     Sum_of_squared_distances = []
     K = list(range(*testrange))
     for k in K:
@@ -825,5 +834,5 @@ def optimal_kmeans(X, testrange):
     plt.title('Elbow method for optimal cluster number')    
     plt.legend()
     print("Top two optimal cluster No are: {}, {}".format(K[srtindex[0]],K[srtindex[1]]))
-    n_clusters=[K[srtindex[0]],K[srtindex[1]]]
+    n_clusters=[K[srtindex[i]] for i in range(topn)]
     return n_clusters

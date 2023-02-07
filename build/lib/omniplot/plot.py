@@ -49,7 +49,7 @@ colormap_list=["nipy_spectral", "terrain","tab20b","tab20c","gist_rainbow","hsv"
 plt.rcParams['font.family']= 'sans-serif'
 plt.rcParams['font.sans-serif'] = ['Arial']
 plt.rcParams['svg.fonttype'] = 'none'
-sns.set_theme()
+sns.set_theme(font="Arial")
 
 
 
@@ -66,11 +66,13 @@ def dotplot(df: pd.DataFrame,
             highlight: str="",
             color_title: str="",
             size_title: str="",
+            figsize: list=[],
             save: str="",
             threshold: float=-np.log10(0.05),
             row_clustering: bool=True,
             xtickrotation: float=90,
             column_order: list=[],
+            colorpalette="coolwarm",
             show: bool=False
             ) -> Dict[str, plt.Axes]:
     """
@@ -175,8 +177,8 @@ def dotplot(df: pd.DataFrame,
     maxsize=np.round(maxsize)
     middle0=np.round((minsize+maxsize)/3)
     middle1=np.round(2*(minsize+maxsize)/3)
-    plt.rcParams["figure.figsize"] = [7.50, 3.50]
-    plt.rcParams["figure.autolayout"] = True
+    #plt.rcParams["figure.figsize"] = [7.50, 3.50]
+    #plt.rcParams["figure.autolayout"] = True
     #x = np.arange(len(_x))
     #y = np.arange(len(_y))
     #X, Y = np.meshgrid(x, y)
@@ -201,7 +203,7 @@ def dotplot(df: pd.DataFrame,
                 edge_colors.append("gray")
     
     if len(dfc) !=0:
-        viridis = cm.get_cmap('viridis', 12)
+        viridis = cm.get_cmap(colorpalette, 12)
         cmat=dfc.to_numpy()
         cmat[cmat==np.inf]=0
         _cmat=cmat/np.amax(cmat)
@@ -214,12 +216,16 @@ def dotplot(df: pd.DataFrame,
     #patches = [plt.Circle(center, size) for center, size in zip(xy, sizes)]
     
     #fig, ax = plt.subplots(ncols=2, gridspec_kw={'width_ratios': [8, 2]})
-    fig = plt.figure()
-    fig.set_figheight(6)
-    fig.set_figwidth(6)
-    ax1 = plt.subplot2grid(shape=(6, 6), loc=(0, 0), colspan=4, rowspan=6)
-    ax2 = plt.subplot2grid(shape=(6, 6), loc=(0, 4), colspan=2, rowspan=2)
-    ax3 = plt.subplot2grid(shape=(6, 6), loc=(2, 4), colspan=2, rowspan=1)
+    if len(figsize)==0:
+        figsize=[mat.shape[0]*0.5+2,mat.shape[1]*0.5+1]
+    
+    fig = plt.figure(figsize=figsize)
+    #fig.set_figheight(6)
+    #fig.set_figwidth(6)
+    
+    ax1 = plt.subplot2grid(shape=(10, 6), loc=(0, 0), colspan=4, rowspan=10)
+    ax2 = plt.subplot2grid(shape=(10, 6), loc=(1, 4), colspan=2, rowspan=4)
+    ax3 = plt.subplot2grid(shape=(10, 6), loc=(6, 4), colspan=2, rowspan=1)
  
     collection = mc.CircleCollection(sizes,
                                      edgecolors=edge_colors, 
@@ -229,7 +235,7 @@ def dotplot(df: pd.DataFrame,
                                      linewidths=2)
     ax1.add_collection(collection)
     ax1.margins(0.1)
-    ax1.set_xlim(-1,len(_x)+1)
+    ax1.set_xlim(-0.5,len(_x)-0.5)
     ax1.set_xticks(np.arange(len(_x)))
     ax1.set_xticklabels(_x,rotation=xtickrotation)
     ax1.set_yticks(np.arange(len(_y)))
@@ -246,18 +252,24 @@ def dotplot(df: pd.DataFrame,
         cb1.set_label(color_title)
     #ax[1]=fig.add_axes([1,0.3,0.1,1])
     
-    lxy=[[0.25, i*1] for i in range(3)]
-    collection2 = mc.CircleCollection([middle0*scaling,middle1*scaling, maxsize*scaling], offsets=lxy, transOffset=ax2.transData, facecolors='gray',edgecolors="black")
+    lxy=[[0.5, i*0.5] for i in range(3)]
+    collection2 = mc.CircleCollection([middle0*scaling,middle1*scaling, maxsize*scaling], 
+                                      offsets=lxy, 
+                                      transOffset=ax2.transData, 
+                                      facecolors='lightgray',
+                                      edgecolors="gray")
     ax2.add_collection(collection2)
     ax2.axis('off')
     ax2.margins(0.3)
     for text, (x, y) in zip([middle0,middle1, maxsize], lxy):
-        ax2.text(x+0.25, y,str(text),va="center")
+        ax2.text(x+0.01, y,str(text), ha="left",va="center",color="black" )
     if size_title=="":
         size_title=size_val
     ax2.text(0.5,-0.5, size_title,va="center",ha="center")
     #ax[1].set_yticks(np.arange(3))
     #ax[1].set_yticklabels([minsize,middle, maxsize], rotation=0)
+    #plt.tight_layout()
+    plt.subplots_adjust(left=0.3,bottom=0.2)
     #plt.tight_layout()
     if save!="":
         plt.savefig(save+".svg")
@@ -2200,15 +2212,60 @@ def violinplot(df,
     
     return {"p values":newpvals,"ax":ax}
 
-def stacked_barplot(df,
-                    x: str="",
-                    hue: str="",
+def stacked_barplot(df: pd.DataFrame,
+                    x: str,
+                    hue: str,
                     scale: str="fraction",
                     order: list=[],
                     hue_order: list=[],
                     test_pairs: List[List[str]]=[],
                     show_number: bool=True,
-                    figsize=[4,6]):
+                    show: bool=False,
+                    figsize: List[int]=[4,6]):
+    
+    """
+    Draw a boxplot with a statistical test 
+    
+    Parameters
+    ----------
+    df : pandas DataFrame
+    
+    x,hue: str
+        x: the category to place in x axis, hue: count samples by the hue category
+    order: list, optional
+        The order of x axis labels
+    hue_order: list, optional
+        The order of hue labels
+    scale: str, optional
+        Scaling data
+    test_pairs : pairs of categorical values related to x. It will calculate -log10 (p value) (mlp) of the fisher exact test.
+        Examples: [["Adelie","Chinstrap" ],
+                    ["Gentoo","Chinstrap" ],
+                    ["Adelie","Gentoo" ]]
+    show_number: bool, optional
+        Wheter to exhibit the values of fractions/counts/percentages.
+    
+    show : bool, optional
+        Whether or not to show the figure.
+    
+    figsize : List[int], optional
+        The figure size, e.g., [4, 6].
+     
+    Returns
+    -------
+    dict("p values":pvalues,"ax":ax)
+    
+    Raises
+    ------
+    Notes
+    -----
+    References
+    ----------
+    See Also
+    --------
+    Examples
+    --------
+    """
     
     data={}
     if len(order)==0:
@@ -2318,11 +2375,53 @@ def stacked_barplot(df,
                     # plt.annotate("mlp="+str(np.round(-np.log10(pval), decimals=1)),[(r1[0]+r2[0])/2, 0.5*(r1[1]+r2[1])],   
                     #          color="magenta",ha="center", rotation=360*angle/(2*np.pi),xycoords='figure pixels')
                     #
-
+    if show:
+        plt.show()
     
-    plt.show()
+    return {"pval":pvals,"ax":ax}
 
-
+def nice_piechart(df: pd.DataFrame, 
+                  category: Union[str, List[str]],
+                  palette: str="tab20c",
+                  ncols: int=2,
+                  ignore: float=0.05):
+    
+    if type(category)==str:
+        category=[category]
+    nrows=len(category)//ncols+int(len(category)%ncols!=0)
+    fig, axes=plt.subplots(nrows=nrows, ncols=ncols, figsize=[ncols*2,
+                                                        nrows*2])
+    axes=axes.flatten()
+    for cat, ax in zip(category, axes):
+        u, c=np.unique(df[cat], return_counts=True)
+        
+        srt=np.argsort(c)[::-1]
+        u=u[srt]
+        c=c[srt]
+        _c=c/np.sum(c)
+        
+        
+        
+        _cmap=plt.get_cmap(palette, c.shape[0])
+        colors=[_cmap(i) for i in range(c.shape[0])]
+        for j in range(c.shape[0]):
+            if _c[j]<ignore:
+                colors[j]=[0,0,0,1]
+                u[j]=""
+        
+        
+        ax.pie(c, labels=u, 
+               counterclock=False,
+               startangle=90, 
+               colors=colors,
+               labeldistance=0.6,
+               radius=1.25)
+        ax.set_title(cat,backgroundcolor='lavender',pad=10)
+    if len(category)%ncols!=0:
+        for i in range(len(category)%ncols-2):
+            fig.delaxes(axes[-(i+1)])
+    plt.tight_layout(h_pad=1)
+    plt.subplots_adjust(top=0.9)
 if __name__=="__main__":
     
     
@@ -2344,26 +2443,42 @@ if __name__=="__main__":
     
     test="complex_clustermap"
     test="stacked"
-    if test=="regression":
+    test="dotplot"
+    test="nice_piechart"
+    
+    if test=="nice_piechart":
+        df=sns.load_dataset("penguins")
+        df=df.dropna(axis=0)
+        tmp=[]
+        for num, (sp, i ,se) in enumerate(zip(df["species"], df["island"],df["sex"])):
+            if num/df.shape[0] > 0.98:
+                tmp.append("NA")
+            else:
+                tmp.append(sp[0]+"_"+i[0]+"_"+se[0])
+        df["combine"]=tmp
+        print(df)
+        nice_piechart(df, category=["species", "island","sex","species", "island","sex","combine"],ncols=4)
+        plt.show()
+    elif test=="regression":
         df=sns.load_dataset("penguins")
         df=df.dropna(axis=0)
         regression_single(df, x="bill_length_mm",y="body_mass_g", method="ransac",category="species")
         plt.show()
     elif test=="dotplot":
-        # df=pd.read_csv("/home/koh/ews/idr_revision/clustering_analysis/cellloc_pval_co.csv",index_col=0)
-        # dfc=pd.read_csv("/home/koh/ews/idr_revision/clustering_analysis/cellloc_odds_co.csv",index_col=0)
-        # from natsort import natsort_keygen
-        # df=df.sort_index(axis=0,key=natsort_keygen())
-        # dfc=dfc.sort_index(axis=0,key=natsort_keygen())
-        # print(df)
-        # dotplot(df, dfc=dfc,color_title="Odds ratio", size_title="-log10 p value",scaling=20)
+        df=pd.DataFrame({"Experiments":["exp1","exp1","exp1","exp1","exp2","exp2","exp3"],
+                         "GO":["nucleus","cytoplasm","chromosome","DNA binding","chromosome","RNA binding","RNA binding"],
+                         "FDR":[10,1,5,3,1,2,0.5],
+                         "odds":[3.3,1.1,2.5,2.1,0.8,2.3,0.9]})
+        dotplot(df, row="GO",col="Experiments", size_val="FDR",color_val="odds", highlight="FDR",
+        color_title="Odds", size_title="-log10 p",scaling=20)
         df=pd.read_csv("/home/koh/ews/idr_revision/clustering_analysis/cellloc_longform.csv")
-        #df=pd.read_csv("/media/koh/grasnas/home/data/IDR/cluster16_go_summary.csv")
         print(df.columns)
         df=df.fillna(0)
         #dotplot(df, size_val="pval",color_val="odds", highlight="FDR",color_title="Odds ratio", size_title="-log10 p value",scaling=20)
+
         dotplot(df, row="Condensate",col="Cluster", size_val="pval",color_val="odds", highlight="FDR",
-                color_title="Odds", size_title="-log10 p value",scaling=20,save="/media/koh/grasnas/home/data/IDR/cluster16_go_summary")
+                color_title="Odds", size_title="-log10 p value",scaling=20)
+        plt.show()
     elif test=="triangle_heatmap":
         s=20
         mat=np.arange(s*s).reshape([s,s])
@@ -2433,5 +2548,5 @@ if __name__=="__main__":
     elif test=="stacked": 
         df=sns.load_dataset("penguins")
         df=df.dropna(axis=0)
-        stacked_barplot(df, x="species",hue="island", scale="percentage", test_pairs=[["Adelie","Gentoo"]])
-        
+        stacked_barplot(df, x="species",hue="island", scale="absolute", test_pairs=[["Adelie","Gentoo"]])
+        plt.show()
