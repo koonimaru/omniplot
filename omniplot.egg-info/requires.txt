@@ -1,7 +1,9 @@
 cvxopt
 fastcluster
 igraph
+joblib
 matplotlib
+natsort
 numpy
 pandas
 scipy
