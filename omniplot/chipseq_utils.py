@@ -399,4 +399,4 @@ def find_extremes(signals, pos):
     index=len(possitives)-np.argmax(possitives)
     
     
-    return x, y, pos, index
+    return x, y, pos, index, srt

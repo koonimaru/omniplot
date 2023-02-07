@@ -6,6 +6,8 @@ matplotlib
 natsort
 numpy
 pandas
+pyranges
+ray
 scipy
 seaborn
 statsmodels

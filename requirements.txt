@@ -8,3 +8,6 @@ sklearn
 umap-learn
 igraph
 natsort
+joblib
+pyranges
+ray

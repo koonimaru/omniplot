@@ -769,7 +769,7 @@ def calc_r2(X,Y):
     r2 = correlation_coef**2
     return r2
 
-def ci_pi(X: np.array,Y: np.array, plotline_X: np.array, y_model: np.array) -> list:
+def ci_pi(X: np.ndarray,Y: np.ndarray, plotline_X: np.ndarray, y_model: np.ndarray) -> list:
     x_mean = np.mean(X)
     y_mean = np.mean(Y)
     n = X.shape[0]                        # number of samples
@@ -789,10 +789,10 @@ def ci_pi(X: np.array,Y: np.array, plotline_X: np.array, y_model: np.array) -> l
     pi = t * std_error * (1 + 1/n + (x_line - x_mean)**2 / np.sum((X - x_mean)**2))**.5
     return ci, pi,std_error
 def draw_ci_pi(ax: plt.Axes, 
-               ci: np.array, 
-               pi: np.array,
-               x_line: np.array, 
-               y_line: np.array):
+               ci: np.ndarray, 
+               pi: np.ndarray,
+               x_line: np.ndarray, 
+               y_line: np.ndarray):
     """
     Drawing a confidence interval and a prediction interval 
     """
@@ -808,7 +808,7 @@ def draw_ci_pi(ax: plt.Axes,
                     alpha=0.5)
     
 from sklearn.cluster import KMeans
-def optimal_kmeans(X: Union[np.array, list], testrange: list, topn: int=2)-> List[int]:
+def optimal_kmeans(X: Union[np.ndarray, list], testrange: list, topn: int=2)-> List[int]:
     Sum_of_squared_distances = []
     K = list(range(*testrange))
     for k in K:
