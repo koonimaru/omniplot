@@ -6,9 +6,9 @@
 
 omniplot is a python module to draw a scientific plot with hassle free. It mainly focuses on bioinfomatics data.
 
-<img src="images/example.png" width="300"/> <img src="images/example2.png" width="300"/> <br>
-<img src="images/example3.png" width="300"/> <img src="images/example7.png" width="300"/> <br>
-<img src="images/example5.png" width="300"/> <img src="images/example6.png" width="300"/> <br>
+<img src="images/example.png" width="300"/> <img src="images/example2.png" width="200"/> <br>
+<img src="images/example3.png" width="300"/> <img src="images/example7.png" width="400"/> <br>
+<img src="images/example5.png" width="500"/> <img src="images/example6.png" width="300"/> <br>
 ## Motivation
 Although there exist many good python data visualization libraries, such as 
 [matplotlib](https://matplotlib.org/), 

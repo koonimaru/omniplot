@@ -1,3 +1,4 @@
+LICENSE
 README.md
 setup.py
 omniplot/__init__.py
