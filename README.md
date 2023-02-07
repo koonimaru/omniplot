@@ -20,10 +20,14 @@ still several kinds of plots cannot be drawn without hassle. This module is aime
 tools that allow users to draw complex plots, such as a scatter plot with PCA and loadings or clustering analysis in one liner.
 
 ## Install
-
-git clone https://github.com/koonimaru/omniplot.git <br>
-cd omniplot <br>
+```bash
+pip install cython
+git clone https://github.com/koonimaru/omniplot.git
+cd omniplot
 pip install .
+```
+Known issues:<br>
+
 
 ## How to use
 I created jupyter notebooks to demonstrate the usage of omniplot [Link](https://github.com/koonimaru/omniplot/tree/main/ipynb).

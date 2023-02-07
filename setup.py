@@ -67,7 +67,12 @@ setup(
                       "pandas","igraph",
                       "umap-learn",
                       "tensorflow",
-                      "fastcluster","cvxopt","statsmodels","natsort","joblib","pyranges","ray"
+                      "fastcluster","cvxopt",
+                      "statsmodels",
+                      "natsort",
+                      "joblib","pyranges",
+                      "ray","pyBigWig",
+                      "intervaltree"
                       ],
     long_description=open('README.md').read(),
 )
