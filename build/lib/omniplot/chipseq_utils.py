@@ -279,6 +279,28 @@ def stitching(peakfile, stitchdist):
         speaks[chrom]=stack
     return speaks
 
+def stitching_for_pyrange(peakfile, stitchdist):
+    speaks={"Chromosome":[],"Start":[],"End":[]}
+    
+    for chrom, intervals in peakfile.items():
+        intervals.sort()
+        stack = []
+        # insert first interval into stack
+        stack.append(intervals[0])
+        for i in intervals[1:]:
+            # Check for overlapping interval,
+            # if interval overlap
+            if i[0] - stack[-1][-1] <stitchdist:
+                stack[-1][-1] = max(stack[-1][-1], i[-1])
+            else:
+                stack.append(i)
+        for s, e in stack:
+            speaks["Chromosome"].append(chrom)
+            speaks["Start"].append(s)
+            speaks["End"].append(e)
+        #speaks[chrom]=stack
+    return speaks
+
 def read_tss(tss, tss_dist):
     tss_pos={}
     with open(tss) as fin:
@@ -377,4 +399,4 @@ def find_extremes(signals, pos):
     index=len(possitives)-np.argmax(possitives)
     
     
-    return x, y, pos, index
+    return x, y, pos, index, srt

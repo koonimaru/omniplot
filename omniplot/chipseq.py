@@ -89,8 +89,14 @@ def plot_bigwig(files: dict,
                 chrom, s, e=l[0],l[1],l[2]
                 _highlight.append([chrom,int(s.replace(",","")),int(e.replace(",",""))])
         highlight=_highlight
-    gff_ob=pr.read_gff3(gff)
     
+    
+    if gff.endswith("gff") or gff.endswith("gff3"):
+        gff_ob=pr.read_gff3(gff)
+        gffformat="gff"
+    elif gff.endswith("gtf"):
+        gff_ob=pr.read_gtf(gff)
+        gffformat="gtf"
     # geneset=[]
     # for chrom, start, end in pos:
     #     geneset.append(gff_ob.get_genes(chrom, start, end))
@@ -101,13 +107,17 @@ def plot_bigwig(files: dict,
         if len(gr2)==0:
             geneset.append([])
         else:
-            print(gr2)
-            gr2=gr2.df.loc[gr2.df["Feature"]=="gene"]
+            #print(gr2)
+            if gffformat=="gff":
+                gr2=gr2.df.loc[gr2.df["Feature"]=="gene"]
+            elif gffformat=="gtf":
+                gr2=gr2.df.loc[gr2.df["Feature"]=="transcript"]
+                
             tmp=[]
             for gene_name, start, end, ori in zip(gr2["gene_name"], gr2["Start"], gr2["End"], gr2["Strand"]):
                 tmp.append([gene_name, start, end, ori])
             geneset.append(tmp)
-    print(geneset)
+    #print(geneset)
     #geneset=Parallel(n_jobs=-1)(delayed(gff_ob.get_genes)(chrom, start, end) for chrom, start, end in pos)
     print(time.time()-time_start)
     for i in range(1000):
@@ -207,9 +217,9 @@ def plot_bigwig(files: dict,
                     ge=pos[posi][2]
                 axes[posi*2+1,si].plot([gs, ge], [slot*1,slot*1], color="gray")
                 if ori=="+":
-                    axes[posi*2+1,si].plot([ge-interval/32, ge], [slot*1+0.1,slot*1], color="gray")
+                    axes[posi*2+1,si].plot([ge-interval/32, ge], [slot*1+1,slot*1], color="gray")
                 elif ori=="-":
-                    axes[posi*2+1,si].plot([gs, gs+interval/32], [slot*1,slot*1+0.1], color="gray")
+                    axes[posi*2+1,si].plot([gs, gs+interval/32], [slot*1,slot*1+1], color="gray")
                 
                 axes[posi*2+1,si].text((gs+ge)/2, slot*1, genename, ha="center")
             for oi, ol in enumerate(occupied):
@@ -231,7 +241,7 @@ def plot_bigwig(files: dict,
         for si, sample in enumerate(sample_order):
             vals=mat[sample]
             ymax=0
-            print(ymax)
+            #print(ymax)
             for posi, (genes, val) in enumerate(zip(geneset, vals)):
                 if len(val)==0:
                     continue
@@ -243,7 +253,7 @@ def plot_bigwig(files: dict,
                 _e=e-remains
                 x=np.arange(s, _e,step)
                 
-                print(s, e, _e, vallen, step)
+                #print(s, e, _e, vallen, step)
                 val=val[:vallen-remains].reshape(-1, step).mean(axis=1)
                 _ymax=np.amax(val)
                 if _ymax >  ymax:
@@ -290,9 +300,9 @@ def plot_bigwig(files: dict,
                     ge=pos[posi][2]
                 axes[si+1,posi].plot([gs, ge], [slot*1,slot*1], color="gray")
                 if ori=="+":
-                    axes[si+1,posi].plot([ge-interval/32, ge], [slot*1+1,slot*1], color="gray")
+                    axes[si+1,posi].plot([ge-interval/32, ge], [slot*1+0.1,slot*1], color="gray")
                 elif ori=="-":
-                    axes[si+1,posi].plot([gs, gs+interval/32], [slot*1,slot*1+1], color="gray")
+                    axes[si+1,posi].plot([gs, gs+interval/32], [slot*1,slot*1+0.1], color="gray")
                 
                 axes[si+1,posi].text((gs+ge)/2, slot*1, genename, ha="center")
                 #axes[si+1,posi].grid(False)
@@ -428,8 +438,8 @@ def call_superenhancer(bigwig: str,
                        gff: str="",
                        closest_genes: bool=False,
                        nearest_k: int=1,
-                       go_analysis: bool=True,
-                       gonames=["GO_Biological_Process_2021","Reactome_2022","WikiPathways_2019_Human"]):
+                       go_analysis: bool=False,
+                       gonames: list=["GO_Biological_Process_2021","Reactome_2022","WikiPathways_2019_Human"]):
     """
     Find super enhancers and plot an enhancer rank.  
     
@@ -439,16 +449,30 @@ def call_superenhancer(bigwig: str,
         A bigwig file.
     peakfile : str
         A peak file.
-    tss : str, optional
-        A bed file containing transcriptional start sites. If you want to exclude enhancers that overlap with TSSs. 
-        You could create this file by scripts/gff2tss.py.
+    tss_dist: int, optional
+        A distance from transcriptional start sites. If this option is more than 0, you need provide gff option too.
     stitch: int, optional
         The maximum distance of enhancers to stitch together.
-    tss_dist : int, optional
-        The distance of enhancers from TSSs to exclude.
+    plot_signals : bool, optional
+        Drawing super enhancer regions +- 10kb
+    gff: str, optional (required when tss_dist is provided)
+        A gff or gtf file that contains gene annotations. You need to chose a correct genome version of a gff/gtf file 
+    
+    closest_genes: bool=False,
+        If this is True, closest genes of SE will be shown, instead of genomic regions. You can specify the number 
+        of closest genes by "nearest_k" option.
+    nearest_k: int, optional
+        The number of closest genes to be included. Default: 1.
+        
+    go_analysis: bool, optional
+        GSEA analysis based on the rank of SEs.
+        
+    gonames: list=["GO_Biological_Process_2021","Reactome_2022","WikiPathways_2019_Human"]
+        Gene sets for GSEA analysis.
+        
     Returns
     -------
-    
+        dict {"ax": ax, "positions":pos, "signals":y,"nearest_genes":_nearestgenes}
     Raises
     ------
     Notes
@@ -485,6 +509,27 @@ def call_superenhancer(bigwig: str,
                     gff_dict["Start"].append(e-tss_dist)
                     gff_dict["End"].append(e+tss_dist)
         return gff_dict
+    
+    def readgtf(_gff, _kind):
+        gff_dict={"Chromosome":[], "Start": [], "End": []}
+        with open(_gff) as fin:
+            for l in fin:
+                if l.startswith("#"):
+                    continue
+                chrom, source, kind, s, e, _, ori, _, meta=l.strip("\n").split("\t")
+                if kind !=_kind:
+                    continue
+                s, e=int(s)-1, int(e)
+                if ori=="+":
+                    gff_dict["Chromosome"].append(chrom)
+                    gff_dict["Start"].append(s-tss_dist)
+                    gff_dict["End"].append(s+tss_dist)
+                else:
+                    gff_dict["Chromosome"].append(chrom)
+                    gff_dict["Start"].append(e-tss_dist)
+                    gff_dict["End"].append(e+tss_dist)
+        return gff_dict
+    
     def readgff2(_gff, _kind, others=[]):
         gff_dict={"Chromosome":[], "Start": [], "End": []}
         for other in others:
@@ -499,6 +544,7 @@ def call_superenhancer(bigwig: str,
                 tmp={}
                 #print(meta)
                 meta=meta.split(";")
+                
                 for m in meta:
                     k, v=m.split("=")
                     if k in others:
@@ -510,10 +556,44 @@ def call_superenhancer(bigwig: str,
                 for other in others:
                     gff_dict[other].append(tmp[other])
         return gff_dict
+    def readgtf2(_gff, _kind, others=[]):
+        gff_dict={"Chromosome":[], "Start": [], "End": []}
+        for other in others:
+            gff_dict[other]=[]
+        with open(_gff) as fin:
+            for l in fin:
+                if l.startswith("#"):
+                    continue
+                chrom, source, kind, s, e, _, ori, _, meta=l.strip(";\n").split("\t")
+                if kind !=_kind:
+                    continue
+                tmp={}
+                #print(meta)
+                meta=meta.split("; ")
+                #print(meta)
+                for m in meta:
+                    k, v=m.split()
+                    v=v.strip('";')
+                    if k in others:
+                        tmp[k]=v
+
+                s, e=int(s)-1, int(e)
+                gff_dict["Chromosome"].append(chrom)
+                gff_dict["Start"].append(s)
+                gff_dict["End"].append(e)
+                for other in others:
+                    gff_dict[other].append(tmp[other])
+        return gff_dict
     if tss_dist != 0:
         start_time=time.time()
         stitched=pr.from_dict(stitching_for_pyrange(peaks, stitch))
-        gff_dict=readgff(gff, "transcript")
+        
+        if gff.endswith("gff") or gff.endswith("gff3"):
+            gff_dict=readgff(gff, "gene")
+        elif gff.endswith("gtf"):
+            gff_dict=readgtf(gff, "transcript")
+        else:
+            raise Exception("The gff/gtf file name is required to have either gff, gff3, or gtf extension.")
         gffr=pr.from_dict(gff_dict)
         
         _stitched=stitched.subtract(gffr, nb_cpu=2)
@@ -527,6 +607,48 @@ def call_superenhancer(bigwig: str,
         # stitched=remove_close_to_tss(stitched, tss_pos)
     else:
         stitched=stitching(peaks, stitch)
+        
+        
+    """Obtaining closest genes"""
+    _nearestgenes=[]
+    if closest_genes==True:
+        start_time=time.time()
+        if gff.endswith("gff") or gff.endswith("gff3"):
+            gff_dict=readgff2(gff, "gene", others=["gene_name"])
+        elif gff.endswith("gtf"):
+            gff_dict=readgtf2(gff, "transcript", others=["gene_name"])
+        else:
+            raise Exception("The gff/gtf file name is required to have either gff, gff3, or gtf extension.")
+        gffr=pr.from_dict(gff_dict)
+        # grlist=[]
+        # for chrom_se in pos:
+        #     chrom, se=chrom_se.split(":")
+        #     s, e=se.split("-")
+        #     grlist.append(pr.from_dict({"Chromosome":[chrom],"Start":[int(s)],"End":[int(e)]}))
+        # if nearest_k==1:
+        #     _nearestgenes=Parallel(n_jobs=-1)(delayed(gr.nearest)(gffr) for gr in grlist)
+        # else:
+        #     _nearestgenes=Parallel(n_jobs=-1)(delayed(gr.k_nearest)(gffr, k=nearest_k) for gr in grlist)
+        grlist={"Chromosome":[],"Start":[],"End":[]}
+        for chrom, se in stitched.items():
+            for s, e in se:
+                #grlist.append(pr.from_dict({"Chromosome":[chrom],"Start":[int(s)],"End":[int(e)]}))
+                grlist["Chromosome"].append(chrom)
+                grlist["Start"].append(int(s))
+                grlist["End"].append(int(e))
+        gr=pr.from_dict(grlist)
+        _nearestgenes_gr=gr.k_nearest(gffr, k=nearest_k, nb_cpu=12)
+        _nearestgenes=[]
+        tmp=[]
+        for i, gene_name in enumerate(_nearestgenes_gr.gene_name):
+            tmp.append(gene_name)
+            if i%nearest_k==0 and i>0:
+                _nearestgenes.append(tmp)
+                tmp=[]
+        _nearestgenes.append(tmp)
+        print("Finding the nearest genes took ", time.time()-start_time)
+        
+    start_time=time.time()
     mat=[]
     pos=[]
     for chrom, se in stitched.items():
@@ -538,19 +660,14 @@ def call_superenhancer(bigwig: str,
             mat.append(val)
             pos.append(chrom+":"+str(s)+"-"+str(e))
             
-    x, y, pos, sindex=find_extremes(mat, pos)
+    x, y, pos, sindex, srt=find_extremes(mat, pos)
     b=-x[sindex]*np.amax(y) +y[sindex]
+    print("Finding super enhancer took ", time.time()-start_time)
     
+    # print(len(_nearestgenes), _nearestgenes[:10])
+    # print(srt.shape, srt[:10])
+    _nearestgenes=[_nearestgenes[i] for i in srt]
     
-    if closest_genes==True:
-        gff_dict=readgff2(gff, "gene", others=["gene_name"])
-        gffr=pr.from_dict(gff_dict)
-        grlist=[]
-        for chrom_se in pos:
-            chrom, se=chrom_se.split(":")
-            s, e=se.split("-")
-            grlist.append(pr.from_dict({"Chromosome":[chrom],"Start":[int(s)],"End":[int(e)]}))
-        _nearestgenes=Parallel(n_jobs=-1)(delayed(gr.k_nearest)(gffr, k=nearest_k) for gr in grlist)
         
     fig, ax=plt.subplots(figsize=[6,4])
     ax.scatter(x[:sindex], y[:sindex],s=5,rasterized=True)
@@ -559,7 +676,7 @@ def call_superenhancer(bigwig: str,
     
     if closest_genes==True:
         for j in range(5):
-            ax.text(x[-j-1],y[-j-1], ",".join(_nearestgenes[-j-1].gene_name))
+            ax.text(x[-j-1],y[-j-1], ",".join(_nearestgenes[-j-1]))
     else:
         for j in range(5):
             ax.text(x[-j-1],y[-j-1], pos[-j-1])
@@ -590,7 +707,7 @@ def call_superenhancer(bigwig: str,
             for _pos, _sig, _gr in zip(reversed(pos[sindex:]), reversed(y[sindex:]),reversed(_nearestgenes[sindex:])):
                 chrom, se=_pos.split(":")
                 s, e=se.split("-")
-                fout.write("\t".join([chrom,str(s),str(e), ",".join(_gr.gene_name), str(_sig),str(rank)+"\n"]))
+                fout.write("\t".join([chrom,str(s),str(e), ",".join(_gr), str(_sig),str(rank)+"\n"]))
                 rank+=1
         
         else:
@@ -600,7 +717,10 @@ def call_superenhancer(bigwig: str,
                 s, e=se.split("-")
                 fout.write("\t".join([chrom,str(s),str(e), str(_sig),str(rank)+"\n"]))
                 rank+=1
+    print("The SE file was written in "+stitched_out)
     if go_analysis==True:
+        print("Now, doing GO anlyses..")
+        start_time=time.time()
         try:
             import gseapy
         except ImportError:
@@ -608,10 +728,10 @@ def call_superenhancer(bigwig: str,
         godf={0:[],1:[]}
         y=(y-np.mean(y))/np.std(y)
         for _sig, genes in zip(reversed(y), reversed(_nearestgenes)):
-            for gene in list(genes.gene_name):
+            for gene in list(genes):
                 godf[0].append(gene)
                 godf[1].append(_sig)
-        print(godf)
+        #print(godf)
         godf=pd.DataFrame(godf)
         godf=godf.set_index(0)
         for name in gonames:
@@ -624,7 +744,7 @@ def call_superenhancer(bigwig: str,
                              outdir=None, # don't write to disk
                              seed=6,
                              verbose=True,) # see what's going on behind the scenes)
-            print(gs_res.res2d)
+            #print(gs_res.res2d)
             for index, row in gs_res.res2d.iterrows():
                 #print(row)
                 if row["FDR q-val"] <0.05:
@@ -635,8 +755,9 @@ def call_superenhancer(bigwig: str,
                              **gs_res.results[t],
                              ofname=os.path.splitext(peakfile)[0]+"_"+name+"_gsea.pdf"
                              )
-    
+        print("GO analysis took ", time.time()-start_time)
     if plot_signals:
+        
         if gff=="":
             raise Exception("Please provide a gff file.")
         letters = string.ascii_lowercase
@@ -659,6 +780,7 @@ def call_superenhancer(bigwig: str,
                     stack_regions="vertical",
                     highlight=highlights)
         os.remove(tmpfile)
+    return {"ax": ax, "positions":pos, "signals":y,"nearest_genes":_nearestgenes}
 def plot_average(files: dict, 
                  bed: Union[str,list], 
                  order: list=[], extend: int=500, 
@@ -739,10 +861,10 @@ def plot_average(files: dict,
     if clustering=="kmeans_all":
         mat=[]
         for sample in order:
-            print(np.array(data[sample]).shape)
+            #print(np.array(data[sample]).shape)
             mat.append(data[sample])
         mat=np.concatenate(mat, axis=1)
-        print(mat.shape)
+        #print(mat.shape)
         mat=zscore(mat, axis=0)
         pca=PCA(n_components=5, random_state=1)
         xpca=pca.fit_transform(mat)
@@ -820,8 +942,8 @@ def plot_average(files: dict,
             for label, count in zip(ulabel, clabel):
                 
                 _vals=np.mean(vals[labels==label],axis=0)
-                print(_vals.shape)
-                print(vals.shape)
+                #print(_vals.shape)
+                #print(vals.shape)
                 ax.plot(np.arange(-extend, extend, 2*extend//(_vals.shape[0])),_vals, label=label)
                 _maxval=np.max(_vals)
                 if maxval < _maxval:
@@ -1062,10 +1184,12 @@ if __name__=="__main__":
         plt.show()
     elif test=="call_superenhancer":
         gff="/media/koh/grasnas/home/data/omniplot/gencode.v40.annotation.gff3"
+        gff="/media/koh/grasnas/home/data/omniplot/hg38.refGene.gtf"
         f="/media/koh/grasnas/home/data/omniplot/HepG2_KMT2B-human_ENCFF709UTL.bw"
         peak="/media/koh/grasnas/home/data/omniplot/HepG2_KMT2B_ENCFF036WCY_srt.bed"
         tss="/media/koh/grasnas/home/data/omniplot/gencode.v40.annotation_tss_srt.bed"
-        call_superenhancer(bigwig=f, peakfile=peak,tss_dist=5000,plot_signals=True , gff=gff,closest_genes=True,go_analysis=True)
+        call_superenhancer(bigwig=f, peakfile=peak,tss_dist=5000,plot_signals=True , gff=gff,closest_genes=True,
+                           go_analysis=False)
         plt.show()
     elif test=="plot_average":
         

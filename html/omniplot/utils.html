@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.10.0" />
+<title>omniplot.utils API documentation</title>
+<meta name="description" content="" />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>omniplot.utils</code></h1>
+</header>
+<section id="section-intro">
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="omniplot.utils.baumkuchen"><code class="name flex">
+<span>def <span class="ident">baumkuchen</span></span>(<span>ax, start, theta, rin, rout, res, _color)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="omniplot.utils.calc_r2"><code class="name flex">
+<span>def <span class="ident">calc_r2</span></span>(<span>X, Y)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="omniplot.utils.ci_pi"><code class="name flex">
+<span>def <span class="ident">ci_pi</span></span>(<span>X: numpy.ndarray, Y: numpy.ndarray, plotline_X: numpy.ndarray, y_model: numpy.ndarray) ‑> list</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="omniplot.utils.draw_ci_pi"><code class="name flex">
+<span>def <span class="ident">draw_ci_pi</span></span>(<span>ax: matplotlib.axes._axes.Axes, ci: numpy.ndarray, pi: numpy.ndarray, x_line: numpy.ndarray, y_line: numpy.ndarray)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Drawing a confidence interval and a prediction interval</p></div>
+</dd>
+<dt id="omniplot.utils.line_annotate"><code class="name flex">
+<span>def <span class="ident">line_annotate</span></span>(<span>text, line, x, *args, **kwargs)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Add a sloped annotation to <em>line</em> at position <em>x</em> with <em>text</em></p>
+<p>Optionally an arrow pointing from the text to the graph at <em>x</em> can be drawn.</p>
+<h2 id="usage">Usage</h2>
+<p>x = linspace(0, 2*pi)
+line, = ax.plot(x, sin(x))
+line_annotate("sin(x)", line, 1.5)</p>
+<h2 id="see-also">See Also</h2>
+<p><code><a title="omniplot.utils.LineAnnotation" href="#omniplot.utils.LineAnnotation">LineAnnotation</a></code>
+<code>plt.annotate</code></p></div>
+</dd>
+<dt id="omniplot.utils.optimal_kmeans"><code class="name flex">
+<span>def <span class="ident">optimal_kmeans</span></span>(<span>X: Union[numpy.ndarray, list], testrange: list, topn: int = 2) ‑> List[int]</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="omniplot.utils.LineAnnotation"><code class="flex name class">
+<span>class <span class="ident">LineAnnotation</span></span>
+<span>(</span><span>text, line, x, xytext=(0, 5), textcoords='offset points', **kwargs)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>A sloped annotation to <em>line</em> at position <em>x</em> with <em>text</em>
+Optionally an arrow pointing from the text to the graph at <em>x</em> can be drawn.
+Usage</p>
+<hr>
+<p>fig, ax = subplots()
+x = linspace(0, 2*pi)
+line, = ax.plot(x, sin(x))
+ax.add_artist(LineAnnotation("text", line, 1.5))</p>
+<p>Annotate the point at <em>x</em> of the graph <em>line</em> with text <em>text</em>.</p>
+<p>By default, the text is displayed with the same rotation as the slope of the
+graph at a relative position <em>xytext</em> above it (perpendicularly above).</p>
+<p>An arrow pointing from the text to the annotated point <em>xy</em> can
+be added by defining <em>arrowprops</em>.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>text</code></strong> :&ensp;<code>str</code></dt>
+<dd>The text of the annotation.</dd>
+<dt><strong><code>line</code></strong> :&ensp;<code>Line2D</code></dt>
+<dd>Matplotlib line object to annotate</dd>
+<dt><strong><code>x</code></strong> :&ensp;<code>float</code></dt>
+<dd>The point <em>x</em> to annotate. y is calculated from the points on the line.</dd>
+<dt><strong><code>xytext</code></strong> :&ensp;<code>(float, float)</code>, default<code>: (0, 5)</code></dt>
+<dd>The position <em>(x, y)</em> relative to the point <em>x</em> on the <em>line</em> to place the
+text at. The coordinate system is determined by <em>textcoords</em>.</dd>
+<dt><strong><code>**kwargs</code></strong></dt>
+<dd>Additional keyword arguments are passed on to <code>Annotation</code>.</dd>
+</dl>
+<h2 id="see-also">See Also</h2>
+<p><code>Annotation</code>
+<code><a title="omniplot.utils.line_annotate" href="#omniplot.utils.line_annotate">line_annotate()</a></code></p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>matplotlib.text.Annotation</li>
+<li>matplotlib.text.Text</li>
+<li>matplotlib.artist.Artist</li>
+<li>matplotlib.text._AnnotationBase</li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="omniplot.utils.LineAnnotation.get_rotation"><code class="name flex">
+<span>def <span class="ident">get_rotation</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Determines angle of the slope of the neighbours in display coordinate system</p></div>
+</dd>
+<dt id="omniplot.utils.LineAnnotation.set"><code class="name flex">
+<span>def <span class="ident">set</span></span>(<span>self, *, agg_filter=&lt;UNSET&gt;, alpha=&lt;UNSET&gt;, animated=&lt;UNSET&gt;, anncoords=&lt;UNSET&gt;, annotation_clip=&lt;UNSET&gt;, backgroundcolor=&lt;UNSET&gt;, bbox=&lt;UNSET&gt;, clip_box=&lt;UNSET&gt;, clip_on=&lt;UNSET&gt;, clip_path=&lt;UNSET&gt;, color=&lt;UNSET&gt;, fontfamily=&lt;UNSET&gt;, fontproperties=&lt;UNSET&gt;, fontsize=&lt;UNSET&gt;, fontstretch=&lt;UNSET&gt;, fontstyle=&lt;UNSET&gt;, fontvariant=&lt;UNSET&gt;, fontweight=&lt;UNSET&gt;, gid=&lt;UNSET&gt;, horizontalalignment=&lt;UNSET&gt;, in_layout=&lt;UNSET&gt;, label=&lt;UNSET&gt;, linespacing=&lt;UNSET&gt;, math_fontfamily=&lt;UNSET&gt;, mouseover=&lt;UNSET&gt;, multialignment=&lt;UNSET&gt;, parse_math=&lt;UNSET&gt;, path_effects=&lt;UNSET&gt;, picker=&lt;UNSET&gt;, position=&lt;UNSET&gt;, rasterized=&lt;UNSET&gt;, rotation=&lt;UNSET&gt;, rotation_mode=&lt;UNSET&gt;, sketch_params=&lt;UNSET&gt;, snap=&lt;UNSET&gt;, text=&lt;UNSET&gt;, transform=&lt;UNSET&gt;, transform_rotates_text=&lt;UNSET&gt;, url=&lt;UNSET&gt;, usetex=&lt;UNSET&gt;, verticalalignment=&lt;UNSET&gt;, visible=&lt;UNSET&gt;, wrap=&lt;UNSET&gt;, x=&lt;UNSET&gt;, y=&lt;UNSET&gt;, zorder=&lt;UNSET&gt;)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Set multiple properties at once.</p>
+<p>Supported properties are</p>
+<h2 id="properties">Properties</h2>
+<p>agg_filter: a filter function, which takes a (m, n, 3) float array and a dpi value, and returns a (m, n, 3) array and two offsets from the bottom left corner of the image
+alpha: scalar or None
+animated: bool
+anncoords: unknown
+annotation_clip: bool or None
+backgroundcolor: color
+bbox: dict with properties for <code>.patches.FancyBboxPatch</code>
+clip_box: <code>.Bbox</code>
+clip_on: bool
+clip_path: Patch or (Path, Transform) or None
+color or c: color
+figure: <code>.Figure</code>
+fontfamily or family: {FONTNAME, 'serif', 'sans-serif', 'cursive', 'fantasy', 'monospace'}
+fontproperties or font or font_properties: <code>.font_manager.FontProperties</code> or <code>str</code> or <code>pathlib.Path</code>
+fontsize or size: float or {'xx-small', 'x-small', 'small', 'medium', 'large', 'x-large', 'xx-large'}
+fontstretch or stretch: {a numeric value in range 0-1000, 'ultra-condensed', 'extra-condensed', 'condensed', 'semi-condensed', 'normal', 'semi-expanded', 'expanded', 'extra-expanded', 'ultra-expanded'}
+fontstyle or style: {'normal', 'italic', 'oblique'}
+fontvariant or variant: {'normal', 'small-caps'}
+fontweight or weight: {a numeric value in range 0-1000, 'ultralight', 'light', 'normal', 'regular', 'book', 'medium', 'roman', 'semibold', 'demibold', 'demi', 'bold', 'heavy', 'extra bold', 'black'}
+gid: str
+horizontalalignment or ha: {'left', 'center', 'right'}
+in_layout: bool
+label: object
+linespacing: float (multiple of font size)
+math_fontfamily: str
+mouseover: bool
+multialignment or ma: {'left', 'right', 'center'}
+parse_math: bool
+path_effects: <code>.AbstractPathEffect</code>
+picker: None or bool or float or callable
+position: (float, float)
+rasterized: bool
+rotation: float or {'vertical', 'horizontal'}
+rotation_mode: {None, 'default', 'anchor'}
+sketch_params: (scale: float, length: float, randomness: float)
+snap: bool or None
+text: object
+transform: <code>.Transform</code>
+transform_rotates_text: bool
+url: str
+usetex: bool or None
+verticalalignment or va: {'bottom', 'baseline', 'center', 'center_baseline', 'top'}
+visible: bool
+wrap: bool
+x: float
+y: float
+zorder: float</p></div>
+</dd>
+<dt id="omniplot.utils.LineAnnotation.update_positions"><code class="name flex">
+<span>def <span class="ident">update_positions</span></span>(<span>self, renderer)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Updates relative position of annotation text
+Note</p>
+<hr>
+<p>Called during annotation <code>draw</code> call</p></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="omniplot" href="index.html">omniplot</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="two-column">
+<li><code><a title="omniplot.utils.baumkuchen" href="#omniplot.utils.baumkuchen">baumkuchen</a></code></li>
+<li><code><a title="omniplot.utils.calc_r2" href="#omniplot.utils.calc_r2">calc_r2</a></code></li>
+<li><code><a title="omniplot.utils.ci_pi" href="#omniplot.utils.ci_pi">ci_pi</a></code></li>
+<li><code><a title="omniplot.utils.draw_ci_pi" href="#omniplot.utils.draw_ci_pi">draw_ci_pi</a></code></li>
+<li><code><a title="omniplot.utils.line_annotate" href="#omniplot.utils.line_annotate">line_annotate</a></code></li>
+<li><code><a title="omniplot.utils.optimal_kmeans" href="#omniplot.utils.optimal_kmeans">optimal_kmeans</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="omniplot.utils.LineAnnotation" href="#omniplot.utils.LineAnnotation">LineAnnotation</a></code></h4>
+<ul class="">
+<li><code><a title="omniplot.utils.LineAnnotation.get_rotation" href="#omniplot.utils.LineAnnotation.get_rotation">get_rotation</a></code></li>
+<li><code><a title="omniplot.utils.LineAnnotation.set" href="#omniplot.utils.LineAnnotation.set">set</a></code></li>
+<li><code><a title="omniplot.utils.LineAnnotation.update_positions" href="#omniplot.utils.LineAnnotation.update_positions">update_positions</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.10.0</a>.</p>
+</footer>
+</body>
+</html>

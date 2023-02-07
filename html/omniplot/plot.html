@@ -1,0 +1,533 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.10.0" />
+<title>omniplot.plot API documentation</title>
+<meta name="description" content="/\
+/
+/ \
+/
+@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@
+(
+---
+---
+)
+(
+O L
+O
+)3
+(
+&lt;---&gt;
+)
+`---------&#39;
+/
+\
+/ …" />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>omniplot.plot</code></h1>
+</header>
+<section id="section-intro">
+<p>/\
+/
+/ \
+/
+@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@
+(
+&mdash;
+&mdash;
+)
+(
+O L
+O
+)3
+(
+&lt;&mdash;&gt;
+)
+`---------'
+/
+\<br>
+/
+/|
+|\
+|
+|</p>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="omniplot.plot.clusterplot"><code class="name flex">
+<span>def <span class="ident">clusterplot</span></span>(<span>df, category: Union[List[str], str] = '', method: str = 'kmeans', n_clusters: Union[str, int] = 3, x: str = '', y: str = '', reduce_dimension: str = 'umap', testrange=[1, 20], show: bool = False, min_dist: float = 0.25, n_neighbors: int = 15, eps: Union[List[float], float] = 0.5, pcacomponent: Optional[int] = None, ztranform=True, palette=['Spectral', 'cubehelix'], **kwargs)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Clustering data and draw them as a scatter plot optionally with dimensionality reduction.
+</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>df</code></strong> :&ensp;<code>pandas DataFrame</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>category</code></strong> :&ensp;<code>str</code></dt>
+<dd>the column name of a known sample category (if exists).</dd>
+<dt><strong><code>method</code></strong> :&ensp;<code>str</code></dt>
+<dd>Method name for clustering.
+Available methods: ["kmeans",
+"hierarchical",
+"dbscan",
+]</dd>
+<dt><strong><code>n_clusters</code></strong> :&ensp;<code>int</code> or <code>str</code></dt>
+<dd>The number of clusters to be created. If "auto" is provided, it will estimate optimal
+cluster numbers with "Sum of squared distances" for k-mean clustering and silhouette method for others.</dd>
+<dt><strong><code>eps</code></strong> :&ensp;<code>int</code> or <code>list[int]</code></dt>
+<dd>DBSCAN's hyper parameter. It will affect the total number of clusters.</dd>
+<dt><strong><code>reduce_dimension</code></strong> :&ensp;<code>str</code></dt>
+<dd>Dimensionality reduction method. Default: umap.
+if "" is passed, no reduction methods are applied. In this case, data must be 2 dimention or x and y options must be specified.</dd>
+<dt><strong><code>show</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Whether or not to show the figure.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<h2 id="raises">Raises</h2>
+<h2 id="notes">Notes</h2>
+<h2 id="references">References</h2>
+<h2 id="see-also">See Also</h2>
+<h2 id="examples">Examples</h2></div>
+</dd>
+<dt id="omniplot.plot.complex_clustermap"><code class="name flex">
+<span>def <span class="ident">complex_clustermap</span></span>(<span>df: pandas.core.frame.DataFrame, dfcol: Optional[pandas.core.frame.DataFrame] = None, heatmap_col: list = [], row_colors: list = [], col_colors: list = [], row_plot: list = [], col_plot: list = [], row_scatter: list = [], col_scatter: list = [], row_bar: list = [], col_bar: list = [], approx_clusternum: int = 10, approx_clusternum_col: int = 3, color_var: int = 0, merginalsum: bool = False, show: bool = False, method: str = 'ward', return_col_cluster: bool = True, ztranform=True, xticklabels=True, yticklabels=False, show_plot_labels=False, figsize=[], **kwargs)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Drawing a clustered heatmap with merginal plots.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>df</code></strong> :&ensp;<code>pandas DataFrame</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>row_colormap</code></strong> :&ensp;<code>dict</code></dt>
+<dd>the column name of a category that is going to be placed in the row of the dotplot</dd>
+<dt><strong><code>col_colormap</code></strong> :&ensp;<code>dict</code></dt>
+<dd>the column name of a category that is going to be placed in the column of the dotplot</dd>
+<dt><strong><code>row_plot</code></strong> :&ensp;<code>dict</code></dt>
+<dd>The column name for the values represented as dot colors.</dd>
+<dt><strong><code>col_plot</code></strong> :&ensp;<code>dict</code></dt>
+<dd>The column name for the values represented as dot sizes.</dd>
+<dt><strong><code>row_color_legend</code></strong> :&ensp;<code>dict</code></dt>
+<dd>The scale of dots. If resulting dots are too large (or small), you can reduce (or increase) dot sizes by adjusting this value.</dd>
+<dt><strong><code>col_color_legend</code></strong> :&ensp;<code>dict</code></dt>
+<dd>The scale of dots. If resulting dots are too large (or small), you can reduce (or increase) dot sizes by adjusting this value.</dd>
+<dt><strong><code>approx_clusternum</code></strong> :&ensp;<code>int</code></dt>
+<dd>The approximate number of row clusters to be created. Labeling the groups of leaves with different colors. The result of hierarchical clustering won't change.</dd>
+<dt><strong><code>approx_clusternum_col</code></strong> :&ensp;<code>int</code></dt>
+<dd>The approximate number of column clusters to be created. Labeling the groups of leaves with different colors. The result of hierarchical clustering won't change.</dd>
+<dt><strong><code>color_var</code></strong> :&ensp;<code>int</code></dt>
+<dd>The title for color values. If not set, "color_val" will be used.</dd>
+<dt><strong><code>merginalsum</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Whether or not to draw bar plots for merginal distribution.</dd>
+<dt><strong><code>show</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Whether or not to show the figure.</dd>
+<dt><strong><code>method</code></strong> :&ensp;<code>string</code></dt>
+<dd>Method for hierarchical clustering.</dd>
+<dt><strong><code>return_col_cluster</code></strong> :&ensp;<code>string</code></dt>
+<dd>The title for color values. If not set, "color_val" will be used.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<pre><code>dict 
+{"row_clusters":pd.DataFrame,"col_clusters":pd.DataFrame, "grid":g}
+</code></pre>
+<h2 id="raises">Raises</h2>
+<h2 id="notes">Notes</h2>
+<h2 id="references">References</h2>
+<h2 id="see-also">See Also</h2>
+<h2 id="examples">Examples</h2></div>
+</dd>
+<dt id="omniplot.plot.decomplot"><code class="name flex">
+<span>def <span class="ident">decomplot</span></span>(<span>df, category: str = '', method: str = 'pca', component: int = 3, arrow_color: str = 'yellow', arrow_text_color: str = 'black', show: bool = False, explained_variance: bool = True, arrow_num: int = 3, figsize=[], regularization: bool = True, pcapram={'random_state': 0}, nmfparam={'random_state': 0})</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Decomposing data and drawing a scatter plot and some plots for explained variables. </p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>df</code></strong> :&ensp;<code>pandas DataFrame</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>category</code></strong> :&ensp;<code>str</code></dt>
+<dd>the column name of a known sample category (if exists).</dd>
+<dt><strong><code>method</code></strong> :&ensp;<code>str</code></dt>
+<dd>Method name for decomposition. Available methods: ["pca", "nmf"]</dd>
+<dt><strong><code>component</code></strong> :&ensp;<code>int</code></dt>
+<dd>The component number</dd>
+<dt><strong><code>show</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Whether or not to show the figure.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<h2 id="raises">Raises</h2>
+<h2 id="notes">Notes</h2>
+<h2 id="references">References</h2>
+<h2 id="see-also">See Also</h2>
+<h2 id="examples">Examples</h2></div>
+</dd>
+<dt id="omniplot.plot.dotplot"><code class="name flex">
+<span>def <span class="ident">dotplot</span></span>(<span>df: pandas.core.frame.DataFrame, row: str = '', col: str = '', dfc=Empty DataFrame
+Columns: []
+Index: [], scaling: float = 10, color_val: str = '', size_val: str = '', highlight: str = '', color_title: str = '', size_title: str = '', figsize: list = [], save: str = '', threshold: float = 1.3010299956639813, row_clustering: bool = True, xtickrotation: float = 90, column_order: list = [], colorpalette='coolwarm', show: bool = False) ‑> Dict[str, matplotlib.axes._axes.Axes]</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Drawing a dotplot that can represent two different variables as dot sizes and colors on a regular grid.
+This function is assumed to plot GO enrichment analysis with multiple gene sets.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>df</code></strong> :&ensp;<code>pandas DataFrame</code></dt>
+<dd>dataframe containing two categories and corresponding values (such as p values and odds ratio).
+e.g.:
+Cluster
+Condensate
+pval
+odds
+FDR
+54
+C1
+Cajal body -0.000000
+0.000000 -0.000000
+55
+C1
+<em>DNA repair focus -0.000000
+0.000000 -0.000000
+56
+C1
+</em>DNA replication condensate -0.000000
+0.000000 -0.000000
+57
+C1
+P-body -0.000000
+0.000000 -0.000000
+58
+C1
+PML body -0.000000
+0.000000 -0.000000</dd>
+<dt><strong><code>row</code></strong> :&ensp;<code>string</code></dt>
+<dd>the column name of a category that is going to be placed in the row of the dotplot</dd>
+<dt><strong><code>col</code></strong> :&ensp;<code>string</code></dt>
+<dd>the column name of a category that is going to be placed in the column of the dotplot</dd>
+<dt><strong><code>color_val</code></strong> :&ensp;<code>string</code></dt>
+<dd>The column name for the values represented as dot colors.</dd>
+<dt><strong><code>size_val</code></strong> :&ensp;<code>string</code></dt>
+<dd>The column name for the values represented as dot sizes.</dd>
+<dt><strong><code>scaling</code></strong> :&ensp;<code>float</code></dt>
+<dd>The scale of dots. If resulting dots are too large (or small), you can reduce (or increase) dot sizes by adjusting this value.</dd>
+<dt><strong><code>highlight</code></strong> :&ensp;<code>string</code></dt>
+<dd>A dictionary to set color labels to leaves. The key is the name of the color label.
+The value is the list of RGB color codes, each corresponds to the color of a leaf.
+e.g., {"color1":[[1,0,0,1], ....]}</dd>
+<dt><strong><code>size_title</code></strong> :&ensp;<code>string</code></dt>
+<dd>The title for size values. If not set, "size_val" will be used.</dd>
+<dt><strong><code>color_title</code></strong> :&ensp;<code>string</code></dt>
+<dd>The title for color values. If not set, "color_val" will be used.</dd>
+<dt><strong><code>show</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Whether or not to show the figure.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>axes</code></strong> :&ensp;<code>dict</code></dt>
+<dd>&nbsp;</dd>
+</dl>
+<h2 id="raises">Raises</h2>
+<h2 id="notes">Notes</h2>
+<h2 id="references">References</h2>
+<h2 id="see-also">See Also</h2>
+<h2 id="examples">Examples</h2></div>
+</dd>
+<dt id="omniplot.plot.manifoldplot"><code class="name flex">
+<span>def <span class="ident">manifoldplot</span></span>(<span>df, category='', method='tsne', n_components=2, n_neighbors=4, show=False, **kwargs)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Reducing the dimensionality of data and drawing a scatter plot. </p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>df</code></strong> :&ensp;<code>pandas DataFrame</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>category</code></strong> :&ensp;<code>str</code></dt>
+<dd>the column name of a known sample category (if exists).</dd>
+<dt><strong><code>method</code></strong> :&ensp;<code>str</code></dt>
+<dd>Method name for decomposition.
+Available methods: ["tsne",
+"isomap",
+"random_projection",
+"linear_discriminant",
+"lle",
+"modlle",
+"hessian_lle",
+"mds"]</dd>
+<dt><strong><code>component</code></strong> :&ensp;<code>int</code></dt>
+<dd>The number of components</dd>
+<dt><strong><code>n_neighbors</code></strong> :&ensp;<code>int</code></dt>
+<dd>The number of neighbors related to isomap and lle methods.</dd>
+<dt><strong><code>show</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Whether or not to show the figure.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<h2 id="raises">Raises</h2>
+<h2 id="notes">Notes</h2>
+<h2 id="references">References</h2>
+<h2 id="see-also">See Also</h2>
+<h2 id="examples">Examples</h2></div>
+</dd>
+<dt id="omniplot.plot.nice_piechart"><code class="name flex">
+<span>def <span class="ident">nice_piechart</span></span>(<span>df: pandas.core.frame.DataFrame, category: Union[List[str], str], palette: str = 'tab20c', ncols: int = 2, ignore: float = 0.05)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="omniplot.plot.radialtree"><code class="name flex">
+<span>def <span class="ident">radialtree</span></span>(<span>df: pandas.core.frame.DataFrame, n_clusters: int = 3, category: Union[List[str], str] = [], **kwargs) ‑> matplotlib.axes._axes.Axes</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Drawing a radial dendrogram with color labels.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>df</code></strong> :&ensp;<code>pandas DataFrame</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>n_clusters</code></strong> :&ensp;<code>int</code></dt>
+<dd>Approximate number of clusters to produce</dd>
+<dt><strong><code>category</code></strong> :&ensp;<code>str</code> or <code>list</code> of <code>str</code></dt>
+<dd>the column name of a category that is going to presented as colors around the dendrogram.</dd>
+<dt><strong><code>show</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Whether or not to show the figure.</dd>
+<dt><strong><code>fontsize</code></strong> :&ensp;<code>float</code></dt>
+<dd>A float to specify the font size</dd>
+<dt><strong><code>figsize</code></strong> :&ensp;<code>[x, y] array-like</code></dt>
+<dd>1D array-like of floats to specify the figure size</dd>
+<dt><strong><code>palette</code></strong> :&ensp;<code>string</code></dt>
+<dd>Matlab colormap name.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>axes</code></strong> :&ensp;<code>ax</code></dt>
+<dd>&nbsp;</dd>
+</dl>
+<h2 id="raises">Raises</h2>
+<h2 id="notes">Notes</h2>
+<h2 id="references">References</h2>
+<h2 id="see-also">See Also</h2>
+<h2 id="examples">Examples</h2></div>
+</dd>
+<dt id="omniplot.plot.regression_single"><code class="name flex">
+<span>def <span class="ident">regression_single</span></span>(<span>df, x: str = '', y: str = '', method: str = 'ransac', category: str = '', figsize: List[int] = [5, 5], show=False, ransac_param={'max_trials': 1000}, robust_param={}) ‑> matplotlib.axes._axes.Axes</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Drawing a scatter plot with a single variable linear regression.
+</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>df</code></strong> :&ensp;<code>pandas DataFrame</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>x</code></strong> :&ensp;<code>str</code></dt>
+<dd>the column name of x axis.</dd>
+<dt><strong><code>y</code></strong> :&ensp;<code>str</code></dt>
+<dd>the column name of y axis.</dd>
+<dt><strong><code>method</code></strong> :&ensp;<code>str</code></dt>
+<dd>Method name for regression. Default: ransac
+Available methods: ["ransac",
+"robust",
+"lasso","elastic_net"
+]</dd>
+<dt><strong><code>figsize</code></strong> :&ensp;<code>list[int]</code></dt>
+<dd>figure size</dd>
+<dt><strong><code>show</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Whether or not to show the figure.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>ax</code></strong> :&ensp;<code>plt.Axes</code></dt>
+<dd>axis object</dd>
+<dt><strong><code>dict</code></strong> :&ensp;<code>dict</code></dt>
+<dd>&nbsp;</dd>
+<dt><code>z
+dictionary containing estimated parameters</code></dt>
+<dd>&nbsp;</dd>
+</dl>
+<h2 id="raises">Raises</h2>
+<h2 id="notes">Notes</h2>
+<h2 id="references">References</h2>
+<h2 id="see-also">See Also</h2>
+<h2 id="examples">Examples</h2></div>
+</dd>
+<dt id="omniplot.plot.stacked_barplot"><code class="name flex">
+<span>def <span class="ident">stacked_barplot</span></span>(<span>df: pandas.core.frame.DataFrame, x: str, hue: str, scale: str = 'fraction', order: list = [], hue_order: list = [], test_pairs: List[List[str]] = [], show_number: bool = True, show: bool = False, figsize: List[int] = [4, 6])</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Draw a boxplot with a statistical test </p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>df</code></strong> :&ensp;<code>pandas DataFrame</code></dt>
+<dd>&nbsp;</dd>
+<dt>x,hue: str</dt>
+<dt>x: the category to place in x axis, hue: count samples by the hue category</dt>
+<dt><strong><code>order</code></strong> :&ensp;<code>list</code>, optional</dt>
+<dd>The order of x axis labels</dd>
+<dt><strong><code>hue_order</code></strong> :&ensp;<code>list</code>, optional</dt>
+<dd>The order of hue labels</dd>
+<dt><strong><code>scale</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>Scaling data</dd>
+<dt>test_pairs : pairs of categorical values related to x. It will calculate -log10 (p value) (mlp) of the fisher exact test.</dt>
+<dt>Examples: [["Adelie","Chinstrap" ],</dt>
+<dt>["Gentoo","Chinstrap" ],</dt>
+<dt>["Adelie","Gentoo" ]]</dt>
+<dt><strong><code>show_number</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>Wheter to exhibit the values of fractions/counts/percentages.</dd>
+<dt><strong><code>show</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>Whether or not to show the figure.</dd>
+<dt><strong><code>figsize</code></strong> :&ensp;<code>List[int]</code>, optional</dt>
+<dd>The figure size, e.g., [4, 6].</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>dict("p values":pvalues,"ax":ax)</code></dt>
+<dd>&nbsp;</dd>
+</dl>
+<h2 id="raises">Raises</h2>
+<h2 id="notes">Notes</h2>
+<h2 id="references">References</h2>
+<h2 id="see-also">See Also</h2>
+<h2 id="examples">Examples</h2></div>
+</dd>
+<dt id="omniplot.plot.triangle_heatmap"><code class="name flex">
+<span>def <span class="ident">triangle_heatmap</span></span>(<span>df, grid_pos: list = [], grid_labels: list = [], show: bool = False)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Creating a heatmap with 45 degree rotation.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>df</code></strong> :&ensp;<code>pandas DataFrame</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>grid_pos</code></strong> :&ensp;<code>list</code></dt>
+<dd>the column name of a category that is going to be placed in the row of the dotplot</dd>
+<dt><strong><code>grid_labels</code></strong> :&ensp;<code>list</code></dt>
+<dd>the column name of a category that is going to be placed in the column of the dotplot</dd>
+<dt><strong><code>show</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Whether or not to show the figure.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<h2 id="raises">Raises</h2>
+<h2 id="notes">Notes</h2>
+<h2 id="references">References</h2>
+<h2 id="see-also">See Also</h2>
+<h2 id="examples">Examples</h2></div>
+</dd>
+<dt id="omniplot.plot.violinplot"><code class="name flex">
+<span>def <span class="ident">violinplot</span></span>(<span>df, x: Optional[str] = None, y: Optional[str] = None, pairs: list = [], test: str = 'ttest_ind', alternative: str = 'two-sided', significance: str = 'numeric', significance_ranges: Dict[str, float] = {'*': 1.3010299956639813, '**': 4, '***': 10}, swarm: bool = False, xorder: list = [], equal_var: bool = False, **kwargs)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Draw a boxplot with a statistical test </p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>df</code></strong> :&ensp;<code>pandas DataFrame</code></dt>
+<dd>&nbsp;</dd>
+<dt>x,y: str</dt>
+<dt>names of variables in data</dt>
+<dt><strong><code>pairs</code></strong> :&ensp;<code>list</code>, optional</dt>
+<dd>Category pairs for the statistical test.
+Examples: [["Adelie","Chinstrap" ],
+["Gentoo","Chinstrap" ],
+["Adelie","Gentoo" ]]</dd>
+<dt><strong><code>test</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>Method name for the statistical test. Defalt: ttest_ind
+Available methods: ["ttest_ind",
+"ttest_rel",
+"kruskal",
+"mannwhitneyu",
+"wilcoxon",
+"brunnermunzel",
+"median_test"]</dd>
+<dt><strong><code>alternative</code></strong> :&ensp;<code>str ['two-sided', 'less', 'greater']</code>, optional</dt>
+<dd>Defines the alternative hypothesis. Defalt: "two-sided"</dd>
+<dt><strong><code>show</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>Whether or not to show the figure.</dd>
+<dt><strong><code>significance</code></strong> :&ensp;<code>str ['numeric', 'symbol']</code>, optional</dt>
+<dd>How to show the significance. 'numeric' will show -log10(p values) in the plot and
+'symbol' will represent significance as asterisks.</dd>
+<dt><strong><code>significance_ranges</code></strong> :&ensp;<code>dict</code>, optional</dt>
+<dd>thresholds of -log10(p values) that each asterisk number represents. Ignored when
+significance="numeric".
+example: {"<em>":-np.log10(0.05),"</em><em>":4,"</em>**":10}</dd>
+<dt><strong><code>swarm</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>Whether or not to superpose a swarm plot. Not recommended if the sample size is too large.</dd>
+<dt><strong><code>xorder</code></strong> :&ensp;<code>list</code>, optional</dt>
+<dd>The order of x axis labels</dd>
+<dt><strong><code>equal_var</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>Related to ttest_ind method. The default is True, which will produce a p value equal to t-test in R.</dd>
+<dt><strong><code>kwargs</code></strong> :&ensp;<code>any options accepted by scipy statistical test functions</code></dt>
+<dd>&nbsp;</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>dict("p values":pvalues,"ax":ax)</code></dt>
+<dd>&nbsp;</dd>
+</dl>
+<h2 id="raises">Raises</h2>
+<h2 id="notes">Notes</h2>
+<h2 id="references">References</h2>
+<h2 id="see-also">See Also</h2>
+<h2 id="examples">Examples</h2></div>
+</dd>
+<dt id="omniplot.plot.volcanoplot"><code class="name flex">
+<span>def <span class="ident">volcanoplot</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</section>
+<section>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="omniplot" href="index.html">omniplot</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="two-column">
+<li><code><a title="omniplot.plot.clusterplot" href="#omniplot.plot.clusterplot">clusterplot</a></code></li>
+<li><code><a title="omniplot.plot.complex_clustermap" href="#omniplot.plot.complex_clustermap">complex_clustermap</a></code></li>
+<li><code><a title="omniplot.plot.decomplot" href="#omniplot.plot.decomplot">decomplot</a></code></li>
+<li><code><a title="omniplot.plot.dotplot" href="#omniplot.plot.dotplot">dotplot</a></code></li>
+<li><code><a title="omniplot.plot.manifoldplot" href="#omniplot.plot.manifoldplot">manifoldplot</a></code></li>
+<li><code><a title="omniplot.plot.nice_piechart" href="#omniplot.plot.nice_piechart">nice_piechart</a></code></li>
+<li><code><a title="omniplot.plot.radialtree" href="#omniplot.plot.radialtree">radialtree</a></code></li>
+<li><code><a title="omniplot.plot.regression_single" href="#omniplot.plot.regression_single">regression_single</a></code></li>
+<li><code><a title="omniplot.plot.stacked_barplot" href="#omniplot.plot.stacked_barplot">stacked_barplot</a></code></li>
+<li><code><a title="omniplot.plot.triangle_heatmap" href="#omniplot.plot.triangle_heatmap">triangle_heatmap</a></code></li>
+<li><code><a title="omniplot.plot.violinplot" href="#omniplot.plot.violinplot">violinplot</a></code></li>
+<li><code><a title="omniplot.plot.volcanoplot" href="#omniplot.plot.volcanoplot">volcanoplot</a></code></li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.10.0</a>.</p>
+</footer>
+</body>
+</html>
