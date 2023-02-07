@@ -27,7 +27,7 @@ cd omniplot
 pip install .
 ```
 Known issues:<br>
-
+If you get errors saying "error: invalid command 'bdist_wheel'", please try pip install --upgrade pip wheel setuptools
 
 ## How to use
 I created jupyter notebooks to demonstrate the usage of omniplot [Link](https://github.com/koonimaru/omniplot/tree/main/ipynb).
