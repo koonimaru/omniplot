@@ -5,6 +5,7 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import pyBigWig as pwg
+import time
 import os 
 import scipy.stats
 from scipy.spatial.distance import squareform
@@ -14,7 +15,12 @@ import itertools as it
 from joblib.externals.loky import get_reusable_executor
 sns.set_theme(font="Arial", style={'grid.linestyle': "",'axes.facecolor': 'white'})
 import itertools
+from sklearn.neighbors import BallTree
+from intervaltree import Interval, IntervalTree
+import pickle
+import os
 
+#from cython_utils import chipseq_utils
 def range_diff(r1, r2):
     s1, e1 = r1
     s2, e2 = r2
@@ -32,58 +38,194 @@ def multirange_diff(r1_list, r2_list):
     return r1_list
 
 class gff_parser():
-    
+    resolution=100000
     def __init__(self,gff):
-        data={}
-        with open(gff) as fin:
-            for l in fin:
-                if l.startswith("#"):
-                    continue
-                chrom, source, kind, s, e, _, ori, _, meta=l.split()
-                if not chrom in data:
-                    data[chrom]={"pos":[], "kind":[],"ori":[],"meta":[]}
-                
-                meta=meta.split(";")
-                tmp={}
-                for m in meta:
-                    k, v=m.split("=")
-                    tmp[k]=v
-                data[chrom]["pos"].append([int(s)-1, int(e)])
-                data[chrom]["kind"].append(kind)
-                data[chrom]["ori"].append(ori)
-                data[chrom]["meta"].append(tmp)        
+        from operator import methodcaller
+        time_start=time.time()
+        home=os.path.expanduser('~')
+        cache=os.path.join(home, "omniplot_cache")
+        if not os.path.isdir(cache):
+            os.makedirs(cache)
+        h, t=os.path.split(gff)
+        gffchache=os.path.join(cache, t+".pickle")
+        gffchache_info=os.path.join(cache, t+"_info.pickle")
+        if os.path.isfile(gffchache):
+            with open(gffchache, "rb") as fin:
+                data=pickle.load(fin)
+            with open(gffchache_info, "rb") as fin:
+                info=pickle.load(fin)
+        else:
+            data={}
+            info={}
+            with open(gff) as fin:
+                for l in fin:
+                    if l.startswith("#"):
+                        if l.startswith("##gff-version"):
+                            l=l.split()
+                            info["gff-version"]=l[1]
+                        elif l.startswith("#description:"):
+                            l=l.strip("\n").split(": ")
+                            info["description"]=l[1]
+                        elif l.startswith("#provider:"):
+                            l=l.strip("\n").split(": ")
+                            info["provider"]=l[1]
+                        elif l.startswith("#format"):
+                            l=l.strip("\n").split(": ")
+                            info["format"]=l[1]
+                        elif l.startswith("#date"):
+                            l=l.strip("\n").split(": ")
+                            info["date"]=l[1]
+                        continue
+                    chrom, source, kind, s, e, _, ori, _, meta=l.split()
+                    s, e=int(s)-1, int(e)
+                    meta=meta.split(";")
+                    tmp={}
+                    for m in meta:
+                        k, v=m.split("=")
+                        tmp[k]=v
+                    
+
+                    # if not chrom in data:
+                    #     data[chrom]={"pos":[], "kind":[],"ori":[],"meta":[]}
+                    #
+                    #
+                    # #tmp={k: v for k,v in map(methodcaller("split", "="), meta)}
+                    # data[chrom]["pos"].append([s, e])
+                    # data[chrom]["kind"].append(kind)
+                    # data[chrom]["ori"].append(ori)
+                    # data[chrom]["meta"].append(tmp)        
+                    if not chrom in data:
+                        data[chrom]={}
+                  
+                    _s=self.resolution*(s//self.resolution)
+                    if not _s in data[chrom]:
+                        data[chrom][_s]={"pos":[], "kind":[],"ori":[],"meta":[]}
+                    data[chrom][_s]["pos"].append([s, e])
+                    data[chrom][_s]["kind"].append(kind)
+                    data[chrom][_s]["ori"].append(ori)
+                    data[chrom][_s]["meta"].append(tmp)  
+            with open(gffchache, "wb") as fin:
+                pickle.dump(data, fin)
+            with open(gffchache_info, "wb") as fin:
+                pickle.dump(info, fin)         
         self.data=data
-        
-    
+        self.info=info
+        print(time.time()-time_start)
     def get_genes(self, chrom: str,
                   start: int, 
                   end: int,
                   gene_type: set=set(["protein_coding"])) -> list:
-        
         _data=self.data[chrom]
         genes=[]
-        for i, (s,e) in enumerate(_data["pos"]):
-            if start<=s and e<=end:
-                if _data["kind"][i]=="gene" and _data["meta"][i]["gene_type"] in gene_type:
-                    genename=_data["meta"][i]["gene_name"]
-                    ori=_data["ori"][i]
-                    genes.append([genename,s,e,ori])
-            elif start<=s<=end and end<e:
-                if _data["kind"][i]=="gene"  and _data["meta"][i]["gene_type"] in gene_type:
-                    genename=_data["meta"][i]["gene_name"]
-                    ori=_data["ori"][i]
-                    genes.append([genename,s,end,ori])
-            elif s<start and start<=e<=end  and _data["meta"][i]["gene_type"] in gene_type:
-                if _data["kind"][i]=="gene":
-                    genename=_data["meta"][i]["gene_name"]
-                    ori=_data["ori"][i]
-                    genes.append([genename,start,e,ori])
-            
+        
+        
+        _start=start//self.resolution
+        _end=end//self.resolution
+        for h in range(_start, _end+1):
+            _h=self.resolution*h
+            _data2=_data[_h]
+            for i, (se, kind, meta, ori) in enumerate(zip(_data2["pos"], _data2["kind"], _data2["meta"], _data2["ori"])):
+                s, e=se
+                if e < start:
+                    continue
+                if s>end:
+                    break
+                if kind=="gene" and meta["gene_type"] in gene_type:
+                    
                 
-            if s>end:
-                break
-        return genes
+                    if start<=s and e<=end:
+                        genename=meta["gene_name"]
+                        genes.append([genename,s,e,ori])
+                    elif start<=s<=end and end<e:
+                        genename=meta["gene_name"]
+                        genes.append([genename,s,end,ori])
+                    elif s<start and start<=e<=end  and meta["gene_type"] in gene_type:
+                        genename=meta["gene_name"]
+                        genes.append([genename,start,e,ori])
+        
+        
+        # _data=self.data[chrom]
+        # genes=[]
+        # for i, (se, kind, meta, ori) in enumerate(zip(_data["pos"], _data["kind"], _data["meta"], _data["ori"])):
+        #     s, e=se
+        #     if e < start:
+        #         continue
+        #     if s>end:
+        #         break
+        #     if kind=="gene" and meta["gene_type"] in gene_type:
+        #
+        #
+        #         if start<=s and e<=end:
+        #             genename=meta["gene_name"]
+        #             genes.append([genename,s,e,ori])
+        #         elif start<=s<=end and end<e:
+        #             genename=meta["gene_name"]
+        #             genes.append([genename,s,end,ori])
+        #         elif s<start and start<=e<=end  and meta["gene_type"] in gene_type:
+        #             genename=meta["gene_name"]
+        #             genes.append([genename,start,e,ori])
+                
+            
 
+        return genes
+    def get_tss(self, gene_type=set(["protein_coding"])):
+        
+        tss={}
+        
+        for chrom, _data in self.data.items():
+            tss[chrom]={"pos":[],"genes":[]}
+            for i, (s,e) in enumerate(_data["pos"]):
+                if _data["kind"][i]=="gene" and _data["meta"][i]["gene_type"] in gene_type:
+                    tss[chrom]["genes"].append(_data["meta"][i]["gene_name"])
+                    if _data["ori"][i]=="+":
+                        tss[chrom]["pos"].append(s)
+                    else:
+                        tss[chrom]["pos"].append(e)
+        
+        return tss 
+    
+    def get_tss_extend(self, gene_type=set(["protein_coding"]), extend=5000):
+        
+        tss={}
+        
+        for chrom, _data in self.data.items():
+            tss[chrom]={"pos":[],"genes":[]}
+            for i, (s,e) in enumerate(_data["pos"]):
+                if _data["kind"][i]=="gene" and _data["meta"][i]["gene_type"] in gene_type:
+                    tss[chrom]["genes"].append(_data["meta"][i]["gene_name"])
+                    if _data["ori"][i]=="+":
+                        tss[chrom]["pos"].append([s-extend,s+extend])
+                    else:
+                        tss[chrom]["pos"].append([e-extend,e+extend])
+        
+        return tss
+    
+    def closest_genes(self, peaks, K=1):
+        tss=self.get_tss()
+        
+        if type(peaks)==list:
+            _peaks={}
+            for chrom, s, e in peaks:
+                if not chrom in _peaks:
+                    _peaks[chrom]={"se":[],"center":[]}
+                _peaks[chrom]["center"].append((s+e)/2)
+                _peaks[chrom]["se"].append([s,e])
+            peaks=_peaks
+        genes_peaks=[]
+        i=0
+        for chrom in tss.keys():
+            if not chrom in peaks:
+                continue
+            _tss=np.array(tss[chrom]["pos"]).reshape([-1,1])
+            _genes=np.array(tss[chrom]["genes"])
+            _peaks=np.array(peaks[chrom]["center"]).reshape([-1,1])
+            tree = BallTree(_tss)
+            dist, ind = tree.query(_peaks, k=K) 
+            for _ind, _dist, (s,e) in zip(list(ind), list(dist),peaks[chrom]["se"]):
+                _closest=_genes[_ind]
+                genes_peaks.append([chrom, s, e, ",".join(list(_closest)), ",".join(map(str, list(_dist)))])
+        return genes_peaks
+    
 def calc_pearson2(_ind, _mat):
     _a, _b=_mat[_ind[0]], _mat[_ind[1]]
     _af=_a>np.quantile(_a, 0.75)
@@ -137,6 +279,28 @@ def stitching(peakfile, stitchdist):
         speaks[chrom]=stack
     return speaks
 
+def stitching_for_pyrange(peakfile, stitchdist):
+    speaks={"Chromosome":[],"Start":[],"End":[]}
+    
+    for chrom, intervals in peakfile.items():
+        intervals.sort()
+        stack = []
+        # insert first interval into stack
+        stack.append(intervals[0])
+        for i in intervals[1:]:
+            # Check for overlapping interval,
+            # if interval overlap
+            if i[0] - stack[-1][-1] <stitchdist:
+                stack[-1][-1] = max(stack[-1][-1], i[-1])
+            else:
+                stack.append(i)
+        for s, e in stack:
+            speaks["Chromosome"].append(chrom)
+            speaks["Start"].append(s)
+            speaks["End"].append(e)
+        #speaks[chrom]=stack
+    return speaks
+
 def read_tss(tss, tss_dist):
     tss_pos={}
     with open(tss) as fin:
@@ -153,9 +317,25 @@ def read_tss(tss, tss_dist):
                 raise Exception("TSS bed file format must look like 'chromsome\tstart\tend\tname\torientation'")
             
     return tss_pos
+
+def interval_subtraction(list1, list2):
+    t = IntervalTree([Interval(s, e) for s, e in list1])
+
+    newt=Parallel(n_jobs=-1)(delayed(t.chop)(s, e) for s, e in list2)
+    #print(newt[:10])
+    _newt=[]
+    for val in newt:
+        if val!=None:
+            _newt.append(val)
+    newt=sorted(_newt)
+    return [[_t.begin, _t.end] for _t in newt]
 def remove_close_to_tss(stitched, tss_pos):
     _stitched={}
     chroms=stitched.keys()
+    # tmp=[]
+    # for chrom in chroms:
+    #     tmp.extend(interval_subtraction(stitched[chrom], tss_pos[chrom]))
+    # print(tmp[:10])
     tmp=Parallel(n_jobs=-1)(delayed(multirange_diff)(stitched[chrom], tss_pos[chrom]) for chrom in chroms)
     _stitched={chrom: _tmp for chrom, _tmp in zip(chroms,tmp) }
     # for chrom, se in stitched.items():
