@@ -11,7 +11,19 @@ from scipy.spatial import distance
 from joblib import Parallel, delayed
 import itertools as it
 from joblib.externals.loky import get_reusable_executor
-from omniplot.chipseq_utils import stitching_for_pyrange, gff_parser, read_peaks, read_bw, calc_pearson,stitching,read_tss, remove_close_to_tss,find_extremes
+from omniplot.chipseq_utils import (stitching_for_pyrange, 
+                                    gff_parser, 
+                                    read_peaks, 
+                                    read_bw, 
+                                    calc_pearson,
+                                    stitching,
+                                    read_tss,
+                                    remove_close_to_tss,
+                                    find_extremes,
+                                    readgff,
+                                    readgff2,
+                                    readgtf,
+                                    readgtf2)
 sns.set_theme(font="Arial", style={'grid.linestyle': "",'axes.facecolor': 'whitesmoke'})
 import itertools
 import random
@@ -24,6 +36,7 @@ from sklearn.cluster import KMeans
 from omniplot.utils import optimal_kmeans
 import time
 import pyranges as pr
+
 def plot_bigwig(files: dict, 
                 bed: Union[str, list], 
                 gff: str,
@@ -83,36 +96,51 @@ def plot_bigwig(files: dict,
                 _highlight.append([chrom,int(s.replace(",","")),int(e.replace(",",""))])
         highlight=_highlight
     
-    
+    time_start=time.time()
     if gff.endswith("gff") or gff.endswith("gff3"):
-        gff_ob=pr.read_gff3(gff)
-        gffformat="gff"
+        gff_dict=readgff2(gff, "gene", others=["gene_name", "Strand"])
     elif gff.endswith("gtf"):
-        gff_ob=pr.read_gtf(gff)
-        gffformat="gtf"
+        gff_dict=readgtf2(gff, "transcript", others=["gene_name", "Strand"])
+    else:
+        raise Exception("The gff/gtf file name is required to have either gff, gff3, or gtf extension.")
+    gff_ob=pr.from_dict(gff_dict)
+    
+    #
+    # if gff.endswith("gff") or gff.endswith("gff3"):
+    #     gff_ob=pr.read_gff3(gff)
+    #     gff_ob=gff_ob[gff_ob.Feature=="gene"]
+    #     gffformat="gff"
+    # elif gff.endswith("gtf"):
+    #     gff_ob=pr.read_gtf(gff)
+    #     gff_ob=gff_ob[gff_ob.Feature=="transcript"]
+    #     gffformat="gtf"
+    print("Reading the gene annotation file took", time.time()-time_start)
     # geneset=[]
     # for chrom, start, end in pos:
     #     geneset.append(gff_ob.get_genes(chrom, start, end))
     time_start=time.time()
     geneset=[]
-    for gr in posrange:
-        gr2=gff_ob.intersect(gr)
+    _grs=Parallel(n_jobs=-1)(delayed(gff_ob.intersect)(gr) for gr in posrange)
+    # for gr in posrange:
+    #     gr2=gff_ob.intersect(gr)
+    for gr2 in _grs:
+        #gr2=gff_ob.intersect(gr)
         if len(gr2)==0:
             geneset.append([])
         else:
             #print(gr2)
-            if gffformat=="gff":
-                gr2=gr2.df.loc[gr2.df["Feature"]=="gene"]
-            elif gffformat=="gtf":
-                gr2=gr2.df.loc[gr2.df["Feature"]=="transcript"]
+            # if gffformat=="gff":
+            #     gr2=gr2[gr2.Feature=="gene"]
+            # elif gffformat=="gtf":
+            #     gr2=gr2[gr2.Feature=="transcript"]
                 
             tmp=[]
-            for gene_name, start, end, ori in zip(gr2["gene_name"], gr2["Start"], gr2["End"], gr2["Strand"]):
+            for gene_name, start, end, ori in zip(gr2.gene_name, gr2.Start, gr2.End, gr2.Strand):
                 tmp.append([gene_name, start, end, ori])
             geneset.append(tmp)
     #print(geneset)
     #geneset=Parallel(n_jobs=-1)(delayed(gff_ob.get_genes)(chrom, start, end) for chrom, start, end in pos)
-    print(time.time()-time_start)
+    print("Obtaining genes took", time.time()-time_start)
     for i in range(1000):
         prefix_set=set()
         for f in files:
@@ -130,7 +158,7 @@ def plot_bigwig(files: dict,
             suffix_set=t[-i:]
             break
         
-        
+    time_start=time.time()
     mat={}
 
     for samplename, f in files.items():
@@ -143,6 +171,9 @@ def plot_bigwig(files: dict,
             val=bw.values(chrom, s, e)
             
             mat[samplename].append(val)
+    
+    print("Reading bigwig files took", time.time()-time_start)
+    
     if stack_regions=="vertical":
         fig, axes=plt.subplots(nrows=len(pos)*2,ncols=len(files),figsize=[10,10],gridspec_kw={
                            'height_ratios': [2,1]*len(pos),"hspace":0},
@@ -494,108 +525,15 @@ def call_superenhancer(bigwig: str,
     peaks=read_peaks(peakfile)
     #stitched=stitching(peaks, stitch)
     
-    def readgff(_gff, _kind):
-        gff_dict={"Chromosome":[], "Start": [], "End": []}
-        with open(_gff) as fin:
-            for l in fin:
-                if l.startswith("#"):
-                    continue
-                chrom, source, kind, s, e, _, ori, _, meta=l.split()
-                if kind !=_kind:
-                    continue
-                s, e=int(s)-1, int(e)
-                if ori=="+":
-                    gff_dict["Chromosome"].append(chrom)
-                    gff_dict["Start"].append(s-tss_dist)
-                    gff_dict["End"].append(s+tss_dist)
-                else:
-                    gff_dict["Chromosome"].append(chrom)
-                    gff_dict["Start"].append(e-tss_dist)
-                    gff_dict["End"].append(e+tss_dist)
-        return gff_dict
     
-    def readgtf(_gff, _kind):
-        gff_dict={"Chromosome":[], "Start": [], "End": []}
-        with open(_gff) as fin:
-            for l in fin:
-                if l.startswith("#"):
-                    continue
-                chrom, source, kind, s, e, _, ori, _, meta=l.strip("\n").split("\t")
-                if kind !=_kind:
-                    continue
-                s, e=int(s)-1, int(e)
-                if ori=="+":
-                    gff_dict["Chromosome"].append(chrom)
-                    gff_dict["Start"].append(s-tss_dist)
-                    gff_dict["End"].append(s+tss_dist)
-                else:
-                    gff_dict["Chromosome"].append(chrom)
-                    gff_dict["Start"].append(e-tss_dist)
-                    gff_dict["End"].append(e+tss_dist)
-        return gff_dict
-    
-    def readgff2(_gff, _kind, others=[]):
-        gff_dict={"Chromosome":[], "Start": [], "End": []}
-        for other in others:
-            gff_dict[other]=[]
-        with open(_gff) as fin:
-            for l in fin:
-                if l.startswith("#"):
-                    continue
-                chrom, source, kind, s, e, _, ori, _, meta=l.split()
-                if kind !=_kind:
-                    continue
-                tmp={}
-                #print(meta)
-                meta=meta.split(";")
-                
-                for m in meta:
-                    k, v=m.split("=")
-                    if k in others:
-                        tmp[k]=v
-                s, e=int(s)-1, int(e)
-                gff_dict["Chromosome"].append(chrom)
-                gff_dict["Start"].append(s)
-                gff_dict["End"].append(e)
-                for other in others:
-                    gff_dict[other].append(tmp[other])
-        return gff_dict
-    def readgtf2(_gff, _kind, others=[]):
-        gff_dict={"Chromosome":[], "Start": [], "End": []}
-        for other in others:
-            gff_dict[other]=[]
-        with open(_gff) as fin:
-            for l in fin:
-                if l.startswith("#"):
-                    continue
-                chrom, source, kind, s, e, _, ori, _, meta=l.strip(";\n").split("\t")
-                if kind !=_kind:
-                    continue
-                tmp={}
-                #print(meta)
-                meta=meta.split("; ")
-                #print(meta)
-                for m in meta:
-                    k, v=m.split()
-                    v=v.strip('";')
-                    if k in others:
-                        tmp[k]=v
-
-                s, e=int(s)-1, int(e)
-                gff_dict["Chromosome"].append(chrom)
-                gff_dict["Start"].append(s)
-                gff_dict["End"].append(e)
-                for other in others:
-                    gff_dict[other].append(tmp[other])
-        return gff_dict
     if tss_dist != 0:
         start_time=time.time()
         stitched=pr.from_dict(stitching_for_pyrange(peaks, stitch))
         
         if gff.endswith("gff") or gff.endswith("gff3"):
-            gff_dict=readgff(gff, "gene")
+            gff_dict=readgff(gff, "gene",tss_dist)
         elif gff.endswith("gtf"):
-            gff_dict=readgtf(gff, "transcript")
+            gff_dict=readgtf(gff, "transcript",tss_dist)
         else:
             raise Exception("The gff/gtf file name is required to have either gff, gff3, or gtf extension.")
         gffr=pr.from_dict(gff_dict)
@@ -1179,8 +1117,9 @@ if __name__=="__main__":
     
     test="call_superenhancer"
     test="plot_average"
-    test="plot_bigwig"
+    
     test="plot_bigwig_correlation"
+    test="plot_bigwig"
     import glob
     if test=="plot_bigwig":
         fs= {"KMT2A":"/media/koh/grasnas/home/data/omniplot/HepG2_KMT2A-human_ENCFF406SHU.bw",
