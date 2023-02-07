@@ -70,14 +70,7 @@ def plot_bigwig(files: dict,
                 l=l.split()
                 chrom, s, e=l[0],l[1],l[2]
                 posrange.append(pr.from_dict({"Chromosome": [chrom], "Start": [int(s.replace(",",""))], "End": [int(e.replace(",",""))]}))
-                pos.append([chrom,int(s.replace(",","")),int(e.replace(",",""))])
-            # pos=[]
-        # with open(bed) as fin:
-        #     for l in fin:
-        #         l=l.split()
-        #         chrom, s, e=l[0],l[1],l[2]
-        #         
-        
+                pos.append([chrom,int(s.replace(",","")),int(e.replace(",",""))])  
     else:
         pos=bed
         
@@ -322,9 +315,12 @@ def plot_bigwig_correlation(files: dict,
                             step: int=1000,
                             palette: str="coolwarm",
                             figsize: list=[6,6],
-                            annot: bool=True,
+                            show_val: bool=True,
                             clustermap_param: dict={},
-                            peakfile: str=""):
+                            peakfile: str="",
+                            #show_val: bool=False,
+                            show: bool=False,
+                            n_jobs: int=-1) -> Dict:
     
     """
     Calculate pearson correlations and draw a heatmap for bigwig files.  
@@ -332,15 +328,20 @@ def plot_bigwig_correlation(files: dict,
     Parameters
     ----------
     files : dict
-        A dictionary whose keys are sample names and values are file names 
-    chrom : str
+        A dictionary whose keys are sample names and values are bigwig file names 
+    chrom : str, optional
         A chromsome to cal
-    gff : str
-        A gff3 file with a corresponding genome version
-    step: int
+    step: int, optional
         A bin size to reduce the bigwig signal resolution.
-    show : bool
+    palette: str, optional
+    show_val: bool, optional
+        Whether or not to show correlation values on the heatmap
+    peakfile: str, optional
+        A peak file/bed file containing genome regions of interest. If given this option, the correlation will be calculated using the genome regions listed in this file.
+    show : bool, optional
         Whether or not to show the figure.
+    n_jobs : int, optional
+        The number of threads to use. It will use all available threads by default. 
     Returns
     -------
     {"ax":axes,"values":mat,"genes":geneset,"positions":pos} : dict
@@ -382,7 +383,7 @@ def plot_bigwig_correlation(files: dict,
     elif chrom !="all":
         chrom_size=chrom_sizes[chrom]
         samples=list(files.keys())
-        mat=Parallel(n_jobs=-1)(delayed(read_bw)(files[s],chrom, chrom_size, step) for s in samples)
+        mat=Parallel(n_jobs=n_jobs)(delayed(read_bw)(files[s],chrom, chrom_size, step) for s in samples)
         # for k, f in files.items():
         #     bw=pwg.open(f)
         #     val=np.array(bw.values(chrom,0,chrom_size))
@@ -425,7 +426,10 @@ def plot_bigwig_correlation(files: dict,
                col_cluster=True,
                row_cluster=True,
                figsize=figsize,
-               rasterized=True,cbar_kws={"label":"Pearson correlation"}, annot=annot,**clustermap_param)
+               rasterized=True,
+               cbar_kws={"label":"Pearson correlation"}, 
+               annot=show_val,
+               **clustermap_param)
     plt.setp(g.ax_heatmap.get_yticklabels(), rotation=0)  # For y axis
     plt.setp(g.ax_heatmap.get_xticklabels(), rotation=90) # For x axis
     return {"correlation": dmat,"samples":samples}
@@ -827,13 +831,17 @@ def plot_average(files: dict,
     if type(bed)==str:
         
         pos=[]
+        bedchroms=set()
         with open(bed) as fin:
             for l in fin:
+                if l.startswith("#"):
+                    continue
                 l=l.split()
                 chrom, s, e=l[0],l[1],l[2]
                 s, e=int(s.replace(",","")),int(e.replace(",",""))
                 center=(s+e)//2
                 pos.append([chrom,center-extend,center+extend])
+                bedchroms.add(chrom)
     else:
         pos=bed
     
@@ -846,8 +854,18 @@ def plot_average(files: dict,
         bigwig=files[sample]
         bw=pwg.open(bigwig)
         data[sample]=[]
+        chrom_sizes=bw.chroms()
+        bwchroms=set(chrom_sizes.keys())
+        if not (bedchroms & bwchroms) > 0:
+            raise Exception("There may be mismatches in chromosome names between the bed file and bigwig files.\n\
+            the chromosome names in the bed file are: {}\n\
+            those in the bigwig files are: {}".format(bedchroms, bwchroms))
+            
         
         for chrom, s, e in pos:
+            chromsize=chrom_sizes[chrom]
+            if s <0 or chromsize <e:
+                continue
             val=bw.values(chrom, s, e)
             #print(val)
             val=np.array(val)
@@ -1158,11 +1176,11 @@ def plot_genebody(files: dict,
 
 if __name__=="__main__":
     #test="plot_bigwig"
-    test="plot_bigwig_correlation"
     
+    test="call_superenhancer"
     test="plot_average"
     test="plot_bigwig"
-    test="call_superenhancer"
+    test="plot_bigwig_correlation"
     import glob
     if test=="plot_bigwig":
         fs= {"KMT2A":"/media/koh/grasnas/home/data/omniplot/HepG2_KMT2A-human_ENCFF406SHU.bw",

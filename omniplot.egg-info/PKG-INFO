@@ -37,15 +37,20 @@ still several kinds of plots cannot be drawn without hassle. This module is aime
 tools that allow users to draw complex plots, such as a scatter plot with PCA and loadings or clustering analysis in one liner.
 
 ## Install
-
-git clone https://github.com/koonimaru/omniplot.git <br>
-cd omniplot <br>
+```bash
+pip install cython
+git clone https://github.com/koonimaru/omniplot.git
+cd omniplot
 pip install .
+```
+Known issues:<br>
+If you get errors saying "error: invalid command 'bdist_wheel'", please try pip install --upgrade pip wheel setuptools
 
 ## How to use
 I created jupyter notebooks to demonstrate the usage of omniplot [Link](https://github.com/koonimaru/omniplot/tree/main/ipynb).
 You can open jupyter notebooks with [jupyter lab](https://jupyterlab.readthedocs.io/en/stable/) or [VScode](https://code.visualstudio.com/).
 
+And you may want to visit an auto-generated [API](https://koonimaru.github.io/omniplot/). 
 
 ## Example usage
 ```python

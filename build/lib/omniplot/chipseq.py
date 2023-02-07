@@ -70,14 +70,7 @@ def plot_bigwig(files: dict,
                 l=l.split()
                 chrom, s, e=l[0],l[1],l[2]
                 posrange.append(pr.from_dict({"Chromosome": [chrom], "Start": [int(s.replace(",",""))], "End": [int(e.replace(",",""))]}))
-                pos.append([chrom,int(s.replace(",","")),int(e.replace(",",""))])
-            # pos=[]
-        # with open(bed) as fin:
-        #     for l in fin:
-        #         l=l.split()
-        #         chrom, s, e=l[0],l[1],l[2]
-        #         
-        
+                pos.append([chrom,int(s.replace(",","")),int(e.replace(",",""))])  
     else:
         pos=bed
         
@@ -827,13 +820,17 @@ def plot_average(files: dict,
     if type(bed)==str:
         
         pos=[]
+        bedchroms=set()
         with open(bed) as fin:
             for l in fin:
+                if l.startswith("#"):
+                    continue
                 l=l.split()
                 chrom, s, e=l[0],l[1],l[2]
                 s, e=int(s.replace(",","")),int(e.replace(",",""))
                 center=(s+e)//2
                 pos.append([chrom,center-extend,center+extend])
+                bedchroms.add(chrom)
     else:
         pos=bed
     
@@ -846,8 +843,18 @@ def plot_average(files: dict,
         bigwig=files[sample]
         bw=pwg.open(bigwig)
         data[sample]=[]
+        chrom_sizes=bw.chroms()
+        bwchroms=set(chrom_sizes.keys())
+        if not (bedchroms & bwchroms) > 0:
+            raise Exception("There may be mismatches in chromosome names between the bed file and bigwig files.\n\
+            the chromosome names in the bed file are: {}\n\
+            those in the bigwig files are: {}".format(bedchroms, bwchroms))
+            
         
         for chrom, s, e in pos:
+            chromsize=chrom_sizes[chrom]
+            if s <0 or chromsize <e:
+                continue
             val=bw.values(chrom, s, e)
             #print(val)
             val=np.array(val)
