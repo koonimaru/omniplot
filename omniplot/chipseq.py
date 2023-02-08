@@ -1117,11 +1117,12 @@ def plot_genebody(files: dict,
 if __name__=="__main__":
     #test="plot_bigwig"
     
-    test="call_superenhancer"
+    
     test="plot_average"
     
     test="plot_bigwig_correlation"
-    test="plot_bigwig"
+    test="call_superenhancer"
+    #test="plot_bigwig"
     import glob
     if test=="plot_bigwig":
         fs= {"KMT2A":"/media/koh/grasnas/home/data/omniplot/HepG2_KMT2A-human_ENCFF406SHU.bw",

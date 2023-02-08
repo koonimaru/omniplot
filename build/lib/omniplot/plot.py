@@ -2474,9 +2474,10 @@ def correlation(df: pd.DataFrame, category: Union[str, list]=[],
                    row_cluster=True,
                    figsize=figsize,
                    rasterized=True,
-                    cbar_kws={"label":"Pearson correlation","rotation":-90}, 
+                    #cbar_kws={"label":"Pearson correlation"}, 
                    annot=show_val,
                    **clustermap_param)
+        g.cax.set_ylabel("Pearson correlation", rotation=-90,va="bottom")
         plt.setp(g.ax_heatmap.get_yticklabels(), rotation=0)  # For y axis
         plt.setp(g.ax_heatmap.get_xticklabels(), rotation=90) # For x axis
     
