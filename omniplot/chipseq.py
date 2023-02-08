@@ -463,6 +463,8 @@ def plot_bigwig_correlation(files: dict,
     g.cax.set_ylabel("Pearson correlation", rotation=-90,va="bottom")
     plt.setp(g.ax_heatmap.get_yticklabels(), rotation=0)  # For y axis
     plt.setp(g.ax_heatmap.get_xticklabels(), rotation=90) # For x axis
+    if show:
+        plt.show()
     return {"correlation": dmat,"samples":samples}
     
 def call_superenhancer(bigwig: str, 
@@ -604,7 +606,7 @@ def call_superenhancer(bigwig: str,
             
     x, y, pos, sindex, srt=find_extremes(mat, pos)
     b=-x[sindex]*np.amax(y) +y[sindex]
-    print("Finding super enhancer took ", time.time()-start_time)
+    print("Finding super enhancer took ", time.time()-start_time, "sec")
     
     # print(len(_nearestgenes), _nearestgenes[:10])
     # print(srt.shape, srt[:10])
