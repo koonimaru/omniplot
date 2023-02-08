@@ -2460,6 +2460,11 @@ def correlation(df: pd.DataFrame, category: Union[str, list]=[],
         dmat=squareform(dmat)
         print(dmat)
         dmat+=np.identity(dmat.shape[0])
+    else:
+        dmat=squareform(pdist(X, method))
+        
+        
+        
     if len(category) >0:
         dfm=pd.DataFrame(data=dmat)
         colnames=dfm.columns
