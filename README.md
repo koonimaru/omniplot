@@ -26,6 +26,19 @@ git clone https://github.com/koonimaru/omniplot.git
 cd omniplot
 pip install .
 ```
+or 
+```bash
+pip install cython
+pip install git+https://github.com/koonimaru/omniplot.git
+```
+or
+
+```bash
+git clone https://github.com/koonimaru/omniplot.git
+cd omniplot
+conda env create -f environment.yml python=3.8
+```
+
 Known issues:<br>
 If you get errors saying "error: invalid command 'bdist_wheel'", please try pip install --upgrade pip wheel setuptools
 
