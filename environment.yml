@@ -1,0 +1,14 @@
+name: omniplot
+channels:
+  - defaults
+  - conda-forge
+  - bioconda
+dependencies:
+  - pip=22.3.1
+  - python=3.8.16
+  - setuptools
+  - wheel
+  - cython
+  - pybigwig
+  - pip:
+    - git+https://github.com/koonimaru/omniplot.git

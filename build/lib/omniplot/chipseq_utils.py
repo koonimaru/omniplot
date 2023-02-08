@@ -400,3 +400,104 @@ def find_extremes(signals, pos):
     
     
     return x, y, pos, index, srt
+
+def readgff(_gff, _kind, tss_dist):
+    gff_dict={"Chromosome":[], "Start": [], "End": []}
+    with open(_gff) as fin:
+        for l in fin:
+            if l.startswith("#"):
+                continue
+            chrom, source, kind, s, e, _, ori, _, meta=l.split()
+            if kind !=_kind:
+                continue
+            s, e=int(s)-1, int(e)
+            if ori=="+":
+                gff_dict["Chromosome"].append(chrom)
+                gff_dict["Start"].append(s-tss_dist)
+                gff_dict["End"].append(s+tss_dist)
+            else:
+                gff_dict["Chromosome"].append(chrom)
+                gff_dict["Start"].append(e-tss_dist)
+                gff_dict["End"].append(e+tss_dist)
+    return gff_dict
+
+def readgtf(_gff, _kind,tss_dist):
+    gff_dict={"Chromosome":[], "Start": [], "End": []}
+    with open(_gff) as fin:
+        for l in fin:
+            if l.startswith("#"):
+                continue
+            chrom, source, kind, s, e, _, ori, _, meta=l.strip("\n").split("\t")
+            if kind !=_kind:
+                continue
+            s, e=int(s)-1, int(e)
+            if ori=="+":
+                gff_dict["Chromosome"].append(chrom)
+                gff_dict["Start"].append(s-tss_dist)
+                gff_dict["End"].append(s+tss_dist)
+            else:
+                gff_dict["Chromosome"].append(chrom)
+                gff_dict["Start"].append(e-tss_dist)
+                gff_dict["End"].append(e+tss_dist)
+    return gff_dict
+
+def readgff2(_gff, _kind, others=[]):
+    gff_dict={"Chromosome":[], "Start": [], "End": []}
+    for other in others:
+        gff_dict[other]=[]
+    with open(_gff) as fin:
+        for l in fin:
+            if l.startswith("#"):
+                continue
+            chrom, source, kind, s, e, _, ori, _, meta=l.split()
+            if kind !=_kind:
+                continue
+            tmp={}
+            #print(meta)
+            meta=meta.split(";")
+            
+            for m in meta:
+                k, v=m.split("=")
+                if k in others:
+                    tmp[k]=v
+            s, e=int(s)-1, int(e)
+            gff_dict["Chromosome"].append(chrom)
+            gff_dict["Start"].append(s)
+            gff_dict["End"].append(e)
+            for other in others:
+                if other in tmp:
+                    gff_dict[other].append(tmp[other])
+                elif other=="Strand":
+                    gff_dict[other].append(ori)
+    return gff_dict
+def readgtf2(_gff, _kind, others=[]):
+    gff_dict={"Chromosome":[], "Start": [], "End": []}
+    for other in others:
+        gff_dict[other]=[]
+    with open(_gff) as fin:
+        for l in fin:
+            if l.startswith("#"):
+                continue
+            chrom, source, kind, s, e, _, ori, _, meta=l.strip(";\n").split("\t")
+            if kind !=_kind:
+                continue
+            tmp={}
+            #print(meta)
+            meta=meta.split("; ")
+            #print(meta)
+            for m in meta:
+                k, v=m.split()
+                v=v.strip('";')
+                if k in others:
+                    tmp[k]=v
+
+            s, e=int(s)-1, int(e)
+            gff_dict["Chromosome"].append(chrom)
+            gff_dict["Start"].append(s)
+            gff_dict["End"].append(e)
+            for other in others:
+                if other in tmp:
+                    gff_dict[other].append(tmp[other])
+                elif other=="Strand":
+                    gff_dict[other].append(ori)
+    return gff_dict
