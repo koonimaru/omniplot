@@ -25,7 +25,6 @@ from omniplot.chipseq_utils import (stitching_for_pyrange,
                                     readgtf,
                                     readgtf2)
 sns.set_theme(font="Arial", style={'grid.linestyle': "",'axes.facecolor': 'whitesmoke'})
-import itertools
 import random
 import string
 from matplotlib.colors import LogNorm

@@ -25,7 +25,6 @@ from omniplot.chipseq_utils import (stitching_for_pyrange,
                                     readgtf,
                                     readgtf2)
 sns.set_theme(font="Arial", style={'grid.linestyle': "",'axes.facecolor': 'whitesmoke'})
-import itertools
 import random
 import string
 from matplotlib.colors import LogNorm
@@ -458,9 +457,10 @@ def plot_bigwig_correlation(files: dict,
                row_cluster=True,
                figsize=figsize,
                rasterized=True,
-               cbar_kws={"label":"Pearson correlation"}, 
+               #cbar_kws={"label":"Pearson correlation"}, 
                annot=show_val,
                **clustermap_param)
+    g.cax.set_ylabel("Pearson correlation", rotation=-90,va="bottom")
     plt.setp(g.ax_heatmap.get_yticklabels(), rotation=0)  # For y axis
     plt.setp(g.ax_heatmap.get_xticklabels(), rotation=90) # For x axis
     return {"correlation": dmat,"samples":samples}

@@ -44,6 +44,9 @@ import os
 #sys.path.append( script_dir )
 from omniplot.utils import line_annotate, _dendrogram_threshold, _radialtree2,_get_cluster_classes,_calc_curveture, draw_ci_pi,calc_r2,ci_pi
 import scipy.stats as stats
+from joblib import Parallel, delayed
+from omniplot.chipseq_utils import calc_pearson
+import itertools as it
 
 colormap_list=["nipy_spectral", "terrain","tab20b","tab20c","gist_rainbow","hsv","CMRmap","coolwarm","gnuplot","gist_stern","brg","rainbow","jet"]
 plt.rcParams['font.family']= 'sans-serif'
@@ -634,8 +637,9 @@ def radialtree(df: pd.DataFrame,n_clusters: int=3,
 
 
 def complex_clustermap(df: pd.DataFrame,
+                       heatmap_col: list,
                        dfcol: Optional[pd.DataFrame]=None, 
-                       heatmap_col: list=[],
+                       
                        row_colors: list=[],
                        col_colors: list=[],
                        row_plot: list=[],
@@ -709,7 +713,8 @@ def complex_clustermap(df: pd.DataFrame,
     rnum, cnum=df.shape
     cnum=len(heatmap_col)
     if len(figsize)==0:
-        figsize=[2*cnum,10]
+        xsize=np.amin(2*cnum, 20)
+        figsize=[xsize,10]
     scatterpointsize=5
     sns.set(font_scale=1)
     if ztranform:
@@ -995,13 +1000,17 @@ def complex_clustermap(df: pd.DataFrame,
                     g.ax_col_colors.scatter(np.arange(r.shape[0])+0.5,r/(np.amax(r)*1.1)+colplotcount)
                 
                 colplotcount+=1
-        g.ax_row_colors.set_xticks(np.arange(len(_row_colors_title))+0.5)
-        g.ax_row_colors.set_xticklabels(_row_colors_title, rotation=90)
-        colax_otherside = g.ax_col_colors.twinx()
-        colax_otherside.set_yticks(0.5*(np.arange(len(_col_colors_title))+0.5),labels=_col_colors_title)
-        colax_otherside.grid(False)
-        col = g.ax_col_dendrogram.get_position()
-        g.ax_col_dendrogram.set_position([col.x0, col.y0, col.width*0.5, col.height*0.5])
+        if g.ax_row_colors!=None:
+            
+            g.ax_row_colors.set_xticks(np.arange(len(_row_colors_title))+0.5)
+            g.ax_row_colors.set_xticklabels(_row_colors_title, rotation=90)
+        if g.ax_col_colors!=None:
+            colax_otherside = g.ax_col_colors.twinx()
+            colax_otherside.set_yticks(0.5*(np.arange(len(_col_colors_title))+0.5),labels=_col_colors_title)
+            colax_otherside.grid(False)
+        if g.ax_col_dendrogram!=None:
+            col = g.ax_col_dendrogram.get_position()
+            g.ax_col_dendrogram.set_position([col.x0, col.y0, col.width*0.5, col.height*0.5])
         
         if show_plot_labels==True:
             
@@ -2422,6 +2431,56 @@ def nice_piechart(df: pd.DataFrame,
             fig.delaxes(axes[-(i+1)])
     plt.tight_layout(h_pad=1)
     plt.subplots_adjust(top=0.9)
+
+def correlation(df: pd.DataFrame, category: Union[str, list]=[],
+                method="pearson",
+                palette: str="coolwarm",figsize=[6,6],show_val=False,clustermap_param:dict={},ztransform: bool=True,
+                xticklabels =False,
+                yticklabels=False):
+    
+    original_index=df.index
+    
+    if len(category) !=0:
+
+        if type(category)==str:
+            category=[category]
+        #df=df.drop(category, axis=1)
+        valnames=list(set(df.columns) -set(category)) 
+        X = df[valnames].values
+        assert X.dtype==float, f"data must contain only float values except {category} column."
+        
+    else:    
+        X = df.values
+        assert X.dtype==float, "data must contain only float values."
+    if ztransform==True:
+        X=zscore(X, axis=0)
+    if method=="pearson":
+        dmat=Parallel(n_jobs=-1)(delayed(calc_pearson)(ind, X) for ind in list(it.combinations(range(X.shape[0]), 2)))
+        dmat=np.array(dmat)
+        dmat=squareform(dmat)
+        print(dmat)
+        dmat+=np.identity(dmat.shape[0])
+    if len(category) >0:
+        dfm=pd.DataFrame(data=dmat)
+        colnames=dfm.columns
+        for cat in category:
+            dfm[cat]=df[cat].values
+        g=complex_clustermap(dfm,heatmap_col=colnames, row_colors=category,ztranform=False,xticklabels=xticklabels,yticklabels=yticklabels,figsize=figsize)
+    else:
+        
+        g=sns.clustermap(data=dmat,xticklabels=xticklabels,yticklabels=yticklabels,
+                   method="ward", cmap=palette,
+                   col_cluster=True,
+                   row_cluster=True,
+                   figsize=figsize,
+                   rasterized=True,
+                    cbar_kws={"label":"Pearson correlation","rotation":-90}, 
+                   annot=show_val,
+                   **clustermap_param)
+        plt.setp(g.ax_heatmap.get_yticklabels(), rotation=0)  # For y axis
+        plt.setp(g.ax_heatmap.get_xticklabels(), rotation=90) # For x axis
+    
+    
 if __name__=="__main__":
     
     
@@ -2444,8 +2503,16 @@ if __name__=="__main__":
     test="complex_clustermap"
     test="stacked"
     test="dotplot"
-    test="nice_piechart"
+    test="correlation"
+    #test="nice_piechart"
     
+    if test=="correlation":
+        df=sns.load_dataset("penguins")
+        df=df.dropna(axis=0)
+        
+            
+        correlation(df, category=["species", "island","sex"], method="pearson", ztransform=True)
+        plt.show()
     if test=="nice_piechart":
         df=sns.load_dataset("penguins")
         df=df.dropna(axis=0)
@@ -2471,13 +2538,13 @@ if __name__=="__main__":
                          "odds":[3.3,1.1,2.5,2.1,0.8,2.3,0.9]})
         dotplot(df, row="GO",col="Experiments", size_val="FDR",color_val="odds", highlight="FDR",
         color_title="Odds", size_title="-log10 p",scaling=20)
-        df=pd.read_csv("/home/koh/ews/idr_revision/clustering_analysis/cellloc_longform.csv")
-        print(df.columns)
-        df=df.fillna(0)
-        #dotplot(df, size_val="pval",color_val="odds", highlight="FDR",color_title="Odds ratio", size_title="-log10 p value",scaling=20)
-
-        dotplot(df, row="Condensate",col="Cluster", size_val="pval",color_val="odds", highlight="FDR",
-                color_title="Odds", size_title="-log10 p value",scaling=20)
+        # df=pd.read_csv("/home/koh/ews/idr_revision/clustering_analysis/cellloc_longform.csv")
+        # print(df.columns)
+        # df=df.fillna(0)
+        # #dotplot(df, size_val="pval",color_val="odds", highlight="FDR",color_title="Odds ratio", size_title="-log10 p value",scaling=20)
+        #
+        # dotplot(df, row="Condensate",col="Cluster", size_val="pval",color_val="odds", highlight="FDR",
+        #         color_title="Odds", size_title="-log10 p value",scaling=20)
         plt.show()
     elif test=="triangle_heatmap":
         s=20
@@ -2499,7 +2566,8 @@ if __name__=="__main__":
         
         df=df.dropna(axis=0)
         dfcol=pd.DataFrame({"features":["bill","bill","flipper"]})
-        complex_clustermap(df,dfcol=dfcol,
+        complex_clustermap(df,
+                           dfcol=dfcol,
                            
                             heatmap_col=["bill_length_mm","bill_depth_mm","flipper_length_mm"],
                             row_colors=["species","sex"],
