@@ -14,8 +14,8 @@ Description: ![omniplot logo][logo-image]
         
         omniplot is a python module to draw a scientific plot with hassle free. It mainly focuses on bioinfomatics data.
         
-        <img src="images/example.png" width="300"/> <img src="images/example2.png" width="200"/> <br>
-        <img src="images/example3.png" width="300"/> <img src="images/example7.png" width="400"/> <br>
+        <img src="images/example.png" width="280"/> <img src="images/example2.png" width="200"/> <img src="images/example3.png" width="300"/> <br>
+        <img src="images/example7.png" width="250"/> <img src="images/example10.png" width="300"/> <img src="images/example9.png" width="300"/><br>
         <img src="images/example5.png" width="500"/> <img src="images/example6.png" width="300"/> <br>
         ## Motivation
         Although there exist many good python data visualization libraries, such as 
@@ -34,6 +34,19 @@ Description: ![omniplot logo][logo-image]
         cd omniplot
         pip install .
         ```
+        or 
+        ```bash
+        pip install cython
+        pip install git+https://github.com/koonimaru/omniplot.git
+        ```
+        or
+        
+        ```bash
+        git clone https://github.com/koonimaru/omniplot.git
+        cd omniplot
+        conda env create -f environment.yml python=3.8
+        ```
+        
         Known issues:<br>
         If you get errors saying "error: invalid command 'bdist_wheel'", please try pip install --upgrade pip wheel setuptools
         
