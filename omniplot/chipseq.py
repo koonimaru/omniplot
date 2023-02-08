@@ -807,7 +807,7 @@ def plot_average(files: dict,
         data[sample]=[]
         chrom_sizes=bw.chroms()
         bwchroms=set(chrom_sizes.keys())
-        if not (bedchroms & bwchroms) > 0:
+        if not len(bedchroms & bwchroms) > 0:
             raise Exception("There may be mismatches in chromosome names between the bed file and bigwig files.\n\
             the chromosome names in the bed file are: {}\n\
             those in the bigwig files are: {}".format(bedchroms, bwchroms))

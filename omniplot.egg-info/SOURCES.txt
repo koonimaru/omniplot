@@ -4,6 +4,7 @@ setup.py
 omniplot/__init__.py
 omniplot/chipseq.py
 omniplot/chipseq_utils.py
+omniplot/data.py
 omniplot/igraph_classes.py
 omniplot/networkplot.py
 omniplot/plot.py
