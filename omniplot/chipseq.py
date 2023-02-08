@@ -476,7 +476,8 @@ def call_superenhancer(bigwig: str,
                        closest_genes: bool=False,
                        nearest_k: int=1,
                        go_analysis: bool=False,
-                       gonames: list=["GO_Biological_Process_2021","Reactome_2022","WikiPathways_2019_Human"]):
+                       gonames: list=["GO_Biological_Process_2021","Reactome_2022","WikiPathways_2019_Human"],
+                       sample: str="Sample"):
     """
     Find super enhancers and plot an enhancer rank.  
     
@@ -506,7 +507,10 @@ def call_superenhancer(bigwig: str,
         
     gonames: list=["GO_Biological_Process_2021","Reactome_2022","WikiPathways_2019_Human"]
         Gene sets for GSEA analysis.
-        
+    
+    sample: str,optional
+        The sample name to appear in the signal plot
+    
     Returns
     -------
         dict {"ax": ax, "positions":pos, "signals":y,"nearest_genes":_nearestgenes}
@@ -542,7 +546,7 @@ def call_superenhancer(bigwig: str,
         
         _stitched=stitched.subtract(gffr, nb_cpu=2)
         stitched={}
-        for chrom, s, e in zip(_stitched.df["Chromosome"], _stitched.df["Start"], _stitched.df["End"]):
+        for chrom, s, e in zip(_stitched.Chromosome, _stitched.Start, _stitched.End):
             if not chrom in stitched:
                 stitched[chrom]=[]
             stitched[chrom].append([s,e])
@@ -574,22 +578,27 @@ def call_superenhancer(bigwig: str,
         # else:
         #     _nearestgenes=Parallel(n_jobs=-1)(delayed(gr.k_nearest)(gffr, k=nearest_k) for gr in grlist)
         grlist={"Chromosome":[],"Start":[],"End":[]}
+        stiched_dit={}
         for chrom, se in stitched.items():
             for s, e in se:
+                stiched_dit[chrom+":"+str(s)+"-"+str(e)]=[]
                 #grlist.append(pr.from_dict({"Chromosome":[chrom],"Start":[int(s)],"End":[int(e)]}))
                 grlist["Chromosome"].append(chrom)
                 grlist["Start"].append(int(s))
                 grlist["End"].append(int(e))
+                
         gr=pr.from_dict(grlist)
         _nearestgenes_gr=gr.k_nearest(gffr, k=nearest_k, nb_cpu=12)
-        _nearestgenes=[]
-        tmp=[]
-        for i, gene_name in enumerate(_nearestgenes_gr.gene_name):
-            tmp.append(gene_name)
-            if i%nearest_k==0 and i>0:
-                _nearestgenes.append(tmp)
-                tmp=[]
-        _nearestgenes.append(tmp)
+        # _nearestgenes=[]
+        # tmp=[]
+        for i, (chrom, s, e, gene_name) in enumerate(zip(_nearestgenes_gr.Chromosome, _nearestgenes_gr.Start,_nearestgenes_gr.End,_nearestgenes_gr.gene_name)):
+            stiched_dit[chrom+":"+str(s)+"-"+str(e)].append(gene_name)
+        #
+        #     tmp.append(gene_name)
+        #     if i%nearest_k==0 and i>0:
+        #         _nearestgenes.append(tmp)
+        #         tmp=[]
+        # _nearestgenes.append(tmp)
         print("Finding the nearest genes took ", time.time()-start_time)
         
     start_time=time.time()
@@ -610,7 +619,7 @@ def call_superenhancer(bigwig: str,
     
     # print(len(_nearestgenes), _nearestgenes[:10])
     # print(srt.shape, srt[:10])
-    _nearestgenes=[_nearestgenes[i] for i in srt]
+    _nearestgenes=[stiched_dit[chromse] for chromse in pos]
     
         
     fig, ax=plt.subplots(figsize=[6,4])
@@ -703,7 +712,7 @@ def call_superenhancer(bigwig: str,
     if plot_signals:
         
         if gff=="":
-            raise Exception("Please provide a gff file.")
+            raise Exception("Please provide a gff file to draw signals.")
         letters = string.ascii_lowercase
         tmpfile=''.join(random.choice(letters) for i in range(10))+".bed"
         highlights=[]
@@ -718,13 +727,15 @@ def call_superenhancer(bigwig: str,
                 if rank==6:
                     break
                     
-        plot_bigwig(files={"Sample": bigwig}, 
+        plot_bigwig(files={sample: bigwig}, 
                     bed=tmpfile, gff=gff, 
                     step=100,
                     stack_regions="vertical",
                     highlight=highlights)
         os.remove(tmpfile)
     return {"ax": ax, "positions":pos, "signals":y,"nearest_genes":_nearestgenes}
+
+
 def plot_average(files: dict, 
                  bed: Union[str,list], 
                  order: list=[], extend: int=500, 
@@ -1144,12 +1155,16 @@ if __name__=="__main__":
         plt.show()
     elif test=="call_superenhancer":
         gff="/media/koh/grasnas/home/data/omniplot/gencode.v40.annotation.gff3"
+        
         gff="/media/koh/grasnas/home/data/omniplot/hg38.refGene.gtf"
+        gff="/media/koh/grasnas/home/data/omniplot/gencode.vM31.annotation.gff3"
         f="/media/koh/grasnas/home/data/omniplot/HepG2_KMT2B-human_ENCFF709UTL.bw"
+        f="/media/koh/grasnas/home/data/omniplot/SRR620141_1_trimmed_srt_no_dups.bw"
         peak="/media/koh/grasnas/home/data/omniplot/HepG2_KMT2B_ENCFF036WCY_srt.bed"
-        tss="/media/koh/grasnas/home/data/omniplot/gencode.v40.annotation_tss_srt.bed"
+        peak="/media/koh/grasnas/home/data/omniplot/peaks_mm39.bed"
+        #tss="/media/koh/grasnas/home/data/omniplot/gencode.v40.annotation_tss_srt.bed"
         call_superenhancer(bigwig=f, peakfile=peak,tss_dist=5000,plot_signals=True , gff=gff,closest_genes=True,
-                           go_analysis=False)
+                           go_analysis=False,nearest_k=3)
         plt.show()
     elif test=="plot_average":
         
