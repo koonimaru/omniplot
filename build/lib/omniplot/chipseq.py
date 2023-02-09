@@ -75,6 +75,10 @@ def plot_bigwig(files: dict,
     Examples
     --------
     """ 
+    for k, v in files.items():
+        assert type(v)==str, "filenames must be str, but {} was give.".format(type(v))
+        if not os.path.isfile(v)==True:
+            raise Exception("{} does not exist.".format(v))
     if type(bed)==str:
         posrange=[]
         pos=[]
@@ -372,7 +376,12 @@ def plot_bigwig_correlation(files: dict,
     --------
     Examples
     --------
-    """ 
+    """
+    for k, v in files.items():
+        assert type(v)==str, "filenames must be str, but {} was give.".format(type(v))
+        if not os.path.isfile(v)==True:
+            raise Exception("{} does not exist.".format(v))
+    
     mat=[]
     samples=[]
     bw=pwg.open(list(files.values())[0])
@@ -463,7 +472,8 @@ def call_superenhancer(bigwig: str,
                        nearest_k: int=1,
                        go_analysis: bool=False,
                        gonames: list=["GO_Biological_Process_2021","Reactome_2022","WikiPathways_2019_Human"],
-                       sample: str="Sample"):
+                       sample: str="Sample",
+                       n_jobs: int=12):
     """
     Find super enhancers and plot an enhancer rank.  
     
@@ -530,7 +540,7 @@ def call_superenhancer(bigwig: str,
             raise Exception("The gff/gtf file name is required to have either gff, gff3, or gtf extension.")
         gffr=pr.from_dict(gff_dict)
         
-        _stitched=stitched.subtract(gffr, nb_cpu=2)
+        _stitched=stitched.subtract(gffr, nb_cpu=n_jobs)
         stitched={}
         for chrom, s, e in zip(_stitched.Chromosome, _stitched.Start, _stitched.End):
             if not chrom in stitched:
@@ -574,7 +584,7 @@ def call_superenhancer(bigwig: str,
                 grlist["End"].append(int(e))
                 
         gr=pr.from_dict(grlist)
-        _nearestgenes_gr=gr.k_nearest(gffr, k=nearest_k, nb_cpu=12)
+        _nearestgenes_gr=gr.k_nearest(gffr, k=nearest_k, nb_cpu=n_jobs)
         # _nearestgenes=[]
         # tmp=[]
         for i, (chrom, s, e, gene_name) in enumerate(zip(_nearestgenes_gr.Chromosome, _nearestgenes_gr.Start,_nearestgenes_gr.End,_nearestgenes_gr.gene_name)):
@@ -717,7 +727,7 @@ def call_superenhancer(bigwig: str,
                     bed=tmpfile, gff=gff, 
                     step=100,
                     stack_regions="vertical",
-                    highlight=highlights)
+                    highlight=highlights,n_jobs=n_jobs)
         os.remove(tmpfile)
     return {"ax": ax, "positions":pos, "signals":y,"nearest_genes":_nearestgenes}
 
@@ -767,6 +777,13 @@ def plot_average(files: dict,
     """
     if len(order)==0:
         order=list(files.keys())
+    for k, v in files.items():
+        assert type(v)==str, "filenames must be str, but {} was give.".format(type(v))
+        if not os.path.isfile(v)==True:
+            raise Exception("{} does not exist.".format(v))
+            
+    
+    
     bw=pwg.open(files[order[0]])
     chrom_sizes=bw.chroms()
     
@@ -871,8 +888,9 @@ def plot_average(files: dict,
             ulabel, clabel=np.unique(_labels, return_counts=True)
 
         vals=vals[plotindex]
-        im=ax.imshow(vals,aspect="auto", cmap=palette, interpolation="none",norm=LogNorm(vmin=np.quantile(vals,0.05)))
+        #im=ax.imshow(vals,aspect="auto", cmap=palette, interpolation="none",norm=LogNorm(vmin=np.quantile(vals,0.05)))
         
+        im=ax.imshow(vals,aspect="auto", cmap=palette, interpolation="none",norm=LogNorm(vmin=1))
         
         
         cbaxes = fig.add_axes([0.8*(i+1)/len(order), 0.93, 0.03, 0.06]) 
@@ -902,6 +920,8 @@ def plot_average(files: dict,
     for i, (sample, ax) in enumerate(zip(order, axes)):
         vals=data[sample]
         vals=np.array(vals)
+        if np.sum(vals)<=0:
+            raise Exception("Signals may be empty, or you may use a wrong bed file.")
         labels=np.array(labels)
         if clustering !="":
             for label, count in zip(ulabel, clabel):
@@ -983,6 +1003,10 @@ def plot_genebody(files: dict,
     """
     if len(order)==0:
         order=list(files.keys())
+    for k, v in files.items():
+        assert type(v)==str, "filenames must be str, but {} was give.".format(type(v))
+        if not os.path.isfile(v)==True:
+            raise Exception("{} does not exist.".format(v))
     bw=pwg.open(files[order[0]])
     chrom_sizes=bw.chroms()
     
@@ -1196,7 +1220,10 @@ def plot_bed_correlation(files:dict,
                          clustermap_param: dict={},
                          step: int=100,
                          show: bool=False):
-    
+    for k, v in files.items():
+        assert type(v)==str, "filenames must be str, but {} was give.".format(type(v))
+        if not os.path.isfile(v)==True:
+            raise Exception("{} does not exist.".format(v))
     bedintervals={}
     minmax={}
     for sample, bedfile in files.items():
@@ -1285,8 +1312,8 @@ if __name__=="__main__":
     #test="plot_bigwig"
     test="plot_bed_correlation"
     test="plot_genebody"
-    #test="plot_average"
-    test="call_superenhancer"
+    test="plot_average"
+    #test="call_superenhancer"
     import glob
     
     if test=="plot_bed_correlation":

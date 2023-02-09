@@ -920,6 +920,8 @@ def plot_average(files: dict,
     for i, (sample, ax) in enumerate(zip(order, axes)):
         vals=data[sample]
         vals=np.array(vals)
+        if np.sum(vals)<=0:
+            raise Exception("Signals may be empty, or you may use a wrong bed file.")
         labels=np.array(labels)
         if clustering !="":
             for label, count in zip(ulabel, clabel):
