@@ -43,7 +43,8 @@ def plot_bigwig(files: dict,
                 step: int=100,
                 stack_regions: str="horizontal", 
                 highlight: Union[str, list]=[],
-                highlightname=""):
+                highlightname="",
+                n_jobs=-1):
     """
     Plotting bigwig files in specified genomic regions in the bed file.  
     
@@ -120,7 +121,7 @@ def plot_bigwig(files: dict,
     #     geneset.append(gff_ob.get_genes(chrom, start, end))
     time_start=time.time()
     geneset=[]
-    _grs=Parallel(n_jobs=-1)(delayed(gff_ob.intersect)(gr) for gr in posrange)
+    _grs=Parallel(n_jobs=n_jobs)(delayed(gff_ob.overlap)(gr) for gr in posrange)
     # for gr in posrange:
     #     gr2=gff_ob.intersect(gr)
     for gr2 in _grs:
@@ -141,23 +142,7 @@ def plot_bigwig(files: dict,
     #print(geneset)
     #geneset=Parallel(n_jobs=-1)(delayed(gff_ob.get_genes)(chrom, start, end) for chrom, start, end in pos)
     print("Obtaining genes took", time.time()-time_start)
-    for i in range(1000):
-        prefix_set=set()
-        for f in files:
-            h, t=os.path.split(f)
-            prefix_set.add(t[:i+1])
-        if len(prefix_set) >1:
-            prefix=t[:i]
-            break
-    for i in range(1000):
-        suffix_set=set()
-        for f in files:
-            h, t=os.path.split(f)
-            suffix_set.add(t[-(i+1):])
-        if len(suffix_set) >1:
-            suffix_set=t[-i:]
-            break
-        
+            
     time_start=time.time()
     mat={}
 
@@ -196,7 +181,7 @@ def plot_bigwig(files: dict,
                 remains=vallen%step
                 _e=e-remains
                 x=np.arange(s, _e,step)
-                print(s, e, _e, vallen, step)
+                #print(s, e, _e, vallen, step)
                 val=val[:vallen-remains].reshape(-1, step).mean(axis=1)
                 _ymax=np.amax(val)
                 if _ymax >  ymax:
@@ -538,7 +523,7 @@ def call_superenhancer(bigwig: str,
         stitched=pr.from_dict(stitching_for_pyrange(peaks, stitch))
         
         if gff.endswith("gff") or gff.endswith("gff3"):
-            gff_dict=readgff(gff, "gene",tss_dist)
+            gff_dict=readgff(gff, "transcript",tss_dist)
         elif gff.endswith("gtf"):
             gff_dict=readgtf(gff, "transcript",tss_dist)
         else:
@@ -1295,14 +1280,13 @@ def plot_bed_correlation(files:dict,
 
 if __name__=="__main__":
     #test="plot_bigwig"
-    
-    
     test="plot_bigwig_correlation"
-    test="call_superenhancer"
+    
     #test="plot_bigwig"
     test="plot_bed_correlation"
     test="plot_genebody"
     #test="plot_average"
+    test="call_superenhancer"
     import glob
     
     if test=="plot_bed_correlation":
