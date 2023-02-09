@@ -501,3 +501,15 @@ def readgtf2(_gff, _kind, others=[]):
                 elif other=="Strand":
                     gff_dict[other].append(ori)
     return gff_dict
+
+def read_and_reshape_bw(chrom, s, e, bw, binsize):
+    val=bw.values(chrom, s, e)
+    #print(val)
+    val=np.array(val)
+    #print(val.shape)
+    val=val.reshape([-1,binsize]).mean(axis=1)
+    #print(val.shape)
+    mean=bw.stats(chrom, s, e, exact=True)[0]
+    if mean==None:
+        mean=0
+    return val, mean 

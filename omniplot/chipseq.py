@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import pyBigWig as pwg
 import os 
 import scipy.stats
-from scipy.spatial.distance import squareform
+from scipy.spatial.distance import squareform, pdist
 from scipy.spatial import distance
 from joblib import Parallel, delayed
 import itertools as it
@@ -23,7 +23,8 @@ from omniplot.chipseq_utils import (stitching_for_pyrange,
                                     readgff,
                                     readgff2,
                                     readgtf,
-                                    readgtf2)
+                                    readgtf2,
+                                    read_and_reshape_bw)
 sns.set_theme(font="Arial", style={'grid.linestyle': "",'axes.facecolor': 'whitesmoke'})
 import random
 import string
@@ -779,6 +780,11 @@ def plot_average(files: dict,
     Examples
     --------
     """
+    if len(order)==0:
+        order=list(files.keys())
+    bw=pwg.open(files[order[0]])
+    chrom_sizes=bw.chroms()
+    
     if type(bed)==str:
         
         pos=[]
@@ -789,15 +795,24 @@ def plot_average(files: dict,
                     continue
                 l=l.split()
                 chrom, s, e=l[0],l[1],l[2]
+                
+                if not chrom in chrom_sizes:
+                    raise Exception("There may be mismatches in chromosome names between the bed file and bigwig files.\n\
+                the chromosome names in the bed file are: {}\n\
+                those in the bigwig files are: {}".format(chrom, chrom_sizes.keys())) 
+                
                 s, e=int(s.replace(",","")),int(e.replace(",",""))
                 center=(s+e)//2
-                pos.append([chrom,center-extend,center+extend])
+                cs=center-extend
+                ce=center+extend
+                if cs <0 or chrom_sizes[chrom] < ce:
+                    continue
+                pos.append([chrom,cs,ce])
                 bedchroms.add(chrom)
     else:
         pos=bed
     
-    if len(order)==0:
-        order=list(files.keys())
+    
     data={}
     data_mean=[]
     
@@ -805,27 +820,23 @@ def plot_average(files: dict,
         bigwig=files[sample]
         bw=pwg.open(bigwig)
         data[sample]=[]
-        chrom_sizes=bw.chroms()
-        bwchroms=set(chrom_sizes.keys())
-        if not len(bedchroms & bwchroms) > 0:
-            raise Exception("There may be mismatches in chromosome names between the bed file and bigwig files.\n\
-            the chromosome names in the bed file are: {}\n\
-            those in the bigwig files are: {}".format(bedchroms, bwchroms))
-            
+        vals, mean=zip(*Parallel(n_jobs=-1, prefer="threads")(delayed(read_and_reshape_bw)(chrom, s, e, bw, binsize) for chrom, s, e in pos))
         
-        for chrom, s, e in pos:
-            chromsize=chrom_sizes[chrom]
-            if s <0 or chromsize <e:
-                continue
-            val=bw.values(chrom, s, e)
-            #print(val)
-            val=np.array(val)
-            #print(val.shape)
-            val=val.reshape([-1,binsize]).mean(axis=1)
-            #print(val.shape)
-            data[sample].append(val)
-            if i==0:
-                data_mean.append(bw.stats(chrom, s, e, exact=True)[0])
+        
+        data[sample]=vals
+        if i==0:
+            data_mean=mean
+        # for chrom, s, e in pos:
+        #
+        #     val=bw.values(chrom, s, e)
+        #     #print(val)
+        #     val=np.array(val)
+        #     #print(val.shape)
+        #     val=val.reshape([-1,binsize]).mean(axis=1)
+        #     #print(val.shape)
+        #     data[sample].append(val)
+        #     if i==0:
+        #         data_mean.append(bw.stats(chrom, s, e, exact=True)[0])
     labels=[]
     if clustering=="kmeans_all":
         mat=[]
@@ -940,12 +951,16 @@ def plot_average(files: dict,
 
 
 def plot_genebody(files: dict, 
-                 bed: Union[str,list], 
-                 order: list=[], extend: int=500, 
+                 bed: Union[list, str]="",
+                 gff: str="",
+                 centered_at: str="TSS", 
+                 order: list=[], 
+                 extend: int=3000, 
                  palette: str="coolwarm",
                  binsize: int=10,
                  clustering: str="",
                  n_clusters: int=5):
+
     """
     Plotting bigwig files around gene bodies.  
     
@@ -981,39 +996,100 @@ def plot_genebody(files: dict,
     Examples
     --------
     """
-    if type(bed)==str:
-        
-        pos=[]
+    if len(order)==0:
+        order=list(files.keys())
+    bw=pwg.open(files[order[0]])
+    chrom_sizes=bw.chroms()
+    
+    if len(bed)>0 and len(gff)>0:
+        import warnings
+        warnings.warn("Ignoring the gff file, since the bed file is provided.")
+    oriset=set(["+", "-"])
+    bedchroms=set()
+    if type(bed)==str and len(bed)>0:
         with open(bed) as fin:
             for l in fin:
                 l=l.split()
+                if not l[-1] in oriset:
+                    raise Exception("The bed file must contain orientation information at the last column. e.g., chr1\t10000\t20000\t.\t.\t+")
+                
+                if not l[0] in chrom_sizes:
+                    raise Exception("There may be mismatches in chromosome names between the bed file and bigwig files.\n\
+                the chromosome names in the bed file are: {}\n\
+                those in the bigwig files are: {}".format(l[0], chrom_sizes.keys())) 
+        posplus=[]
+        posminus=[]
+        with open(bed) as fin:
+            for l in fin:
+                l=l.split()
+                chrom, s, e, ori=l[0],l[1],l[2],l[-1]
                 chrom, s, e=l[0],l[1],l[2]
-                s, e=int(s.replace(",","")),int(e.replace(",",""))
-                center=(s+e)//2
-                pos.append([chrom,center-extend,center+extend])
+                bedchroms.add(chrom)
+                if ori=="+":
+                    cs=int(s)-extend
+                    ce=int(s)+extend
+                    if cs <0 or chrom_sizes[chrom] < ce:
+                        continue
+                    posplus.append([chrom,cs,ce])
+                else:
+                    cs=int(e)-extend
+                    ce=int(e)+extend
+                    if cs <0 or chrom_sizes[chrom] < ce:
+                        continue
+                    posminus.append([chrom,cs,ce])
     else:
-        pos=bed
+        posplus=bed[0]
+        posminus=bed[1]
+    
+    
+    
     
     if len(order)==0:
         order=list(files.keys())
     data={}
     data_mean=[]
-    
+    start_time=time.time()
     for i, sample in enumerate(order):
         bigwig=files[sample]
         bw=pwg.open(bigwig)
         data[sample]=[]
         
-        for chrom, s, e in pos:
-            val=bw.values(chrom, s, e)
-            #print(val)
-            val=np.array(val)
-            #print(val.shape)
-            val=val.reshape([-1,binsize]).mean(axis=1)
-            #print(val.shape)
-            data[sample].append(val)
-            if i==0:
-                data_mean.append(bw.stats(chrom, s, e, exact=True)[0])
+        pvals, pmean=zip(*Parallel(n_jobs=-1, prefer="threads")(delayed(read_and_reshape_bw)(chrom, s, e, bw, binsize) for chrom, s, e in posplus))
+        mvals, mmean=zip(*Parallel(n_jobs=-1, prefer="threads")(delayed(read_and_reshape_bw)(chrom, s, e, bw, binsize) for chrom, s, e in posminus))
+        data[sample]=pvals+mvals
+        if i==0:
+            data_mean=pmean+mmean
+        # for chrom, s, e in posplus:
+        #     val=bw.values(chrom, s, e)
+        #     #print(val)
+        #     val=np.array(val)
+        #     #print(val.shape)
+        #     val=val.reshape([-1,binsize]).mean(axis=1)
+        #     #print(val.shape)
+        #     data[sample].append(val)
+        #     if i==0:
+        #         mval=bw.stats(chrom, s, e, exact=True)[0]
+        #         if mval==None:
+        #             data_mean.append(0)
+        #         else:
+        #             data_mean.append(mval)
+        #
+        # for chrom, s, e in posminus:
+        #     chromsize=chrom_sizes[chrom]
+        #     val=bw.values(chrom, s, e)
+        #     #print(val)
+        #     val=np.array(val)[::-1]
+        #     #print(val.shape)
+        #     val=val.reshape([-1,binsize]).mean(axis=1)
+        #     #print(val.shape)
+        #     data[sample].append(val)
+        #     if i==0:
+        #         mval=bw.stats(chrom, s, e, exact=True)[0]
+        #         if mval==None:
+        #             data_mean.append(0)
+        #         else:
+        #             data_mean.append(mval)
+    print("Reading bigwig file took ", time.time()-start_time)
     labels=[]
     if clustering=="kmeans_all":
         mat=[]
@@ -1021,6 +1097,7 @@ def plot_genebody(files: dict,
             print(np.array(data[sample]).shape)
             mat.append(data[sample])
         mat=np.concatenate(mat, axis=1)
+        mat=np.nan_to_num(mat)
         print(mat.shape)
         mat=zscore(mat, axis=0)
         pca=PCA(n_components=5, random_state=1)
@@ -1029,18 +1106,19 @@ def plot_genebody(files: dict,
         kmX=kmean.fit(xpca)
         labels=kmX.labels_
     elif clustering=="kmeans":
-        mat=np.array(data[order[0]])
+        mat=np.nan_to_num(np.array(data[order[0]]))
         kmean = KMeans(n_clusters=n_clusters, random_state=0,n_init=10)
         kmX=kmean.fit(mat)
         labels=kmX.labels_
     elif clustering=="kmeans_auto":
-        mat=np.array(data[order[0]])
+        mat=np.nan_to_num(np.array(data[order[0]]))
         optimalclusternum=optimal_kmeans(mat, [2, 10])
         n_clusters=np.amax(optimalclusternum)
         kmean = KMeans(n_clusters=n_clusters, random_state=0,n_init=10)
         kmX=kmean.fit(mat)
         labels=kmX.labels_
-        
+    pos=posplus+posminus
+    #data_mean=np.nan_to_num(data_mean)
     sortindex=np.argsort(data_mean)[::-1]
     pos=np.array(pos)[sortindex]
 
@@ -1125,17 +1203,119 @@ def plot_genebody(files: dict,
     
     return {"values":data,"potisons":pos,"labels":labels}
 
+def plot_bed_correlation(files:dict,
+                         method: str="pearson",
+                         palette: str="coolwarm",
+                         figsize: list=[6,6], 
+                         show_val: bool=True, 
+                         clustermap_param: dict={},
+                         step: int=100,
+                         show: bool=False):
+    
+    bedintervals={}
+    minmax={}
+    for sample, bedfile in files.items():
+        bedintervals[sample]={}
+        with open(bedfile) as fin:
+            for l in fin:
+                if l.startswith("#"):
+                    continue
+                l=l.split()
+                chrom=l[0]
+                s, e=int(l[1]), int(l[2])
+                if not chrom in bedintervals[sample]:
+                    bedintervals[sample][chrom]=[]
+                if not chrom in minmax:
+                    minmax[chrom]=[]
+                bedintervals[sample][chrom].append([s,e])
+                minmax[chrom].append(s)
+                minmax[chrom].append(e)
+    minmaxval={}
+    for chrom, se in minmax.items():
+        minmaxval[chrom]=[np.min(se), np.max(se)]
+    
+    mat=[]
+    samples=[]
+    for sample, chrom_intervals in bedintervals.items():
+        print(sample)
+        tmp=[]
+        for chrom, intervals in chrom_intervals.items():
+            tmp2=[0 for _ in range(minmaxval[chrom][0], minmaxval[chrom][1],step)]
+            for s, e in intervals:
+                s=s-minmaxval[chrom][0]
+                e=e-minmaxval[chrom][0]
+                for i in range(s, e,step):
+                    tmp2[i//step]=1
+            tmp.extend(tmp2)
+        mat.append(tmp)
+        samples.append(sample)
+    mat=np.array(mat)
+    mat = mat[:, np.any(mat, axis=0)]
+    print(mat[:100,:100])
+    if method=="pearson":
+        dmat=Parallel(n_jobs=-1)(delayed(calc_pearson)(ind, mat) for ind in list(it.combinations(range(mat.shape[0]), 2)))
+        dmat=np.array(dmat)
+        dmat=squareform(dmat)
+        print(dmat)
+        dmat+=np.identity(dmat.shape[0])
+    else:
+        dmat=squareform(pdist(mat, method))
+    
+            
+    
+    g=sns.clustermap(data=dmat,xticklabels=samples,yticklabels=samples,
+               method="ward", cmap=palette,
+               col_cluster=True,
+               row_cluster=True,
+               figsize=figsize,
+               rasterized=True,
+               #cbar_kws={"label":"Pearson correlation"}, 
+               annot=show_val,
+               **clustermap_param)
+    if method=="pearson":
+        title="Pearson correlation"
+    else:
+        title=method+" distance"
+    g.cax.set_ylabel(title, rotation=-90,va="bottom")
+    plt.setp(g.ax_heatmap.get_yticklabels(), rotation=0)  # For y axis
+    plt.setp(g.ax_heatmap.get_xticklabels(), rotation=90) # For x axis
+    if show:
+        plt.show()
+        
+    return {"correlation": dmat,"samples":samples}
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
 if __name__=="__main__":
     #test="plot_bigwig"
     
     
-    test="plot_average"
-    
     test="plot_bigwig_correlation"
     test="call_superenhancer"
     #test="plot_bigwig"
+    test="plot_bed_correlation"
+    test="plot_genebody"
+    #test="plot_average"
     import glob
-    if test=="plot_bigwig":
+    
+    if test=="plot_bed_correlation":
+        fs= {"KMT2A":"/media/koh/grasnas/home/data/omniplot/KMT2A_ENCFF644EPI_srt.bed",
+             "KMT2B":"/media/koh/grasnas/home/data/omniplot/HepG2_KMT2B_ENCFF036WCY_srt.bed",
+             "HNF4G_rep1":"/media/koh/grasnas/home/data/omniplot/HNF4G_ENCFF413UQM_srt.bed",
+             "HNF4G_rep2":"/media/koh/grasnas/home/data/omniplot/HNF4G_ENCFF123FQW_srt.bed",
+             "HNF1A_rep1":"/media/koh/grasnas/home/data/omniplot/HNF1A_ENCFF696TGC_srt.bed",
+             "HNF1A_rep2":"/media/koh/grasnas/home/data/omniplot/HNF1A_ENCFF162SGM_srt.bed",}
+        
+        plot_bed_correlation(fs,step=5000, method="correlation")
+        plt.show()
+    elif test=="plot_bigwig":
         fs= {"KMT2A":"/media/koh/grasnas/home/data/omniplot/HepG2_KMT2A-human_ENCFF406SHU.bw",
              "KMT2B":"/media/koh/grasnas/home/data/omniplot/HepG2_KMT2B-human_ENCFF709UTL.bw"}
         bed="/media/koh/grasnas/home/data/omniplot/tmp3.bed"
@@ -1174,6 +1354,16 @@ if __name__=="__main__":
                             "KMT2A":"/media/koh/grasnas/home/data/omniplot/HepG2_KMT2A-human_ENCFF406SHU.bw"}
         plot_average(files=files,
                             bed=peak,
+                            order=["KMT2B",  "KMT2A"],clustering="kmeans"
+                            )
+        plt.show()
+    elif test=="plot_genebody":
+
+        tss="/media/koh/grasnas/home/data/omniplot/gencode.v40.annotation_tss_srt.bed"
+        files={"KMT2B":"/media/koh/grasnas/home/data/omniplot/HepG2_KMT2B-human_ENCFF709UTL.bw",
+                            "KMT2A":"/media/koh/grasnas/home/data/omniplot/HepG2_KMT2A-human_ENCFF406SHU.bw"}
+        plot_genebody(files=files,
+                            bed=tss,
                             order=["KMT2B",  "KMT2A"],clustering="kmeans"
                             )
         plt.show()
