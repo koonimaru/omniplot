@@ -36,7 +36,7 @@ from sklearn.cluster import KMeans
 from omniplot.utils import optimal_kmeans
 import time
 import pyranges as pr
-
+import warnings
 def plot_bigwig(files: dict, 
                 bed: Union[str, list], 
                 gff: str,
@@ -739,6 +739,7 @@ def plot_average(files: dict,
                  binsize: int=10,
                  clustering: str="",
                  n_clusters: int=5,
+                 minval: Optional[float]=None,
                  orientaion=False):
     """
     Plotting bigwig files centered at peak regions.  
@@ -825,7 +826,7 @@ def plot_average(files: dict,
         vals, mean=zip(*Parallel(n_jobs=-1, prefer="threads")(delayed(read_and_reshape_bw)(chrom, s, e, bw, binsize) for chrom, s, e in pos))
         
         
-        data[sample]=vals
+        data[sample]=np.nan_to_num(vals)
         if i==0:
             data_mean=mean
         # for chrom, s, e in pos:
@@ -871,6 +872,8 @@ def plot_average(files: dict,
 
     plotindex=np.arange(0, len(pos), len(pos)//1000)
     fig, axes=plt.subplots(ncols=len(order), figsize=[2*len(order), 6])
+    if len(order)==1:
+        axes=[axes]
     for i, (sample, ax) in enumerate(zip(order, axes)):
         vals=data[sample]
 
@@ -888,9 +891,19 @@ def plot_average(files: dict,
             ulabel, clabel=np.unique(_labels, return_counts=True)
 
         vals=vals[plotindex]
-        #im=ax.imshow(vals,aspect="auto", cmap=palette, interpolation="none",norm=LogNorm(vmin=np.quantile(vals,0.05)))
+        if np.sum(vals)<=10**-6:
+            raise Exception("Signals may be empty, or you may be using a wrong bed file.")
+        if np.amax(vals) <= 1  and np.amin(vals)>=0:
+            im=ax.imshow(vals,aspect="auto", cmap=palette, interpolation="none",norm=LogNorm(vmin=np.quantile(vals,0.05)))
+        elif np.amin(vals) < 0:
+            vals=np.where(vals < 0, 0, vals)
+            warnings.warn("The bigwig contains negative values. Is this coverage file?")
+            im=ax.imshow(vals,aspect="auto", cmap=palette, interpolation="none",norm=LogNorm(vmin=np.quantile(vals,0.05)))
+        elif minval!=None:
+            im=ax.imshow(vals,aspect="auto", cmap=palette, interpolation="none",norm=LogNorm(vmin=minval))
+        else:
+            im=ax.imshow(vals,aspect="auto", cmap=palette, interpolation="none",norm=LogNorm(vmin=np.quantile(vals,0.05)))
         
-        im=ax.imshow(vals,aspect="auto", cmap=palette, interpolation="none",norm=LogNorm(vmin=1))
         
         
         cbaxes = fig.add_axes([0.8*(i+1)/len(order), 0.93, 0.03, 0.06]) 
@@ -915,11 +928,14 @@ def plot_average(files: dict,
                 isep+=1
         ax.set_yticks([])
         ax.grid(False)
-    fig, axes=plt.subplots(ncols=len(order), figsize=[4*len(order), 3])
+    fig, axes2=plt.subplots(ncols=len(order), figsize=[4*len(order), 3])
+    if len(order)==1:
+        axes2=[axes2]
     maxval=0
-    for i, (sample, ax) in enumerate(zip(order, axes)):
+    for i, (sample, ax) in enumerate(zip(order, axes2)):
         vals=data[sample]
         vals=np.array(vals)
+        
         labels=np.array(labels)
         if clustering !="":
             for label, count in zip(ulabel, clabel):
@@ -946,10 +962,10 @@ def plot_average(files: dict,
         ax.set_xlabel("Peak range [bp]")
         ax.set_title(sample)
     
-    for ax in axes:
+    for ax in axes2:
         ax.set_ylim(0, maxval*1.05)
     
-    return {"values":data,"potisons":pos,"labels":labels}
+    return {"values":data,"potisons":pos,"labels":labels, "axes":axes,"axes2":axes2}
 
 
 

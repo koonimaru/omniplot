@@ -2018,7 +2018,8 @@ def regression_single(df,
         r2 = calc_r2(X,Y)
         x_line = plotline_X.flatten()
         y_line = fitted_model.predict(sm.add_constant(x_line))
-        ci, pi=ci_pi(X,Y,plotline_X.flatten(),y_model)
+        
+        ci, pi,std_error=ci_pi(X,Y,plotline_X.flatten(),y_model)
         MSE = 1/n * np.sum( (Y - y_model)**2 )
 
         draw_ci_pi(ax, ci, pi,x_line, y_line)
@@ -2509,7 +2510,7 @@ if __name__=="__main__":
     test="complex_clustermap"
     test="stacked"
     test="dotplot"
-    test="correlation"
+    test="regression"
     #test="nice_piechart"
     
     if test=="correlation":
@@ -2535,7 +2536,7 @@ if __name__=="__main__":
     elif test=="regression":
         df=sns.load_dataset("penguins")
         df=df.dropna(axis=0)
-        regression_single(df, x="bill_length_mm",y="body_mass_g", method="ransac",category="species")
+        regression_single(df, x="bill_length_mm",y="body_mass_g", method="robust",category="species")
         plt.show()
     elif test=="dotplot":
         df=pd.DataFrame({"Experiments":["exp1","exp1","exp1","exp1","exp2","exp2","exp3"],
