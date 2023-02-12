@@ -76,7 +76,7 @@ def dotplot(df: pd.DataFrame,
             xtickrotation: float=90,
             column_order: list=[],
             colorpalette="coolwarm",
-            show: bool=False
+            show: bool=False,
             ) -> Dict[str, plt.Axes]:
     """
     Drawing a dotplot that can represent two different variables as dot sizes and colors on a regular grid.
@@ -283,7 +283,8 @@ def dotplot(df: pd.DataFrame,
 
 
 def radialtree(df: pd.DataFrame,n_clusters: int=3,
-               category: Union[str, List[str]]=[], **kwargs) -> plt.Axes:
+               category: Union[str, List[str]]=[], 
+               save: str="", **kwargs) -> plt.Axes:
     """
     Drawing a radial dendrogram with color labels.
     
@@ -340,6 +341,11 @@ def radialtree(df: pd.DataFrame,n_clusters: int=3,
                         color_threshold=t,no_plot=True)
     sample_classes={k: list(category_df[k]) for k in category_df.columns}
     ax=_radialtree2(Z, sample_classes=sample_classes,addlabels=False, **kwargs)
+    if save !="":
+        if not save.endswith(".pdf") or not save.endswith(".png") or not not save.endswith(".svg"):
+            plt.savefig(save+"_radialtree.pdf")
+        else:
+            plt.savefig(save)
     return ax
 
 # def _complex_clustermap(df: pd.DataFrame,
@@ -659,7 +665,7 @@ def complex_clustermap(df: pd.DataFrame,
                        ztranform=True,
                        xticklabels=True, 
                        yticklabels=False,
-                       show_plot_labels=False,figsize=[],
+                       show_plot_labels=False,figsize=[],save: str="",
                        **kwargs):
     """
     Drawing a clustered heatmap with merginal plots.
@@ -713,7 +719,7 @@ def complex_clustermap(df: pd.DataFrame,
     rnum, cnum=df.shape
     cnum=len(heatmap_col)
     if len(figsize)==0:
-        xsize=np.amin(2*cnum, 20)
+        xsize=np.amin([2*cnum, 20])
         figsize=[xsize,10]
     scatterpointsize=5
     sns.set(font_scale=1)
@@ -1115,6 +1121,11 @@ def complex_clustermap(df: pd.DataFrame,
     
     plt.setp(g.ax_heatmap.xaxis.get_majorticklabels(), rotation=90)
     plt.subplots_adjust(bottom=0.165, right=0.75)
+    if save!="":
+        if save.endswith(".pdf") or save.endswith(".png") or save.endswith(".svg"):
+            plt.savefig(save)
+        else:
+            plt.savefig(save+"_complexheatmap.pdf")
     if show:
         plt.show()
     else:
@@ -1126,7 +1137,7 @@ def complex_clustermap(df: pd.DataFrame,
 def triangle_heatmap(df, 
                      grid_pos: list=[],
                      grid_labels: list=[],
-                     show: bool=False):
+                     show: bool=False, save: str=""):
     
     """
     Creating a heatmap with 45 degree rotation.
@@ -1240,6 +1251,11 @@ def triangle_heatmap(df,
     ax.spines['right'].set_visible(False)
     ax.spines['bottom'].set_visible(False)
     ax.spines['left'].set_visible(False)
+    if save!="":
+        if save.endswith(".pdf") or save.endswith(".png") or save.endswith(".svg"):
+            plt.savefig(save)
+        else:
+            plt.savefig(save+"_complexheatmap.pdf")
     if show:
         plt.show()
     return ax
@@ -1257,7 +1273,9 @@ def decomplot(df,category: str="",
               figsize=[],
               regularization: bool=True,
               pcapram={"random_state":0},
-              nmfparam={"random_state":0}) :
+              nmfparam={"random_state":0},
+              save: str="",
+              saveparam: dict={}) :
     
     """
     Decomposing data and drawing a scatter plot and some plots for explained variables. 
@@ -1349,6 +1367,12 @@ def decomplot(df,category: str="",
             dfpc_list.append(dfpc)
             combnum+=1
         plt.tight_layout(pad=0.5)
+        if save!="":
+            if save.endswith(".pdf") or save.endswith(".png") or save.endswith(".svg"):
+                h, ext=os.path.splitext(save)
+                plt.savefig(h[0]+"_PCA"+ext, **saveparam)
+            else:
+                plt.savefig(save+"_PCA.pdf",**saveparam) 
         if explained_variance==True:
             fig, ax=plt.subplots()
             exp_var_pca = pca.explained_variance_ratio_
@@ -1365,7 +1389,12 @@ def decomplot(df,category: str="",
             plt.step(range(0,len(cum_sum_eigenvalues)), cum_sum_eigenvalues, where='mid',label='Cumulative explained variance')
             plt.ylabel('Explained variance ratio')
             plt.xlabel('Principal component index')
-        
+            if save!="":
+                if save.endswith(".pdf") or save.endswith(".png") or save.endswith(".svg"):
+                    h, ext=os.path.splitext(save)
+                    plt.savefig(h[0]+"_ExplainedVar"+ext, **saveparam)
+                else:
+                    plt.savefig(save+"_ExplainedVar.pdf",**saveparam) 
         if show==True:
             plt.show()
         else:
@@ -1397,7 +1426,12 @@ def decomplot(df,category: str="",
             dfpc_list.append(dfpc)
         
         fig.tight_layout()
-        
+        if save!="":
+            if save.endswith(".pdf") or save.endswith(".png") or save.endswith(".svg"):
+                h, ext=os.path.splitext(save)
+                plt.savefig(h[0]+"_NMF"+ext, **saveparam)
+            else:
+                plt.savefig(save+"_NMF.pdf",**saveparam) 
         if explained_variance==True:
             fig, axes=plt.subplots(nrows=component, figsize=[5,5])
             axes=axes.flatten()
@@ -1432,11 +1466,16 @@ def decomplot(df,category: str="",
             # #dotplot(dfw,row="index",col="p",size_val="val")
             # dotplot(dfh,row="p",col="feature",size_val="val",)
             
-            
-            
-        if show==True:
-            plt.show()
-        return {"dfpc": dfpc_list, "W":W, "H":H}
+            if save!="":
+                if save.endswith(".pdf") or save.endswith(".png") or save.endswith(".svg"):
+                    h, ext=os.path.splitext(save)
+                    plt.savefig(h[0]+"_Coefficients"+ext, **saveparam)
+                else:
+                    plt.savefig(save+"_Coefficients.pdf",**saveparam)    
+                
+            if show==True:
+                plt.show()
+            return {"dfpc": dfpc_list, "W":W, "H":H}
     elif method=="lda":
         lda=LatentDirichletAllocation(n_components=component, random_state=0)
         if regularization:
@@ -2229,12 +2268,12 @@ def stacked_barplot(df: pd.DataFrame,
                     order: list=[],
                     hue_order: list=[],
                     test_pairs: List[List[str]]=[],
-                    show_number: bool=True,
+                    show_values: bool=True,
                     show: bool=False,
                     figsize: List[int]=[4,6]):
     
     """
-    Draw a boxplot with a statistical test 
+    Drawing a stacked barplot with or without the fisher's exact test 
     
     Parameters
     ----------
@@ -2333,7 +2372,7 @@ def stacked_barplot(df: pd.DataFrame,
         
         
         plt.bar(keys, heights,width=0.5, bottom=bottom, color=cmap(i/len(hues)), label=h)
-        if show_number==True:
+        if show_values==True:
             for j in range(len(keys)):
                 if scale=="absolute":
                     plt.text(j,bottom[j]+heights[j]/2,"{}{}".format(heights[j],unit), 
@@ -2394,7 +2433,8 @@ def nice_piechart(df: pd.DataFrame,
                   category: Union[str, List[str]],
                   palette: str="tab20c",
                   ncols: int=2,
-                  ignore: float=0.05):
+                  ignore: float=0.05,
+                  show_values: bool=True):
     
     if type(category)==str:
         category=[category]
@@ -2418,7 +2458,9 @@ def nice_piechart(df: pd.DataFrame,
             if _c[j]<ignore:
                 colors[j]=[0,0,0,1]
                 u[j]=""
-        
+                continue
+            if show_values==True:
+                u[j]=u[j]+"\n("+str(100*np.round(_c[j],1))+"%)"
         
         ax.pie(c, labels=u, 
                counterclock=False,
@@ -2432,7 +2474,7 @@ def nice_piechart(df: pd.DataFrame,
             fig.delaxes(axes[-(i+1)])
     plt.tight_layout(h_pad=1)
     plt.subplots_adjust(top=0.9)
-
+    return axes
 def correlation(df: pd.DataFrame, category: Union[str, list]=[],
                 method="pearson",
                 palette: str="coolwarm",figsize=[6,6],show_val=False,clustermap_param:dict={},ztransform: bool=True,
@@ -2471,7 +2513,8 @@ def correlation(df: pd.DataFrame, category: Union[str, list]=[],
         colnames=dfm.columns
         for cat in category:
             dfm[cat]=df[cat].values
-        g=complex_clustermap(dfm,heatmap_col=colnames, row_colors=category,ztranform=False,xticklabels=xticklabels,yticklabels=yticklabels,figsize=figsize)
+        res=complex_clustermap(dfm,heatmap_col=colnames, row_colors=category,ztranform=False,xticklabels=xticklabels,yticklabels=yticklabels,figsize=figsize)
+        return res
     else:
         
         g=sns.clustermap(data=dmat,xticklabels=xticklabels,yticklabels=yticklabels,
@@ -2486,7 +2529,7 @@ def correlation(df: pd.DataFrame, category: Union[str, list]=[],
         g.cax.set_ylabel("Pearson correlation", rotation=-90,va="bottom")
         plt.setp(g.ax_heatmap.get_yticklabels(), rotation=0)  # For y axis
         plt.setp(g.ax_heatmap.get_xticklabels(), rotation=90) # For x axis
-    
+        return {"grid":g}
     
 if __name__=="__main__":
     
@@ -2511,7 +2554,7 @@ if __name__=="__main__":
     test="stacked"
     test="dotplot"
     test="regression"
-    #test="nice_piechart"
+    test="correlation"
     
     if test=="correlation":
         df=sns.load_dataset("penguins")
@@ -2520,7 +2563,7 @@ if __name__=="__main__":
             
         correlation(df, category=["species", "island","sex"], method="pearson", ztransform=True)
         plt.show()
-    if test=="nice_piechart":
+    elif test=="nice_piechart":
         df=sns.load_dataset("penguins")
         df=df.dropna(axis=0)
         tmp=[]

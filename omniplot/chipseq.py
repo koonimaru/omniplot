@@ -1,4 +1,4 @@
-from typing import List,Dict,Optional,Union
+from typing import List,Dict,Optional,Union,Any,Iterable
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -24,7 +24,10 @@ from omniplot.chipseq_utils import (stitching_for_pyrange,
                                     readgff2,
                                     readgtf,
                                     readgtf2,
-                                    read_and_reshape_bw)
+                                    read_and_reshape_bw,
+                                    read_bw_stats,
+                                    readgff_transcripts,
+                                    read_transcripts)
 sns.set_theme(font="Arial", style={'grid.linestyle': "",'axes.facecolor': 'whitesmoke'})
 import random
 import string
@@ -33,10 +36,11 @@ from sklearn.decomposition import PCA, NMF, LatentDirichletAllocation
 from scipy.stats import fisher_exact
 from scipy.stats import zscore
 from sklearn.cluster import KMeans
-from omniplot.utils import optimal_kmeans
+from omniplot.utils import optimal_kmeans, _save
 import time
 import pyranges as pr
 import warnings
+import sys
 def plot_bigwig(files: dict, 
                 bed: Union[str, list], 
                 gff: str,
@@ -44,7 +48,8 @@ def plot_bigwig(files: dict,
                 stack_regions: str="horizontal", 
                 highlight: Union[str, list]=[],
                 highlightname="",
-                n_jobs=-1):
+                n_jobs=-1,
+                save: str="")->dict:
     """
     Plotting bigwig files in specified genomic regions in the bed file.  
     
@@ -149,7 +154,6 @@ def plot_bigwig(files: dict,
             
     time_start=time.time()
     mat={}
-
     for samplename, f in files.items():
         bw=pwg.open(f)
         #h, t=os.path.split(f)
@@ -160,6 +164,8 @@ def plot_bigwig(files: dict,
             val=bw.values(chrom, s, e)
             
             mat[samplename].append(val)
+    
+    
     
     print("Reading bigwig files took", time.time()-time_start)
     
@@ -201,7 +207,8 @@ def plot_bigwig(files: dict,
                     ticks_labels.append([[np.amin(x),np.amax(x)],ax.get_xticks(), ax.get_xticklabels()])
                 ax.set_xticks([],labels=[])
             occupied=[[] for i in range(8)]
-            
+        
+        
 
         
         for posi in range(len(pos)):
@@ -244,6 +251,12 @@ def plot_bigwig(files: dict,
             axes[posi*2+1,si].set_yticks([],labels=[])
             axes[posi*2+1,si].set_xticks(ticks_labels[posi][1])
             axes[posi*2+1,si].set_ylabel("Genes")
+        if save !="":
+            if save.endswith(".pdf") or save.endswith(".png") or save.endswith(".svg"):
+                h, t=os.path.splitext(save)
+                plt.savefig(h+"_plot"+t)
+            else:
+                plt.savefig(save+"_plot.pdf")
     else:
         fig, axes=plt.subplots(nrows=len(files)+1,ncols=len(pos),gridspec_kw={
                            'height_ratios': [2]*len(files)+[1]})
@@ -326,7 +339,11 @@ def plot_bigwig(files: dict,
             axes[si+1,posi].set_ylim(-0.5,maxslot+0.5)
             axes[si+1,posi].ticklabel_format(useOffset=False)
             axes[si+1,posi].set_yticks([],labels=[])
+            
+        
         plt.tight_layout(h_pad=-1,w_pad=-1)
+        _save(save, "plot")
+        
     return {"ax":axes,"values":mat,"genes":geneset,"positions":pos}
 
 
@@ -340,7 +357,7 @@ def plot_bigwig_correlation(files: dict,
                             peakfile: str="",
                             #show_val: bool=False,
                             show: bool=False,
-                            n_jobs: int=-1) -> Dict:
+                            n_jobs: int=-1, save: str="") -> Dict:
     
     """
     Calculate pearson correlations and draw a heatmap for bigwig files.  
@@ -391,38 +408,49 @@ def plot_bigwig_correlation(files: dict,
         
     
     if peakfile!="":
+        # peaks=read_peaks(peakfile)
+        # for k, f in files.items():
+        #     bw=pwg.open(f)
+        #     tmp=[]
+        #     for chrom, se in peaks.items():
+        #         for s, e in se:
+        #             val=bw.stats(chrom,s,e, exact=True)[0]
+        #             if val==None:
+        #                 val=0
+        #         tmp.append(val)
+        #     mat.append(tmp)
+        #     samples.append(k)
         peaks=read_peaks(peakfile)
         for k, f in files.items():
             bw=pwg.open(f)
-            tmp=[]
-            for chrom, se in peaks.items():
-                for s, e in se:
-                    val=bw.stats(chrom,s,e, exact=True)[0]
-                    if val==None:
-                        val=0
-                tmp.append(val)
+            
+            tmp=Parallel(n_jobs=n_jobs)(delayed(read_bw_stats)(chrom, s, e, f) for chrom, s, e in peaks)
             mat.append(tmp)
             samples.append(k)
         
-        
     elif chrom !="all":
         chrom_size=chrom_sizes[chrom]
-        samples=list(files.keys())
-        mat=Parallel(n_jobs=n_jobs)(delayed(read_bw)(files[s],chrom, chrom_size, step) for s in samples)
-        # for k, f in files.items():
-        #     bw=pwg.open(f)
-        #     val=np.array(bw.values(chrom,0,chrom_size))
-        #     rem=chrom_size%step
-        #     val=val[:val.shape[0]-rem]
-        #     print(val.shape)
-        #     val=np.nan_to_num(val)
-        #     val=val.reshape([-1,step]).mean(axis=1)
-        #     print(val.shape)
-        #     mat.append(val/np.sum(val))
-        #     samples.append(k)
+        
+        samples=[]
+        mat=[]
+        #samples=list(files.keys())
+        #mat=Parallel(n_jobs=n_jobs)(delayed(read_bw)(files[s],chrom, chrom_size, step) for s in samples)
+        for k, f in files.items():
+            bw=pwg.open(f)
+            val=np.array(bw.values(chrom,0,chrom_size))
+            rem=chrom_size%step
+            val=val[:val.shape[0]-rem]
+            print(val.shape)
+            val=np.nan_to_num(val)
+            val=val.reshape([-1,step]).mean(axis=1)
+            print(val.shape)
+            mat.append(val/np.sum(val))
+            samples.append(k)
     elif chrom=="all":
         chroms=chrom_sizes.keys()
         for k, f in files.items():
+            
+            #tmp=Parallel(n_jobs=n_jobs)(delayed(read_bw)(f, chrom, 0, chrom_sizes[chrom], f) for chrom, s, e in chroms)
             bw=pwg.open(f)
             tmp=[]
             for chrom in chroms:
@@ -458,6 +486,9 @@ def plot_bigwig_correlation(files: dict,
     g.cax.set_ylabel("Pearson correlation", rotation=-90,va="bottom")
     plt.setp(g.ax_heatmap.get_yticklabels(), rotation=0)  # For y axis
     plt.setp(g.ax_heatmap.get_xticklabels(), rotation=90) # For x axis
+    
+    
+    _save(save, "correlation")
     if show:
         plt.show()
     return {"correlation": dmat,"samples":samples}
@@ -473,7 +504,8 @@ def call_superenhancer(bigwig: str,
                        go_analysis: bool=False,
                        gonames: list=["GO_Biological_Process_2021","Reactome_2022","WikiPathways_2019_Human"],
                        sample: str="Sample",
-                       n_jobs: int=12):
+                       n_jobs: int=12,
+                       save: str="")->Dict:
     """
     Find super enhancers and plot an enhancer rank.  
     
@@ -645,6 +677,9 @@ def call_superenhancer(bigwig: str,
         tick_=10000
     ax.set_xticks(np.arange(0,x.shape[0], tick_)/x.shape[0],labels=np.arange(0,x.shape[0], tick_))
     plt.ticklabel_format(axis="y", style="sci", scilimits=(0,0))
+    
+    _save(save, "rank")
+    
     plt.subplots_adjust(right=0.620, bottom=0.130)
     
     
@@ -727,7 +762,7 @@ def call_superenhancer(bigwig: str,
                     bed=tmpfile, gff=gff, 
                     step=100,
                     stack_regions="vertical",
-                    highlight=highlights,n_jobs=n_jobs)
+                    highlight=highlights,n_jobs=n_jobs, save=save)
         os.remove(tmpfile)
     return {"ax": ax, "positions":pos, "signals":y,"nearest_genes":_nearestgenes}
 
@@ -740,7 +775,9 @@ def plot_average(files: dict,
                  clustering: str="",
                  n_clusters: int=5,
                  minval: Optional[float]=None,
-                 orientaion=False):
+                 orientaion=False,
+                 save="",
+                 n_jobs: int=-1):
     """
     Plotting bigwig files centered at peak regions.  
     
@@ -821,9 +858,8 @@ def plot_average(files: dict,
     
     for i, sample in enumerate(order):
         bigwig=files[sample]
-        bw=pwg.open(bigwig)
         data[sample]=[]
-        vals, mean=zip(*Parallel(n_jobs=-1, prefer="threads")(delayed(read_and_reshape_bw)(chrom, s, e, bw, binsize) for chrom, s, e in pos))
+        vals, mean=zip(*Parallel(n_jobs=n_jobs, prefer="threads")(delayed(read_and_reshape_bw)(chrom, s, e, bigwig, binsize) for chrom, s, e in pos))
         
         
         data[sample]=np.nan_to_num(vals)
@@ -885,7 +921,7 @@ def plot_average(files: dict,
             _labels=np.array(labels)[sortindex]
             sortindex2=np.argsort(_labels)
             vals=vals[sortindex2]
-            pos=[sortindex2]
+            _pos=pos[sortindex2]
             _labels=_labels[sortindex2]
             _labels=_labels[plotindex]
             ulabel, clabel=np.unique(_labels, return_counts=True)
@@ -894,15 +930,15 @@ def plot_average(files: dict,
         if np.sum(vals)<=10**-6:
             raise Exception("Signals may be empty, or you may be using a wrong bed file.")
         if np.amax(vals) <= 1  and np.amin(vals)>=0:
-            im=ax.imshow(vals,aspect="auto", cmap=palette, interpolation="none",norm=LogNorm(vmin=np.quantile(vals,0.05)))
+            im=ax.imshow(vals,aspect="auto", cmap=palette, interpolation="none",norm=LogNorm(vmin=0.00001))
         elif np.amin(vals) < 0:
             vals=np.where(vals < 0, 0, vals)
             warnings.warn("The bigwig contains negative values. Is this coverage file?")
-            im=ax.imshow(vals,aspect="auto", cmap=palette, interpolation="none",norm=LogNorm(vmin=np.quantile(vals,0.05)))
+            im=ax.imshow(vals,aspect="auto", cmap=palette, interpolation="none",norm=LogNorm(vmin=1))
         elif minval!=None:
             im=ax.imshow(vals,aspect="auto", cmap=palette, interpolation="none",norm=LogNorm(vmin=minval))
         else:
-            im=ax.imshow(vals,aspect="auto", cmap=palette, interpolation="none",norm=LogNorm(vmin=np.quantile(vals,0.05)))
+            im=ax.imshow(vals,aspect="auto", cmap=palette, interpolation="none",norm=LogNorm(vmin=1))
         
         
         
@@ -928,6 +964,7 @@ def plot_average(files: dict,
                 isep+=1
         ax.set_yticks([])
         ax.grid(False)
+    _save(save, "heatmap")
     fig, axes2=plt.subplots(ncols=len(order), figsize=[4*len(order), 3])
     if len(order)==1:
         axes2=[axes2]
@@ -965,11 +1002,14 @@ def plot_average(files: dict,
     for ax in axes2:
         ax.set_ylim(0, maxval*1.05)
     
-    return {"values":data,"potisons":pos,"labels":labels, "axes":axes,"axes2":axes2}
+    _save(save, "average")
+    
+    return {"values":data,"potisons":_pos,"labels":labels, "axes":axes,"axes2":axes2}
 
 
 
-def plot_genebody(files: dict, 
+def _plot_genebody(files: dict,
+                files_minus: Optional[dict]=None,
                  bed: Union[list, str]="",
                  gff: str="",
                  centered_at: str="TSS", 
@@ -978,8 +1018,9 @@ def plot_genebody(files: dict,
                  palette: str="coolwarm",
                  binsize: int=10,
                  clustering: str="",
-                 n_clusters: int=5):
-
+                 n_clusters: int=5,
+                 save: str="",lognorm=True,n_jobs=-1)-> Dict:
+    
     """
     Plotting bigwig files around gene bodies.  
     
@@ -999,7 +1040,7 @@ def plot_genebody(files: dict,
         the number of clusters for clustering analysis. if you chose kmeans_auto, this option will be ignored.
     Returns
     -------
-        dict {"values":data,"potisons":pos,"labels":labels}
+        dict {"values":data,"potisons":pos,"labels":labels, "axes":axes, "axes2":axes2}
         values: dictionary containing sample names as the keys and signals as the values
         positions: genomic positions sorted by signals displayed in the plot
         labels: list of clustering labels if kmean clustering was performed
@@ -1025,46 +1066,55 @@ def plot_genebody(files: dict,
     chrom_sizes=bw.chroms()
     
     if len(bed)>0 and len(gff)>0:
-        import warnings
         warnings.warn("Ignoring the gff file, since the bed file is provided.")
-    oriset=set(["+", "-"])
-    bedchroms=set()
-    if type(bed)==str and len(bed)>0:
-        with open(bed) as fin:
-            for l in fin:
-                l=l.split()
-                if not l[-1] in oriset:
-                    raise Exception("The bed file must contain orientation information at the last column. e.g., chr1\t10000\t20000\t.\t.\t+")
-                
-                if not l[0] in chrom_sizes:
-                    raise Exception("There may be mismatches in chromosome names between the bed file and bigwig files.\n\
-                the chromosome names in the bed file are: {}\n\
-                those in the bigwig files are: {}".format(l[0], chrom_sizes.keys())) 
-        posplus=[]
-        posminus=[]
-        with open(bed) as fin:
-            for l in fin:
-                l=l.split()
-                chrom, s, e, ori=l[0],l[1],l[2],l[-1]
-                chrom, s, e=l[0],l[1],l[2]
-                bedchroms.add(chrom)
-                if ori=="+":
-                    cs=int(s)-extend
-                    ce=int(s)+extend
-                    if cs <0 or chrom_sizes[chrom] < ce:
-                        continue
-                    posplus.append([chrom,cs,ce])
-                else:
-                    cs=int(e)-extend
-                    ce=int(e)+extend
-                    if cs <0 or chrom_sizes[chrom] < ce:
-                        continue
-                    posminus.append([chrom,cs,ce])
-    else:
-        posplus=bed[0]
-        posminus=bed[1]
     
+    if len(bed)>0:
+        oriset=set(["+", "-"])
+        bedchroms=set()
+        if type(bed)==str and len(bed)>0:
+            with open(bed) as fin:
+                for l in fin:
+                    l=l.split()
+                    if not l[-1] in oriset:
+                        raise Exception("The bed file must contain orientation information at the last column. e.g., chr1\t10000\t20000\t.\t.\t+")
+                    
+                    if not l[0] in chrom_sizes:
+                        raise Exception("There may be mismatches in chromosome names between the bed file and bigwig files.\n\
+                    the chromosome names in the bed file are: {}\n\
+                    those in the bigwig files are: {}".format(l[0], chrom_sizes.keys())) 
+            posplus=[]
+            posminus=[]
+            seen=set()
+            with open(bed) as fin:
+                for l in fin:
+                    l=l.split()
+                    chrom, s, e, ori=l[0],l[1],l[2],l[-1]
+                    tmp="_".join([chrom, s, e, ori])
+                    if not tmp in seen:
+                        seen.add(tmp)
+                    else:
+                        continue
+                    
+                    bedchroms.add(chrom)
+                    if ori=="+":
+                        cs=int(s)-extend
+                        ce=int(s)+extend
+                        if cs <0 or chrom_sizes[chrom] < ce:
+                            continue
+                        posplus.append([chrom,cs,ce])
+                    else:
+                        cs=int(e)-extend
+                        ce=int(e)+extend
+                        if cs <0 or chrom_sizes[chrom] < ce:
+                            continue
     
+                        posminus.append([chrom,cs,ce])
+        else:
+            posplus=bed[0]
+            posminus=bed[1]
+    
+    elif len(gff)>0:
+        transcripts=readgff_transcripts(gff, extend)
     
     
     if len(order)==0:
@@ -1072,16 +1122,52 @@ def plot_genebody(files: dict,
     data={}
     data_mean=[]
     start_time=time.time()
+    
     for i, sample in enumerate(order):
         bigwig=files[sample]
-        bw=pwg.open(bigwig)
-        data[sample]=[]
         
-        pvals, pmean=zip(*Parallel(n_jobs=-1, prefer="threads")(delayed(read_and_reshape_bw)(chrom, s, e, bw, binsize) for chrom, s, e in posplus))
-        mvals, mmean=zip(*Parallel(n_jobs=-1, prefer="threads")(delayed(read_and_reshape_bw)(chrom, s, e, bw, binsize) for chrom, s, e in posminus))
-        data[sample]=pvals+mvals
+        if len(gff)>0:
+            tid_list=[]
+            pvals=[]
+            tids=transcripts["+"].keys()
+            tid_list.extend(tids)
+            pvals=Parallel(n_jobs=n_jobs)(delayed(read_transcripts)(bigwig, transcripts["+"][tid], binsize, extend)  for tid in tids)
+            print(pvals[:10])
+            if files_minus!=None:
+                bigwig=files_minus[sample]
+            mvals=[]
+            tids=transcripts["-"].keys()
+            mvals=Parallel(n_jobs=n_jobs)(delayed(read_transcripts)(bigwig, transcripts["-"][tid], binsize, extend)  for tid in tids)
+            tid_list.extend(tids)
+            
+        #bw=pwg.open(bigwig)
+        else:
+            pvals=[]
+            pmean=[]
+            data[sample]=[]
+            pvals, pmean=zip(*Parallel(n_jobs=n_jobs)(delayed(read_and_reshape_bw)(chrom, s, e, bigwig, binsize)  for chrom, s, e in posplus))
+            
+            if files_minus!=None:
+                bigwig=files_minus[sample]
+                #bw=pwg.open(bigwig)
+                mvals, mmean=zip(*Parallel(n_jobs=n_jobs)(delayed(read_and_reshape_bw)(chrom, s, e, bigwig, binsize)  for chrom, s, e in posminus))
+            else:
+                mvals, mmean=zip(*Parallel(n_jobs=n_jobs)(delayed(read_and_reshape_bw)(chrom, s, e, bigwig, binsize)  for chrom, s, e in posminus))
+        
+        mvals=np.flip(mvals, axis=1)
+        vals=np.nan_to_num(np.concatenate([pvals,mvals]))
+        print(vals.shape)
+        if i ==0:
+            sums=np.sum(vals, axis=1)
+            remove=sums >np.quantile(sums, 0.1)
+            print(np.sum(remove))
+        vals=vals[remove]
+        #vals=vals.reshape([-1,vals.shape[1]//binsize,binsize]).mean(axis=2)
+        print(np.amax(sums),np.amin(sums),vals.shape)
+        data[sample]=vals
+        
         if i==0:
-            data_mean=pmean+mmean
+            data_mean=np.amax(vals,axis=1)
         # for chrom, s, e in posplus:
         #     val=bw.values(chrom, s, e)
         #     #print(val)
@@ -1140,34 +1226,50 @@ def plot_genebody(files: dict,
         kmean = KMeans(n_clusters=n_clusters, random_state=0,n_init=10)
         kmX=kmean.fit(mat)
         labels=kmX.labels_
-    pos=posplus+posminus
+    if len(gff) >0:
+        pos=np.array(tid_list)
+    else:
+        pos=np.array(posplus+posminus)[remove]
     #data_mean=np.nan_to_num(data_mean)
     sortindex=np.argsort(data_mean)[::-1]
-    pos=np.array(pos)[sortindex]
-
+    print(sortindex)
+    pos=pos[sortindex]
+    print(pos[:20])
     plotindex=np.arange(0, len(pos), len(pos)//1000)
     fig, axes=plt.subplots(ncols=len(order), figsize=[2*len(order), 6])
+    if len(order)==1:
+        axes=[axes]
     for i, (sample, ax) in enumerate(zip(order, axes)):
         vals=data[sample]
-
+        
         vals=np.array(vals)
-
+        
         vals=vals[sortindex]
+        vals=vals/np.amax(vals, axis=1)[:,None]
+        ax.plot(vals[0])
+        ax.plot(vals[1])
+        ax.plot(vals[2])
+        plt.show()
+        sys.exit()
+        
+
         if clustering!="":
             
             _labels=np.array(labels)[sortindex]
             sortindex2=np.argsort(_labels)
             vals=vals[sortindex2]
-            pos=[sortindex2]
+            _pos=pos[sortindex2]
             _labels=_labels[sortindex2]
             _labels=_labels[plotindex]
             ulabel, clabel=np.unique(_labels, return_counts=True)
 
         vals=vals[plotindex]
-        im=ax.imshow(vals,aspect="auto", cmap=palette, interpolation="none",norm=LogNorm(vmin=np.quantile(vals,0.05)))
-        
-        
-        
+        print(vals.shape)
+        if lognorm==True:
+            
+            im=ax.imshow(vals,aspect="auto", cmap=palette, interpolation="none",norm=LogNorm(vmin=np.amax([1, np.quantile(sums,0.5)])))
+        else:
+            im=ax.imshow(vals,aspect="auto", cmap=palette, interpolation="none")
         cbaxes = fig.add_axes([0.8*(i+1)/len(order), 0.93, 0.03, 0.06]) 
         cb = plt.colorbar(im, cax = cbaxes)
         
@@ -1190,9 +1292,14 @@ def plot_genebody(files: dict,
                 isep+=1
         ax.set_yticks([])
         ax.grid(False)
-    fig, axes=plt.subplots(ncols=len(order), figsize=[4*len(order), 3])
+        
+    _save(save, "heatmap")
+
+    fig, axes2=plt.subplots(ncols=len(order), figsize=[4*len(order), 3])
+    if len(order)==1:
+        axes2=[axes2]
     maxval=0
-    for i, (sample, ax) in enumerate(zip(order, axes)):
+    for i, (sample, ax) in enumerate(zip(order, axes2)):
         vals=data[sample]
         vals=np.array(vals)
         labels=np.array(labels)
@@ -1223,8 +1330,8 @@ def plot_genebody(files: dict,
     
     for ax in axes:
         ax.set_ylim(0, maxval*1.05)
-    
-    return {"values":data,"potisons":pos,"labels":labels}
+    _save(save, "average")
+    return {"values":data,"potisons":pos,"labels":labels, "axes":axes, "axes2":axes2}
 
 def plot_bed_correlation(files:dict,
                          method: str="pearson",
@@ -1313,7 +1420,9 @@ def plot_bed_correlation(files:dict,
     
     
     
+def frip_calc():
     
+    pass
     
     
     
@@ -1325,9 +1434,11 @@ if __name__=="__main__":
     
     #test="plot_bigwig"
     test="plot_bed_correlation"
-    test="plot_genebody"
+    
     test="plot_average"
+    test="plot_genebody"
     #test="call_superenhancer"
+    test="plot_genebody"
     import glob
     
     if test=="plot_bed_correlation":
@@ -1374,7 +1485,6 @@ if __name__=="__main__":
     elif test=="plot_average":
         
         peak="/media/koh/grasnas/home/data/omniplot/HepG2_KMT2B_ENCFF036WCY_srt.bed"
-        tss="/media/koh/grasnas/home/data/omniplot/gencode.v40.annotation_tss_srt.bed"
         files={"KMT2B":"/media/koh/grasnas/home/data/omniplot/HepG2_KMT2B-human_ENCFF709UTL.bw",
                             "KMT2A":"/media/koh/grasnas/home/data/omniplot/HepG2_KMT2A-human_ENCFF406SHU.bw"}
         plot_average(files=files,
@@ -1384,12 +1494,12 @@ if __name__=="__main__":
         plt.show()
     elif test=="plot_genebody":
 
-        tss="/media/koh/grasnas/home/data/omniplot/gencode.v40.annotation_tss_srt.bed"
-        files={"KMT2B":"/media/koh/grasnas/home/data/omniplot/HepG2_KMT2B-human_ENCFF709UTL.bw",
-                            "KMT2A":"/media/koh/grasnas/home/data/omniplot/HepG2_KMT2A-human_ENCFF406SHU.bw"}
-        plot_genebody(files=files,
-                            bed=tss,
-                            order=["KMT2B",  "KMT2A"],clustering="kmeans"
+        gff="/media/koh/grasnas/home/data/omniplot/gencode.v40.annotation.gff3"
+        files={"adrenal_grand":"/media/koh/grasnas/home/data/omniplot/adrenal_grand_plus_ENCFF809PGE.bigWig"}
+        files_minus={"adrenal_grand":"/media/koh/grasnas/home/data/omniplot/adrenal_grand_minus_ENCFF896WDT.bigWig"}
+        _plot_genebody(files=files,files_minus=files_minus,
+                            gff=gff,binsize=1,
+                            order=["adrenal_grand"]#,clustering="kmeans"
                             )
         plt.show()
     #raise NotImplementedError("This function will plot ChIP-seq data.")

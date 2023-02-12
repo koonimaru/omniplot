@@ -1,5 +1,5 @@
 
-from typing import List,Dict,Optional,Union
+from typing import List,Dict,Optional,Union, Any, Iterable
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -470,6 +470,75 @@ def readgff2(_gff, _kind, others=[]):
                 elif other=="Strand":
                     gff_dict[other].append(ori)
     return gff_dict
+
+def readgff_transcripts(_gff, _extend, avoid="chrM"):
+    
+    transcripts={"+":{},"-":{}}
+    
+    with open(_gff) as fin:
+        for l in fin:
+            if l.startswith("#"):
+                continue
+            chrom, source, kind, s, e, _, ori, _, meta=l.split()
+            if chrom==avoid:
+                continue
+            s, e=int(s)-1, int(e)
+            if kind =="exon":
+                tmp={}
+                #print(meta)
+                meta=meta.split(";")
+                
+                for m in meta:
+                    k, v=m.split("=")
+                    tmp[k]=v
+                if "pseudogene" in tmp["gene_type"].split("_"):
+                    continue
+                tid=tmp["transcript_id"]
+                if not tid in transcripts[ori]:
+                    transcripts[ori][tid]=[]
+                transcripts[ori][tid].append([chrom, s, e])
+    _transcripts={"+":{},"-":{}}
+    for strand, tids in transcripts.items():
+        if strand=="+":
+            for tid, exons in tids.items():
+                _transcripts[strand][tid]=[]
+                total_len=0
+                i=0
+                for chrom, s, e in exons:
+            
+                    total_len+=e-s
+                    if i==0:
+                        s=s-_extend
+                        if s < 0:
+                            s=0
+                    if total_len>_extend:
+                        e=e-(total_len-_extend)
+                        if s<e:
+                            _transcripts[strand][tid].append([chrom, s, e])
+                        break
+                    else:
+                        _transcripts[strand][tid].append([chrom, s, e])
+                    i+=1
+                
+        elif strand=="-":
+            for tid, exons in tids.items():
+                _transcripts[strand][tid]=[]
+                total_len=0
+                i=0
+                for chrom, s, e in reversed(exons):
+                    total_len+=e-s
+                    if i==0:
+                        e=e+_extend
+                    if total_len>_extend:
+                        s=s+(total_len-_extend)
+                        if s<e:
+                            _transcripts[strand][tid].append([chrom, s, e])
+                        break
+                    else:
+                        _transcripts[strand][tid].append([chrom, s, e])
+                    i+=1
+    return _transcripts
+
 def readgtf2(_gff, _kind, others=[]):
     gff_dict={"Chromosome":[], "Start": [], "End": []}
     for other in others:
@@ -502,14 +571,72 @@ def readgtf2(_gff, _kind, others=[]):
                     gff_dict[other].append(ori)
     return gff_dict
 
-def read_and_reshape_bw(chrom, s, e, bw, binsize):
+def read_and_reshape_bw(chrom, s, e, _bw, binsize):
+    bw=pwg.open(_bw)
     val=bw.values(chrom, s, e)
     #print(val)
     val=np.array(val)
     #print(val.shape)
     val=val.reshape([-1,binsize]).mean(axis=1)
     #print(val.shape)
-    mean=bw.stats(chrom, s, e, exact=True)[0]
+    _sum=np.sum(val)
+    if _sum==0:
+        mean=0
+    else:
+        mean=_sum/(e-s)
+    # mean=bw.stats(chrom, s, e, exact=True)[0]
+    # if mean==None:
+    #     mean=0
+    return val, mean 
+
+def read_bw_stats(chrom, s, e, _bw):
+    bw=pwg.open(_bw)
+    val=bw.stats(chrom, s, e)[0]
+    if val==None:
+        val=0
+    return val 
+def read_and_reshape_np(s, e, bw, binsize):
+    val=bw[s:e]
+    #print(val)
+    val=np.array(val)
+    #print(val.shape)
+    val=val.reshape([-1,binsize]).mean(axis=1)
+    #print(val.shape)
+    mean=val.mean()
     if mean==None:
         mean=0
-    return val, mean 
+    return val, mean
+
+def flatten_gen_comp(lst: List[Any]) -> Iterable[Any]:
+                """Flatten a list using generators comprehensions."""
+                return (item
+                        for sublist in lst
+                        for item in sublist)
+                
+def read_transcripts(_bw, _pos, binsize, extend):
+    expected=2*extend//binsize
+    bw=pwg.open(_bw)
+    vals=[]
+    for chrom, s, e in _pos:
+        try:
+            val=bw.values(chrom, s, e)
+        except RuntimeError as e:
+            print(chrom, s, e)
+        vals.append(val)
+        
+    #print(val)
+    val=np.nan_to_num(list(flatten_gen_comp(vals)))
+    
+    
+    
+    val=val.reshape([-1,binsize]).mean(axis=1)
+    if val.shape[0]<expected:
+        
+        val =np.concatenate([val, np.zeros([expected-val.shape[0]])])
+    return val
+    
+    
+    
+    
+    
+    
