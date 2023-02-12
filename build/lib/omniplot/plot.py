@@ -713,7 +713,7 @@ def complex_clustermap(df: pd.DataFrame,
     rnum, cnum=df.shape
     cnum=len(heatmap_col)
     if len(figsize)==0:
-        xsize=np.amin(2*cnum, 20)
+        xsize=np.amin([2*cnum, 20])
         figsize=[xsize,10]
     scatterpointsize=5
     sns.set(font_scale=1)
@@ -2520,7 +2520,7 @@ if __name__=="__main__":
             
         correlation(df, category=["species", "island","sex"], method="pearson", ztransform=True)
         plt.show()
-    if test=="nice_piechart":
+    elif test=="nice_piechart":
         df=sns.load_dataset("penguins")
         df=df.dropna(axis=0)
         tmp=[]

@@ -18,6 +18,7 @@ plt.rcParams['svg.fonttype'] = 'none'
 sns.set_theme()
 from matplotlib.text import Annotation
 from matplotlib.transforms import Affine2D
+import os 
 class LineAnnotation(Annotation):
     """A sloped annotation to *line* at position *x* with *text*
     Optionally an arrow pointing from the text to the graph at *x* can be drawn.
@@ -836,3 +837,21 @@ def optimal_kmeans(X: Union[np.ndarray, list], testrange: list, topn: int=2)-> L
     print("Top two optimal cluster No are: {}, {}".format(K[srtindex[0]],K[srtindex[1]]))
     n_clusters=[K[srtindex[i]] for i in range(topn)]
     return n_clusters
+
+from matplotlib.backends.backend_pdf import PdfPages
+
+def _multipage(filename, figs=None, dpi=200):
+    pp = PdfPages(filename)
+    if figs is None:
+        figs = [plt.figure(n) for n in plt.get_fignums()]
+    for fig in figs:
+        fig.savefig(pp, format='pdf')
+    pp.close()
+    
+def _save(save, suffix):
+    if save !="":
+        if save.endswith(".pdf") or save.endswith(".png") or save.endswith(".svg"):
+            h, t=os.path.splitext(save)
+            plt.savefig(h+"_"+suffix+t)
+        else:
+            plt.savefig(save+"_"+suffix+".pdf")

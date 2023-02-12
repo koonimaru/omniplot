@@ -502,14 +502,31 @@ def readgtf2(_gff, _kind, others=[]):
                     gff_dict[other].append(ori)
     return gff_dict
 
-def read_and_reshape_bw(chrom, s, e, bw, binsize):
+def read_and_reshape_bw(chrom, s, e, _bw, binsize):
+    bw=pwg.open(_bw)
     val=bw.values(chrom, s, e)
     #print(val)
     val=np.array(val)
     #print(val.shape)
     val=val.reshape([-1,binsize]).mean(axis=1)
     #print(val.shape)
-    mean=bw.stats(chrom, s, e, exact=True)[0]
+    _sum=np.sum(val)
+    if _sum==0:
+        mean=0
+    else:
+        mean=_sum/(e-s)
+    # mean=bw.stats(chrom, s, e, exact=True)[0]
+    # if mean==None:
+    #     mean=0
+    return val, mean 
+def read_and_reshape_np(s, e, bw, binsize):
+    val=bw[s:e]
+    #print(val)
+    val=np.array(val)
+    #print(val.shape)
+    val=val.reshape([-1,binsize]).mean(axis=1)
+    #print(val.shape)
+    mean=val.mean()
     if mean==None:
         mean=0
     return val, mean 

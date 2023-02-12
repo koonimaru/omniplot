@@ -1,16 +1,5 @@
 """
-Drawing routines to draw graphs.
-
-This module contains routines to draw graphs on:
-
-  - Cairo surfaces (L{DefaultGraphDrawer})
-  - Matplotlib axes (L{MatplotlibGraphDrawer})
-
-It also contains routines to send an igraph graph directly to
-(U{Cytoscape<http://www.cytoscape.org>}) using the
-(U{CytoscapeRPC plugin<http://gforge.nbic.nl/projects/cytoscaperpc/>}), see
-L{CytoscapeGraphDrawer}. L{CytoscapeGraphDrawer} can also fetch the current
-network from Cytoscape and convert it to igraph format.
+This code was copied and mofified from https://igraph.readthedocs.io/en/stable/
 """
 from igraph.configuration import Configuration
 from warnings import warn

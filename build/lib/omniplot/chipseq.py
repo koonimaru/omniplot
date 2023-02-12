@@ -37,6 +37,7 @@ from omniplot.utils import optimal_kmeans
 import time
 import pyranges as pr
 import warnings
+import sys
 def plot_bigwig(files: dict, 
                 bed: Union[str, list], 
                 gff: str,
@@ -473,7 +474,7 @@ def call_superenhancer(bigwig: str,
                        go_analysis: bool=False,
                        gonames: list=["GO_Biological_Process_2021","Reactome_2022","WikiPathways_2019_Human"],
                        sample: str="Sample",
-                       n_jobs: int=12):
+                       n_jobs: int=12)->Dict:
     """
     Find super enhancers and plot an enhancer rank.  
     
@@ -740,7 +741,9 @@ def plot_average(files: dict,
                  clustering: str="",
                  n_clusters: int=5,
                  minval: Optional[float]=None,
-                 orientaion=False):
+                 orientaion=False,
+                 save="",
+                 n_jobs: int=-1):
     """
     Plotting bigwig files centered at peak regions.  
     
@@ -821,9 +824,8 @@ def plot_average(files: dict,
     
     for i, sample in enumerate(order):
         bigwig=files[sample]
-        bw=pwg.open(bigwig)
         data[sample]=[]
-        vals, mean=zip(*Parallel(n_jobs=-1, prefer="threads")(delayed(read_and_reshape_bw)(chrom, s, e, bw, binsize) for chrom, s, e in pos))
+        vals, mean=zip(*Parallel(n_jobs=n_jobs, prefer="threads")(delayed(read_and_reshape_bw)(chrom, s, e, bigwig, binsize) for chrom, s, e in pos))
         
         
         data[sample]=np.nan_to_num(vals)
@@ -885,7 +887,7 @@ def plot_average(files: dict,
             _labels=np.array(labels)[sortindex]
             sortindex2=np.argsort(_labels)
             vals=vals[sortindex2]
-            pos=[sortindex2]
+            _pos=pos[sortindex2]
             _labels=_labels[sortindex2]
             _labels=_labels[plotindex]
             ulabel, clabel=np.unique(_labels, return_counts=True)
@@ -894,15 +896,15 @@ def plot_average(files: dict,
         if np.sum(vals)<=10**-6:
             raise Exception("Signals may be empty, or you may be using a wrong bed file.")
         if np.amax(vals) <= 1  and np.amin(vals)>=0:
-            im=ax.imshow(vals,aspect="auto", cmap=palette, interpolation="none",norm=LogNorm(vmin=np.quantile(vals,0.05)))
+            im=ax.imshow(vals,aspect="auto", cmap=palette, interpolation="none",norm=LogNorm(vmin=0.00001))
         elif np.amin(vals) < 0:
             vals=np.where(vals < 0, 0, vals)
             warnings.warn("The bigwig contains negative values. Is this coverage file?")
-            im=ax.imshow(vals,aspect="auto", cmap=palette, interpolation="none",norm=LogNorm(vmin=np.quantile(vals,0.05)))
+            im=ax.imshow(vals,aspect="auto", cmap=palette, interpolation="none",norm=LogNorm(vmin=1))
         elif minval!=None:
             im=ax.imshow(vals,aspect="auto", cmap=palette, interpolation="none",norm=LogNorm(vmin=minval))
         else:
-            im=ax.imshow(vals,aspect="auto", cmap=palette, interpolation="none",norm=LogNorm(vmin=np.quantile(vals,0.05)))
+            im=ax.imshow(vals,aspect="auto", cmap=palette, interpolation="none",norm=LogNorm(vmin=1))
         
         
         
@@ -928,6 +930,8 @@ def plot_average(files: dict,
                 isep+=1
         ax.set_yticks([])
         ax.grid(False)
+    if save !="":
+        plt.savefig(save+"_heatmap.pdf")
     fig, axes2=plt.subplots(ncols=len(order), figsize=[4*len(order), 3])
     if len(order)==1:
         axes2=[axes2]
@@ -964,12 +968,14 @@ def plot_average(files: dict,
     
     for ax in axes2:
         ax.set_ylim(0, maxval*1.05)
-    
-    return {"values":data,"potisons":pos,"labels":labels, "axes":axes,"axes2":axes2}
+    if save !="":
+        plt.savefig(save+"_average.pdf")
+    return {"values":data,"potisons":_pos,"labels":labels, "axes":axes,"axes2":axes2}
 
 
 
-def plot_genebody(files: dict, 
+def plot_genebody(files: dict,
+                files_minus: Optional[dict]=None,
                  bed: Union[list, str]="",
                  gff: str="",
                  centered_at: str="TSS", 
@@ -978,7 +984,8 @@ def plot_genebody(files: dict,
                  palette: str="coolwarm",
                  binsize: int=10,
                  clustering: str="",
-                 n_clusters: int=5):
+                 n_clusters: int=5,
+                 save: str="",lognorm=True,n_jobs=-1)-> Dict:
 
     """
     Plotting bigwig files around gene bodies.  
@@ -999,7 +1006,7 @@ def plot_genebody(files: dict,
         the number of clusters for clustering analysis. if you chose kmeans_auto, this option will be ignored.
     Returns
     -------
-        dict {"values":data,"potisons":pos,"labels":labels}
+        dict {"values":data,"potisons":pos,"labels":labels, "axes":axes, "axes2":axes2}
         values: dictionary containing sample names as the keys and signals as the values
         positions: genomic positions sorted by signals displayed in the plot
         labels: list of clustering labels if kmean clustering was performed
@@ -1025,7 +1032,6 @@ def plot_genebody(files: dict,
     chrom_sizes=bw.chroms()
     
     if len(bed)>0 and len(gff)>0:
-        import warnings
         warnings.warn("Ignoring the gff file, since the bed file is provided.")
     oriset=set(["+", "-"])
     bedchroms=set()
@@ -1042,11 +1048,17 @@ def plot_genebody(files: dict,
                 those in the bigwig files are: {}".format(l[0], chrom_sizes.keys())) 
         posplus=[]
         posminus=[]
+        seen=set()
         with open(bed) as fin:
             for l in fin:
                 l=l.split()
                 chrom, s, e, ori=l[0],l[1],l[2],l[-1]
-                chrom, s, e=l[0],l[1],l[2]
+                tmp="_".join([chrom, s, e, ori])
+                if not tmp in seen:
+                    seen.add(tmp)
+                else:
+                    continue
+                
                 bedchroms.add(chrom)
                 if ori=="+":
                     cs=int(s)-extend
@@ -1059,6 +1071,7 @@ def plot_genebody(files: dict,
                     ce=int(e)+extend
                     if cs <0 or chrom_sizes[chrom] < ce:
                         continue
+
                     posminus.append([chrom,cs,ce])
     else:
         posplus=bed[0]
@@ -1074,14 +1087,33 @@ def plot_genebody(files: dict,
     start_time=time.time()
     for i, sample in enumerate(order):
         bigwig=files[sample]
-        bw=pwg.open(bigwig)
+        #bw=pwg.open(bigwig)
+        pvals=[]
+        pmean=[]
         data[sample]=[]
+        pvals, pmean=zip(*Parallel(n_jobs=n_jobs)(delayed(read_and_reshape_bw)(chrom, s, e, bigwig, binsize)  for chrom, s, e in posplus))
         
-        pvals, pmean=zip(*Parallel(n_jobs=-1, prefer="threads")(delayed(read_and_reshape_bw)(chrom, s, e, bw, binsize) for chrom, s, e in posplus))
-        mvals, mmean=zip(*Parallel(n_jobs=-1, prefer="threads")(delayed(read_and_reshape_bw)(chrom, s, e, bw, binsize) for chrom, s, e in posminus))
-        data[sample]=pvals+mvals
+        if files_minus!=None:
+            bigwig=files_minus[sample]
+            #bw=pwg.open(bigwig)
+            mvals, mmean=zip(*Parallel(n_jobs=n_jobs)(delayed(read_and_reshape_bw)(chrom, s, e, bigwig, binsize)  for chrom, s, e in posminus))
+        else:
+            mvals, mmean=zip(*Parallel(n_jobs=n_jobs)(delayed(read_and_reshape_bw)(chrom, s, e, bigwig, binsize)  for chrom, s, e in posminus))
+        
+
+        vals=np.nan_to_num(pvals+mvals)
+        print(vals.shape)
+        if i ==0:
+            sums=np.sum(vals, axis=1)
+            remove=sums >np.quantile(sums, 0.1)
+            print(np.sum(remove))
+        vals=vals[remove]
+        #vals=vals.reshape([-1,vals.shape[1]//binsize,binsize]).mean(axis=2)
+        print(np.amax(sums),np.amin(sums),vals.shape)
+        data[sample]=vals
+        
         if i==0:
-            data_mean=pmean+mmean
+            data_mean=np.amax(vals,axis=1)
         # for chrom, s, e in posplus:
         #     val=bw.values(chrom, s, e)
         #     #print(val)
@@ -1140,34 +1172,45 @@ def plot_genebody(files: dict,
         kmean = KMeans(n_clusters=n_clusters, random_state=0,n_init=10)
         kmX=kmean.fit(mat)
         labels=kmX.labels_
-    pos=posplus+posminus
+    pos=np.array(posplus+posminus)[remove]
     #data_mean=np.nan_to_num(data_mean)
     sortindex=np.argsort(data_mean)[::-1]
-    pos=np.array(pos)[sortindex]
-
+    print(sortindex)
+    pos=pos[sortindex]
+    print(pos[:20])
     plotindex=np.arange(0, len(pos), len(pos)//1000)
     fig, axes=plt.subplots(ncols=len(order), figsize=[2*len(order), 6])
+    if len(order)==1:
+        axes=[axes]
     for i, (sample, ax) in enumerate(zip(order, axes)):
         vals=data[sample]
-
+        
         vals=np.array(vals)
-
+        
         vals=vals[sortindex]
+        vals=vals/np.amax(vals, axis=1)[:,None]
+        # ax.plot(vals[0])
+        # plt.show()
+        # sys.exit()
+        #
+
         if clustering!="":
             
             _labels=np.array(labels)[sortindex]
             sortindex2=np.argsort(_labels)
             vals=vals[sortindex2]
-            pos=[sortindex2]
+            _pos=pos[sortindex2]
             _labels=_labels[sortindex2]
             _labels=_labels[plotindex]
             ulabel, clabel=np.unique(_labels, return_counts=True)
 
         vals=vals[plotindex]
-        im=ax.imshow(vals,aspect="auto", cmap=palette, interpolation="none",norm=LogNorm(vmin=np.quantile(vals,0.05)))
-        
-        
-        
+        print(vals.shape)
+        if lognorm==True:
+            
+            im=ax.imshow(vals,aspect="auto", cmap=palette, interpolation="none",norm=LogNorm(vmin=np.amax([1, np.quantile(sums,0.5)])))
+        else:
+            im=ax.imshow(vals,aspect="auto", cmap=palette, interpolation="none")
         cbaxes = fig.add_axes([0.8*(i+1)/len(order), 0.93, 0.03, 0.06]) 
         cb = plt.colorbar(im, cax = cbaxes)
         
@@ -1190,9 +1233,13 @@ def plot_genebody(files: dict,
                 isep+=1
         ax.set_yticks([])
         ax.grid(False)
-    fig, axes=plt.subplots(ncols=len(order), figsize=[4*len(order), 3])
+    if save!="":
+        plt.savefig(save+"_heatmap.pdf")
+    fig, axes2=plt.subplots(ncols=len(order), figsize=[4*len(order), 3])
+    if len(order)==1:
+        axes2=[axes2]
     maxval=0
-    for i, (sample, ax) in enumerate(zip(order, axes)):
+    for i, (sample, ax) in enumerate(zip(order, axes2)):
         vals=data[sample]
         vals=np.array(vals)
         labels=np.array(labels)
@@ -1223,8 +1270,9 @@ def plot_genebody(files: dict,
     
     for ax in axes:
         ax.set_ylim(0, maxval*1.05)
-    
-    return {"values":data,"potisons":pos,"labels":labels}
+    if save!="":
+        plt.savefig(save+"_average.pdf")
+    return {"values":data,"potisons":pos,"labels":labels, "axes":axes, "axes2":axes2}
 
 def plot_bed_correlation(files:dict,
                          method: str="pearson",
@@ -1313,7 +1361,9 @@ def plot_bed_correlation(files:dict,
     
     
     
+def frip_calc():
     
+    pass
     
     
     
@@ -1325,8 +1375,9 @@ if __name__=="__main__":
     
     #test="plot_bigwig"
     test="plot_bed_correlation"
-    test="plot_genebody"
+    
     test="plot_average"
+    test="plot_genebody"
     #test="call_superenhancer"
     import glob
     
@@ -1374,7 +1425,6 @@ if __name__=="__main__":
     elif test=="plot_average":
         
         peak="/media/koh/grasnas/home/data/omniplot/HepG2_KMT2B_ENCFF036WCY_srt.bed"
-        tss="/media/koh/grasnas/home/data/omniplot/gencode.v40.annotation_tss_srt.bed"
         files={"KMT2B":"/media/koh/grasnas/home/data/omniplot/HepG2_KMT2B-human_ENCFF709UTL.bw",
                             "KMT2A":"/media/koh/grasnas/home/data/omniplot/HepG2_KMT2A-human_ENCFF406SHU.bw"}
         plot_average(files=files,
@@ -1384,12 +1434,12 @@ if __name__=="__main__":
         plt.show()
     elif test=="plot_genebody":
 
-        tss="/media/koh/grasnas/home/data/omniplot/gencode.v40.annotation_tss_srt.bed"
-        files={"KMT2B":"/media/koh/grasnas/home/data/omniplot/HepG2_KMT2B-human_ENCFF709UTL.bw",
-                            "KMT2A":"/media/koh/grasnas/home/data/omniplot/HepG2_KMT2A-human_ENCFF406SHU.bw"}
-        plot_genebody(files=files,
-                            bed=tss,
-                            order=["KMT2B",  "KMT2A"],clustering="kmeans"
+        gff="/media/koh/grasnas/home/data/omniplot/gencode.v40.annotation.gff3"
+        files={"adrenal_grand":"/media/koh/grasnas/home/data/omniplot/adrenal_grand_plus_ENCFF809PGE.bigWig"}
+        files_minus={"adrenal_grand":"/media/koh/grasnas/home/data/omniplot/adrenal_grand_minus_ENCFF896WDT.bigWig"}
+        plot_genebody(files=files,files_minus=files_minus,
+                            gff=gff,binsize=1,
+                            order=["adrenal_grand"]#,clustering="kmeans"
                             )
         plt.show()
     #raise NotImplementedError("This function will plot ChIP-seq data.")
