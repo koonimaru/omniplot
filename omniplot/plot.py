@@ -293,7 +293,7 @@ def radialtree(df: pd.DataFrame,
         Matlab colormap name.
     Returns
     -------
-    dict: {"axes":ax}
+    dict: {"axes":ax, "clusters": clusters}
 
     Raises
     ------
