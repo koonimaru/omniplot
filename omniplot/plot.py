@@ -1,16 +1,3 @@
-"""
-           /\   /\
-          / \  / \
-       @@@@@@@@@@@@@@
-      @@@@@@@@@@@@@@@@
-       (  ---  ---   )
-       (   O L  O    )3
-        (   <--->   )
-         `---------'
-        /             \  
-       /  /|        |\ \
-           |        |
-"""
 from typing import Union, Optional, Dict, List
 import matplotlib.collections as mc
 import matplotlib.pyplot as plt
@@ -42,10 +29,10 @@ from itertools import combinations
 import os
 #script_dir = os.path.dirname( __file__ )
 #sys.path.append( script_dir )
-from omniplot.utils import line_annotate, _dendrogram_threshold, _radialtree2,_get_cluster_classes,_calc_curveture, draw_ci_pi,calc_r2,ci_pi
+from omniplot.utils import _line_annotate, _dendrogram_threshold, _radialtree2,_get_cluster_classes,_calc_curveture, _draw_ci_pi,_calc_r2,_ci_pi, _save
 import scipy.stats as stats
 from joblib import Parallel, delayed
-from omniplot.chipseq_utils import calc_pearson
+from omniplot.chipseq_utils import _calc_pearson
 import itertools as it
 
 colormap_list=["nipy_spectral", "terrain","tab20b","tab20c","gist_rainbow","hsv","CMRmap","coolwarm","gnuplot","gist_stern","brg","rainbow","jet"]
@@ -1631,7 +1618,7 @@ def clusterplot(df,category: Union[List[str], str]="",
               eps: Union[List[float], float]=0.5,
               pcacomponent: Optional[int]=None,
               ztranform=True,
-              palette=["Spectral","cubehelix"],**kwargs):
+              palette=["Spectral","cubehelix"],save: str="",**kwargs)->Dict:
     """
     Clustering data and draw them as a scatter plot optionally with dimensionality reduction.  
     
@@ -1745,6 +1732,8 @@ def clusterplot(df,category: Union[List[str], str]="",
         plt.legend()
         print("Top two optimal cluster No are: {}, {}".format(K[srtindex[0]],K[srtindex[1]]))
         n_clusters=[K[srtindex[0]],K[srtindex[1]]]
+        
+        _save(save)
     elif n_clusters=="auto" and method=="hierarchical":
         import scipy.spatial.distance as ssd
         
@@ -1937,7 +1926,7 @@ def regression_single(df,
                       category: str="", 
                       figsize: List[int]=[5,5],
                       show=False, ransac_param={"max_trials":1000},
-                      robust_param={}) -> plt.Axes:
+                      robust_param={}) -> Dict:
     """
     Drawing a scatter plot with a single variable linear regression.  
     
@@ -1963,10 +1952,10 @@ def regression_single(df,
     
     Returns
     -------
-    ax: plt.Axes
-        axis object
-    dict: dict
-    z    dictionary containing estimated parameters
+    dict: dict {"axes":ax, "coefficient":coef,"intercept":intercept,"coefficient_pval":coef_p, "r2":r2, "fitted_model":fitted_model}
+    
+        fitted_model:
+            this can be used like: y_predict=fitted_model.predict(_X)
     Raises
     ------
     Notes
@@ -2004,7 +1993,7 @@ def regression_single(df,
                                 # number of samples
         y_model=fitted_model.predict(_X)
 
-        r2 = calc_r2(X,Y)
+        r2 = _calc_r2(X,Y)
         # mean squared error
         MSE = 1/n * np.sum( (Y - y_model)**2 )
         
@@ -2012,13 +2001,13 @@ def regression_single(df,
         x_line = plotline_X.flatten()
         y_line = fit_df["ransac_regression"]
          
-        ci, pi, std_error=ci_pi(X,Y,plotline_X.flatten(),y_model)
+        ci, pi, std_error=_ci_pi(X,Y,plotline_X.flatten(),y_model)
         q=((X-X.mean()).transpose() @ (X-X.mean()))
         sigma=std_error*(q**-1)**(0.5)
         coef_p=stats.t.sf(abs(fitted_model.estimator_.coef_[0]/sigma), df=X.shape[0]-2)
         ############### Ploting
 
-        draw_ci_pi(ax, ci, pi,x_line, y_line)
+        _draw_ci_pi(ax, ci, pi,x_line, y_line)
         sns.scatterplot(x=X[inlier_mask], y=Y[inlier_mask], color="blue", label="Inliers")
         sns.scatterplot(x=X[outlier_mask], y=Y[outlier_mask], color="red", label="Outliers")
         plt.xlabel(x)
@@ -2032,7 +2021,7 @@ def regression_single(df,
         if len(category)!=0:
             fig, ax=plt.subplots(figsize=figsize)
             plt.subplots_adjust(left=0.15)
-            draw_ci_pi(ax, ci, pi,x_line, y_line)
+            _draw_ci_pi(ax, ci, pi,x_line, y_line)
             sns.scatterplot(data=df,x=x, y=y, hue=category)
             
             plt.xlabel(x)
@@ -2054,14 +2043,14 @@ def regression_single(df,
         intercept_p=fitted_model.pvalues[0]
         coef_p=fitted_model.pvalues[1]
         y_model=fitted_model.predict(sm.add_constant(X))
-        r2 = calc_r2(X,Y)
+        r2 = _calc_r2(X,Y)
         x_line = plotline_X.flatten()
         y_line = fitted_model.predict(sm.add_constant(x_line))
         
-        ci, pi,std_error=ci_pi(X,Y,plotline_X.flatten(),y_model)
+        ci, pi,std_error=_ci_pi(X,Y,plotline_X.flatten(),y_model)
         MSE = 1/n * np.sum( (Y - y_model)**2 )
 
-        draw_ci_pi(ax, ci, pi,x_line, y_line)
+        _draw_ci_pi(ax, ci, pi,x_line, y_line)
         sns.scatterplot(data=df,x=x, y=y, color="blue")
         #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
         plt.title("Robust linear regression, r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x , p-values: coefficient {:.2f}, \
@@ -2073,7 +2062,7 @@ def regression_single(df,
         if len(category)!=0:
             fig, ax=plt.subplots(figsize=figsize)
             plt.subplots_adjust(left=0.15)
-            draw_ci_pi(ax, ci, pi,x_line, y_line)
+            _draw_ci_pi(ax, ci, pi,x_line, y_line)
             sns.scatterplot(data=df,x=x, y=y, hue=category)
             #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
             plt.title("Robust linear regression, r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x , p-values: coefficient {:.2f}, \
@@ -2094,17 +2083,17 @@ def regression_single(df,
         coef=fitted_model.params[1]
         intercept=fitted_model.params[0]
         y_model=fitted_model.predict(sm.add_constant(X))
-        r2 = calc_r2(X,Y)
+        r2 = _calc_r2(X,Y)
         x_line = plotline_X.flatten()
         y_line = fitted_model.predict(sm.add_constant(x_line))
-        ci, pi, std_error=ci_pi(X,Y,plotline_X.flatten(),y_model)
+        ci, pi, std_error=_ci_pi(X,Y,plotline_X.flatten(),y_model)
         q=((X-X.mean()).transpose() @ (X-X.mean()))
         sigma=std_error*(q**-1)**(0.5)
         print(sigma,coef )
         coef_p=stats.t.sf(abs(coef/sigma), df=X.shape[0]-2)
         MSE = 1/n * np.sum( (Y - y_model)**2 )
 
-        draw_ci_pi(ax, ci, pi,x_line, y_line)   
+        _draw_ci_pi(ax, ci, pi,x_line, y_line)   
         sns.scatterplot(data=df,x=x, y=y, color="blue")
         #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
         plt.title("OLS ({}), r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x, coefficient p-value: {:.2E}".format(method,
@@ -2115,7 +2104,7 @@ def regression_single(df,
         if len(category)!=0:
             fig, ax=plt.subplots(figsize=figsize)
             plt.subplots_adjust(left=0.15)
-            draw_ci_pi(ax, ci, pi,x_line, y_line)
+            _draw_ci_pi(ax, ci, pi,x_line, y_line)
             sns.scatterplot(data=df,x=x, y=y, color="blue",hue=category)
             #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
             plt.title("OLS ({}), r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x, coefficient p-value: {:.2E}".format(method,
@@ -2123,7 +2112,7 @@ def regression_single(df,
                 )
             )
             plt.plot(plotline_X.flatten(),y_line)
-    return ax, {"coefficient":coef,"intercept":intercept,"coefficient_pval":coef_p, "r2":r2, "fitted_model":fitted_model}
+    return {"axes":ax, "coefficient":coef,"intercept":intercept,"coefficient_pval":coef_p, "r2":r2, "fitted_model":fitted_model}
 
 
 def violinplot(df, 
@@ -2418,7 +2407,7 @@ def stacked_barplot(df: pd.DataFrame,
                     if r[1]<0:
                         angle= -angle
                     print(angle)
-                    line_annotate( "mlp="+str(np.round(-np.log10(pval), decimals=1)), line, (idx1+idx2)/2, color="magenta")
+                    _line_annotate( "mlp="+str(np.round(-np.log10(pval), decimals=1)), line, (idx1+idx2)/2, color="magenta")
                     # plt.text((idx1+idx2)/2, 0.5*(he1/2+bot1+he2/2+bot2), "mlp="+str(np.round(-np.log10(pval), decimals=1)), 
                     #          color="magenta", va="center",ha="center", rotation=360*angle/(2*np.pi),)
                     # plt.annotate("mlp="+str(np.round(-np.log10(pval), decimals=1)),[(r1[0]+r2[0])/2, 0.5*(r1[1]+r2[1])],   
@@ -2498,7 +2487,7 @@ def correlation(df: pd.DataFrame, category: Union[str, list]=[],
     if ztransform==True:
         X=zscore(X, axis=0)
     if method=="pearson":
-        dmat=Parallel(n_jobs=-1)(delayed(calc_pearson)(ind, X) for ind in list(it.combinations(range(X.shape[0]), 2)))
+        dmat=Parallel(n_jobs=-1)(delayed(_calc_pearson)(ind, X) for ind in list(it.combinations(range(X.shape[0]), 2)))
         dmat=np.array(dmat)
         dmat=squareform(dmat)
         print(dmat)

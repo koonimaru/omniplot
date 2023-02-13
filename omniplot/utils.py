@@ -109,7 +109,7 @@ class LineAnnotation(Annotation):
         super().update_positions(renderer)
 
 
-def line_annotate(text, line, x, *args, **kwargs):
+def _line_annotate(text, line, x, *args, **kwargs):
     """Add a sloped annotation to *line* at position *x* with *text*
 
     Optionally an arrow pointing from the text to the graph at *x* can be drawn.
@@ -132,7 +132,7 @@ def line_annotate(text, line, x, *args, **kwargs):
     ax.add_artist(a)
     return a
 
-def baumkuchen(ax, start, theta, rin, rout,res, _color):
+def _baumkuchen(ax, start, theta, rin, rout,res, _color):
     move=np.linspace(0, theta,res)
     xf=np.concatenate([rin*np.cos(start+move),[rin*np.cos(start+theta),rout*np.cos(start+theta)],rout*np.cos(start+move)[::-1],[rin*np.cos(start),rout*np.cos(start)][::-1]])
     yf=np.concatenate([rin*np.sin(start+move),[rin*np.sin(start+theta),rout*np.sin(start+theta)],rout*np.sin(start+move)[::-1],[rin*np.sin(start),rout*np.sin(start)][::-1]])
@@ -642,7 +642,7 @@ def _radialtree2(Z2,fontsize: int=8,
                 theta=(2*np.pi/360)*((_rotr*0.5+_rot*0.5)-(_rotl*0.5+_rot*0.5))
                 #print(start, theta,_rotl, _rotr)
                 #print(start, theta, innerrad, outerrad,10, _colorlist[i])
-                baumkuchen(ax, start, theta, innerrad, outerrad,10, _colorlist[i])
+                _baumkuchen(ax, start, theta, innerrad, outerrad,10, _colorlist[i])
                 
             # patches, texts =plt.pie(colorpos, colors=_colorlist,
             #         radius=outerrad,
@@ -761,7 +761,7 @@ def _complex_clustermap(df,row_plot=[],col_plot=[],approx_clusternum=10,color_va
         plt.show()
     return pd.DataFrame(cdata), g
 
-def calc_r2(X,Y):
+def _calc_r2(X,Y):
     x_mean = np.mean(X)
     y_mean = np.mean(Y)
     numerator = np.sum((X - x_mean)*(Y - y_mean))
@@ -770,7 +770,7 @@ def calc_r2(X,Y):
     r2 = correlation_coef**2
     return r2
 
-def ci_pi(X: np.ndarray,Y: np.ndarray, plotline_X: np.ndarray, y_model: np.ndarray) -> list:
+def _ci_pi(X: np.ndarray,Y: np.ndarray, plotline_X: np.ndarray, y_model: np.ndarray) -> list:
     x_mean = np.mean(X)
     y_mean = np.mean(Y)
     n = X.shape[0]                        # number of samples
@@ -789,7 +789,7 @@ def ci_pi(X: np.ndarray,Y: np.ndarray, plotline_X: np.ndarray, y_model: np.ndarr
     # predicting interval
     pi = t * std_error * (1 + 1/n + (x_line - x_mean)**2 / np.sum((X - x_mean)**2))**.5
     return ci, pi,std_error
-def draw_ci_pi(ax: plt.Axes, 
+def _draw_ci_pi(ax: plt.Axes, 
                ci: np.ndarray, 
                pi: np.ndarray,
                x_line: np.ndarray, 
@@ -809,7 +809,7 @@ def draw_ci_pi(ax: plt.Axes,
                     alpha=0.5)
     
 from sklearn.cluster import KMeans
-def optimal_kmeans(X: Union[np.ndarray, list], testrange: list, topn: int=2)-> List[int]:
+def _optimal_kmeans(X: Union[np.ndarray, list], testrange: list, topn: int=2)-> List[int]:
     Sum_of_squared_distances = []
     K = list(range(*testrange))
     for k in K:

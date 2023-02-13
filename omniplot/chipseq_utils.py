@@ -21,7 +21,7 @@ import pickle
 import os
 
 #from cython_utils import chipseq_utils
-def range_diff(r1, r2):
+def _range_diff(r1, r2):
     s1, e1 = r1
     s2, e2 = r2
     endpoints = sorted((s1, s2, e1, e2))
@@ -32,9 +32,9 @@ def range_diff(r1, r2):
         result.append((endpoints[2], endpoints[3]))
     return result
 
-def multirange_diff(r1_list, r2_list):
+def _multirange_diff(r1_list, r2_list):
     for r2 in r2_list:
-        r1_list = list(itertools.chain(*[range_diff(r1, r2) for r1 in r1_list]))
+        r1_list = list(itertools.chain(*[_range_diff(r1, r2) for r1 in r1_list]))
     return r1_list
 
 class gff_parser():
@@ -226,7 +226,7 @@ class gff_parser():
                 genes_peaks.append([chrom, s, e, ",".join(list(_closest)), ",".join(map(str, list(_dist)))])
         return genes_peaks
     
-def calc_pearson2(_ind, _mat):
+def _calc_pearson2(_ind, _mat):
     _a, _b=_mat[_ind[0]], _mat[_ind[1]]
     _af=_a>np.quantile(_a, 0.75)
     _bf=_b>np.quantile(_b, 0.75)
@@ -237,13 +237,13 @@ def calc_pearson2(_ind, _mat):
     _b=_b[filt]
     p=scipy.stats.pearsonr(_a, _b)[0]
     return p
-def calc_pearson(_ind, _mat):
+def _calc_pearson(_ind, _mat):
     p=scipy.stats.pearsonr(_mat[_ind[0]], _mat[_ind[1]])[0]
     #p=scipy.stats.spearmanr(_mat[_ind[0]], _mat[_ind[1]])[0]
     #p=distance.cdist([_mat[_ind[0]]], [_mat[_ind[1]]])[0][0]
     return p
 
-def read_bw(f, chrom, chrom_size, step):
+def _read_bw(f, chrom, chrom_size, step):
         bw=pwg.open(f)
         val=np.array(bw.values(chrom,0,chrom_size))
         rem=chrom_size%step
@@ -251,7 +251,7 @@ def read_bw(f, chrom, chrom_size, step):
         val=np.nan_to_num(val)
         val=val.reshape([-1,step]).mean(axis=1)
         return val
-def read_peaks(peakfile):
+def _read_peaks(peakfile):
     peaks={}
     with open(peakfile) as fin:
         for l in fin:
@@ -261,7 +261,7 @@ def read_peaks(peakfile):
             peaks[l[0]].append([int(l[1]),int(l[2])])
     return peaks
 
-def stitching(peakfile, stitchdist):
+def _stitching(peakfile, stitchdist):
     speaks={}
     
     for chrom, intervals in peakfile.items():
@@ -279,7 +279,7 @@ def stitching(peakfile, stitchdist):
         speaks[chrom]=stack
     return speaks
 
-def stitching_for_pyrange(peakfile, stitchdist):
+def _stitching_for_pyrange(peakfile, stitchdist):
     speaks={"Chromosome":[],"Start":[],"End":[]}
     
     for chrom, intervals in peakfile.items():
@@ -301,7 +301,7 @@ def stitching_for_pyrange(peakfile, stitchdist):
         #speaks[chrom]=stack
     return speaks
 
-def read_tss(tss, tss_dist):
+def _read_tss(tss, tss_dist):
     tss_pos={}
     with open(tss) as fin:
         for l in fin:
@@ -318,7 +318,7 @@ def read_tss(tss, tss_dist):
             
     return tss_pos
 
-def interval_subtraction(list1, list2):
+def _interval_subtraction(list1, list2):
     t = IntervalTree([Interval(s, e) for s, e in list1])
 
     newt=Parallel(n_jobs=-1)(delayed(t.chop)(s, e) for s, e in list2)
@@ -329,14 +329,14 @@ def interval_subtraction(list1, list2):
             _newt.append(val)
     newt=sorted(_newt)
     return [[_t.begin, _t.end] for _t in newt]
-def remove_close_to_tss(stitched, tss_pos):
+def _remove_close_to_tss(stitched, tss_pos):
     _stitched={}
     chroms=stitched.keys()
     # tmp=[]
     # for chrom in chroms:
     #     tmp.extend(interval_subtraction(stitched[chrom], tss_pos[chrom]))
     # print(tmp[:10])
-    tmp=Parallel(n_jobs=-1)(delayed(multirange_diff)(stitched[chrom], tss_pos[chrom]) for chrom in chroms)
+    tmp=Parallel(n_jobs=-1)(delayed(_multirange_diff)(stitched[chrom], tss_pos[chrom]) for chrom in chroms)
     _stitched={chrom: _tmp for chrom, _tmp in zip(chroms,tmp) }
     # for chrom, se in stitched.items():
     #
@@ -379,7 +379,7 @@ def remove_close_to_tss(stitched, tss_pos):
     #         _stitched[chrom].append([_s,_e])
     return _stitched
 
-def find_extremes(signals, pos):
+def _find_extremes(signals, pos):
     signals=np.array(signals)
     srt=np.argsort(signals)
     signals=signals[srt]
@@ -401,7 +401,7 @@ def find_extremes(signals, pos):
     
     return x, y, pos, index, srt
 
-def readgff(_gff, _kind, tss_dist):
+def _readgff(_gff, _kind, tss_dist):
     gff_dict={"Chromosome":[], "Start": [], "End": []}
     with open(_gff) as fin:
         for l in fin:
@@ -421,7 +421,7 @@ def readgff(_gff, _kind, tss_dist):
                 gff_dict["End"].append(e+tss_dist)
     return gff_dict
 
-def readgtf(_gff, _kind,tss_dist):
+def _readgtf(_gff, _kind,tss_dist):
     gff_dict={"Chromosome":[], "Start": [], "End": []}
     with open(_gff) as fin:
         for l in fin:
@@ -441,7 +441,7 @@ def readgtf(_gff, _kind,tss_dist):
                 gff_dict["End"].append(e+tss_dist)
     return gff_dict
 
-def readgff2(_gff, _kind, others=[]):
+def _readgff2(_gff, _kind, others=[]):
     gff_dict={"Chromosome":[], "Start": [], "End": []}
     for other in others:
         gff_dict[other]=[]
@@ -471,7 +471,7 @@ def readgff2(_gff, _kind, others=[]):
                     gff_dict[other].append(ori)
     return gff_dict
 
-def readgff_transcripts(_gff, _extend, avoid="chrM"):
+def _readgff_transcripts(_gff, _extend, avoid="chrM"):
     
     transcripts={"+":{},"-":{}}
     
@@ -539,7 +539,7 @@ def readgff_transcripts(_gff, _extend, avoid="chrM"):
                     i+=1
     return _transcripts
 
-def readgtf2(_gff, _kind, others=[]):
+def _readgtf2(_gff, _kind, others=[]):
     gff_dict={"Chromosome":[], "Start": [], "End": []}
     for other in others:
         gff_dict[other]=[]
@@ -571,7 +571,7 @@ def readgtf2(_gff, _kind, others=[]):
                     gff_dict[other].append(ori)
     return gff_dict
 
-def read_and_reshape_bw(chrom, s, e, _bw, binsize):
+def _read_and_reshape_bw(chrom, s, e, _bw, binsize):
     bw=pwg.open(_bw)
     val=bw.values(chrom, s, e)
     #print(val)
@@ -589,13 +589,13 @@ def read_and_reshape_bw(chrom, s, e, _bw, binsize):
     #     mean=0
     return val, mean 
 
-def read_bw_stats(chrom, s, e, _bw):
+def _read_bw_stats(chrom, s, e, _bw):
     bw=pwg.open(_bw)
     val=bw.stats(chrom, s, e)[0]
     if val==None:
         val=0
     return val 
-def read_and_reshape_np(s, e, bw, binsize):
+def _read_and_reshape_np(s, e, bw, binsize):
     val=bw[s:e]
     #print(val)
     val=np.array(val)
@@ -607,13 +607,13 @@ def read_and_reshape_np(s, e, bw, binsize):
         mean=0
     return val, mean
 
-def flatten_gen_comp(lst: List[Any]) -> Iterable[Any]:
+def _flatten_gen_comp(lst: List[Any]) -> Iterable[Any]:
                 """Flatten a list using generators comprehensions."""
                 return (item
                         for sublist in lst
                         for item in sublist)
                 
-def read_transcripts(_bw, _pos, binsize, extend):
+def _read_transcripts(_bw, _pos, binsize, extend):
     expected=2*extend//binsize
     bw=pwg.open(_bw)
     vals=[]
@@ -625,7 +625,7 @@ def read_transcripts(_bw, _pos, binsize, extend):
         vals.append(val)
         
     #print(val)
-    val=np.nan_to_num(list(flatten_gen_comp(vals)))
+    val=np.nan_to_num(list(_flatten_gen_comp(vals)))
     
     
     
