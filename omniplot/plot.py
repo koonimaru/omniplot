@@ -687,8 +687,7 @@ def complex_clustermap(df: pd.DataFrame,
         The title for color values. If not set, "color_val" will be used.
     Returns
     -------
-        dict 
-        {"row_clusters":pd.DataFrame,"col_clusters":pd.DataFrame, "grid":g}
+        dict: {"row_clusters":pd.DataFrame,"col_clusters":pd.DataFrame, "grid":g}
     Raises
     ------
     Notes
@@ -2460,12 +2459,57 @@ def nice_piechart(df: pd.DataFrame,
     plt.tight_layout(h_pad=1)
     plt.subplots_adjust(top=0.9)
     return axes
-def correlation(df: pd.DataFrame, category: Union[str, list]=[],
+def correlation(df: pd.DataFrame, 
+                category: Union[str, list]=[],
                 method="pearson",
-                palette: str="coolwarm",figsize=[6,6],show_val=False,clustermap_param:dict={},ztransform: bool=True,
+                palette: str="coolwarm",
+                figsize=[6,6],
+                show_val=False,
+                clustermap_param:dict={},
+                ztransform: bool=True,
                 xticklabels =False,
                 yticklabels=False):
+    """
+    Drawing a heatmap with correlations or distances between observations 
     
+    Parameters
+    ----------
+    df : pandas DataFrame
+        
+    category: str or list, optional
+        the names of categorical values to display as color labels
+    mthod: str
+        method for correlation/distance calculation. Defalt: "pearson"
+        
+    palette : str
+        A colormap name
+    show_val: bool, optional
+        Wheter to exhibit the values of fractions/counts/percentages.
+    
+    clustermap_param : dict, optional
+        Whether or not to show the figure.
+    
+    figsize : List[int], optional
+        The figure size, e.g., [4, 6].
+    ztransform : bool, optional
+        Whether to transform values to z-score
+    xticklabels, yticklabels : bool
+        Whether to show the label names in the heatmap
+    Returns
+    -------
+    dict
+    
+    Raises
+    ------
+    Notes
+    -----
+    References
+    ----------
+    See Also
+    --------
+    Examples
+    --------
+    """
     original_index=df.index
     
     if len(category) !=0:
@@ -2498,7 +2542,13 @@ def correlation(df: pd.DataFrame, category: Union[str, list]=[],
         colnames=dfm.columns
         for cat in category:
             dfm[cat]=df[cat].values
-        res=complex_clustermap(dfm,heatmap_col=colnames, row_colors=category,ztranform=False,xticklabels=xticklabels,yticklabels=yticklabels,figsize=figsize)
+        res=complex_clustermap(dfm,
+                               heatmap_col=colnames, 
+                               row_colors=category,
+                               ztranform=False,
+                               xticklabels=xticklabels,
+                               yticklabels=yticklabels,
+                               figsize=figsize)
         return res
     else:
         
