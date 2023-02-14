@@ -687,8 +687,7 @@ def _radialtree2(Z2,fontsize: int=8,
     plt.subplots_adjust(left=0.05, right=0.75)
     if show==True:
         plt.show()
-    else:
-        return ax
+    return ax
 
 
 def _complex_clustermap(df,row_plot=[],col_plot=[],approx_clusternum=10,color_var=0,merginalsum=False,show=True,method="ward", **kwargs):

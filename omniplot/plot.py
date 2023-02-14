@@ -261,17 +261,17 @@ def dotplot(df: pd.DataFrame,
     #plt.tight_layout()
     plt.subplots_adjust(left=0.3,bottom=0.2)
     #plt.tight_layout()
-    if save!="":
-        plt.savefig(save+".svg")
+    _save(save, "dotplot")
     if show==True:
         plt.show()
-    else:
-        return {"ax1":ax1,"ax2":ax2,"ax3":ax3}
+    return {"ax1":ax1,"ax2":ax2,"ax3":ax3}
 
 
-def radialtree(df: pd.DataFrame,n_clusters: int=3,
+def radialtree(df: pd.DataFrame,
+               n_clusters: int=3,
                category: Union[str, List[str]]=[], 
-               save: str="", **kwargs) -> plt.Axes:
+               save: str="", 
+               **kwargs) -> Dict:
     """
     Drawing a radial dendrogram with color labels.
     
@@ -293,7 +293,7 @@ def radialtree(df: pd.DataFrame,n_clusters: int=3,
         Matlab colormap name.
     Returns
     -------
-    axes: ax
+    dict: {"axes":ax, "clusters": clusters}
 
     Raises
     ------
@@ -328,12 +328,9 @@ def radialtree(df: pd.DataFrame,n_clusters: int=3,
                         color_threshold=t,no_plot=True)
     sample_classes={k: list(category_df[k]) for k in category_df.columns}
     ax=_radialtree2(Z, sample_classes=sample_classes,addlabels=False, **kwargs)
-    if save !="":
-        if not save.endswith(".pdf") or not save.endswith(".png") or not not save.endswith(".svg"):
-            plt.savefig(save+"_radialtree.pdf")
-        else:
-            plt.savefig(save)
-    return ax
+    _save(save, "radialtree")
+    clusters = _get_cluster_classes(Z)
+    return {"axes":ax, "clusters":clusters}
 
 # def _complex_clustermap(df: pd.DataFrame,
 #                        row_colormap: dict={},
@@ -690,8 +687,7 @@ def complex_clustermap(df: pd.DataFrame,
         The title for color values. If not set, "color_val" will be used.
     Returns
     -------
-        dict 
-        {"row_clusters":pd.DataFrame,"col_clusters":pd.DataFrame, "grid":g}
+        dict: {"row_clusters":pd.DataFrame,"col_clusters":pd.DataFrame, "grid":g}
     Raises
     ------
     Notes
@@ -1115,11 +1111,10 @@ def complex_clustermap(df: pd.DataFrame,
             plt.savefig(save+"_complexheatmap.pdf")
     if show:
         plt.show()
+    if return_col_cluster==True:
+        return {"row_clusters":pd.DataFrame(cdata),"col_clusters":pd.DataFrame(col_cdata), "grid":g}
     else:
-        if return_col_cluster==True:
-            return {"row_clusters":pd.DataFrame(cdata),"col_clusters":pd.DataFrame(col_cdata), "grid":g}
-        else:
-            return {"row_clusters":pd.DataFrame(cdata),"col_clusters":None, "grid":g}
+        return {"row_clusters":pd.DataFrame(cdata),"col_clusters":None, "grid":g}
 
 def triangle_heatmap(df, 
                      grid_pos: list=[],
@@ -2464,12 +2459,57 @@ def nice_piechart(df: pd.DataFrame,
     plt.tight_layout(h_pad=1)
     plt.subplots_adjust(top=0.9)
     return axes
-def correlation(df: pd.DataFrame, category: Union[str, list]=[],
+def correlation(df: pd.DataFrame, 
+                category: Union[str, list]=[],
                 method="pearson",
-                palette: str="coolwarm",figsize=[6,6],show_val=False,clustermap_param:dict={},ztransform: bool=True,
+                palette: str="coolwarm",
+                figsize=[6,6],
+                show_val=False,
+                clustermap_param:dict={},
+                ztransform: bool=True,
                 xticklabels =False,
                 yticklabels=False):
+    """
+    Drawing a heatmap with correlations or distances between observations 
     
+    Parameters
+    ----------
+    df : pandas DataFrame
+        
+    category: str or list, optional
+        the names of categorical values to display as color labels
+    mthod: str
+        method for correlation/distance calculation. Defalt: "pearson"
+        
+    palette : str
+        A colormap name
+    show_val: bool, optional
+        Wheter to exhibit the values of fractions/counts/percentages.
+    
+    clustermap_param : dict, optional
+        Whether or not to show the figure.
+    
+    figsize : List[int], optional
+        The figure size, e.g., [4, 6].
+    ztransform : bool, optional
+        Whether to transform values to z-score
+    xticklabels, yticklabels : bool
+        Whether to show the label names in the heatmap
+    Returns
+    -------
+    dict
+    
+    Raises
+    ------
+    Notes
+    -----
+    References
+    ----------
+    See Also
+    --------
+    Examples
+    --------
+    """
     original_index=df.index
     
     if len(category) !=0:
@@ -2502,7 +2542,13 @@ def correlation(df: pd.DataFrame, category: Union[str, list]=[],
         colnames=dfm.columns
         for cat in category:
             dfm[cat]=df[cat].values
-        res=complex_clustermap(dfm,heatmap_col=colnames, row_colors=category,ztranform=False,xticklabels=xticklabels,yticklabels=yticklabels,figsize=figsize)
+        res=complex_clustermap(dfm,
+                               heatmap_col=colnames, 
+                               row_colors=category,
+                               ztranform=False,
+                               xticklabels=xticklabels,
+                               yticklabels=yticklabels,
+                               figsize=figsize)
         return res
     else:
         
