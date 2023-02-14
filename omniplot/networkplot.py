@@ -440,7 +440,27 @@ def correlation(df: pd.DataFrame,
         Whether to transform values to z-score
     threshold : float, optional (default: 0.5)
         A cutoff value to remove edges of which correlations/distances are less than this value
-
+    layout_param: dict, optional
+        Networkx layout parameters related to the layout option
+    node_edge_color: str, optional (default: "black")
+        The colors of node edges.
+        
+    edge_color: str, optional (default: "weight")
+        The color of edges. The default will color edges based on the edge weights calculated based on pearson/distance methods.
+    edge_cmap: str, optional (default: "hot")
+        
+    edge_width: Union[str, float]="weight",
+    node_size: float=50,
+    node_alpha: float=0.85,
+    linewidths: float=0.5,
+    n_jobs: int=-1,
+    edges_alpha: float=0.7,
+    edge_width_scaling: float=4,
+    rows_cols: list=[],
+    node_color="b",
+    bundle: bool=True,
+    show_edges: bool=True
+    
     Returns
     -------
     dict

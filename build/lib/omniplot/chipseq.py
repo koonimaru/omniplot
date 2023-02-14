@@ -12,7 +12,7 @@ from joblib import Parallel, delayed
 import itertools as it
 from joblib.externals.loky import get_reusable_executor
 from omniplot.chipseq_utils import (_stitching_for_pyrange, 
-                                    _gff_parser, 
+                                    gff_parser, 
                                     _read_peaks, 
                                     _read_bw, 
                                     _calc_pearson,
@@ -108,9 +108,9 @@ def plot_bigwig(files: dict,
     
     time_start=time.time()
     if gff.endswith("gff") or gff.endswith("gff3"):
-        gff_dict=readgff2(gff, "gene", others=["gene_name", "Strand"])
+        gff_dict=_readgff2(gff, "gene", others=["gene_name", "Strand"])
     elif gff.endswith("gtf"):
-        gff_dict=readgtf2(gff, "transcript", others=["gene_name", "Strand"])
+        gff_dict=_readgtf2(gff, "transcript", others=["gene_name", "Strand"])
     else:
         raise Exception("The gff/gtf file name is required to have either gff, gff3, or gtf extension.")
     gff_ob=pr.from_dict(gff_dict)
@@ -420,11 +420,11 @@ def plot_bigwig_correlation(files: dict,
         #         tmp.append(val)
         #     mat.append(tmp)
         #     samples.append(k)
-        peaks=read_peaks(peakfile)
+        peaks=_read_peaks(peakfile)
         for k, f in files.items():
             bw=pwg.open(f)
             
-            tmp=Parallel(n_jobs=n_jobs)(delayed(read_bw_stats)(chrom, s, e, f) for chrom, s, e in peaks)
+            tmp=Parallel(n_jobs=n_jobs)(delayed(_read_bw_stats)(chrom, s, e, f) for chrom, s, e in peaks)
             mat.append(tmp)
             samples.append(k)
         
@@ -468,7 +468,7 @@ def plot_bigwig_correlation(files: dict,
         raise Exception("please specify chrom or peakfile options.")
     
     mat=np.array(mat)
-    dmat=Parallel(n_jobs=-1)(delayed(calc_pearson)(ind, mat) for ind in list(it.combinations(range(mat.shape[0]), 2)))
+    dmat=Parallel(n_jobs=-1)(delayed(_calc_pearson)(ind, mat) for ind in list(it.combinations(range(mat.shape[0]), 2)))
     dmat=np.array(dmat)
     get_reusable_executor().shutdown(wait=True)
     dmat=squareform(dmat)
@@ -556,18 +556,18 @@ def call_superenhancer(bigwig: str,
     
     bw=pwg.open(bigwig)
     chrom_sizes=bw.chroms()
-    peaks=read_peaks(peakfile)
+    peaks=_read_peaks(peakfile)
     #stitched=stitching(peaks, stitch)
     
     
     if tss_dist != 0:
         start_time=time.time()
-        stitched=pr.from_dict(stitching_for_pyrange(peaks, stitch))
+        stitched=pr.from_dict(_stitching_for_pyrange(peaks, stitch))
         
         if gff.endswith("gff") or gff.endswith("gff3"):
-            gff_dict=readgff(gff, "transcript",tss_dist)
+            gff_dict=_readgff(gff, "transcript",tss_dist)
         elif gff.endswith("gtf"):
-            gff_dict=readgtf(gff, "transcript",tss_dist)
+            gff_dict=_readgtf(gff, "transcript",tss_dist)
         else:
             raise Exception("The gff/gtf file name is required to have either gff, gff3, or gtf extension.")
         gffr=pr.from_dict(gff_dict)
@@ -582,7 +582,7 @@ def call_superenhancer(bigwig: str,
         # tss_pos=read_tss(tss,tss_dist)
         # stitched=remove_close_to_tss(stitched, tss_pos)
     else:
-        stitched=stitching(peaks, stitch)
+        stitched=_stitching(peaks, stitch)
         
         
     """Obtaining closest genes"""
@@ -590,9 +590,9 @@ def call_superenhancer(bigwig: str,
     if closest_genes==True:
         start_time=time.time()
         if gff.endswith("gff") or gff.endswith("gff3"):
-            gff_dict=readgff2(gff, "gene", others=["gene_name"])
+            gff_dict=_readgff2(gff, "gene", others=["gene_name"])
         elif gff.endswith("gtf"):
-            gff_dict=readgtf2(gff, "transcript", others=["gene_name"])
+            gff_dict=_readgtf2(gff, "transcript", others=["gene_name"])
         else:
             raise Exception("The gff/gtf file name is required to have either gff, gff3, or gtf extension.")
         gffr=pr.from_dict(gff_dict)
@@ -641,7 +641,7 @@ def call_superenhancer(bigwig: str,
             mat.append(val)
             pos.append(chrom+":"+str(s)+"-"+str(e))
             
-    x, y, pos, sindex, srt=find_extremes(mat, pos)
+    x, y, pos, sindex, srt=_find_extremes(mat, pos)
     b=-x[sindex]*np.amax(y) +y[sindex]
     print("Finding super enhancer took ", time.time()-start_time, "sec")
     
@@ -859,7 +859,7 @@ def plot_average(files: dict,
     for i, sample in enumerate(order):
         bigwig=files[sample]
         data[sample]=[]
-        vals, mean=zip(*Parallel(n_jobs=n_jobs, prefer="threads")(delayed(read_and_reshape_bw)(chrom, s, e, bigwig, binsize) for chrom, s, e in pos))
+        vals, mean=zip(*Parallel(n_jobs=n_jobs, prefer="threads")(delayed(_read_and_reshape_bw)(chrom, s, e, bigwig, binsize) for chrom, s, e in pos))
         
         
         data[sample]=np.nan_to_num(vals)
@@ -897,7 +897,7 @@ def plot_average(files: dict,
         labels=kmX.labels_
     elif clustering=="kmeans_auto":
         mat=np.array(data[order[0]])
-        optimalclusternum=optimal_kmeans(mat, [2, 10])
+        optimalclusternum=_optimal_kmeans(mat, [2, 10])
         n_clusters=np.amax(optimalclusternum)
         kmean = KMeans(n_clusters=n_clusters, random_state=0,n_init=10)
         kmX=kmean.fit(mat)
@@ -1114,7 +1114,7 @@ def _plot_genebody(files: dict,
             posminus=bed[1]
     
     elif len(gff)>0:
-        transcripts=readgff_transcripts(gff, extend)
+        transcripts=_readgff_transcripts(gff, extend)
     
     
     if len(order)==0:
@@ -1131,13 +1131,13 @@ def _plot_genebody(files: dict,
             pvals=[]
             tids=transcripts["+"].keys()
             tid_list.extend(tids)
-            pvals=Parallel(n_jobs=n_jobs)(delayed(read_transcripts)(bigwig, transcripts["+"][tid], binsize, extend)  for tid in tids)
+            pvals=Parallel(n_jobs=n_jobs)(delayed(_read_transcripts)(bigwig, transcripts["+"][tid], binsize, extend)  for tid in tids)
             print(pvals[:10])
             if files_minus!=None:
                 bigwig=files_minus[sample]
             mvals=[]
             tids=transcripts["-"].keys()
-            mvals=Parallel(n_jobs=n_jobs)(delayed(read_transcripts)(bigwig, transcripts["-"][tid], binsize, extend)  for tid in tids)
+            mvals=Parallel(n_jobs=n_jobs)(delayed(_read_transcripts)(bigwig, transcripts["-"][tid], binsize, extend)  for tid in tids)
             tid_list.extend(tids)
             
         #bw=pwg.open(bigwig)
@@ -1145,14 +1145,14 @@ def _plot_genebody(files: dict,
             pvals=[]
             pmean=[]
             data[sample]=[]
-            pvals, pmean=zip(*Parallel(n_jobs=n_jobs)(delayed(read_and_reshape_bw)(chrom, s, e, bigwig, binsize)  for chrom, s, e in posplus))
+            pvals, pmean=zip(*Parallel(n_jobs=n_jobs)(delayed(_read_and_reshape_bw)(chrom, s, e, bigwig, binsize)  for chrom, s, e in posplus))
             
             if files_minus!=None:
                 bigwig=files_minus[sample]
                 #bw=pwg.open(bigwig)
-                mvals, mmean=zip(*Parallel(n_jobs=n_jobs)(delayed(read_and_reshape_bw)(chrom, s, e, bigwig, binsize)  for chrom, s, e in posminus))
+                mvals, mmean=zip(*Parallel(n_jobs=n_jobs)(delayed(_read_and_reshape_bw)(chrom, s, e, bigwig, binsize)  for chrom, s, e in posminus))
             else:
-                mvals, mmean=zip(*Parallel(n_jobs=n_jobs)(delayed(read_and_reshape_bw)(chrom, s, e, bigwig, binsize)  for chrom, s, e in posminus))
+                mvals, mmean=zip(*Parallel(n_jobs=n_jobs)(delayed(_read_and_reshape_bw)(chrom, s, e, bigwig, binsize)  for chrom, s, e in posminus))
         
         mvals=np.flip(mvals, axis=1)
         vals=np.nan_to_num(np.concatenate([pvals,mvals]))
@@ -1221,7 +1221,7 @@ def _plot_genebody(files: dict,
         labels=kmX.labels_
     elif clustering=="kmeans_auto":
         mat=np.nan_to_num(np.array(data[order[0]]))
-        optimalclusternum=optimal_kmeans(mat, [2, 10])
+        optimalclusternum=_optimal_kmeans(mat, [2, 10])
         n_clusters=np.amax(optimalclusternum)
         kmean = KMeans(n_clusters=n_clusters, random_state=0,n_init=10)
         kmX=kmean.fit(mat)
@@ -1386,7 +1386,7 @@ def plot_bed_correlation(files:dict,
     mat = mat[:, np.any(mat, axis=0)]
     print(mat[:100,:100])
     if method=="pearson":
-        dmat=Parallel(n_jobs=-1)(delayed(calc_pearson)(ind, mat) for ind in list(it.combinations(range(mat.shape[0]), 2)))
+        dmat=Parallel(n_jobs=-1)(delayed(_calc_pearson)(ind, mat) for ind in list(it.combinations(range(mat.shape[0]), 2)))
         dmat=np.array(dmat)
         dmat=squareform(dmat)
         print(dmat)

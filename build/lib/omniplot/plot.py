@@ -1,16 +1,3 @@
-"""
-           /\   /\
-          / \  / \
-       @@@@@@@@@@@@@@
-      @@@@@@@@@@@@@@@@
-       (  ---  ---   )
-       (   O L  O    )3
-        (   <--->   )
-         `---------'
-        /             \  
-       /  /|        |\ \
-           |        |
-"""
 from typing import Union, Optional, Dict, List
 import matplotlib.collections as mc
 import matplotlib.pyplot as plt
@@ -274,17 +261,17 @@ def dotplot(df: pd.DataFrame,
     #plt.tight_layout()
     plt.subplots_adjust(left=0.3,bottom=0.2)
     #plt.tight_layout()
-    if save!="":
-        plt.savefig(save+".svg")
+    _save(save, "dotplot")
     if show==True:
         plt.show()
-    else:
-        return {"ax1":ax1,"ax2":ax2,"ax3":ax3}
+    return {"ax1":ax1,"ax2":ax2,"ax3":ax3}
 
 
-def radialtree(df: pd.DataFrame,n_clusters: int=3,
+def radialtree(df: pd.DataFrame,
+               n_clusters: int=3,
                category: Union[str, List[str]]=[], 
-               save: str="", **kwargs) -> plt.Axes:
+               save: str="", 
+               **kwargs) -> Dict:
     """
     Drawing a radial dendrogram with color labels.
     
@@ -306,7 +293,7 @@ def radialtree(df: pd.DataFrame,n_clusters: int=3,
         Matlab colormap name.
     Returns
     -------
-    axes: ax
+    dict: {"axes":ax, "clusters": clusters}
 
     Raises
     ------
@@ -341,12 +328,9 @@ def radialtree(df: pd.DataFrame,n_clusters: int=3,
                         color_threshold=t,no_plot=True)
     sample_classes={k: list(category_df[k]) for k in category_df.columns}
     ax=_radialtree2(Z, sample_classes=sample_classes,addlabels=False, **kwargs)
-    if save !="":
-        if not save.endswith(".pdf") or not save.endswith(".png") or not not save.endswith(".svg"):
-            plt.savefig(save+"_radialtree.pdf")
-        else:
-            plt.savefig(save)
-    return ax
+    _save(save, "radialtree")
+    clusters = _get_cluster_classes(Z)
+    return {"axes":ax, "clusters":clusters}
 
 # def _complex_clustermap(df: pd.DataFrame,
 #                        row_colormap: dict={},
@@ -703,8 +687,7 @@ def complex_clustermap(df: pd.DataFrame,
         The title for color values. If not set, "color_val" will be used.
     Returns
     -------
-        dict 
-        {"row_clusters":pd.DataFrame,"col_clusters":pd.DataFrame, "grid":g}
+        dict: {"row_clusters":pd.DataFrame,"col_clusters":pd.DataFrame, "grid":g}
     Raises
     ------
     Notes
@@ -1128,11 +1111,10 @@ def complex_clustermap(df: pd.DataFrame,
             plt.savefig(save+"_complexheatmap.pdf")
     if show:
         plt.show()
+    if return_col_cluster==True:
+        return {"row_clusters":pd.DataFrame(cdata),"col_clusters":pd.DataFrame(col_cdata), "grid":g}
     else:
-        if return_col_cluster==True:
-            return {"row_clusters":pd.DataFrame(cdata),"col_clusters":pd.DataFrame(col_cdata), "grid":g}
-        else:
-            return {"row_clusters":pd.DataFrame(cdata),"col_clusters":None, "grid":g}
+        return {"row_clusters":pd.DataFrame(cdata),"col_clusters":None, "grid":g}
 
 def triangle_heatmap(df, 
                      grid_pos: list=[],
@@ -2272,7 +2254,7 @@ def stacked_barplot(df: pd.DataFrame,
                     test_pairs: List[List[str]]=[],
                     show_values: bool=True,
                     show: bool=False,
-                    figsize: List[int]=[4,6]):
+                    figsize: List[int]=[4,6])-> Dict:
     
     """
     Drawing a stacked barplot with or without the fisher's exact test 
@@ -2288,7 +2270,7 @@ def stacked_barplot(df: pd.DataFrame,
     hue_order: list, optional
         The order of hue labels
     scale: str, optional
-        Scaling data
+        Scaling method. Available options are: fraction, percentage, absolute
     test_pairs : pairs of categorical values related to x. It will calculate -log10 (p value) (mlp) of the fisher exact test.
         Examples: [["Adelie","Chinstrap" ],
                     ["Gentoo","Chinstrap" ],
@@ -2317,6 +2299,12 @@ def stacked_barplot(df: pd.DataFrame,
     Examples
     --------
     """
+    
+    if df[x].isnull().values.any():
+        df[x]=df[x].replace(np.nan, "NA")
+    
+    if df[hue].isnull().values.any():
+        df[hue]=df[hue].replace(np.nan, "NA")
     
     data={}
     if len(order)==0:
@@ -2360,7 +2348,7 @@ def stacked_barplot(df: pd.DataFrame,
     bottom=np.zeros([len(keys)])
     cmap=plt.get_cmap("tab20b")
     fig, ax=plt.subplots(figsize=figsize)
-    plt.subplots_adjust(left=0.2,right=0.6)
+    plt.subplots_adjust(left=0.2,right=0.6, bottom=0.17)
     if scale=="absolute":
         unit=""
     elif scale=="fraction":
@@ -2382,7 +2370,7 @@ def stacked_barplot(df: pd.DataFrame,
                 else:
                     plt.text(j,bottom[j]+heights[j]/2,"{:.2f}{}".format(heights[j],unit), 
                          bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="y", lw=1, alpha=0.8))
-        
+        plt.xticks(rotation=90)
         pos[h]={key: [he, bo] for key, he, bo in zip(keys, heights, bottom)}
         bottom+=heights
     ax.legend(loc=[1.01,0])
@@ -2396,6 +2384,7 @@ def stacked_barplot(df: pd.DataFrame,
     ax.set_ylabel(ylabel)
     
     if len(pvals)>0:
+        print("mlp stands for -log10(p value)")
         for i, h in enumerate(hues):
             _pos=pos[h]
             for idx1, idx2, pval in pvals[h]:
@@ -2477,12 +2466,57 @@ def nice_piechart(df: pd.DataFrame,
     plt.tight_layout(h_pad=1)
     plt.subplots_adjust(top=0.9)
     return axes
-def correlation(df: pd.DataFrame, category: Union[str, list]=[],
+def correlation(df: pd.DataFrame, 
+                category: Union[str, list]=[],
                 method="pearson",
-                palette: str="coolwarm",figsize=[6,6],show_val=False,clustermap_param:dict={},ztransform: bool=True,
+                palette: str="coolwarm",
+                figsize=[6,6],
+                show_val=False,
+                clustermap_param:dict={},
+                ztransform: bool=True,
                 xticklabels =False,
                 yticklabels=False):
+    """
+    Drawing a heatmap with correlations or distances between observations 
     
+    Parameters
+    ----------
+    df : pandas DataFrame
+        
+    category: str or list, optional
+        the names of categorical values to display as color labels
+    mthod: str
+        method for correlation/distance calculation. Defalt: "pearson"
+        
+    palette : str
+        A colormap name
+    show_val: bool, optional
+        Wheter to exhibit the values of fractions/counts/percentages.
+    
+    clustermap_param : dict, optional
+        Whether or not to show the figure.
+    
+    figsize : List[int], optional
+        The figure size, e.g., [4, 6].
+    ztransform : bool, optional
+        Whether to transform values to z-score
+    xticklabels, yticklabels : bool
+        Whether to show the label names in the heatmap
+    Returns
+    -------
+    dict
+    
+    Raises
+    ------
+    Notes
+    -----
+    References
+    ----------
+    See Also
+    --------
+    Examples
+    --------
+    """
     original_index=df.index
     
     if len(category) !=0:
@@ -2500,7 +2534,7 @@ def correlation(df: pd.DataFrame, category: Union[str, list]=[],
     if ztransform==True:
         X=zscore(X, axis=0)
     if method=="pearson":
-        dmat=Parallel(n_jobs=-1)(delayed(calc_pearson)(ind, X) for ind in list(it.combinations(range(X.shape[0]), 2)))
+        dmat=Parallel(n_jobs=-1)(delayed(_calc_pearson)(ind, X) for ind in list(it.combinations(range(X.shape[0]), 2)))
         dmat=np.array(dmat)
         dmat=squareform(dmat)
         print(dmat)
@@ -2515,7 +2549,13 @@ def correlation(df: pd.DataFrame, category: Union[str, list]=[],
         colnames=dfm.columns
         for cat in category:
             dfm[cat]=df[cat].values
-        res=complex_clustermap(dfm,heatmap_col=colnames, row_colors=category,ztranform=False,xticklabels=xticklabels,yticklabels=yticklabels,figsize=figsize)
+        res=complex_clustermap(dfm,
+                               heatmap_col=colnames, 
+                               row_colors=category,
+                               ztranform=False,
+                               xticklabels=xticklabels,
+                               yticklabels=yticklabels,
+                               figsize=figsize)
         return res
     else:
         
@@ -2556,7 +2596,7 @@ if __name__=="__main__":
     test="stacked"
     test="dotplot"
     test="regression"
-    test="correlation"
+    test="stacked"
     
     if test=="correlation":
         df=sns.load_dataset("penguins")

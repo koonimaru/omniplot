@@ -11,6 +11,12 @@ from typing import Union, List, Dict, Optional
 from matplotlib.collections import PatchCollection
 from matplotlib.patches import Rectangle
 import pandas as pd
+from omniplot.chipseq_utils import _calc_pearson
+from scipy.stats import zscore
+from joblib import Parallel, delayed
+from scipy.spatial.distance import pdist, squareform
+import itertools as it
+from datashader.bundling import hammer_bundle
 plt.rcParams['font.family']= 'sans-serif'
 plt.rcParams['font.sans-serif'] = ['Arial']
 plt.rcParams['svg.fonttype'] = 'none'
@@ -367,15 +373,281 @@ def sankey_flow(df):
     
     pass
 
-
-def correlation(df):
+def _bundlle_edges(G, pos):
+    #print(G.nodes)
+    nodes_to_int={}
+    i=0
+    for n in G.nodes:
+        nodes_to_int[n]=i
+        i+=1
     
-    pass
+    
+    nodes_py = [[nodes_to_int[name], pos[name][0], pos[name][1]] for name in G.nodes]
+    ds_nodes = pd.DataFrame(nodes_py, columns=['name', 'x', 'y'])       
+    
+    ds_edges_py = [[nodes_to_int[n0], nodes_to_int[n1]] for (n0, n1) in G.edges]
+    ds_edges = pd.DataFrame(ds_edges_py, columns=['source', 'target'])
+    
+    hb = hammer_bundle(ds_nodes, ds_edges)
+    return hb
+    
+
+def correlation(df: pd.DataFrame, 
+                category: Union[str, list]=[],
+                method="pearson",
+                layout: str="spring_layout",
+                palette: str="tab20c",
+                clustering: str="",
+                figsize: list=[],
+                ztransform: bool=True,
+                threshold: Union[float, str]=0.5,
+                layout_param: dict={},
+                node_edge_color: str="black",
+                edge_color: str="weight",
+                edge_cmap: str="hot",
+                edge_width: Union[str, float]="weight",
+                node_size: float=50,
+                node_alpha: float=0.85,
+                linewidths: float=0.5,
+                n_jobs: int=-1,
+                edges_alpha: float=0.7,
+                edge_width_scaling: float=4,
+                rows_cols: list=[],
+                node_color="b",
+                bundle: bool=True,
+                show_edges: bool=True) -> Dict:
+    """
+    Drawing a network based on correlations or distances between observations.
+    Parameters
+    
+    ----------
+    df : pandas DataFrame
+        
+    category: str or list, optional (default: [])
+        the names of categorical values to display as color labels
+    method: str, optional (default: "pearson")
+        method for correlation/distance calculation. Availables: "pearson", "euclidean", "cosine",
+        if a distance method is chosen, sigmoidal function is used to convert distances into edge weights.
+    layout: str, optional
+        Networkx layouts include: pydot_layout, spring_layout, random_layout, circular_layout and so on. Please see https://networkx.org/documentation/stable/reference/drawing.html
+    palette : str, optional (default: "tab20c")
+        A colormap name.
+    clustering: str, optional (default: "")
+        Networkx clustering methods include:  best_partition
+    figsize : List[int], optional
+        The figure size, e.g., [4, 6].
+    ztransform : bool, optional
+        Whether to transform values to z-score
+    threshold : float, optional (default: 0.5)
+        A cutoff value to remove edges of which correlations/distances are less than this value
+    layout_param: dict, optional
+        Networkx layout parameters related to the layout option
+    node_edge_color: str, optional (default: "black")
+        The colors of node edges.
+        
+    edge_color: str, optional (default: "weight")
+        The color of edges. The default will color edges based on the edge weights calculated based on pearson/distance methods.
+    edge_cmap: str, optional (default: "hot")
+        
+    edge_width: Union[str, float]="weight",
+    node_size: float=50,
+    node_alpha: float=0.85,
+    linewidths: float=0.5,
+    n_jobs: int=-1,
+    edges_alpha: float=0.7,
+    edge_width_scaling: float=4,
+    rows_cols: list=[],
+    node_color="b",
+    bundle: bool=True,
+    show_edges: bool=True
+    
+    Returns
+    -------
+    dict
+    
+    Raises
+    ------
+    Notes
+    -----
+    References
+    ----------
+    See Also
+    --------
+    Examples
+    --------
+    """
+    
+    original_index=list(df.index)
+    if len(category) !=0:
+
+        if type(category)==str:
+            category=[category]
+        #df=df.drop(category, axis=1)
+        valnames=list(set(df.columns) -set(category)) 
+        X = df[valnames].values
+        assert X.dtype==float, f"data must contain only float values except {category} columns."
+        
+    else:    
+        X = df.values
+        assert X.dtype==float, "data must contain only float values."
+    if ztransform==True:
+        X=zscore(X, axis=0)
+    if method=="pearson":
+        dmat=Parallel(n_jobs=n_jobs)(delayed(_calc_pearson)(ind, X) for ind in list(it.combinations(range(X.shape[0]), 2)))
+        dmat=np.array(dmat)
+        dmat=squareform(dmat)
+        #print(dmat)
+        dmat+=np.identity(dmat.shape[0])
+    else:
+        dmat=squareform(pdist(X, method))
+        dmat=(dmat-np.mean(dmat))/np.std(dmat)
+        #dmat=dmat/np.amax(dmat)
+        dmat=(1+np.exp(-dmat))**-1
+        #dmat=1/(1+dmat)
+    G = nx.Graph()
+    for index in original_index:
+        G.add_node(index)
+    for i, j in list(it.combinations(range(dmat.shape[0]), 2)):
+        if dmat[i,j]>=threshold:
+            G.add_edge(original_index[i], original_index[j], weight=dmat[i,j])
+    
+    if clustering =="best_partition": 
+        try:
+            import community
+        except ImportError as e:
+            raise("can not import community. Try 'pip install louvain'")
+        comm=community.best_partition(G)
+    
+    elif clustering =="louvain":
+        from networkx.algorithms import community
+        comm=community.louvain.louvain_communities(G)
+        
+        
+        
+        #print(comm)
+    weights=[]
+    for s, t, w in G.edges(data=True):
+        weights.append(w['weight'])
+    weights=np.array(weights)
+    
+    #pos = nx.spring_layout(G, weight = 'weight', **spring_layout_param)
+    layoutfunction = getattr(nx, layout)
+    if layout=="spring_layout" and len(layout_param)==0:
+        layout_param=dict(k=0.75,
+                seed=0,
+                scale=1,weight = 'weight')
+        pos = layoutfunction(G,  **layout_param)
+    else:
+        pos = layoutfunction(G, **layout_param)
+    #print(pos)
+    colors={}
+    colorlut={}
+    for cat in category:
+        _cats=df[cat]
+        u=list(set(_cats))
+        _cmp=plt.get_cmap(palette, len(u))
+        _cmap_dict={k: _cmp(i) for i, k in enumerate(u)}
+        colorlut[cat]=_cmap_dict
+        colors[cat]=[]
+        for g in G.nodes:
+            colors[cat].append(_cmap_dict[_cats[original_index.index(g)]])
+    if clustering =="best_partition":
+        u=set()
+        for k, v in comm.items():
+            u.add(v)
+        _cmp=plt.get_cmap(palette, len(u))
+        _cmap_dict={k: _cmp(i) for i, k in enumerate(u)}
+        colorlut[clustering]=_cmap_dict
+        colors[clustering]=[]
+        for g in G.nodes:
+            colors[clustering].append(_cmap_dict[comm[g]])
+    
+    
+    if edge_color=="weight":
+        edge_color=weights
+    if edge_width=="weight":
+        edge_width=edge_width_scaling*weights
+
+
+    if len(category)==0 and clustering=="":
+        fig, ax=plt.subplots()
+        nx.draw_networkx_nodes(G = G, node_color=node_color, 
+                                   node_size=node_size,
+                                   pos=pos,linewidths=linewidths, 
+                                   ax=ax,edgecolors=node_edge_color, 
+                                   alpha=node_alpha)
+        nx.draw_networkx_edges(G = G,pos=pos, edge_color=edge_color, edge_cmap=plt.get_cmap(edge_cmap),
+                               alpha=edges_alpha, 
+                               width=edge_width, ax=ax)
+    else:
+        if len(figsize)==0:
+            figsize=[4*(len(cat)+int(clustering!="")),4]
+        if len(rows_cols)==0:
+            rows_cols=[1, len(cat)+int(clustering!="")]
+        fig, axes=plt.subplots(figsize=figsize, ncols=rows_cols[1], nrows=rows_cols[0])
+        
+        axes=axes.flatten()
+        
+        if bundle==True:
+            hb=_bundlle_edges(G, pos)
+        
+        
+        for ax, cat in zip(axes, category):
+            #nx.draw(G=G,pos=pos, font_size=8,linewidths=0)
+            nx.draw_networkx_nodes(G = G, node_color=colors[cat], 
+                                   node_size=node_size,
+                                   pos=pos,linewidths=linewidths, 
+                                   ax=ax,edgecolors=node_edge_color, 
+                                   alpha=node_alpha)
+            if show_edges==True:
+                nx.draw_networkx_edges(G = G,pos=pos, edge_color=edge_color, edge_cmap=plt.get_cmap(edge_cmap),
+                                   alpha=edges_alpha, 
+                                   width=edge_width, ax=ax)
+                                    #,arrows=True,connectionstyle="arc3,rad=0.3")
+            ax.set_title(method+", colored by "+cat)
+            legendhandles=[]
+            for label, color in colorlut[cat].items():
+                legendhandles.append(Line2D([0], [0], color=color,linewidth=5, label=label))
+            #g.add_legend(legend_data=legendhandles,title="Aroma",label_order=["W","F","Y"])
+            ax.legend(handles=legendhandles, loc='best', title=cat)
+            if bundle==True:
+                ax.plot(hb.x, hb.y, "y", zorder=1, linewidth=3)
+        if clustering!="":
+            nx.draw_networkx_nodes(G = G, node_color=colors[clustering], 
+                                   node_size=node_size,
+                                   pos=pos,linewidths=linewidths, 
+                                   ax=axes[-1],edgecolors=node_edge_color, 
+                                   alpha=node_alpha)
+            if show_edges==True:
+                nx.draw_networkx_edges(G = G,pos=pos, edge_color=edge_color, edge_cmap=plt.get_cmap(edge_cmap),
+                                   alpha=edges_alpha, 
+                                   width=edge_width, ax=axes[-1])
+                                    #,arrows=True,connectionstyle="arc3,rad=0.3")
+            axes[-1].set_title(method+", colored by "+clustering)
+            legendhandles=[]
+            for label, color in colorlut[clustering].items():
+                legendhandles.append(Line2D([0], [0], color=color,linewidth=5, label=label))
+            axes[-1].legend(handles=legendhandles, loc='best', title=clustering)
+            if bundle==True:
+                axes[-1].plot(hb.x, hb.y, "y", zorder=1, linewidth=3)
+    return {"axes":axes,"networkx":G, "distance_mat":dmat}
+
 
 if __name__=="__main__":
     
     test="sankey_category"
-    if test=="sankey_category":
+    test="correlation"
+    if test=="correlation":
+        df=sns.load_dataset("penguins")
+        df=df.dropna(axis=0)
+        df=df.reset_index()
+        correlation(df, category=["species", "island","sex"], 
+                    method="pearson", 
+                    ztransform=True,
+                    clustering ="best_partition",show_edges=True, bundle=False)
+        plt.show()
+        
+    elif test=="sankey_category":
         df=pd.read_csv("../data/kmeans_result.csv")
         sankey_category(df, ["kmeans2","kmeans3","sex"],
                         colormode="alternative",
