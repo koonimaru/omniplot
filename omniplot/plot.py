@@ -2270,7 +2270,7 @@ def stacked_barplot(df: pd.DataFrame,
     hue_order: list, optional
         The order of hue labels
     scale: str, optional
-        Scaling data
+        Scaling method. Available options are: fraction, percentage, absolute
     test_pairs : pairs of categorical values related to x. It will calculate -log10 (p value) (mlp) of the fisher exact test.
         Examples: [["Adelie","Chinstrap" ],
                     ["Gentoo","Chinstrap" ],
@@ -2299,6 +2299,12 @@ def stacked_barplot(df: pd.DataFrame,
     Examples
     --------
     """
+    
+    if df[x].isnull().values.any():
+        df[x]=df[x].replace(np.nan, "NA")
+    
+    if df[hue].isnull().values.any():
+        df[hue]=df[hue].replace(np.nan, "NA")
     
     data={}
     if len(order)==0:
@@ -2342,7 +2348,7 @@ def stacked_barplot(df: pd.DataFrame,
     bottom=np.zeros([len(keys)])
     cmap=plt.get_cmap("tab20b")
     fig, ax=plt.subplots(figsize=figsize)
-    plt.subplots_adjust(left=0.2,right=0.6)
+    plt.subplots_adjust(left=0.2,right=0.6, bottom=0.17)
     if scale=="absolute":
         unit=""
     elif scale=="fraction":
@@ -2364,7 +2370,7 @@ def stacked_barplot(df: pd.DataFrame,
                 else:
                     plt.text(j,bottom[j]+heights[j]/2,"{:.2f}{}".format(heights[j],unit), 
                          bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="y", lw=1, alpha=0.8))
-        
+        plt.xticks(rotation=90)
         pos[h]={key: [he, bo] for key, he, bo in zip(keys, heights, bottom)}
         bottom+=heights
     ax.legend(loc=[1.01,0])
@@ -2378,6 +2384,7 @@ def stacked_barplot(df: pd.DataFrame,
     ax.set_ylabel(ylabel)
     
     if len(pvals)>0:
+        print("mlp stands for -log10(p value)")
         for i, h in enumerate(hues):
             _pos=pos[h]
             for idx1, idx2, pval in pvals[h]:
@@ -2589,7 +2596,7 @@ if __name__=="__main__":
     test="stacked"
     test="dotplot"
     test="regression"
-    test="correlation"
+    test="stacked"
     
     if test=="correlation":
         df=sns.load_dataset("penguins")
