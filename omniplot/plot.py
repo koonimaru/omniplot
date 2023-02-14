@@ -2254,7 +2254,7 @@ def stacked_barplot(df: pd.DataFrame,
                     test_pairs: List[List[str]]=[],
                     show_values: bool=True,
                     show: bool=False,
-                    figsize: List[int]=[4,6]):
+                    figsize: List[int]=[4,6])-> Dict:
     
     """
     Drawing a stacked barplot with or without the fisher's exact test 
