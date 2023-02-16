@@ -2245,9 +2245,10 @@ def violinplot(df,
     
     return {"p values":newpvals,"ax":ax}
 
+
 def stacked_barplot(df: pd.DataFrame,
-                    x: str,
-                    hue: str,
+                    x: Union[str, list],
+                    hue: Union[str, list],
                     scale: str="fraction",
                     order: list=[],
                     hue_order: list=[],
@@ -2263,8 +2264,10 @@ def stacked_barplot(df: pd.DataFrame,
     ----------
     df : pandas DataFrame
     
-    x,hue: str
-        x: the category to place in x axis, hue: count samples by the hue category
+    x: str or list
+        The category to place in x axis. Only str values are accepted.
+    hue: str or list
+        Counting samples by the hue category. Only str values are accepted.
     order: list, optional
         The order of x axis labels
     hue_order: list, optional
@@ -2420,6 +2423,264 @@ def stacked_barplot(df: pd.DataFrame,
     
     return {"pval":pvals,"ax":ax}
 
+
+def _stacked_barplot(df: pd.DataFrame,
+                    x: Union[str, list],
+                    hue: Union[str, list],
+                    scale: str="fraction",
+                    order: Optional[list]=None,
+                    hue_order: Optional[list]=None,
+                    test_pairs: List[List[str]]=[],
+                    show_values: bool=True,
+                    show: bool=False,
+                    figsize: List[int]=[4,6])-> Dict:
+    
+    """
+    Drawing a stacked barplot with or without the fisher's exact test 
+    
+    Parameters
+    ----------
+    df : pandas DataFrame
+    
+    x: str or list
+        The category to place in x axis. Only str values are accepted.
+    hue: str or list
+        Counting samples by the hue category. Only str values are accepted.
+    order: list, optional
+        The order of x axis labels
+    hue_order: list, optional
+        The order of hue labels
+    scale: str, optional
+        Scaling method. Available options are: fraction, percentage, absolute
+    test_pairs : pairs of categorical values related to x. It will calculate -log10 (p value) (mlp) of the fisher exact test.
+        Examples: [["Adelie","Chinstrap" ],
+                    ["Gentoo","Chinstrap" ],
+                    ["Adelie","Gentoo" ]]
+    show_number: bool, optional
+        Wheter to exhibit the values of fractions/counts/percentages.
+    
+    show : bool, optional
+        Whether or not to show the figure.
+    
+    figsize : List[int], optional
+        The figure size, e.g., [4, 6].
+     
+    Returns
+    -------
+    dict("p values":pvalues,"ax":ax)
+    
+    Raises
+    ------
+    Notes
+    -----
+    References
+    ----------
+    See Also
+    --------
+    Examples
+    --------
+    """
+    
+    if type(x)==str:
+        x=[x]
+        if order!=None:
+            order=[order]
+    if type(hue)==str:
+        hue=[hue]
+        if hue_order!=None:
+            hue_order=[hue_order]
+    for _x in x:
+        if df[_x].isnull().values.any():
+            df[_x]=df[_x].replace(np.nan, "NA")
+    for _hue in hue:
+        if df[_hue].isnull().values.any():
+            df[_hue]=df[_hue].replace(np.nan, "NA")
+
+    xkeys={}
+    keysx={}
+    for i, _x in enumerate(x):
+        if order==None:
+            u=np.unique(df[_x])
+            keys=sorted(list(u))
+        else:
+            keys=order[i]
+        xkeys[_x]=keys
+        for k in keys:
+            keysx[k]=_x
+    huekeys={}
+    for i, _hue in enumerate(hue):
+        if hue_order==None:
+            u=np.unique(df[_hue])
+            hues=sorted(list(u))
+        else:
+        
+            hues=hue_order[i]
+        huekeys[_hue]=hues
+    
+    data={}
+    for _x, keys in xkeys.items():
+        data[_x]={}
+        for key in keys:
+            
+            for _hue, hues in  huekeys.items():
+                if _x==_hue:
+                    continue
+                if not _hue in data[_x]:
+                    data[_x][_hue]={}
+                data[_x][_hue][key]=[]
+                for h in hues:
+                    data[_x][_hue][key].append(np.sum((df[_x]==key) & (df[_hue]==h)))
+
+    
+    pvals={}
+    if len(test_pairs) >0:
+        for _hue in hue:
+            
+            for i, h in enumerate(huekeys[_hue]):
+                
+                for p1,p2 in test_pairs:
+                    _x=keysx[p1]
+                    __x=keysx[p2]
+                    if _x!=__x:
+                        raise Exception("{} and {} can not be compared.".format(p1, p2))
+                    
+                    if _x==_hue:
+                        continue
+                    
+                    if not _x in pvals:
+                        pvals[_x]={}
+                    if not _hue in pvals[_x]:
+                        pvals[_x][_hue]={}
+                    if not h in pvals[_x][_hue]:
+                        pvals[_x][_hue][h]=[]
+                    keys=xkeys[_x]
+                    idx1=xkeys[_x].index(p1)
+                    idx2=xkeys[_x].index(p2)
+                    yes_total=np.sum(data[_x][_hue][keys[idx1]])
+                    no_total=np.sum(data[_x][_hue][keys[idx2]])
+                    yes_and_hue=data[_x][_hue][keys[idx1]][i]
+                    no_and_hue=data[_x][_hue][keys[idx2]][i]
+                    table=[[yes_and_hue, no_and_hue],
+                           [yes_total-yes_and_hue, no_total-no_and_hue]]
+        
+                    odd, pval=fisher_exact(table)
+                    pvals[_x][_hue][h].append([idx1, idx2, pval])
+    if scale=="fraction":
+        for _x in x:
+            for _hue in hue:
+                if _x==_hue:
+                    continue
+                for key in keys:
+                    data[_x][_hue][key]=np.array(data[_x][_hue][key])/np.sum(data[_x][_hue][key])
+    elif scale=="percentage":
+        for _x in x:
+            for _hue in hue:
+                if _x==_hue:
+                    continue
+                for key in keys:
+                    data[_x][_hue][key]=np.array(data[_x][_hue][key])/np.sum(data[_x][_hue][key])*100
+    
+    cmap=plt.get_cmap("tab20b")
+    ncols=len(x)*len(hue)-len(set(x)&set(hue))
+    figsize=[4*ncols, 6]
+    fig, axes=plt.subplots(figsize=figsize,ncols=ncols)
+    #plt.subplots_adjust(left=0.2,right=0.6, bottom=0.17)
+    axes=axes.flatten()
+    
+    if scale=="absolute":
+        unit=""
+    elif scale=="fraction":
+        unit=""
+    elif scale=="percentage":
+        unit="%"
+    axindex=0
+    pos={}
+    for _x in x:
+        pos[_x]={}
+        for _hue in hue:
+            if _x==_hue:
+                continue
+            pos[_x][_hue]={}
+            keys=xkeys[_x]
+            hues=huekeys[_hue]
+            bottom=np.zeros([len(keys)])
+            for i, h in enumerate(hues):
+                ax=axes[axindex]
+                
+                heights=np.array([data[_x][_hue][key][i] for key in keys])
+                
+                
+                ax.bar(keys, heights,width=0.5, bottom=bottom, color=cmap(i/len(hues)), label=h)
+                if show_values==True:
+                    for j in range(len(keys)):
+                        if scale=="absolute":
+                            ax.text(j,bottom[j]+heights[j]/2,"{}{}".format(heights[j],unit), 
+                                 bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="y", lw=1, alpha=0.8))
+                        else:
+                            ax.text(j,bottom[j]+heights[j]/2,"{:.2f}{}".format(heights[j],unit), 
+                                 bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="y", lw=1, alpha=0.8))
+                ax.set_xticks(ax.get_xticks())
+                ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
+                pos[_x][_hue][h]={key: [he, bo] for key, he, bo in zip(keys, heights, bottom)}
+                bottom+=heights
+            ax.legend(loc=[1.01,0])
+            ax.set_xlabel(_x)
+            if scale=="absolute":
+                ylabel="Counts"
+            elif scale=="fraction":
+                ylabel="Fraction"
+            elif scale=="percentage":
+                ylabel="Percentage"
+            ax.set_ylabel(ylabel)
+            axindex+=1
+            if len(pvals)>0 and _x in pvals:
+                print("mlp stands for -log10(p value)")
+                for _hue in hue:
+                    if _x==_hue:
+                        continue
+                    if not _hue in pos[_x]:
+                        continue
+                    hues=huekeys[_hue]
+                    for i, h in enumerate(hues):
+                        print(pos)
+                        print(pos[_x])
+                        _pos=pos[_x][_hue][h]
+                        for idx1, idx2, pval in pvals[_x][_hue][h]:
+                            
+                            he1, bot1=_pos[keys[idx1]]
+                            he2, bot2=_pos[keys[idx2]]
+                            line, =ax.plot([idx1,idx2],[he1/2+bot1,he2/2+bot2],color="gray")
+                            # r1=ax.transData.transform([idx1, he1/2+bot1])
+                            # r2=ax.transData.transform([idx2, he2/2+bot2])
+                            r1=np.array([idx1, he1/2+bot1])
+                            r2=np.array([idx2, he2/2+bot2])
+                            r=r2-r1
+                            print(ax.get_xlim(),ax.get_ylim())
+                            r=np.array([1,3])*r/np.array([ax.get_xlim()[1]-ax.get_xlim()[0],ax.get_ylim()[1]-ax.get_ylim()[0]])
+                            #r=ax.transData.transform(r)
+                            if idx2<idx1:
+                                r=-r
+                            print(r)
+                            r=r*(r @ r)**(-0.5)
+                            print(h,r)
+                            angle=np.arccos(r[0])
+                            if r[1]<0:
+                                angle= -angle
+                            print(angle)
+                            if pval < 0.05:
+                                pval_str=str(np.round(-np.log10(pval), decimals=1))
+                            else:
+                                pval_str="ns"
+                            _line_annotate( "mlp="+pval_str, line, (idx1+idx2)/2, color="magenta")
+                                
+                                
+    plt.tight_layout(w_pad=2)
+    if show:
+        plt.show()
+    
+    return {"pval":pvals,"ax":ax}
+
+
 def nice_piechart(df: pd.DataFrame, 
                   category: Union[str, List[str]],
                   palette: str="tab20c",
@@ -2541,7 +2802,10 @@ def correlation(df: pd.DataFrame,
         dmat+=np.identity(dmat.shape[0])
     else:
         dmat=squareform(pdist(X, method))
-        
+    if method=="pearson":
+            title="Pearson correlation"
+    else:
+        title=method+" distance"    
         
         
     if len(category) >0:
@@ -2555,7 +2819,8 @@ def correlation(df: pd.DataFrame,
                                ztranform=False,
                                xticklabels=xticklabels,
                                yticklabels=yticklabels,
-                               figsize=figsize)
+                               figsize=figsize,
+                               cbar_kws={"label":title}, )
         return res
     else:
         
@@ -2568,7 +2833,8 @@ def correlation(df: pd.DataFrame,
                     #cbar_kws={"label":"Pearson correlation"}, 
                    annot=show_val,
                    **clustermap_param)
-        g.cax.set_ylabel("Pearson correlation", rotation=-90,va="bottom")
+        
+        g.cax.set_ylabel(title, rotation=-90,va="bottom")
         plt.setp(g.ax_heatmap.get_yticklabels(), rotation=0)  # For y axis
         plt.setp(g.ax_heatmap.get_xticklabels(), rotation=90) # For x axis
         return {"grid":g}
@@ -2708,5 +2974,5 @@ if __name__=="__main__":
     elif test=="stacked": 
         df=sns.load_dataset("penguins")
         df=df.dropna(axis=0)
-        stacked_barplot(df, x="species",hue="island", scale="absolute", test_pairs=[["Adelie","Gentoo"]])
+        _stacked_barplot(df, x=["species","island"],hue=["sex","island"], scale="absolute", test_pairs=[["Adelie","Gentoo"]])
         plt.show()

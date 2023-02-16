@@ -55,7 +55,7 @@ class MatplotlibGraphDrawer(AbstractGraphDrawer):
         self.vertex_drawer_factory = vertex_drawer_factory
         self.edge_drawer_factory = edge_drawer_factory
 
-    def draw(self, graph, *args, **kwds):
+    def draw(self, graph,alpha=0, *args, **kwds):
         # Deferred import to avoid a cycle in the import graph
         from igraph.clustering import VertexClustering, VertexCover
 
@@ -187,7 +187,7 @@ class MatplotlibGraphDrawer(AbstractGraphDrawer):
                     polygon,
                     corner_radius=corner_radius,
                     facecolor=facecolor,
-                    edgecolor=color,
+                    edgecolor=color, alpha=alpha,
                 )
 
                 if kwds.get("legend", False):
