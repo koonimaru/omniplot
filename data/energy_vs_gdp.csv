@@ -1,3 +1,4 @@
+#data obtained from https://github.com/owid/energy-data
 country,countrycode,year,gdppc,pop,biofuel_electricity,coal_electricity,fossil_electricity,gas_electricity,hydro_electricity,low_carbon_electricity,nuclear_electricity,oil_electricity,other_renewable_electricity,other_renewable_exc_biofuel_electricity,per_capita_electricity,renewables_electricity,solar_electricity,wind_electricity
 Algeria,DZA,2018,14228.0,41490.0,0.0,0.0,71.33,70.02,0.12,0.78,0.0,1.31,0.0,0.0,1719.894,0.78,0.65,0.01
 Argentina,ARG,2018,18556.0,44695.0,1.5,1.92,98.31,89.76,31.96,41.48,6.51,6.63,1.5,0.0,3147.46,34.97,0.11,1.4

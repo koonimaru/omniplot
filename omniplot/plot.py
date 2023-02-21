@@ -2892,22 +2892,85 @@ def correlation(df: pd.DataFrame,
         return {"grid":g}
 
 
-def pie_scatter(df, x: str, y: str, 
-                features: list, 
+def pie_scatter(df, 
+                x: str, 
+                y: str, 
+                category: list, 
                 pie_palette: str="tab20c",
                 xlabel: str="",
                 ylabel: str="",
-                piesize=0.01, 
-                label="all",
-                logscalex=False,
-                logscaley=False,
+                piesize: float=0.01, 
+                label: Union[List, str]="all",topn=10,
+                logscalex: bool=False,
+                logscaley: bool=False,
                 ax: Optional[plt.Axes]=None,
                 sizes: Union[List, str]="",
-                edge_color: str="gray",min_piesize=0.3) -> dict:
+                save: str="",
+                show: bool=False,
+                edge_color: str="gray",
+                min_piesize: float=0.3,
+                figsize=[6,6]) -> dict:
+    """
+    Drawing a scatter plot of which points are represented by pie charts. 
     
+    Parameters
+    ----------
+    df : pandas DataFrame
+        A wide form dataframe. Index names are used to label points
+        e.g.) 
+                    gas    coal    nuclear    population    GDP
+            USA      20      20          5            20     50
+            China    30      40          5            40     50
+            India     5      10          1            40     10
+            Japan     5       5          1            10     10
+            
+    x,y : str
+        the names of columns to be x and y axes of the scatter plot.
+        
+    category: str or list
+        the names of categorical values to display as pie charts
+    
+    pie_palette : str
+        A colormap name
+    xlabel: str, optional
+        x axis label
+    ylabel: str, optional
+        y axis label
+    piesize: float, optional (default: 0.01) 
+        pie chart size. 
+    label: str, optional (default: "all")
+        "all": all 
+        "topn_of_sum":
+    logscalex, logscaley: bool, optional (default: False)
+        Whether to scale x an y axes with logarithm
+    ax: Optional[plt.Axes] optional, (default: None)
+        pyplot ax to add this scatter plot
+    sizes: Union[List, str], optional (default: "")
+        pie chart sizes.
+            "sum_of_each": automatically set pie chart sizes to be proportional to the sum of all categories.
+            list: the list of pie chart sizes
+    edge_color: str="gray",
+        The pie chart edge color
+    min_piesize: float, optional (default: 0.3)
+        Minimal pie chart size. This option is effective when the option sizes="sum_of_each". 
+    Returns
+    -------
+    dict
+    
+    Raises
+    ------
+    Notes
+    -----
+    References
+    ----------
+    See Also
+    --------
+    Examples
+    --------
+    """
     if type(pie_palette)== str:
         colors={}
-        unique_labels=features
+        unique_labels=category
             
         cmap=plt.get_cmap(pie_palette)
         labelnum=len(unique_labels)
@@ -2919,7 +2982,7 @@ def pie_scatter(df, x: str, y: str,
     else:
         raise Exception("Unknown pie_palette type.")
     if ax ==None:
-        fig, ax=plt.subplots()
+        fig, ax=plt.subplots(figsize=figsize)
     plt.subplots_adjust(right=0.80)
     X=df[x]
     Y=df[y]
@@ -2931,13 +2994,15 @@ def pie_scatter(df, x: str, y: str,
     if logscalex==True:
         X=np.log10(X+1)
         xscale=" (scaled by log10)"
-    Frac=df[features]
+    Frac=df[category]
     
     index=df.index
     piesize=np.amax([np.amax(X), np.amax(Y)])*piesize
     
     if sizes=="sum_of_each":
         sums=Frac.sum(axis=1)
+        sumsrt=np.argsort(sums)[::-1]
+        sumsrt=set(sumsrt[:topn])
         sums=sums/np.amax(sums)
         sums=piesize*(sums+min_piesize)
     _colors=[colors[f] for f in unique_labels]
@@ -2951,6 +3016,8 @@ def pie_scatter(df, x: str, y: str,
             if type(sizes)==str:
                 if sizes=="sum_of_each":
                     _baumkuchen_xy(ax, _x, _y, angle, fr, 0, sums.loc[_ind],20, co, edge_color=edge_color)
+                elif sizes=="":
+                    _baumkuchen_xy(ax, _x, _y, angle, fr, 0, piesize,20, co, edge_color=edge_color)
                 else:
                     pass
             elif type(sizes)==list and len(sizes) !=0:
@@ -2958,9 +3025,21 @@ def pie_scatter(df, x: str, y: str,
             else:
                 _baumkuchen_xy(ax, _x, _y, angle, fr, 0, piesize,20, co, edge_color=edge_color)
             angle+=fr
-
-        if label=="all":
-            ax.text(_x, _y,_ind)
+        
+        if type(label)==str:
+            if label=="all":
+                ax.text(_x, _y,_ind)
+            elif label=="topn_of_sum":
+                if i in sumsrt:
+                    ax.text(_x, _y,_ind)
+                
+            elif label=="":
+                pass
+        elif type(label)==list:
+            if _ind in label:
+                ax.text(_x, _y,_ind)
+            
+            
     if xlabel!="":
         x=xlabel
     if ylabel!="":
@@ -2971,6 +3050,7 @@ def pie_scatter(df, x: str, y: str,
                       for ul in unique_labels]
     
     ax.legend(handles=legend_elements,bbox_to_anchor=(0.95, 1))
+    _save(save, "pie_scatter")
     return {"axes":ax}
 if __name__=="__main__":
     
@@ -3111,10 +3191,10 @@ if __name__=="__main__":
         _stacked_barplot(df, x=["species","island"],hue=["sex","island"], scale="absolute", test_pairs=[["Adelie","Gentoo"]])
         plt.show()
     elif test=="pie_scatter":
-        f="/home/koh/ews/omniplot/data/engery_vs_gdp.csv"
-        df=pd.read_csv(f)
+        f="/home/koh/ews/omniplot/data/energy_vs_gdp.csv"
+        df=pd.read_csv(f, comment='#')
         df=df.set_index("country")
-        pie_scatter(df, x="gdppc",y="pop", features=['biofuel_electricity',
+        pie_scatter(df, x="gdppc",y="pop", category=['biofuel_electricity',
                                                      'coal_electricity',
                                                      'gas_electricity',
                                                      'hydro_electricity',
@@ -3124,15 +3204,15 @@ if __name__=="__main__":
                                                      'solar_electricity',
                                                      'wind_electricity'],logscalex=True,logscaley=True,
                                                     sizes="sum_of_each",
-                                                    min_piesize=0.1)
+                                                    min_piesize=0.1,piesize=0.05, label="top10_of_sum")
         
         
         plt.show()
     
     elif test=="nice_piechart_num":
-        f="/home/koh/ews/omniplot/data/engery_vs_gdp.csv"
+        f="/home/koh/ews/omniplot/data/energy_vs_gdp.csv"
         df=pd.read_csv(f)
-        df=df.set_index("country")
+        df=df.set_index("country", comment='#')
         nice_piechart_num(df, hue=['biofuel_electricity',
                                                      'coal_electricity',
                                                      'gas_electricity',
