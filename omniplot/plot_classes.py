@@ -14,13 +14,15 @@ class _Basic_plot():
                  xscale: str="",
                  palette: str="",
                  fonts: dict={},
-                 dpi: float=400):
+                 show_legend: bool=True,
+                 dpi: float=400, title=""):
         
         self.save=save
         self.xscale=xscale
         self.yscale=yscale
         self.palette=palette
         self.fonts=fonts
+        self.show_legend=show_legend
         self.dpi=dpi
         if ax==None:
             fig, ax=plt.subplots(ncols=ncols, nrows=nrows, figsize=figsize)
@@ -29,7 +31,9 @@ class _Basic_plot():
         else:
             self.ax=ax
             self.fig=None
-    
+        
+        
+        
     
     
 
