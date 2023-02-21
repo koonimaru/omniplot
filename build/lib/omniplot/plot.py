@@ -2892,7 +2892,7 @@ def correlation(df: pd.DataFrame,
         return {"grid":g}
 
 
-def pie_scatter(df, 
+def pie_scatter(df: pd.DataFrame,  
                 x: str, 
                 y: str, 
                 category: list, 
@@ -3052,6 +3052,77 @@ def pie_scatter(df,
     ax.legend(handles=legend_elements,bbox_to_anchor=(0.95, 1))
     _save(save, "pie_scatter")
     return {"axes":ax}
+
+def stackedlines(df: pd.DataFrame, 
+                x: str,
+                y: list,
+                
+                sort: bool=True,
+                ylabel: str="",
+                title: str="",
+                inverse: bool=False,
+                palette: str="tab20c",
+                figsize=[7,4],
+                show_val=False,
+                remove_all_zero=False,
+                ax: Optional[plt.Axes]=None,
+                alpha=0.75,bbox_to_anchor=(1.7, 1),
+                right=0.7,
+                show_legend=True):
+    
+    df=df.fillna(0)
+    X=np.array(df[x])
+    Y=[]
+    for col in y:
+        Y.append(np.array(df[col]))
+    Y=np.array(Y)
+    if remove_all_zero==True:
+        filter=Y.sum(axis=0)!=0
+        Y=Y[:,filter]
+        X=X[filter]
+    Ydict={col:[] for col in y}
+    if sort==True:
+        for i, _x in enumerate(X):
+            
+            srtidx=np.argsort(Y[:,i])
+            bottom=0
+            for _idx in srtidx:
+                _col=y[_idx]
+                yval=Y[_idx,i]
+                Ydict[_col].append([bottom, yval+bottom])
+                bottom+=yval
+    else:
+        for i, _x in enumerate(X):
+
+            bottom=0
+            for _idx,_col in enumerate(y):
+                yval=Y[_idx,i]
+                Ydict[_col].append([bottom, yval+bottom])
+                bottom+=yval
+    if ax ==None:
+        fig, ax=plt.subplots(figsize=figsize)
+        
+    cmap=plt.get_cmap(palette, len(y))
+    colorlut={col: cmap(i) for i, col in enumerate(y)}
+    last_vals=[]
+    last_pos=[]
+    for col, vals in Ydict.items():
+        vals=np.array(vals)
+        ax.fill_between(X, vals[:,0], vals[:,1], label=col, alpha=alpha, color=colorlut[col])
+        last_vals.append(vals[-1,1]-vals[-1,0])
+        last_pos.append(vals[-1,1]/2+vals[-1,0]/2)
+    if show_val==True:
+        last_vals=100*np.array(last_vals)/np.sum(last_vals)
+        for val, pos in zip(last_vals, last_pos):
+            ax.text(X[-1], pos, str(np.round(val, 1))+"%")
+            
+    if show_legend==True:
+        plt.legend(bbox_to_anchor=bbox_to_anchor)
+    plt.subplots_adjust(right=right)
+    ax.set_xlabel(x)
+    ax.set_ylabel(ylabel)
+    ax.set_title(title)
+    
 if __name__=="__main__":
     
     
@@ -3078,7 +3149,23 @@ if __name__=="__main__":
     
     test="nice_piechart_num"
     test="pie_scatter"
-    if test=="correlation":
+    test="stackedlines"
+    if test=="stackedlines":
+        f="/media/koh/grasnas/home/data/omniplot/energy/owid-energy-data.csv"
+        df=pd.read_csv(f)
+        _df=df.loc[df["country"]=="United States"]
+        cols=['biofuel_consumption',
+             'coal_consumption',
+             'gas_consumption',
+             'hydro_consumption',
+             'nuclear_consumption',
+             'oil_consumption',
+             'other_renewable_consumption',
+             'solar_consumption',
+             'wind_consumption']
+        stackedlines(df=_df, x="year",y=cols, remove_all_zero=True,show_val=True)
+        plt.show()
+    elif test=="correlation":
         df=sns.load_dataset("penguins")
         df=df.dropna(axis=0)
         
@@ -3204,7 +3291,7 @@ if __name__=="__main__":
                                                      'solar_electricity',
                                                      'wind_electricity'],logscalex=True,logscaley=True,
                                                     sizes="sum_of_each",
-                                                    min_piesize=0.1,piesize=0.05, label="top10_of_sum")
+                                                    min_piesize=0.1,piesize=0.05, label="topn_of_sum")
         
         
         plt.show()
