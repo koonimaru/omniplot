@@ -2752,8 +2752,9 @@ def nice_piechart_num(df: pd.DataFrame,hue: List[str],
     df=df[df.columns[srt]]
     hue=list(df.columns)
     nrows=len(category)//ncols+int(len(category)%ncols!=0)
-    fig, axes=plt.subplots(nrows=nrows, ncols=ncols, figsize=[ncols*2,
-                                                        nrows*2])
+    if len(figsize)==0:
+        figsize=[ncols*2,nrows*2]
+    fig, axes=plt.subplots(nrows=nrows, ncols=ncols, figsize=figsize)
     axes=axes.flatten()
     _cmap=plt.get_cmap(palette, len(hue))
     colors=[_cmap(i) for i in range(len(hue))]
@@ -3165,7 +3166,7 @@ if __name__=="__main__":
              'other_renewable_consumption',
              'solar_consumption',
              'wind_consumption']
-        stackedlines(df=_df, x="year",y=cols, remove_all_zero=True,show_val=True)
+        stackedlines(df=_df, x="year",y=cols,title="United States", remove_all_zero=True,show_val=True)
         plt.show()
     elif test=="correlation":
         df=sns.load_dataset("penguins")
