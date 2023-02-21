@@ -12,6 +12,7 @@ from matplotlib.collections import PatchCollection
 from matplotlib.patches import Rectangle
 import pandas as pd
 from omniplot.chipseq_utils import _calc_pearson
+from omniplot.utils import _baumkuchen_xy, _save
 from scipy.stats import zscore
 from joblib import Parallel, delayed
 from scipy.spatial.distance import pdist, squareform
@@ -22,124 +23,124 @@ plt.rcParams['font.sans-serif'] = ['Arial']
 plt.rcParams['svg.fonttype'] = 'none'
 sns.set_theme(font="Arial")
 
-def pienodes(g,
-             vertex_label: list=[], 
-             node_features: dict={}, 
-             pie_frac: str="frac",
-             pie_label: str="label",
-             pie_palette: Union[str , dict]="tab20b", 
-             label_all: bool=True,
-             piesize: float=0.1,
-             **kwargs) -> plt.Axes: 
-    """
-    Drawing a network whose noses are pie charts.
-    
-    Parameters
-    ----------
-    g : igraph object
-    vertex_label: list
-        The list of node labels.
-        e.g.: nodes=["A","B","C","D","E"]
-    node_features: dict
-        A dictionary containing fractions and labels of the pie charts.
-        e.g.:
-        pie_features={"A":{"frac":np.array([50,50]),"label":np.array(["a","b"])},
-                  "B":{"frac":np.array([90,5,5]),"label":np.array(["a","b","c"])},
-                  "C":{"frac":np.array([100]),"label":np.array(["c"])},
-                  "D":{"frac":np.array([100]),"label":np.array(["b"])},
-                  "E":{"frac":np.array([100]),"label":np.array(["a"])}}
-    pie_frac : str
-        The key value for the fractions of the pie charts. Default: "frac" (as the example of the above pie_features).
-    pie_label : str
-        The key value for the labels of the pie charts. Default: "label" (as the example of the above pie_features). 
-    pie_palette: str or dict
-        If string is provided, it must be one of the matplotlib colormap names for the pie charts. If dict, then  
-    label_all: bool
-        Whether to label all nodes or not. If False, labels show up only for 0.05 upper quantile of nodes with a high degree.
-    
-    piesize : float
-        Scaling pie chart sizes if they are too large/small.    
-
-    Returns
-    -------
-    axis
-    
-    Raises
-    ------
-    Notes
-    -----
-    References
-    ----------
-    See Also
-    --------
-    Examples
-    --------
-    """#print(kwargs)    
-    
-    
-    
-    if type(pie_palette)== str:
-        colors={}
-        unique_labels=set()
-        for k, v in node_features.items():
-            for la in v[pie_label]:
-                unique_labels.add(la)
-        cmap=plt.get_cmap(pie_palette)
-        unique_labels=nts(unique_labels)
-        labelnum=len(unique_labels)
-        for i, ul in enumerate(unique_labels):
-            colors[ul]=cmap(i/labelnum)
-    elif type(pie_palette)==dict:
-        colors=pie_palette
-        unique_labels=nts(colors.keys())
-    else:
-        raise Exception("Unknown pie_palette type.")
-    fig, ax = plt.subplots(figsize=[8,8])
-    plt.subplots_adjust(right=0.8)
-    mgd=igraph_classes.MatplotlibGraphDrawer(ax)
-    mgd.draw(g,vertex_size=0.02,**kwargs)
-    trans=ax.transData.transform
-    trans2=fig.transFigure.inverted().transform
-    
-    deg=np.array([d for d in g.degree()])
-    degsort=np.argsort(deg)
-    nodes=np.array(vertex_label)
-    deg=deg[degsort]
-    nodes=nodes[degsort]
-    pos=np.array(kwargs["layout"].coords)[degsort]
-    deg=deg/deg.max()*piesize+0.015
-    #piesize=0.02
-    xycoord=[]
-    text_pos=[]
-    for i, n in enumerate(nodes):
-        xx,yy=trans(pos[i]) # figure coordinates
-        #print(xx,yy, pos[i])
-        xa,ya=trans2((xx,yy)) # axes coordinates
-        a = plt.axes([xa-deg[i]/2,ya-deg[i]/2, deg[i], deg[i]],
-                     rasterized=True,
-                     adjustable="datalim")
-        #a.set_zorder(1)
-        a.set_aspect('equal')
-        
-        a.pie(node_features[n][pie_frac], colors=[colors[f] for f in node_features[n][pie_label]])
-        a.margins(0,0)
-        
-        if label_all==True:
-            text_pos.append([a, xa,ya,n])
-        else:
-            if deg[i] > np.quantile(deg, 0.9):
-                text_pos.append([a, xa,ya,n])
-            #a.text(xa,ya,n)
-        a.zorder=i
-    for j, (a, xa,ya,n) in enumerate(text_pos):
-        a.set_zorder(10)
-        a.text(xa,ya,n)
-        a.zorder=i+j
-    legend_elements = [Line2D([0], [0], marker='o', color='lavender', label=ul,markerfacecolor=colors[ul], markersize=10)
-                      for ul in unique_labels]
-    
-    ax.legend(handles=legend_elements,bbox_to_anchor=(0.95, 1))
-    return ax
+# def _pienodes(g,
+#              vertex_label: list=[], 
+#              node_features: dict={}, 
+#              pie_frac: str="frac",
+#              pie_label: str="label",
+#              pie_palette: Union[str , dict]="tab20b", 
+#              label_all: bool=True,
+#              piesize: float=0.1,
+#              **kwargs) -> plt.Axes: 
+#     """
+#     Drawing a network whose noses are pie charts.
+#
+#     Parameters
+#     ----------
+#     g : igraph object
+#     vertex_label: list
+#         The list of node labels.
+#         e.g.: nodes=["A","B","C","D","E"]
+#     node_features: dict
+#         A dictionary containing fractions and labels of the pie charts.
+#         e.g.:
+#         pie_features={"A":{"frac":np.array([50,50]),"label":np.array(["a","b"])},
+#                   "B":{"frac":np.array([90,5,5]),"label":np.array(["a","b","c"])},
+#                   "C":{"frac":np.array([100]),"label":np.array(["c"])},
+#                   "D":{"frac":np.array([100]),"label":np.array(["b"])},
+#                   "E":{"frac":np.array([100]),"label":np.array(["a"])}}
+#     pie_frac : str
+#         The key value for the fractions of the pie charts. Default: "frac" (as the example of the above pie_features).
+#     pie_label : str
+#         The key value for the labels of the pie charts. Default: "label" (as the example of the above pie_features). 
+#     pie_palette: str or dict
+#         If string is provided, it must be one of the matplotlib colormap names for the pie charts. If dict, then  
+#     label_all: bool
+#         Whether to label all nodes or not. If False, labels show up only for 0.05 upper quantile of nodes with a high degree.
+#
+#     piesize : float
+#         Scaling pie chart sizes if they are too large/small.    
+#
+#     Returns
+#     -------
+#     axis
+#
+#     Raises
+#     ------
+#     Notes
+#     -----
+#     References
+#     ----------
+#     See Also
+#     --------
+#     Examples
+#     --------
+#     """#print(kwargs)    
+#
+#
+#
+#     if type(pie_palette)== str:
+#         colors={}
+#         unique_labels=set()
+#         for k, v in node_features.items():
+#             for la in v[pie_label]:
+#                 unique_labels.add(la)
+#         cmap=plt.get_cmap(pie_palette)
+#         unique_labels=nts(unique_labels)
+#         labelnum=len(unique_labels)
+#         for i, ul in enumerate(unique_labels):
+#             colors[ul]=cmap(i/labelnum)
+#     elif type(pie_palette)==dict:
+#         colors=pie_palette
+#         unique_labels=nts(colors.keys())
+#     else:
+#         raise Exception("Unknown pie_palette type.")
+#     fig, ax = plt.subplots(figsize=[8,8])
+#     plt.subplots_adjust(right=0.8)
+#     mgd=igraph_classes.MatplotlibGraphDrawer(ax)
+#     mgd.draw(g,vertex_size=0.02,**kwargs)
+#     trans=ax.transData.transform
+#     trans2=fig.transFigure.inverted().transform
+#
+#     deg=np.array([d for d in g.degree()])
+#     degsort=np.argsort(deg)
+#     nodes=np.array(vertex_label)
+#     deg=deg[degsort]
+#     nodes=nodes[degsort]
+#     pos=np.array(kwargs["layout"].coords)[degsort]
+#     deg=deg/deg.max()*piesize+0.015
+#     #piesize=0.02
+#     xycoord=[]
+#     text_pos=[]
+#     for i, n in enumerate(nodes):
+#         xx,yy=trans(pos[i]) # figure coordinates
+#         #print(xx,yy, pos[i])
+#         xa,ya=trans2((xx,yy)) # axes coordinates
+#         a = plt.axes([xa-deg[i]/2,ya-deg[i]/2, deg[i], deg[i]],
+#                      rasterized=True,
+#                      adjustable="datalim")
+#         #a.set_zorder(1)
+#         a.set_aspect('equal')
+#
+#         a.pie(node_features[n][pie_frac], colors=[colors[f] for f in node_features[n][pie_label]])
+#         a.margins(0,0)
+#
+#         if label_all==True:
+#             text_pos.append([a, xa,ya,n])
+#         else:
+#             if deg[i] > np.quantile(deg, 0.9):
+#                 text_pos.append([a, xa,ya,n])
+#             #a.text(xa,ya,n)
+#         a.zorder=i
+#     for j, (a, xa,ya,n) in enumerate(text_pos):
+#         a.set_zorder(10)
+#         a.text(xa,ya,n)
+#         a.zorder=i+j
+#     legend_elements = [Line2D([0], [0], marker='o', color='lavender', label=ul,markerfacecolor=colors[ul], markersize=10)
+#                       for ul in unique_labels]
+#
+#     ax.legend(handles=legend_elements,bbox_to_anchor=(0.95, 1))
+#     return ax
 
 def sankey_category(df, 
                     category: list=[], 
@@ -368,7 +369,169 @@ def sankey_category(df,
     plt.yticks([])
     plt.subplots_adjust(bottom=0.2)
     return ax
+
+
+def pienodes(g: igraph.Graph,  
+             node_features: Union[pd.DataFrame, Dict],
+             vertex_label: list=[], 
+             pie_frac: str="frac",
+             pie_label: str="label",
+             pie_palette: Union[str , dict]="tab20c", 
+             node_label: str="all",
+             piesize: Optional[float]=None,
+             label_color: str="black",
+             figsize: list=[],save: str="",
+             **kwargs) -> Dict: 
+    """
+    Drawing a network whose noses are pie charts.
     
+    Parameters
+    ----------
+    g : igraph object
+    vertex_label: list
+        The list of node labels.
+        e.g.: nodes=["A","B","C","D","E"]
+    node_features: dict
+        A dictionary containing fractions and labels of the pie charts.
+        e.g.:
+        pie_features={"A":{"frac":np.array([50,50]),"label":np.array(["a","b"])},
+                  "B":{"frac":np.array([90,5,5]),"label":np.array(["a","b","c"])},
+                  "C":{"frac":np.array([100]),"label":np.array(["c"])},
+                  "D":{"frac":np.array([100]),"label":np.array(["b"])},
+                  "E":{"frac":np.array([100]),"label":np.array(["a"])}}
+    pie_frac : str
+        The key value for the fractions of the pie charts. Default: "frac" (as the example of the above pie_features).
+    pie_label : str
+        The key value for the labels of the pie charts. Default: "label" (as the example of the above pie_features). 
+    pie_palette: str or dict
+        If string is provided, it must be one of the matplotlib colormap names for the pie charts. If dict, then  
+    node_label: str
+        Whether to label all nodes or not. If partial, labels show up only for 0.05 upper quantile of nodes with a high degree.
+    
+    piesize : float
+        Scaling pie chart sizes if they are too large/small.    
+
+    Returns
+    -------
+    axis
+    
+    Raises
+    ------
+    Notes
+    -----
+    References
+    ----------
+    See Also
+    --------
+    Examples
+    --------
+    """#print(kwargs)    
+    
+    
+    
+    if type(pie_palette)== str:
+        colors={}
+        if type(node_features)==dict:
+            
+            unique_labels=set()
+            for k, v in node_features.items():
+                for la in v[pie_label]:
+                    unique_labels.add(la)
+            unique_labels=list(unique_labels)
+        else:
+            node_features=node_features.pivot_table(index="node",columns=pie_label)
+            
+            unique_labels=[nf[1] for nf in node_features.columns]
+            
+        cmap=plt.get_cmap(pie_palette)
+        unique_labels=nts(unique_labels)
+        labelnum=len(unique_labels)
+        for i, ul in enumerate(unique_labels):
+            colors[ul]=cmap(i/labelnum)
+    elif type(pie_palette)==dict:
+        colors=pie_palette
+        unique_labels=nts(colors.keys())
+    else:
+        raise Exception("Unknown pie_palette type.")
+    
+    pos=np.array(kwargs["layout"].coords)
+    posmax=np.amax(pos)
+    if len(figsize)==0:
+        figsize=[5,5*np.abs(np.amax(pos[:,1]))/np.abs(np.amax(pos[:,0]))]
+    fig, ax = plt.subplots(figsize=figsize)
+    plt.subplots_adjust(right=0.8)
+    mgd=igraph_classes.MatplotlibGraphDrawer(ax)
+    
+    _deg=np.array([d for d in g.degree()])
+    _deg=np.log(_deg+2)
+    _deg=0.05*posmax*(_deg/_deg.max())
+    #print(_deg)
+    degsort=np.argsort(_deg)
+    nodes=np.array(vertex_label)
+    deg=_deg[degsort]
+    nodes=nodes[degsort]
+    pos=np.array(kwargs["layout"].coords)[degsort]
+    if piesize!=None:
+        mgd.draw(g, vertex_size=piesize,alpha=0,**kwargs)
+    else:
+        mgd.draw(g, vertex_size=1.8*_deg,alpha=0,**kwargs)
+    #piesize=0.02
+    #print(nodes)
+    #print(deg)
+    xycoord=[]
+    text_pos=[]
+    for i, n in enumerate(nodes):
+        
+        
+        x, y=pos[i]
+        if type(node_features)==dict:
+            frac=node_features[n][pie_frac]
+            frac=2*np.pi*np.array(frac)/np.sum(frac)
+            
+            _colors=[colors[f] for f in node_features[n][pie_label]]
+        else:
+            _node_features=node_features.loc[n]
+            frac=list(_node_features.loc[pie_frac,unique_labels])
+            frac=2*np.pi*np.array(frac)/np.sum(frac)
+            _colors=[colors[f] for f in unique_labels]
+            
+        angle=0
+        for fr, co in zip(frac, _colors):
+            if piesize!=None:
+                _baumkuchen_xy(ax, x, y, angle, fr, 0, piesize,20, co)
+            else:
+                _baumkuchen_xy(ax, x, y, angle, fr, 0, deg[i],20, co)
+            angle+=fr
+        # xx,yy=trans(pos[i]) # figure coordinates
+        # #print(xx,yy, pos[i])
+        # xa,ya=trans2((xx,yy)) # axes coordinates
+        # a = plt.axes([xa-deg[i]/2,ya-deg[i]/2, deg[i], deg[i]],
+        #              rasterized=True,
+        #              adjustable="datalim")
+        # #a.set_zorder(1)
+        # a.set_aspect('equal')
+        #
+        # a.pie(node_features[n][pie_frac], colors=[colors[f] for f in node_features[n][pie_label]])
+        # a.margins(0,0)
+        
+        if node_label=="all":
+            text_pos.append([x, y,n])
+        elif node_label=="partial":
+            if deg[i] > np.quantile(deg, 0.95):
+                text_pos.append([x, y,n])
+        elif node_label=="none":
+            pass
+
+    for j, (xa,ya,n) in enumerate(text_pos):
+        ax.text(xa,ya,n, color=label_color)
+        ax.zorder=i+j
+    legend_elements = [Line2D([0], [0], marker='o', color='lavender', label=ul,markerfacecolor=colors[ul], markersize=10)
+                      for ul in unique_labels]
+    
+    ax.legend(handles=legend_elements,bbox_to_anchor=(0.95, 1))
+    return {"axes":ax}
+
+
 def sankey_flow(df):
     
     pass
@@ -415,7 +578,8 @@ def correlation(df: pd.DataFrame,
                 rows_cols: list=[],
                 node_color="b",
                 bundle: bool=True,
-                show_edges: bool=True) -> Dict:
+                show_edges: bool=True,
+                save: str="") -> Dict:
     """
     Drawing a network based on correlations or distances between observations.
     Parameters
@@ -630,13 +794,14 @@ def correlation(df: pd.DataFrame,
             axes[-1].legend(handles=legendhandles, loc='best', title=clustering)
             if bundle==True:
                 axes[-1].plot(hb.x, hb.y, "y", zorder=1, linewidth=3)
+    _save(save)
     return {"axes":axes,"networkx":G, "distance_mat":dmat}
 
 
 if __name__=="__main__":
     
     test="sankey_category"
-    test="correlation"
+    test="pienode"
     if test=="correlation":
         df=sns.load_dataset("penguins")
         df=df.dropna(axis=0)
@@ -656,21 +821,33 @@ if __name__=="__main__":
                         show_percentage_target=False)
         plt.show()
     elif test=="pienode":
-        edges=[[0,0],[0,1],[0,2],[2,1],[2,3],[3,4]]
+        edges=[[0,0],[0,1],[0,2],[2,1],[2,3],[3,4],[0,5]]
         edge_width=[1 for i in range(len(edges))]
-        nodes=["A","B","C","D","E"]
+        nodes=["A","B","C","D","E","F"]
         pie_features={"A":{"frac":np.array([50,50]),"label":np.array(["a","b"])},
                       "B":{"frac":np.array([90,5,5]),"label":np.array(["a","b","c"])},
                       "C":{"frac":np.array([100]),"label":np.array(["c"])},
                       "D":{"frac":np.array([100]),"label":np.array(["b"])},
-                      "E":{"frac":np.array([100]),"label":np.array(["a"])}}
+                      "E":{"frac":np.array([100]),"label":np.array(["a"])},
+                      "F":{"frac":np.array([10,20,30]),"label":np.array(["a","b","c"])}}
         
         g=igraph.Graph(edges=edges)
         layout = g.layout("fr")
-        
-        
-        pienodes(g, vertex_label=nodes,
+        fraclist=[100,50,20,0]
+        labels=["a","b","c","d"]
+        pie_features={"node":[],"label":[],"frac":[]}
+        for n in nodes:
+            tmp=np.random.choice(fraclist,4)
+            for l, f in zip(labels, tmp):
+                pie_features["node"].append(n)
+                pie_features["label"].append(l)
+                pie_features["frac"].append(f)
+                
+        pie_features=pd.DataFrame(pie_features)
+        pienodes(g, 
+                 vertex_label=nodes,
                  node_features=pie_features,
+                 piesize=0.1,
                  layout=layout,
         vertex_color="lightblue",
         edge_color="gray",

@@ -29,7 +29,7 @@ from itertools import combinations
 import os
 #script_dir = os.path.dirname( __file__ )
 #sys.path.append( script_dir )
-from omniplot.utils import _line_annotate, _dendrogram_threshold, _radialtree2,_get_cluster_classes,_calc_curveture, _draw_ci_pi,_calc_r2,_ci_pi, _save
+from omniplot.utils import _line_annotate, _dendrogram_threshold, _radialtree2,_get_cluster_classes,_calc_curveture, _draw_ci_pi,_calc_r2,_ci_pi, _save, _baumkuchen_xy
 import scipy.stats as stats
 from joblib import Parallel, delayed
 from omniplot.chipseq_utils import _calc_pearson
@@ -103,7 +103,7 @@ def dotplot(df: pd.DataFrame,
         Whether or not to show the figure.
     Returns
     -------
-    axes: dict
+    axes: dict {"axes1":ax1,"axes2":ax2,"axes3":ax3}
     
     Raises
     ------
@@ -264,7 +264,7 @@ def dotplot(df: pd.DataFrame,
     _save(save, "dotplot")
     if show==True:
         plt.show()
-    return {"ax1":ax1,"ax2":ax2,"ax3":ax3}
+    return {"axes1":ax1,"axes2":ax2,"axes3":ax3}
 
 
 def radialtree(df: pd.DataFrame,
@@ -1112,14 +1112,14 @@ def complex_clustermap(df: pd.DataFrame,
     if show:
         plt.show()
     if return_col_cluster==True:
-        return {"row_clusters":pd.DataFrame(cdata),"col_clusters":pd.DataFrame(col_cdata), "grid":g}
+        return {"data":g.data2d,"row_clusters":pd.DataFrame(cdata),"col_clusters":pd.DataFrame(col_cdata), "grid":g}
     else:
-        return {"row_clusters":pd.DataFrame(cdata),"col_clusters":None, "grid":g}
+        return {"data":g.data2d,"row_clusters":pd.DataFrame(cdata),"col_clusters":None, "grid":g}
 
 def triangle_heatmap(df, 
                      grid_pos: list=[],
                      grid_labels: list=[],
-                     show: bool=False, save: str=""):
+                     show: bool=False, save: str="")-> dict:
     
     """
     Creating a heatmap with 45 degree rotation.
@@ -1136,6 +1136,7 @@ def triangle_heatmap(df,
     
     Returns
     -------
+    dict {"axes": ax}
     Raises
     ------
     Notes
@@ -1240,7 +1241,7 @@ def triangle_heatmap(df,
             plt.savefig(save+"_complexheatmap.pdf")
     if show:
         plt.show()
-    return ax
+    return {"axes": ax}
     
     
 
@@ -1277,7 +1278,9 @@ def decomplot(df,category: str="",
     
     Returns
     -------
-    
+        dict {"data": dfpc_list,"pca": pca, "axes":axes, "axes_explained":ax2} for pca method
+        or {"data": dfpc_list, "W":W, "H":H,"axes":axes,"axes_explained":axes2} for nmf method
+            
     
     Raises
     ------
@@ -1356,7 +1359,7 @@ def decomplot(df,category: str="",
             else:
                 plt.savefig(save+"_PCA.pdf",**saveparam) 
         if explained_variance==True:
-            fig, ax=plt.subplots()
+            fig, ax2=plt.subplots()
             exp_var_pca = pca.explained_variance_ratio_
             #
             # Cumulative sum of eigenvalues; This will be used to create step plot
@@ -1380,7 +1383,7 @@ def decomplot(df,category: str="",
         if show==True:
             plt.show()
         else:
-            return {"dataframe": dfpc_list,"pca": pca}
+            return {"data": dfpc_list,"pca": pca, "axes":axes, "axes_explained":ax2}
     elif method=="nmf":
         nmf=NMF(n_components=component,**nmfparam)
         if regularization:
@@ -1415,9 +1418,9 @@ def decomplot(df,category: str="",
             else:
                 plt.savefig(save+"_NMF.pdf",**saveparam) 
         if explained_variance==True:
-            fig, axes=plt.subplots(nrows=component, figsize=[5,5])
-            axes=axes.flatten()
-            for i, ax in enumerate(axes):
+            fig, axes2=plt.subplots(nrows=component, figsize=[5,5])
+            axes2=axes2.flatten()
+            for i, ax in enumerate(axes2):
                 if i==0:
                     ax.set_title("Coefficients of matrix H")
                 ax.bar(np.arange(len(features)),H[i])
@@ -1457,7 +1460,7 @@ def decomplot(df,category: str="",
                 
             if show==True:
                 plt.show()
-            return {"dfpc": dfpc_list, "W":W, "H":H}
+            return {"data": dfpc_list, "W":W, "H":H,"axes":axes,"axes_explained":axes2}
     elif method=="lda":
         lda=LatentDirichletAllocation(n_components=component, random_state=0)
         if regularization:
@@ -1598,7 +1601,7 @@ def manifoldplot(df,category="",
         sns.scatterplot(data=dft, x="d1", y="d2", ax=ax,**kwargs)
     if show==True:
         plt.show()
-    return dft, ax
+    return {"data": dft, "axes": ax}
 
 def clusterplot(df,category: Union[List[str], str]="", 
               method: str="kmeans",
@@ -1908,7 +1911,7 @@ def clusterplot(df,category: Union[List[str], str]="",
                 dfnew[cat]=category_val[:,i]
                 sns.scatterplot(data=dfnew,x=x,y=y,hue=cat, ax=ax[i+1], palette=palette[1],**kwargs)
         _dfnews[K]=dfnew 
-    return _dfnews
+    return {"data": _dfnews, "axes":ax}
 
 def volcanoplot():
     pass
@@ -2166,7 +2169,7 @@ def violinplot(df,
      
     Returns
     -------
-    dict("p values":pvalues,"ax":ax)
+    dict("p values":pvalues,"axes":ax)
     
     Raises
     ------
@@ -2243,11 +2246,12 @@ def violinplot(df,
             bbox=dict(boxstyle="round", fc=(0.9, 0.9, 0.9), ec="none"))
         plt.subplots_adjust(right=0.850)
     
-    return {"p values":newpvals,"ax":ax}
+    return {"p values":newpvals,"axes":ax}
+
 
 def stacked_barplot(df: pd.DataFrame,
-                    x: str,
-                    hue: str,
+                    x: Union[str, list],
+                    hue: Union[str, list],
                     scale: str="fraction",
                     order: list=[],
                     hue_order: list=[],
@@ -2263,8 +2267,10 @@ def stacked_barplot(df: pd.DataFrame,
     ----------
     df : pandas DataFrame
     
-    x,hue: str
-        x: the category to place in x axis, hue: count samples by the hue category
+    x: str or list
+        The category to place in x axis. Only str values are accepted.
+    hue: str or list
+        Counting samples by the hue category. Only str values are accepted.
     order: list, optional
         The order of x axis labels
     hue_order: list, optional
@@ -2286,7 +2292,7 @@ def stacked_barplot(df: pd.DataFrame,
      
     Returns
     -------
-    dict("p values":pvalues,"ax":ax)
+    dict("p values":pvalues,"axes":ax)
     
     Raises
     ------
@@ -2418,14 +2424,272 @@ def stacked_barplot(df: pd.DataFrame,
     if show:
         plt.show()
     
-    return {"pval":pvals,"ax":ax}
+    return {"pval":pvals,"axes":ax}
+
+
+def _stacked_barplot(df: pd.DataFrame,
+                    x: Union[str, list],
+                    hue: Union[str, list],
+                    scale: str="fraction",
+                    order: Optional[list]=None,
+                    hue_order: Optional[list]=None,
+                    test_pairs: List[List[str]]=[],
+                    show_values: bool=True,
+                    show: bool=False,
+                    figsize: List[int]=[4,6])-> Dict:
+    
+    """
+    Drawing a stacked barplot with or without the fisher's exact test 
+    
+    Parameters
+    ----------
+    df : pandas DataFrame
+    
+    x: str or list
+        The category to place in x axis. Only str values are accepted.
+    hue: str or list
+        Counting samples by the hue category. Only str values are accepted.
+    order: list, optional
+        The order of x axis labels
+    hue_order: list, optional
+        The order of hue labels
+    scale: str, optional
+        Scaling method. Available options are: fraction, percentage, absolute
+    test_pairs : pairs of categorical values related to x. It will calculate -log10 (p value) (mlp) of the fisher exact test.
+        Examples: [["Adelie","Chinstrap" ],
+                    ["Gentoo","Chinstrap" ],
+                    ["Adelie","Gentoo" ]]
+    show_number: bool, optional
+        Wheter to exhibit the values of fractions/counts/percentages.
+    
+    show : bool, optional
+        Whether or not to show the figure.
+    
+    figsize : List[int], optional
+        The figure size, e.g., [4, 6].
+     
+    Returns
+    -------
+    dict {"pval":pvals,"axes":ax}
+    
+    Raises
+    ------
+    Notes
+    -----
+    References
+    ----------
+    See Also
+    --------
+    Examples
+    --------
+    """
+    
+    if type(x)==str:
+        x=[x]
+        if order!=None:
+            order=[order]
+    if type(hue)==str:
+        hue=[hue]
+        if hue_order!=None:
+            hue_order=[hue_order]
+    for _x in x:
+        if df[_x].isnull().values.any():
+            df[_x]=df[_x].replace(np.nan, "NA")
+    for _hue in hue:
+        if df[_hue].isnull().values.any():
+            df[_hue]=df[_hue].replace(np.nan, "NA")
+
+    xkeys={}
+    keysx={}
+    for i, _x in enumerate(x):
+        if order==None:
+            u=np.unique(df[_x])
+            keys=sorted(list(u))
+        else:
+            keys=order[i]
+        xkeys[_x]=keys
+        for k in keys:
+            keysx[k]=_x
+    huekeys={}
+    for i, _hue in enumerate(hue):
+        if hue_order==None:
+            u=np.unique(df[_hue])
+            hues=sorted(list(u))
+        else:
+        
+            hues=hue_order[i]
+        huekeys[_hue]=hues
+    
+    data={}
+    for _x, keys in xkeys.items():
+        data[_x]={}
+        for key in keys:
+            
+            for _hue, hues in  huekeys.items():
+                if _x==_hue:
+                    continue
+                if not _hue in data[_x]:
+                    data[_x][_hue]={}
+                data[_x][_hue][key]=[]
+                for h in hues:
+                    data[_x][_hue][key].append(np.sum((df[_x]==key) & (df[_hue]==h)))
+
+    
+    pvals={}
+    if len(test_pairs) >0:
+        for _hue in hue:
+            
+            for i, h in enumerate(huekeys[_hue]):
+                
+                for p1,p2 in test_pairs:
+                    _x=keysx[p1]
+                    __x=keysx[p2]
+                    if _x!=__x:
+                        raise Exception("{} and {} can not be compared.".format(p1, p2))
+                    
+                    if _x==_hue:
+                        continue
+                    
+                    if not _x in pvals:
+                        pvals[_x]={}
+                    if not _hue in pvals[_x]:
+                        pvals[_x][_hue]={}
+                    if not h in pvals[_x][_hue]:
+                        pvals[_x][_hue][h]=[]
+                    keys=xkeys[_x]
+                    idx1=xkeys[_x].index(p1)
+                    idx2=xkeys[_x].index(p2)
+                    yes_total=np.sum(data[_x][_hue][keys[idx1]])
+                    no_total=np.sum(data[_x][_hue][keys[idx2]])
+                    yes_and_hue=data[_x][_hue][keys[idx1]][i]
+                    no_and_hue=data[_x][_hue][keys[idx2]][i]
+                    table=[[yes_and_hue, no_and_hue],
+                           [yes_total-yes_and_hue, no_total-no_and_hue]]
+        
+                    odd, pval=fisher_exact(table)
+                    pvals[_x][_hue][h].append([idx1, idx2, pval])
+    if scale=="fraction":
+        for _x in x:
+            for _hue in hue:
+                if _x==_hue:
+                    continue
+                for key in keys:
+                    data[_x][_hue][key]=np.array(data[_x][_hue][key])/np.sum(data[_x][_hue][key])
+    elif scale=="percentage":
+        for _x in x:
+            for _hue in hue:
+                if _x==_hue:
+                    continue
+                for key in keys:
+                    data[_x][_hue][key]=np.array(data[_x][_hue][key])/np.sum(data[_x][_hue][key])*100
+    
+    cmap=plt.get_cmap("tab20b")
+    ncols=len(x)*len(hue)-len(set(x)&set(hue))
+    figsize=[4*ncols, 6]
+    fig, axes=plt.subplots(figsize=figsize,ncols=ncols)
+    #plt.subplots_adjust(left=0.2,right=0.6, bottom=0.17)
+    axes=axes.flatten()
+    
+    if scale=="absolute":
+        unit=""
+    elif scale=="fraction":
+        unit=""
+    elif scale=="percentage":
+        unit="%"
+    axindex=0
+    pos={}
+    for _x in x:
+        pos[_x]={}
+        for _hue in hue:
+            if _x==_hue:
+                continue
+            pos[_x][_hue]={}
+            keys=xkeys[_x]
+            hues=huekeys[_hue]
+            bottom=np.zeros([len(keys)])
+            for i, h in enumerate(hues):
+                ax=axes[axindex]
+                
+                heights=np.array([data[_x][_hue][key][i] for key in keys])
+                
+                
+                ax.bar(keys, heights,width=0.5, bottom=bottom, color=cmap(i/len(hues)), label=h)
+                if show_values==True:
+                    for j in range(len(keys)):
+                        if scale=="absolute":
+                            ax.text(j,bottom[j]+heights[j]/2,"{}{}".format(heights[j],unit), 
+                                 bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="y", lw=1, alpha=0.8))
+                        else:
+                            ax.text(j,bottom[j]+heights[j]/2,"{:.2f}{}".format(heights[j],unit), 
+                                 bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="y", lw=1, alpha=0.8))
+                ax.set_xticks(ax.get_xticks())
+                ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
+                pos[_x][_hue][h]={key: [he, bo] for key, he, bo in zip(keys, heights, bottom)}
+                bottom+=heights
+            ax.legend(loc=[1.01,0])
+            ax.set_xlabel(_x)
+            if scale=="absolute":
+                ylabel="Counts"
+            elif scale=="fraction":
+                ylabel="Fraction"
+            elif scale=="percentage":
+                ylabel="Percentage"
+            ax.set_ylabel(ylabel)
+            axindex+=1
+            if len(pvals)>0 and _x in pvals:
+                print("mlp stands for -log10(p value)")
+                for _hue in hue:
+                    if _x==_hue:
+                        continue
+                    if not _hue in pos[_x]:
+                        continue
+                    hues=huekeys[_hue]
+                    for i, h in enumerate(hues):
+                        print(pos)
+                        print(pos[_x])
+                        _pos=pos[_x][_hue][h]
+                        for idx1, idx2, pval in pvals[_x][_hue][h]:
+                            
+                            he1, bot1=_pos[keys[idx1]]
+                            he2, bot2=_pos[keys[idx2]]
+                            line, =ax.plot([idx1,idx2],[he1/2+bot1,he2/2+bot2],color="gray")
+                            # r1=ax.transData.transform([idx1, he1/2+bot1])
+                            # r2=ax.transData.transform([idx2, he2/2+bot2])
+                            r1=np.array([idx1, he1/2+bot1])
+                            r2=np.array([idx2, he2/2+bot2])
+                            r=r2-r1
+                            print(ax.get_xlim(),ax.get_ylim())
+                            r=np.array([1,3])*r/np.array([ax.get_xlim()[1]-ax.get_xlim()[0],ax.get_ylim()[1]-ax.get_ylim()[0]])
+                            #r=ax.transData.transform(r)
+                            if idx2<idx1:
+                                r=-r
+                            print(r)
+                            r=r*(r @ r)**(-0.5)
+                            print(h,r)
+                            angle=np.arccos(r[0])
+                            if r[1]<0:
+                                angle= -angle
+                            print(angle)
+                            if pval < 0.05:
+                                pval_str=str(np.round(-np.log10(pval), decimals=1))
+                            else:
+                                pval_str="ns"
+                            _line_annotate( "mlp="+pval_str, line, (idx1+idx2)/2, color="magenta")
+                                
+                                
+    plt.tight_layout(w_pad=2)
+    if show:
+        plt.show()
+    
+    return {"pval":pvals,"axes":ax}
+
 
 def nice_piechart(df: pd.DataFrame, 
                   category: Union[str, List[str]],
                   palette: str="tab20c",
                   ncols: int=2,
                   ignore: float=0.05,
-                  show_values: bool=True):
+                  show_values: bool=True) ->Dict:
     
     if type(category)==str:
         category=[category]
@@ -2465,7 +2729,56 @@ def nice_piechart(df: pd.DataFrame,
             fig.delaxes(axes[-(i+1)])
     plt.tight_layout(h_pad=1)
     plt.subplots_adjust(top=0.9)
-    return axes
+    return {"axes":ax}
+
+
+def nice_piechart_num(df: pd.DataFrame,hue: List[str],
+                      category: str="" ,
+                  
+                  palette: str="tab20c",
+                  ncols: int=2,
+                  ignore: float=0.05,
+                  show_values: bool=True,
+                  figsize=[]) ->Dict:
+    
+    if category=="":
+        category=list(df.index)
+    else:
+        df=df.set_index(category)
+        category=list(df.index)
+        
+    df=df[hue]
+    srt=np.argsort(df.sum(axis=0))[::-1]
+    df=df[df.columns[srt]]
+    hue=list(df.columns)
+    nrows=len(category)//ncols+int(len(category)%ncols!=0)
+    fig, axes=plt.subplots(nrows=nrows, ncols=ncols, figsize=[ncols*2,
+                                                        nrows*2])
+    axes=axes.flatten()
+    _cmap=plt.get_cmap(palette, len(hue))
+    colors=[_cmap(i) for i in range(len(hue))]
+    for cat, ax in zip(category, axes):
+        c=df.loc[cat]
+        _c=c/np.sum(c)
+        ax.pie(c, 
+               counterclock=False,
+               startangle=90, 
+               colors=colors,
+               labeldistance=0.6,
+               radius=1.25)
+        ax.set_title(cat,backgroundcolor='lavender',pad=8)
+    if len(category)%ncols!=0:
+        for i in range(len(category)%ncols-2):
+            fig.delaxes(axes[-(i+1)])
+    plt.tight_layout(h_pad=1)
+    plt.subplots_adjust(top=0.95, right=0.81)
+    
+    legend_elements = [Line2D([0], [0], marker='o', color='lavender', label=huelabel,markerfacecolor=color, markersize=10)
+                      for color, huelabel in zip(colors, hue)]
+    
+    fig.legend(handles=legend_elements,bbox_to_anchor=(1, 1))
+    return {"axes":ax}
+
 def correlation(df: pd.DataFrame, 
                 category: Union[str, list]=[],
                 method="pearson",
@@ -2541,7 +2854,10 @@ def correlation(df: pd.DataFrame,
         dmat+=np.identity(dmat.shape[0])
     else:
         dmat=squareform(pdist(X, method))
-        
+    if method=="pearson":
+            title="Pearson correlation"
+    else:
+        title=method+" distance"    
         
         
     if len(category) >0:
@@ -2555,7 +2871,8 @@ def correlation(df: pd.DataFrame,
                                ztranform=False,
                                xticklabels=xticklabels,
                                yticklabels=yticklabels,
-                               figsize=figsize)
+                               figsize=figsize,
+                               cbar_kws={"label":title}, )
         return res
     else:
         
@@ -2568,11 +2885,173 @@ def correlation(df: pd.DataFrame,
                     #cbar_kws={"label":"Pearson correlation"}, 
                    annot=show_val,
                    **clustermap_param)
-        g.cax.set_ylabel("Pearson correlation", rotation=-90,va="bottom")
+        
+        g.cax.set_ylabel(title, rotation=-90,va="bottom")
         plt.setp(g.ax_heatmap.get_yticklabels(), rotation=0)  # For y axis
         plt.setp(g.ax_heatmap.get_xticklabels(), rotation=90) # For x axis
         return {"grid":g}
+
+
+def pie_scatter(df, 
+                x: str, 
+                y: str, 
+                category: list, 
+                pie_palette: str="tab20c",
+                xlabel: str="",
+                ylabel: str="",
+                piesize: float=0.01, 
+                label: Union[List, str]="all",topn=10,
+                logscalex: bool=False,
+                logscaley: bool=False,
+                ax: Optional[plt.Axes]=None,
+                sizes: Union[List, str]="",
+                save: str="",
+                show: bool=False,
+                edge_color: str="gray",
+                min_piesize: float=0.3,
+                figsize=[6,6]) -> dict:
+    """
+    Drawing a scatter plot of which points are represented by pie charts. 
     
+    Parameters
+    ----------
+    df : pandas DataFrame
+        A wide form dataframe. Index names are used to label points
+        e.g.) 
+                    gas    coal    nuclear    population    GDP
+            USA      20      20          5            20     50
+            China    30      40          5            40     50
+            India     5      10          1            40     10
+            Japan     5       5          1            10     10
+            
+    x,y : str
+        the names of columns to be x and y axes of the scatter plot.
+        
+    category: str or list
+        the names of categorical values to display as pie charts
+    
+    pie_palette : str
+        A colormap name
+    xlabel: str, optional
+        x axis label
+    ylabel: str, optional
+        y axis label
+    piesize: float, optional (default: 0.01) 
+        pie chart size. 
+    label: str, optional (default: "all")
+        "all": all 
+        "topn_of_sum":
+    logscalex, logscaley: bool, optional (default: False)
+        Whether to scale x an y axes with logarithm
+    ax: Optional[plt.Axes] optional, (default: None)
+        pyplot ax to add this scatter plot
+    sizes: Union[List, str], optional (default: "")
+        pie chart sizes.
+            "sum_of_each": automatically set pie chart sizes to be proportional to the sum of all categories.
+            list: the list of pie chart sizes
+    edge_color: str="gray",
+        The pie chart edge color
+    min_piesize: float, optional (default: 0.3)
+        Minimal pie chart size. This option is effective when the option sizes="sum_of_each". 
+    Returns
+    -------
+    dict
+    
+    Raises
+    ------
+    Notes
+    -----
+    References
+    ----------
+    See Also
+    --------
+    Examples
+    --------
+    """
+    if type(pie_palette)== str:
+        colors={}
+        unique_labels=category
+            
+        cmap=plt.get_cmap(pie_palette)
+        labelnum=len(unique_labels)
+        for i, ul in enumerate(unique_labels):
+            colors[ul]=cmap(i/labelnum)
+    elif type(pie_palette)==dict:
+        colors=pie_palette
+        unique_labels=colors.keys()
+    else:
+        raise Exception("Unknown pie_palette type.")
+    if ax ==None:
+        fig, ax=plt.subplots(figsize=figsize)
+    plt.subplots_adjust(right=0.80)
+    X=df[x]
+    Y=df[y]
+    yscale=""
+    xscale=""
+    if logscaley==True:
+        Y=np.log10(Y+1)
+        yscale=" (scaled by log10)"
+    if logscalex==True:
+        X=np.log10(X+1)
+        xscale=" (scaled by log10)"
+    Frac=df[category]
+    
+    index=df.index
+    piesize=np.amax([np.amax(X), np.amax(Y)])*piesize
+    
+    if sizes=="sum_of_each":
+        sums=Frac.sum(axis=1)
+        sumsrt=np.argsort(sums)[::-1]
+        sumsrt=set(sumsrt[:topn])
+        sums=sums/np.amax(sums)
+        sums=piesize*(sums+min_piesize)
+    _colors=[colors[f] for f in unique_labels]
+    for i, (_x, _y, _ind) in enumerate(zip(X, Y, index)):
+        _frac=Frac.loc[_ind].values 
+        _frac=2*np.pi*np.array(_frac)/np.sum(_frac)
+        
+        angle=0
+        #print(sums.loc[_ind])
+        for fr, co in zip(_frac, _colors):
+            if type(sizes)==str:
+                if sizes=="sum_of_each":
+                    _baumkuchen_xy(ax, _x, _y, angle, fr, 0, sums.loc[_ind],20, co, edge_color=edge_color)
+                elif sizes=="":
+                    _baumkuchen_xy(ax, _x, _y, angle, fr, 0, piesize,20, co, edge_color=edge_color)
+                else:
+                    pass
+            elif type(sizes)==list and len(sizes) !=0:
+                _baumkuchen_xy(ax, _x, _y, angle, fr, 0, piesize*sizes[i],20, co, edge_color=edge_color)
+            else:
+                _baumkuchen_xy(ax, _x, _y, angle, fr, 0, piesize,20, co, edge_color=edge_color)
+            angle+=fr
+        
+        if type(label)==str:
+            if label=="all":
+                ax.text(_x, _y,_ind)
+            elif label=="topn_of_sum":
+                if i in sumsrt:
+                    ax.text(_x, _y,_ind)
+                
+            elif label=="":
+                pass
+        elif type(label)==list:
+            if _ind in label:
+                ax.text(_x, _y,_ind)
+            
+            
+    if xlabel!="":
+        x=xlabel
+    if ylabel!="":
+        y=ylabel
+    plt.xlabel(x+xscale)
+    plt.ylabel(y+yscale)
+    legend_elements = [Line2D([0], [0], marker='o', color='lavender', label=ul,markerfacecolor=colors[ul], markersize=10)
+                      for ul in unique_labels]
+    
+    ax.legend(handles=legend_elements,bbox_to_anchor=(0.95, 1))
+    _save(save, "pie_scatter")
+    return {"axes":ax}
 if __name__=="__main__":
     
     
@@ -2596,8 +3075,9 @@ if __name__=="__main__":
     test="stacked"
     test="dotplot"
     test="regression"
-    test="stacked"
     
+    test="nice_piechart_num"
+    test="pie_scatter"
     if test=="correlation":
         df=sns.load_dataset("penguins")
         df=df.dropna(axis=0)
@@ -2708,5 +3188,40 @@ if __name__=="__main__":
     elif test=="stacked": 
         df=sns.load_dataset("penguins")
         df=df.dropna(axis=0)
-        stacked_barplot(df, x="species",hue="island", scale="absolute", test_pairs=[["Adelie","Gentoo"]])
+        _stacked_barplot(df, x=["species","island"],hue=["sex","island"], scale="absolute", test_pairs=[["Adelie","Gentoo"]])
+        plt.show()
+    elif test=="pie_scatter":
+        f="/home/koh/ews/omniplot/data/energy_vs_gdp.csv"
+        df=pd.read_csv(f, comment='#')
+        df=df.set_index("country")
+        pie_scatter(df, x="gdppc",y="pop", category=['biofuel_electricity',
+                                                     'coal_electricity',
+                                                     'gas_electricity',
+                                                     'hydro_electricity',
+                                                     'nuclear_electricity',
+                                                     'oil_electricity',
+                                                     'other_renewable_electricity',
+                                                     'solar_electricity',
+                                                     'wind_electricity'],logscalex=True,logscaley=True,
+                                                    sizes="sum_of_each",
+                                                    min_piesize=0.1,piesize=0.05, label="top10_of_sum")
+        
+        
+        plt.show()
+    
+    elif test=="nice_piechart_num":
+        f="/home/koh/ews/omniplot/data/energy_vs_gdp.csv"
+        df=pd.read_csv(f)
+        df=df.set_index("country", comment='#')
+        nice_piechart_num(df, hue=['biofuel_electricity',
+                                                     'coal_electricity',
+                                                     'gas_electricity',
+                                                     'hydro_electricity',
+                                                     'nuclear_electricity',
+                                                     'oil_electricity',
+                                                     'other_renewable_electricity',
+                                                     'solar_electricity',
+                                                     'wind_electricity'],ncols=10)
+        
+        
         plt.show()
