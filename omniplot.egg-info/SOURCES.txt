@@ -8,6 +8,7 @@ omniplot/data.py
 omniplot/igraph_classes.py
 omniplot/networkplot.py
 omniplot/plot.py
+omniplot/plot_classes.py
 omniplot/regressionplot.py
 omniplot/statistics.py
 omniplot/utils.py

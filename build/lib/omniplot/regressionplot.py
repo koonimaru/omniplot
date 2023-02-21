@@ -17,7 +17,7 @@ from itertools import combinations
 import os
 script_dir = os.path.dirname( __file__ )
 sys.path.append( script_dir )
-from utils import _dendrogram_threshold, _radialtree2,_get_cluster_classes,_calc_curveture, draw_ci_pi,calc_r2,ci_pi
+from utils import _dendrogram_threshold, _radialtree2,_get_cluster_classes,_calc_curveture, _draw_ci_pi,_calc_r2,_ci_pi
 import scipy.stats as stats
 
 colormap_list=["nipy_spectral", "terrain","tab20b","gist_rainbow","CMRmap","coolwarm","gnuplot","gist_stern","brg","rainbow"]
@@ -100,7 +100,7 @@ def regression_single(df,
                                 # number of samples
         y_model=ransac.predict(_X)
 
-        r2 = calc_r2(X,Y)
+        r2 = _calc_r2(X,Y)
         # mean squared error
         MSE = 1/n * np.sum( (Y - y_model)**2 )
         
@@ -108,13 +108,13 @@ def regression_single(df,
         x_line = plotline_X.flatten()
         y_line = fit_df["ransac_regression"]
          
-        ci, pi, std_error=ci_pi(X,Y,plotline_X.flatten(),y_model)
+        ci, pi, std_error=_ci_pi(X,Y,plotline_X.flatten(),y_model)
         sigma=std_error*(X.transpose() @ X)**(-0.5)
         #sigma=stats.t.sf(, df=X.shape[0]-2)
         coef_p=stats.t.sf(abs(ransac.estimator_.coef_[0]/sigma), df=X.shape[0]-2)
         ############### Ploting
 
-        draw_ci_pi(ax, ci, pi,x_line, y_line)
+        _draw_ci_pi(ax, ci, pi,x_line, y_line)
         sns.scatterplot(x=X[inlier_mask], y=Y[inlier_mask], color="blue", label="Inliers")
         sns.scatterplot(x=X[outlier_mask], y=Y[outlier_mask], color="red", label="Outliers")
         plt.xlabel(x)
@@ -128,7 +128,7 @@ def regression_single(df,
         if len(category)!=0:
             fig, ax=plt.subplots(figsize=figsize)
             plt.subplots_adjust(left=0.15)
-            draw_ci_pi(ax, ci, pi,x_line, y_line)
+            _draw_ci_pi(ax, ci, pi,x_line, y_line)
             sns.scatterplot(data=df,x=x, y=y, hue=category)
             
             plt.xlabel(x)
@@ -150,13 +150,13 @@ def regression_single(df,
         intercept_p=rlm_results.pvalues[0]
         coef_p=rlm_results.pvalues[1]
         y_model=rlm_results.predict(sm.add_constant(X))
-        r2 = calc_r2(X,Y)
+        r2 = _calc_r2(X,Y)
         x_line = plotline_X.flatten()
         y_line = rlm_results.predict(sm.add_constant(x_line))
-        ci, pi=ci_pi(X,Y,plotline_X.flatten(),y_model)
+        ci, pi=_ci_pi(X,Y,plotline_X.flatten(),y_model)
         MSE = 1/n * np.sum( (Y - y_model)**2 )
 
-        draw_ci_pi(ax, ci, pi,x_line, y_line)
+        _draw_ci_pi(ax, ci, pi,x_line, y_line)
         sns.scatterplot(data=df,x=x, y=y, color="blue")
         #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
         plt.title("Robust linear regression, r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x , p-values: coefficient {:.2f}, \
@@ -168,7 +168,7 @@ def regression_single(df,
         if len(category)!=0:
             fig, ax=plt.subplots(figsize=figsize)
             plt.subplots_adjust(left=0.15)
-            draw_ci_pi(ax, ci, pi,x_line, y_line)
+            _draw_ci_pi(ax, ci, pi,x_line, y_line)
             sns.scatterplot(data=df,x=x, y=y, hue=category)
             #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
             plt.title("Robust linear regression, r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x , p-values: coefficient {:.2f}, \
@@ -189,16 +189,16 @@ def regression_single(df,
         coef=rlm_results.params[1]
         intercept=rlm_results.params[0]
         y_model=rlm_results.predict(sm.add_constant(X))
-        r2 = calc_r2(X,Y)
+        r2 = _calc_r2(X,Y)
         x_line = plotline_X.flatten()
         y_line = rlm_results.predict(sm.add_constant(x_line))
-        ci, pi, std_error=ci_pi(X,Y,plotline_X.flatten(),y_model)
+        ci, pi, std_error=_ci_pi(X,Y,plotline_X.flatten(),y_model)
         sigma=std_error*(X.transpose() @ X)**(-0.5)
         print(sigma,coef )
         coef_p=stats.t.sf(abs(coef/sigma), df=X.shape[0]-2)
         MSE = 1/n * np.sum( (Y - y_model)**2 )
 
-        draw_ci_pi(ax, ci, pi,x_line, y_line)   
+        _draw_ci_pi(ax, ci, pi,x_line, y_line)   
         sns.scatterplot(data=df,x=x, y=y, color="blue")
         #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
         plt.title("OLS ({}), r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x, coefficient p-value: {:.2E}".format(method,
@@ -209,7 +209,7 @@ def regression_single(df,
         if len(category)!=0:
             fig, ax=plt.subplots(figsize=figsize)
             plt.subplots_adjust(left=0.15)
-            draw_ci_pi(ax, ci, pi,x_line, y_line)
+            _draw_ci_pi(ax, ci, pi,x_line, y_line)
             sns.scatterplot(data=df,x=x, y=y, color="blue",hue=category)
             #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
             plt.title("OLS ({}), r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x, coefficient p-value: {:.2E}".format(method,

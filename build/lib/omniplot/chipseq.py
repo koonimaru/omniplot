@@ -494,7 +494,7 @@ def plot_bigwig_correlation(files: dict,
     return {"correlation": dmat,"samples":samples}
     
 def call_superenhancer(bigwig: str, 
-                       peakfile: str,
+                       bed: str,
                        stitch=25000,
                        tss_dist: int=0,
                        plot_signals=False,
@@ -556,7 +556,7 @@ def call_superenhancer(bigwig: str,
     
     bw=pwg.open(bigwig)
     chrom_sizes=bw.chroms()
-    peaks=_read_peaks(peakfile)
+    peaks=_read_peaks(bed)
     #stitched=stitching(peaks, stitch)
     
     
@@ -683,7 +683,7 @@ def call_superenhancer(bigwig: str,
     plt.subplots_adjust(right=0.620, bottom=0.130)
     
     
-    stitched_out=os.path.splitext(peakfile)[0]+"_SE.bed"
+    stitched_out=os.path.splitext(bed)[0]+"_SE.bed"
     with open(stitched_out, "w") as fout:
         
         if closest_genes==True:
@@ -737,7 +737,7 @@ def call_superenhancer(bigwig: str,
                              term=t,
                              cmap=plt.cm.seismic,
                              **gs_res.results[t],
-                             ofname=os.path.splitext(peakfile)[0]+"_"+name+"_gsea.pdf"
+                             ofname=os.path.splitext(bed)[0]+"_"+name+"_gsea.pdf"
                              )
         print("GO analysis took ", time.time()-start_time)
     if plot_signals:
@@ -1420,7 +1420,7 @@ def plot_bed_correlation(files:dict,
     
     
     
-def frip_calc():
+def frip_calc(files:dict,):
     
     pass
     
@@ -1479,7 +1479,7 @@ if __name__=="__main__":
         peak="/media/koh/grasnas/home/data/omniplot/HepG2_KMT2B_ENCFF036WCY_srt.bed"
         peak="/media/koh/grasnas/home/data/omniplot/peaks_mm39.bed"
         #tss="/media/koh/grasnas/home/data/omniplot/gencode.v40.annotation_tss_srt.bed"
-        call_superenhancer(bigwig=f, peakfile=peak,tss_dist=5000,plot_signals=True , gff=gff,closest_genes=True,
+        call_superenhancer(bigwig=f, bed=peak,tss_dist=5000,plot_signals=True , gff=gff,closest_genes=True,
                            go_analysis=False,nearest_k=3)
         plt.show()
     elif test=="plot_average":
