@@ -31,7 +31,9 @@ class _Basic_plot():
         else:
             self.ax=ax
             self.fig=None
-    
+        
+        
+        
     
     
 

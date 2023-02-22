@@ -676,7 +676,7 @@ def correlation(df: pd.DataFrame,
         if dmat[i,j]>=threshold:
             G.add_edge(original_index[i], original_index[j], weight=dmat[i,j])
     
-    if clustering =="best_partition": 
+    if clustering =="louvain": 
         try:
             import community
         except ImportError as e:
@@ -726,7 +726,7 @@ def correlation(df: pd.DataFrame,
         colors[cat]=[]
         for g in G.nodes:
             colors[cat].append(_cmap_dict[_cats[original_index.index(g)]])
-    if clustering =="best_partition":
+    if clustering =="louvain":
         u=set()
         for k, v in comm.items():
             u.add(v)
@@ -829,7 +829,7 @@ if __name__=="__main__":
         correlation(df, category=["species", "island","sex"], 
                     method="pearson", 
                     ztransform=True,
-                    clustering ="asyn_fluidc",show_edges=True, bundle=False)
+                    clustering ="louvain",show_edges=True, bundle=False)
         plt.show()
         
     elif test=="sankey_category":

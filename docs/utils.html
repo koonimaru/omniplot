@@ -22,59 +22,881 @@
 <h1 class="title">Module <code>omniplot.utils</code></h1>
 </header>
 <section id="section-intro">
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">import numpy as np 
+from collections import defaultdict
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
+import matplotlib
+from typing import Optional, List, Dict, Union
+from matplotlib.lines import Line2D
+from scipy.cluster.hierarchy import leaves_list
+from matplotlib import cm
+from scipy.cluster import hierarchy
+import scipy.stats as stats
+colormap_list=[&#34;nipy_spectral&#34;, &#34;terrain&#34;,&#34;tab20b&#34;,&#34;gist_rainbow&#34;,&#34;CMRmap&#34;,&#34;coolwarm&#34;,&#34;gnuplot&#34;,&#34;gist_stern&#34;,&#34;brg&#34;,&#34;rainbow&#34;]
+plt.rcParams[&#39;font.family&#39;]= &#39;sans-serif&#39;
+plt.rcParams[&#39;font.sans-serif&#39;] = [&#39;Arial&#39;]
+plt.rcParams[&#39;svg.fonttype&#39;] = &#39;none&#39;
+sns.set_theme()
+from matplotlib.text import Annotation
+from matplotlib.transforms import Affine2D
+import os 
+class LineAnnotation(Annotation):
+    &#34;&#34;&#34;A sloped annotation to *line* at position *x* with *text*
+    Optionally an arrow pointing from the text to the graph at *x* can be drawn.
+    Usage
+    -----
+    fig, ax = subplots()
+    x = linspace(0, 2*pi)
+    line, = ax.plot(x, sin(x))
+    ax.add_artist(LineAnnotation(&#34;text&#34;, line, 1.5))
+    &#34;&#34;&#34;
+
+    def __init__(
+        self, text, line, x, xytext=(0, 5), textcoords=&#34;offset points&#34;, **kwargs
+    ):
+        &#34;&#34;&#34;Annotate the point at *x* of the graph *line* with text *text*.
+
+        By default, the text is displayed with the same rotation as the slope of the
+        graph at a relative position *xytext* above it (perpendicularly above).
+
+        An arrow pointing from the text to the annotated point *xy* can
+        be added by defining *arrowprops*.
+
+        Parameters
+        ----------
+        text : str
+            The text of the annotation.
+        line : Line2D
+            Matplotlib line object to annotate
+        x : float
+            The point *x* to annotate. y is calculated from the points on the line.
+        xytext : (float, float), default: (0, 5)
+            The position *(x, y)* relative to the point *x* on the *line* to place the
+            text at. The coordinate system is determined by *textcoords*.
+        **kwargs
+            Additional keyword arguments are passed on to `Annotation`.
+
+        See also
+        --------
+        `Annotation`
+        `line_annotate`
+        &#34;&#34;&#34;
+        assert textcoords.startswith(
+            &#34;offset &#34;
+        ), &#34;*textcoords* must be &#39;offset points&#39; or &#39;offset pixels&#39;&#34;
+
+        self.line = line
+        self.xytext = xytext
+
+        # Determine points of line immediately to the left and right of x
+        xs, ys = line.get_data()
+
+        def neighbours(x, xs, ys, try_invert=True):
+            inds, = np.where((xs &lt;= x)[:-1] &amp; (xs &gt; x)[1:])
+            if len(inds) == 0:
+                assert try_invert, &#34;line must cross x&#34;
+                return neighbours(x, xs[::-1], ys[::-1], try_invert=False)
+
+            i = inds[0]
+            return np.asarray([(xs[i], ys[i]), (xs[i+1], ys[i+1])])
+        
+        self.neighbours = n1, n2 = neighbours(x, xs, ys)
+        
+        # Calculate y by interpolating neighbouring points
+        y = n1[1] + ((x - n1[0]) * (n2[1] - n1[1]) / (n2[0] - n1[0]))
+
+        kwargs = {
+            &#34;horizontalalignment&#34;: &#34;center&#34;,
+            &#34;rotation_mode&#34;: &#34;anchor&#34;,
+            **kwargs,
+        }
+        super().__init__(text, (x, y), xytext=xytext, textcoords=textcoords, **kwargs)
+
+    def get_rotation(self):
+        &#34;&#34;&#34;Determines angle of the slope of the neighbours in display coordinate system
+        &#34;&#34;&#34;
+        transData = self.line.get_transform()
+        dx, dy = np.diff(transData.transform(self.neighbours), axis=0).squeeze()
+        return np.rad2deg(np.arctan2(dy, dx))
+
+    def update_positions(self, renderer):
+        &#34;&#34;&#34;Updates relative position of annotation text
+        Note
+        ----
+        Called during annotation `draw` call
+        &#34;&#34;&#34;
+        xytext = Affine2D().rotate_deg(self.get_rotation()).transform(self.xytext)
+        self.set_position(xytext)
+        super().update_positions(renderer)
+
+
+def _line_annotate(text, line, x, *args, **kwargs):
+    &#34;&#34;&#34;Add a sloped annotation to *line* at position *x* with *text*
+
+    Optionally an arrow pointing from the text to the graph at *x* can be drawn.
+
+    Usage
+    -----
+    x = linspace(0, 2*pi)
+    line, = ax.plot(x, sin(x))
+    line_annotate(&#34;sin(x)&#34;, line, 1.5)
+
+    See also
+    --------
+    `LineAnnotation`
+    `plt.annotate`
+    &#34;&#34;&#34;
+    ax = line.axes
+    a = LineAnnotation(text, line, x, *args, **kwargs)
+    if &#34;clip_on&#34; in kwargs:
+        a.set_clip_path(ax.patch)
+    ax.add_artist(a)
+    return a
+
+def _baumkuchen(ax, start, theta, rin, rout,res, _color):
+    move=np.linspace(0, theta,res)
+    xf=np.concatenate([rin*np.cos(start+move),[rin*np.cos(start+theta),rout*np.cos(start+theta)],rout*np.cos(start+move)[::-1],[rin*np.cos(start),rout*np.cos(start)][::-1]])
+    yf=np.concatenate([rin*np.sin(start+move),[rin*np.sin(start+theta),rout*np.sin(start+theta)],rout*np.sin(start+move)[::-1],[rin*np.sin(start),rout*np.sin(start)][::-1]])
+    ax.fill(xf, yf, color=_color)
+
+def _baumkuchen_xy(ax, x,y, start, theta, rin, rout,res, _color, edge_color=&#34;&#34;):
+    move=np.linspace(0, theta,res)
+    xf=np.concatenate([rin*np.cos(start+move),[rin*np.cos(start+theta),rout*np.cos(start+theta)],rout*np.cos(start+move)[::-1],[rin*np.cos(start),rout*np.cos(start)][::-1]])
+    yf=np.concatenate([rin*np.sin(start+move),[rin*np.sin(start+theta),rout*np.sin(start+theta)],rout*np.sin(start+move)[::-1],[rin*np.sin(start),rout*np.sin(start)][::-1]])
+    if edge_color!=&#34;&#34;:
+        ax.plot(xf+x, yf+y, zorder=2, color=edge_color)
+    ax.fill(xf+x, yf+y, color=_color, zorder=2)
+
+def _calc_curveture(normx, normy):
+    perp=[]
+    for i, (nx, ny) in enumerate(zip(normx, normy)):
+        if i==0:
+            perp.append(0)
+            continue
+        r=(nx**2+ny**2)**0.5
+        sina=ny/r
+        cosa=nx/r
+        sinamb=sina*np.cos(np.pi*0.25)-cosa*np.sin(np.pi*0.25)
+        perp.append(r*sinamb)
+    perp=np.array(perp)
+    return perp
+
+def _get_cluster_classes(den, label=&#39;ivl&#39;):
+    cluster_idxs = defaultdict(list)
+    for c, pi in zip(den[&#39;color_list&#39;], den[&#39;icoord&#39;]):
+        for leg in pi[1:3]:
+            i = (leg - 5.0) / 10.0
+            if abs(i - int(i)) &lt; 1e-5:
+                cluster_idxs[c].append(int(i))
+
+    cluster_classes = {}
+    for c, l in cluster_idxs.items():
+        i_l = [den[label][i] for i in l]
+        cluster_classes[c] = i_l
+
+    return cluster_classes
+
+def _dendrogram_threshold(Z, approx_clusternum):
+    lbranches=np.array(Z[&#34;dcoord&#34;])[:,:2]
+    rbranches=np.array(Z[&#34;dcoord&#34;])[:,2:]
+    thre=np.linspace(0, np.amax(Z[&#34;dcoord&#34;]), 100)[::-1]
+    for t in thre:
+        crossbranches=np.sum(lbranches[:,1]&gt;t)+np.sum(rbranches[:,0]&gt;t)-np.sum(lbranches[:,0]&gt;t)-np.sum(rbranches[:,1]&gt;t)
+        if crossbranches&gt;=approx_clusternum:
+            break 
+    return t
+
+def _radialtree(Z2,fontsize: int=8,
+               figsize: Optional[list]=None,
+               palette: str=&#34;gist_rainbow&#34;, 
+               addlabels: bool=True, 
+               show: bool=False,
+               sample_classes: Optional[dict]=None,
+               colorlabels: Optional[dict]=None,
+         colorlabels_legend: Optional[dict]=None
+         ) -&gt; plt.Axes:
+    &#34;&#34;&#34;
+    Drawing a radial dendrogram from a scipy dendrogram output.
+    Parameters
+    ----------
+    Z2 : dictionary
+        A dictionary returned by scipy.cluster.hierarchy.dendrogram
+    addlabels: bool
+        A bool to choose if labels are shown.
+    fontsize : float
+        A float to specify the font size
+    figsize : [x, y] array-like
+        1D array-like of floats to specify the figure size
+    palette : string
+        Matlab colormap name.
+    sample_classes : dict
+        A dictionary that contains lists of sample subtypes or classes. These classes appear 
+        as color labels of each leaf. Colormaps are automatically assigned. Not compatible 
+        with options &#34;colorlabels&#34; and &#34;colorlabels_legend&#34;.
+        e.g., {&#34;color1&#34;:[&#34;Class1&#34;,&#34;Class2&#34;,&#34;Class1&#34;,&#34;Class3&#34;, ....]} 
+    colorlabels : dict
+        A dictionary to set color labels to leaves. The key is the name of the color label. 
+        The value is the list of RGB color codes, each corresponds to the color of a leaf. 
+        e.g., {&#34;color1&#34;:[[1,0,0,1], ....]}   
+    colorlabels_legend : dict
+        A nested dictionary to generate the legends of color labels. The key is the name of 
+        the color label. The value is a dictionary that has two keys &#34;colors&#34; and &#34;labels&#34;. 
+        The value of &#34;colors&#34; is the list of RGB color codes, each corresponds to the class of a leaf. 
+        e.g., {&#34;color1&#34;:{&#34;colors&#34;:[[1,0,0,1], ....], &#34;labels&#34;:[&#34;label1&#34;,&#34;label2&#34;,...]}}   
+    show : bool
+        Whether or not to show the figure.
+    Returns
+    -------
+    Raises
+    ------
+    Notes
+    -----
+    References
+    ----------
+    See Also
+    --------
+    Examples
+    --------
+    &#34;&#34;&#34;
+    if figsize==None and colorlabels != None:
+        figsize=[7,5]
+    elif figsize==None and sample_classes != None:
+        figsize=[7,5]
+    elif figsize==None :
+        figsize=[5,5]
+    linewidth=0.5
+    R=1
+    width=R*0.1
+    space=R*0.05
+    if colorlabels != None:
+        offset=width*len(colorlabels)/R+space*(len(colorlabels)-1)/R+0.05
+        print(offset)
+    elif sample_classes != None:
+        offset=width*len(sample_classes)/R+space*(len(sample_classes)-1)/R+0.05
+        print(offset)
+    else:
+        offset=0
+    
+    xmax=np.amax(Z2[&#39;icoord&#39;])
+    ymax=np.amax(Z2[&#39;dcoord&#39;])
+    
+    ucolors=sorted(set(Z2[&#34;color_list&#34;]))
+    #cmap = cm.gist_rainbow(np.linspace(0, 1, len(ucolors)))
+    cmp=plt.get_cmap(palette, len(ucolors))
+    #print(cmp)
+    if type(cmp) == matplotlib.colors.LinearSegmentedColormap:
+        cmap = cmp(np.linspace(0, 1, len(ucolors)))
+    else:
+        cmap=cmp.colors
+    fig, ax=plt.subplots(figsize=figsize)
+    i=0
+    label_coords=[]
+    for x, y, c in sorted(zip(Z2[&#39;icoord&#39;], Z2[&#39;dcoord&#39;],Z2[&#34;color_list&#34;])):
+    #x, y = Z2[&#39;icoord&#39;][0], Z2[&#39;dcoord&#39;][0]
+        _color=cmap[ucolors.index(c)]
+        if c==&#34;C0&#34;: #np.abs(_xr1)&lt;0.000000001 and np.abs(_yr1) &lt;0.000000001:
+            _color=&#34;black&#34;
+        
+        # transforming original x coordinates into relative circumference positions and y into radius
+        # the rightmost leaf is going to [1, 0] 
+        r=R*(1-np.array(y)/ymax)
+        _x=np.cos(2*np.pi*np.array([x[0],x[2]])/xmax) # transforming original x coordinates into x circumference positions
+        _xr0=_x[0]*r[0]
+        _xr1=_x[0]*r[1]
+        _xr2=_x[1]*r[2]
+        _xr3=_x[1]*r[3]
+        _y=np.sin(2*np.pi*np.array([x[0],x[2]])/xmax) # transforming original x coordinates into y circumference positions
+        _yr0=_y[0]*r[0]
+        _yr1=_y[0]*r[1]
+        _yr2=_y[1]*r[2]
+        _yr3=_y[1]*r[3]
+        #plt.scatter([_xr0, _xr1, _xr2, _xr3],[_yr0, _yr1, _yr2,_yr3], c=&#34;b&#34;)
+        
+        
+        #if y[0]&gt;0 and y[3]&gt;0:
+            #_color=&#34;black&#34;
+        #plotting radial lines
+        plt.plot([_xr0, _xr1], [_yr0, _yr1], c=_color,linewidth=linewidth, rasterized=True)
+        plt.plot([_xr2, _xr3], [_yr2,_yr3], c=_color,linewidth=linewidth, rasterized=True)
+        
+        #plotting circular links between nodes
+        if _yr1&gt; 0 and _yr2&gt;0:
+            link=np.sqrt(r[1]**2-np.linspace(_xr1, _xr2, 100)**2)
+            plt.plot(np.linspace(_xr1, _xr2, 100), link, c=_color,linewidth=linewidth, rasterized=True)
+        elif _yr1 &lt;0 and _yr2 &lt;0:
+            link=-np.sqrt(r[1]**2-np.linspace(_xr1, _xr2, 100)**2)
+            
+            plt.plot(np.linspace(_xr1, _xr2, 100), link, c=_color,linewidth=linewidth, rasterized=True)
+        elif _yr1&gt; 0 and _yr2 &lt; 0:
+            _r=r[1]
+            if _xr1 &lt;0 or _xr2 &lt;0:
+                _r=-_r
+            link=np.sqrt(r[1]**2-np.linspace(_xr1, _r, 100)**2)
+            plt.plot(np.linspace(_xr1, _r, 100), link, c=_color,linewidth=linewidth, rasterized=True)
+            link=-np.sqrt(r[1]**2-np.linspace(_r, _xr2, 100)**2)
+            plt.plot(np.linspace(_r, _xr2, 100), link, c=_color,linewidth=linewidth, rasterized=True)
+        
+        #Calculating the x, y coordinates and rotation angles of labels
+        
+        if y[0]==0:
+            label_coords.append([(1.05+offset)*_xr0, (1.05+offset)*_yr0,360*x[0]/xmax])
+            #plt.text(1.05*_xr0, 1.05*_yr0, Z2[&#39;ivl&#39;][i],{&#39;va&#39;: &#39;center&#39;},rotation_mode=&#39;anchor&#39;, rotation=360*x[0]/xmax)
+            i+=1
+        if y[3]==0:
+            label_coords.append([(1.05+offset)*_xr3, (1.05+offset)*_yr3,360*x[2]/xmax])
+            #plt.text(1.05*_xr3, 1.05*_yr3, Z2[&#39;ivl&#39;][i],{&#39;va&#39;: &#39;center&#39;},rotation_mode=&#39;anchor&#39;, rotation=360*x[2]/xmax)
+            i+=1
+    
+
+    if addlabels==True:
+        assert len(Z2[&#39;ivl&#39;])==len(label_coords), &#34;Internal error, label numbers &#34;+str(len(Z2[&#39;ivl&#39;])) +&#34; and &#34;+str(len(label_coords))+&#34; must be equal!&#34; 
+        
+        #Adding labels
+        for (_x, _y,_rot), label in zip(label_coords, Z2[&#39;ivl&#39;]):
+            plt.text(_x, _y, label,{&#39;va&#39;: &#39;center&#39;},rotation_mode=&#39;anchor&#39;, rotation=_rot,fontsize=fontsize)
+    
+    
+    
+    if colorlabels != None:
+        assert len(Z2[&#39;ivl&#39;])==len(label_coords), &#34;Internal error, label numbers &#34;+str(len(Z2[&#39;ivl&#39;])) +&#34; and &#34;+str(len(label_coords))+&#34; must be equal!&#34; 
+        
+        j=0
+        outerrad=R*1.05+width*len(colorlabels)+space*(len(colorlabels)-1)
+        print(outerrad)
+        #sort_index=np.argsort(Z2[&#39;icoord&#39;])
+        #print(sort_index)
+        intervals=[]
+        for i in range(len(label_coords)):
+            _xl,_yl,_rotl =label_coords[i-1]
+            _x,_y,_rot =label_coords[i]
+            if i==len(label_coords)-1:
+                _xr,_yr,_rotr =label_coords[0]
+            else:
+                _xr,_yr,_rotr =label_coords[i+1]
+            d=((_xr-_xl)**2+(_yr-_yl)**2)**0.5
+            intervals.append(d)
+        colorpos=intervals#np.ones([len(label_coords)])
+        labelnames=[]
+        for labelname, colorlist in colorlabels.items():
+            colorlist=np.array(colorlist)[Z2[&#39;leaves&#39;]]
+            if j!=0:
+                outerrad=outerrad-width-space
+            innerrad=outerrad-width
+            patches, texts =plt.pie(colorpos, colors=colorlist,
+                    radius=outerrad,
+                    counterclock=True,
+                    startangle=label_coords[0][2]*0.5)
+            circle=plt.Circle((0,0),innerrad, fc=&#39;white&#39;)
+            plt.gca().add_patch(circle)
+            labelnames.append(labelname)
+            j+=1
+        
+        if colorlabels_legend!=None:
+            for i, labelname in enumerate(labelnames):
+                print(colorlabels_legend[labelname][&#34;colors&#34;])
+                colorlines=[]
+                for c in colorlabels_legend[labelname][&#34;colors&#34;]:
+                    colorlines.append(Line2D([0], [0], color=c, lw=4))
+                leg=plt.legend(colorlines,
+                           colorlabels_legend[labelname][&#34;labels&#34;],
+                       bbox_to_anchor=(1.5+0.3*i, 1.0),
+                       title=labelname)
+                plt.gca().add_artist(leg)   
+    elif sample_classes!=None:
+        assert len(Z2[&#39;ivl&#39;])==len(label_coords), &#34;Internal error, label numbers &#34;+str(len(Z2[&#39;ivl&#39;])) +&#34; and &#34;+str(len(label_coords))+&#34; must be equal!&#34; 
+        
+        j=0
+        outerrad=R*1.05+width*len(sample_classes)+space*(len(sample_classes)-1)
+        print(outerrad)
+        #sort_index=np.argsort(Z2[&#39;icoord&#39;])
+        #print(sort_index)
+        intervals=[]
+        for i in range(len(label_coords)):
+            _xl,_yl,_rotl =label_coords[i-1]
+            _x,_y,_rot =label_coords[i]
+            if i==len(label_coords)-1:
+                _xr,_yr,_rotr =label_coords[0]
+            else:
+                _xr,_yr,_rotr =label_coords[i+1]
+            d=((_xr-_xl)**2+(_yr-_yl)**2)**0.5
+            intervals.append(d)
+        colorpos=intervals#np.ones([len(label_coords)])
+        labelnames=[]
+        colorlabels_legend={}
+        for labelname, colorlist in sample_classes.items():
+            ucolors=sorted(list(np.unique(colorlist)))
+            type_num=len(ucolors)
+            _cmp=plt.get_cmap(colormap_list[j])
+            _colorlist=[_cmp(ucolors.index(c)/(type_num-1)) for c in colorlist]
+            _colorlist=np.array(_colorlist)[Z2[&#39;leaves&#39;]]
+            if j!=0:
+                outerrad=outerrad-width-space
+            innerrad=outerrad-width
+            print(outerrad, innerrad)
+            patches, texts =plt.pie(colorpos, colors=_colorlist,
+                    radius=outerrad,
+                    counterclock=True,
+                    startangle=label_coords[0][2]*0.5)
+            circle=plt.Circle((0,0),innerrad, fc=&#39;white&#39;)
+            plt.gca().add_patch(circle)
+            labelnames.append(labelname)
+            colorlabels_legend[labelname]={}
+            colorlabels_legend[labelname][&#34;colors&#34;]=_cmp(np.linspace(0, 1, type_num))
+            colorlabels_legend[labelname][&#34;labels&#34;]=ucolors
+            j+=1
+        
+        if colorlabels_legend!=None:
+            for i, labelname in enumerate(labelnames):
+                print(colorlabels_legend[labelname][&#34;colors&#34;])
+                colorlines=[]
+                for c in colorlabels_legend[labelname][&#34;colors&#34;]:
+                    colorlines.append(Line2D([0], [0], color=c, lw=4))
+                leg=plt.legend(colorlines,
+                           colorlabels_legend[labelname][&#34;labels&#34;],
+                       bbox_to_anchor=(1.1, 1.0-0.3*i),
+                       title=labelname)
+                plt.gca().add_artist(leg)
+            #break
+    ax.spines.right.set_visible(False)
+    ax.spines.top.set_visible(False)
+    ax.spines.left.set_visible(False)
+    ax.spines.bottom.set_visible(False)
+    ax.set_rasterization_zorder(None)
+    plt.xticks([])
+    plt.yticks([])
+    
+    if colorlabels!=None:
+        maxr=R*1.05+width*len(colorlabels)+space*(len(colorlabels)-1)
+    elif sample_classes !=None:
+        maxr=R*1.05+width*len(sample_classes)+space*(len(sample_classes)-1)
+    else:
+        maxr=R*1.05
+    plt.xlim(-maxr,maxr)
+    plt.ylim(-maxr,maxr)
+    plt.subplots_adjust(left=0.05, right=0.85)
+    if show==True:
+        plt.show()
+    else:
+        return ax
+
+
+def _radialtree2(Z2,fontsize: int=8,
+               figsize: Optional[list]=None,
+               palette: str=&#34;gist_rainbow&#34;, 
+               addlabels: bool=True, 
+               show: bool=False,
+               sample_classes: Optional[dict]=None,
+               colorlabels: Optional[dict]=None,
+         colorlabels_legend: Optional[dict]=None
+         ) -&gt; plt.Axes:
+    &#34;&#34;&#34;
+    Drawing a radial dendrogram from a scipy dendrogram output.
+    Parameters
+    ----------
+    Z2 : dictionary
+        A dictionary returned by scipy.cluster.hierarchy.dendrogram
+    addlabels: bool
+        A bool to choose if labels are shown.
+    fontsize : float
+        A float to specify the font size
+    figsize : [x, y] array-like
+        1D array-like of floats to specify the figure size
+    palette : string
+        Matlab colormap name.
+    sample_classes : dict
+        A dictionary that contains lists of sample subtypes or classes. These classes appear 
+        as color labels of each leaf. Colormaps are automatically assigned. Not compatible 
+        with options &#34;colorlabels&#34; and &#34;colorlabels_legend&#34;.
+        e.g., {&#34;color1&#34;:[&#34;Class1&#34;,&#34;Class2&#34;,&#34;Class1&#34;,&#34;Class3&#34;, ....]} 
+    colorlabels : dict
+        A dictionary to set color labels to leaves. The key is the name of the color label. 
+        The value is the list of RGB color codes, each corresponds to the color of a leaf. 
+        e.g., {&#34;color1&#34;:[[1,0,0,1], ....]}   
+    colorlabels_legend : dict
+        A nested dictionary to generate the legends of color labels. The key is the name of 
+        the color label. The value is a dictionary that has two keys &#34;colors&#34; and &#34;labels&#34;. 
+        The value of &#34;colors&#34; is the list of RGB color codes, each corresponds to the class of a leaf. 
+        e.g., {&#34;color1&#34;:{&#34;colors&#34;:[[1,0,0,1], ....], &#34;labels&#34;:[&#34;label1&#34;,&#34;label2&#34;,...]}}   
+    show : bool
+        Whether or not to show the figure.
+    Returns
+    -------
+    Raises
+    ------
+    Notes
+    -----
+    References
+    ----------
+    See Also
+    --------
+    Examples
+    --------
+    &#34;&#34;&#34;
+    if figsize==None and colorlabels != None:
+        figsize=[7,6]
+    elif figsize==None and sample_classes != None:
+        figsize=[7,6]
+    elif figsize==None :
+        figsize=[5,5]
+    linewidth=0.5
+    R=1
+    width=R*0.1
+    space=R*0.05
+    if colorlabels != None:
+        offset=width*len(colorlabels)/R+space*(len(colorlabels)-1)/R+0.05
+        #print(offset)
+    elif sample_classes != None:
+        offset=width*len(sample_classes)/R+space*(len(sample_classes)-1)/R+0.05
+        #print(offset)
+    else:
+        offset=0
+    
+    xmax=np.amax(Z2[&#39;icoord&#39;])
+    ymax=np.amax(Z2[&#39;dcoord&#39;])
+    
+    ucolors=sorted(set(Z2[&#34;color_list&#34;]))
+    #cmap = cm.gist_rainbow(np.linspace(0, 1, len(ucolors)))
+    cmp=plt.get_cmap(palette, len(ucolors))
+    #print(cmp)
+    if type(cmp) == matplotlib.colors.LinearSegmentedColormap:
+        cmap = cmp(np.linspace(0, 1, len(ucolors)))
+    else:
+        cmap=cmp.colors
+    fig, ax=plt.subplots(figsize=figsize)
+    i=0
+    label_coords=[]
+    _lineres=1000
+    for x, y, c in sorted(zip(Z2[&#39;icoord&#39;], Z2[&#39;dcoord&#39;],Z2[&#34;color_list&#34;])):
+    #x, y = Z2[&#39;icoord&#39;][0], Z2[&#39;dcoord&#39;][0]
+        _color=cmap[ucolors.index(c)]
+        if c==&#34;C0&#34;: #np.abs(_xr1)&lt;0.000000001 and np.abs(_yr1) &lt;0.000000001:
+            _color=&#34;black&#34;
+        
+        # transforming original x coordinates into relative circumference positions and y into radius
+        # the rightmost leaf is going to [1, 0]
+        xinterval=np.array([x[0],x[2]])/xmax
+        r=R*(1-np.array(y)/ymax)
+        _x=np.cos(2*np.pi*xinterval) # transforming original x coordinates into x circumference positions
+        _xr0=_x[0]*r[0]
+        _xr1=_x[0]*r[1]
+        _xr2=_x[1]*r[2]
+        _xr3=_x[1]*r[3]
+        _y=np.sin(2*np.pi*xinterval) # transforming original x coordinates into y circumference positions
+        _yr0=_y[0]*r[0]
+        _yr1=_y[0]*r[1]
+        _yr2=_y[1]*r[2]
+        _yr3=_y[1]*r[3]
+        #plt.scatter([_xr0, _xr1, _xr2, _xr3],[_yr0, _yr1, _yr2,_yr3], c=&#34;b&#34;)
+        
+        
+        #if y[0]&gt;0 and y[3]&gt;0:
+            #_color=&#34;black&#34;
+        #plotting radial lines
+        plt.plot([_xr0, _xr1], [_yr0, _yr1], c=_color,linewidth=linewidth, rasterized=True)
+        plt.plot([_xr2, _xr3], [_yr2,_yr3], c=_color,linewidth=linewidth, rasterized=True)
+        
+        #plotting circular links between nodes
+        lineres=np.amax([int(np.abs(xinterval[0]-xinterval[1])*_lineres),10])
+        if _yr1&gt; 0 and _yr2&gt;0:
+            link=np.sqrt(r[1]**2-np.linspace(_xr1, _xr2, lineres)**2)
+            plt.plot(np.linspace(_xr1, _xr2, lineres), link, c=_color,linewidth=linewidth, rasterized=True)
+        elif _yr1 &lt;0 and _yr2 &lt;0:
+            link=-np.sqrt(r[1]**2-np.linspace(_xr1, _xr2, lineres)**2)
+            
+            plt.plot(np.linspace(_xr1, _xr2, lineres), link, c=_color,linewidth=linewidth, rasterized=True)
+        elif _yr1&gt; 0 and _yr2 &lt; 0:
+            _r=r[1]
+            if _xr1 &lt;0 or _xr2 &lt;0:
+                _r=-_r
+            link=np.sqrt(r[1]**2-np.linspace(_xr1, _r, lineres)**2)
+            plt.plot(np.linspace(_xr1, _r, lineres), link, c=_color,linewidth=linewidth, rasterized=True)
+            link=-np.sqrt(r[1]**2-np.linspace(_r, _xr2, lineres)**2)
+            plt.plot(np.linspace(_r, _xr2, lineres), link, c=_color,linewidth=linewidth, rasterized=True)
+        
+        #Calculating the x, y coordinates and rotation angles of labels
+        
+        if y[0]==0:
+            label_coords.append([(1.05+offset)*_xr0, (1.05+offset)*_yr0,360*x[0]/xmax])
+            #plt.text(1.05*_xr0, 1.05*_yr0, Z2[&#39;ivl&#39;][i],{&#39;va&#39;: &#39;center&#39;},rotation_mode=&#39;anchor&#39;, rotation=360*x[0]/xmax)
+            i+=1
+        if y[3]==0:
+            label_coords.append([(1.05+offset)*_xr3, (1.05+offset)*_yr3,360*x[2]/xmax])
+            #plt.text(1.05*_xr3, 1.05*_yr3, Z2[&#39;ivl&#39;][i],{&#39;va&#39;: &#39;center&#39;},rotation_mode=&#39;anchor&#39;, rotation=360*x[2]/xmax)
+            i+=1
+    
+
+    if addlabels==True:
+        assert len(Z2[&#39;ivl&#39;])==len(label_coords), &#34;Internal error, label numbers &#34;+str(len(Z2[&#39;ivl&#39;])) +&#34; and &#34;+str(len(label_coords))+&#34; must be equal!&#34; 
+        
+        #Adding labels
+        for (_x, _y,_rot), label in zip(label_coords, Z2[&#39;ivl&#39;]):
+            plt.text(_x, _y, label,{&#39;va&#39;: &#39;center&#39;},rotation_mode=&#39;anchor&#39;, rotation=_rot,fontsize=fontsize)
+    
+    
+    
+    if sample_classes!=None:
+        assert len(Z2[&#39;ivl&#39;])==len(label_coords), &#34;Internal error, label numbers &#34;+str(len(Z2[&#39;ivl&#39;])) +&#34; and &#34;+str(len(label_coords))+&#34; must be equal!&#34; 
+        
+        j=0
+        outerrad=R*1.05+width*len(sample_classes)+space*(len(sample_classes)-1)
+        #print(outerrad)
+        #sort_index=np.argsort(Z2[&#39;icoord&#39;])
+        #print(sort_index)
+        intervals=[]
+
+        labelnames=[]
+        colorlabels_legend={}
+        for labelname, colorlist in sample_classes.items():
+            ucolors=sorted(list(np.unique(colorlist)))
+            type_num=len(ucolors)
+            _cmp=plt.get_cmap(colormap_list[j])
+            _colorlist=[_cmp(ucolors.index(c)/(type_num-1)) for c in colorlist]
+            _colorlist=np.array(_colorlist)[Z2[&#39;leaves&#39;]]
+            if j!=0:
+                outerrad=outerrad-width-space
+            innerrad=outerrad-width
+            #print(outerrad, innerrad,_colorlist[:10])
+            
+            for i in range(len(label_coords)):
+                _xl,_yl,_rotl =label_coords[i-1]
+                if i==0:
+                    _rotl-=360
+                _x,_y,_rot =label_coords[i]
+                if i==len(label_coords)-1:
+                    _xr,_yr,_rotr =label_coords[0]
+                    _rotr+=360
+                else:
+                    _xr,_yr,_rotr =label_coords[i+1]
+                
+                start=(2*np.pi/360)*_rotl*0.5+(2*np.pi/360)*_rot*0.5
+                theta=(2*np.pi/360)*((_rotr*0.5+_rot*0.5)-(_rotl*0.5+_rot*0.5))
+                #print(start, theta,_rotl, _rotr)
+                #print(start, theta, innerrad, outerrad,10, _colorlist[i])
+                _baumkuchen(ax, start, theta, innerrad, outerrad,10, _colorlist[i])
+                
+            # patches, texts =plt.pie(colorpos, colors=_colorlist,
+            #         radius=outerrad,
+            #         counterclock=True,
+            #         startangle=label_coords[0][2]*0.5)
+            # circle=plt.Circle((0,0),innerrad, fc=&#39;white&#39;)
+            # plt.gca().add_patch(circle)
+            labelnames.append(labelname)
+            colorlabels_legend[labelname]={}
+            colorlabels_legend[labelname][&#34;colors&#34;]=_cmp(np.linspace(0, 1, type_num))
+            colorlabels_legend[labelname][&#34;labels&#34;]=ucolors
+            j+=1
+        
+        if colorlabels_legend!=None:
+            for i, labelname in enumerate(labelnames):
+                #print(colorlabels_legend[labelname][&#34;colors&#34;])
+                colorlines=[]
+                for c in colorlabels_legend[labelname][&#34;colors&#34;]:
+                    colorlines.append(Line2D([0], [0], color=c, lw=4))
+                leg=plt.legend(colorlines,
+                           colorlabels_legend[labelname][&#34;labels&#34;],
+                       bbox_to_anchor=(1.0, 1.0-0.3*i),
+                       title=labelname)
+                plt.gca().add_artist(leg)
+            #break
+    ax.spines.right.set_visible(False)
+    ax.spines.top.set_visible(False)
+    ax.spines.left.set_visible(False)
+    ax.spines.bottom.set_visible(False)
+    #ax.set_rasterization_zorder(None)
+    plt.xticks([])
+    plt.yticks([])
+    
+    if colorlabels!=None:
+        maxr=R*1.05+width*len(colorlabels)+space*(len(colorlabels)-1)
+    elif sample_classes !=None:
+        maxr=R*1.05+width*len(sample_classes)+space*(len(sample_classes)-1)
+    else:
+        maxr=R*1.05
+    plt.xlim(-maxr,maxr)
+    plt.ylim(-maxr,maxr)
+    plt.subplots_adjust(left=0.05, right=0.75)
+    if show==True:
+        plt.show()
+    return ax
+
+
+def _complex_clustermap(df,row_plot=[],col_plot=[],approx_clusternum=10,color_var=0,merginalsum=False,show=True,method=&#34;ward&#34;, **kwargs):
+    rnum, cnum=df.shape
+    sns.set(font_scale=1)
+    
+    if merginalsum:
+        white_bgr=np.ones([rnum, 4])
+        white_bgc=np.ones([cnum, 4])
+        g=sns.clustermap(df,col_colors=white_bgc, row_colors=white_bgr,method=method,**kwargs)
+        mat=df.to_numpy()
+        r=np.sum(mat, axis=1)
+        g.ax_row_colors.barh(np.arange(r.shape[0])+0.5, r[leaves_list(g.dendrogram_row.linkage)]/np.amax(r))
+        g.ax_row_colors.invert_xaxis()
+        
+        c=np.sum(mat, axis=0)
+        #print(leaves_list(g.dendrogram_col.linkage))
+        g.ax_col_colors.bar(np.arange(c.shape[0])+0.5,c[leaves_list(g.dendrogram_col.linkage)]/np.amax(c))
+        g.ax_col_colors.invert_yaxis()
+    
+    elif len(row_plot)&gt;0:
+        
+        white_bg=[np.ones([rnum, 4]) for _ in range(len(row_plot))]
+        g=sns.clustermap(df, row_colors=white_bg,method=method,**kwargs)#hot(cbenign))
+        for i, r in enumerate(row_plot):
+            g.ax_row_colors.plot(r[leaves_list(g.dendrogram_row.linkage)]/np.amax(r)+i, np.arange(r.shape[0])+0.5)
+        g.ax_row_colors.invert_xaxis()
+        
+    else:
+        g=sns.clustermap(df,method=method,**kwargs)
+    if color_var&gt;0:
+        cmap = cm.nipy_spectral(np.linspace(0, 1, color_var))
+    else:
+        cmap = cm.nipy_spectral(np.linspace(0, 1, approx_clusternum+5))
+    hierarchy.set_link_color_palette([matplotlib.colors.rgb2hex(rgb[:3]) for rgb in cmap])
+    lbranches=np.array(g.dendrogram_row.dendrogram[&#34;dcoord&#34;])[:,:2]
+    rbranches=np.array(g.dendrogram_row.dendrogram[&#34;dcoord&#34;])[:,2:]
+    thre=np.linspace(0, np.amax(g.dendrogram_row.dendrogram[&#34;dcoord&#34;]), 100)[::-1]
+    for t in thre:
+        #print(np.sum(lbranches[:,1]&gt;t),np.sum(rbranches[:,0]&gt;t),np.sum(lbranches[:,0]&gt;t),np.sum(rbranches[:,1]&gt;t))
+        crossbranches=np.sum(lbranches[:,1]&gt;t)+np.sum(rbranches[:,0]&gt;t)-np.sum(lbranches[:,0]&gt;t)-np.sum(rbranches[:,1]&gt;t)
+        #print(crossbranches)
+        
+        if crossbranches&gt;approx_clusternum:
+            break
+    
+    den=hierarchy.dendrogram(g.dendrogram_row.linkage,
+                                             labels = g.data.index,
+                                             color_threshold=t,ax=g.ax_row_dendrogram,
+                        orientation=&#34;left&#34;)  
+    g.ax_row_dendrogram.invert_yaxis()
+    clusters = _get_cluster_classes(den)
+    cdata={&#34;Cluster&#34;:[],&#34;Index&#34;:[],&#34;RGB&#34;:[]}
+    keys=list(clusters.keys())
+    ckeys={}
+    i=1
+    for k in keys:
+        if k==&#34;C0&#34;:
+            ckeys[k]=&#34;C0&#34;
+        else:
+            ckeys[k]=&#34;C&#34;+str(i)
+            i+=1
+    for c, v in clusters.items():
+        _c=ckeys[c]
+        for _v in v:
+            cdata[&#34;Cluster&#34;].append(_c)
+            cdata[&#34;Index&#34;].append(_v)
+            cdata[&#34;RGB&#34;].append(matplotlib.colors.to_rgb(c))
+    if show:
+        plt.show()
+    return pd.DataFrame(cdata), g
+
+def _calc_r2(X,Y):
+    x_mean = np.mean(X)
+    y_mean = np.mean(Y)
+    numerator = np.sum((X - x_mean)*(Y - y_mean))
+    denominator = ( np.sum((X - x_mean)**2) * np.sum((Y - y_mean)**2) )**.5
+    correlation_coef = numerator / denominator
+    r2 = correlation_coef**2
+    return r2
+
+def _ci_pi(X: np.ndarray,Y: np.ndarray, plotline_X: np.ndarray, y_model: np.ndarray) -&gt; list:
+    x_mean = np.mean(X)
+    y_mean = np.mean(Y)
+    n = X.shape[0]                        # number of samples
+    m = 2                             # number of parameters
+    dof = n - m                       # degrees of freedom
+    t = stats.t.ppf(0.975, dof)       # Students statistic of interval confidence
+    residual = Y - y_model
+        
+    std_error = (np.sum(residual**2) / dof)**.5   # Standard deviation of the error
+    # to plot the adjusted model
+    x_line = plotline_X.flatten()
+    y_line = y_model
+    
+    # confidence interval
+    ci = t * std_error * (1/n + (x_line - x_mean)**2 / np.sum((X - x_mean)**2))**.5
+    # predicting interval
+    pi = t * std_error * (1 + 1/n + (x_line - x_mean)**2 / np.sum((X - x_mean)**2))**.5
+    return ci, pi,std_error
+def _draw_ci_pi(ax: plt.Axes, 
+               ci: np.ndarray, 
+               pi: np.ndarray,
+               x_line: np.ndarray, 
+               y_line: np.ndarray):
+    &#34;&#34;&#34;
+    Drawing a confidence interval and a prediction interval 
+    &#34;&#34;&#34;
+    
+    
+    ax.fill_between(x_line, y_line + pi, y_line - pi, 
+                color = &#39;lightcyan&#39;, 
+                label = &#39;95% prediction interval&#39;,
+                alpha=0.5)
+    ax.fill_between(x_line, y_line + ci, 
+                    y_line - ci, color = &#39;skyblue&#39;, 
+                    label = &#39;95% confidence interval&#39;,
+                    alpha=0.5)
+    
+from sklearn.cluster import KMeans
+def _optimal_kmeans(X: Union[np.ndarray, list], testrange: list, topn: int=2)-&gt; List[int]:
+    Sum_of_squared_distances = []
+    K = list(range(*testrange))
+    for k in K:
+        km = KMeans(n_clusters=k,n_init=10)
+        km = km.fit(X)
+        Sum_of_squared_distances.append(km.inertia_)
+    normy=np.array(Sum_of_squared_distances)/np.amax(Sum_of_squared_distances)
+    normy=1-normy
+    normx=np.linspace(0,1, len(K))
+    perp=_calc_curveture(normx, normy)
+    srtindex=np.argsort(perp)[::-1]
+    plt.subplots()
+    plt.plot(K, Sum_of_squared_distances, &#39;-&#39;, label=&#39;Sum of squared distances&#39;)
+    plt.plot(K, perp*np.amax(Sum_of_squared_distances), label=&#34;curveture&#34;)
+    
+    plt.plot([K[srtindex[0]],K[srtindex[0]]],[0,np.amax(Sum_of_squared_distances)], &#34;--&#34;, color=&#34;r&#34;)
+    plt.text(K[srtindex[0]], np.amax(Sum_of_squared_distances)*0.95, &#34;N=&#34;+str(K[srtindex[0]]))
+    plt.plot([K[srtindex[1]],K[srtindex[1]]],[0,np.amax(Sum_of_squared_distances)], &#34;--&#34;, color=&#34;r&#34;)
+    plt.text(K[srtindex[1]], np.amax(Sum_of_squared_distances)*0.95, &#34;N=&#34;+str(K[srtindex[1]]))
+    plt.xticks(K)
+    plt.xlabel(&#39;K&#39;)
+    plt.ylabel(&#39;Sum of squared distances&#39;)
+    plt.title(&#39;Elbow method for optimal cluster number&#39;)    
+    plt.legend()
+    print(&#34;Top two optimal cluster No are: {}, {}&#34;.format(K[srtindex[0]],K[srtindex[1]]))
+    n_clusters=[K[srtindex[i]] for i in range(topn)]
+    return n_clusters
+
+from matplotlib.backends.backend_pdf import PdfPages
+
+def _multipage(filename, figs=None, dpi=200):
+    pp = PdfPages(filename)
+    if figs is None:
+        figs = [plt.figure(n) for n in plt.get_fignums()]
+    for fig in figs:
+        fig.savefig(pp, format=&#39;pdf&#39;)
+    pp.close()
+    
+def _save(save, suffix):
+    if save !=&#34;&#34;:
+        if save.endswith(&#34;.pdf&#34;) or save.endswith(&#34;.png&#34;) or save.endswith(&#34;.svg&#34;):
+            h, t=os.path.splitext(save)
+            plt.savefig(h+&#34;_&#34;+suffix+t)
+        else:
+            plt.savefig(save+&#34;_&#34;+suffix+&#34;.pdf&#34;)</code></pre>
+</details>
 </section>
 <section>
 </section>
 <section>
 </section>
 <section>
-<h2 class="section-title" id="header-functions">Functions</h2>
-<dl>
-<dt id="omniplot.utils.baumkuchen"><code class="name flex">
-<span>def <span class="ident">baumkuchen</span></span>(<span>ax, start, theta, rin, rout, res, _color)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="omniplot.utils.calc_r2"><code class="name flex">
-<span>def <span class="ident">calc_r2</span></span>(<span>X, Y)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="omniplot.utils.ci_pi"><code class="name flex">
-<span>def <span class="ident">ci_pi</span></span>(<span>X: numpy.ndarray, Y: numpy.ndarray, plotline_X: numpy.ndarray, y_model: numpy.ndarray) ‑> list</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="omniplot.utils.draw_ci_pi"><code class="name flex">
-<span>def <span class="ident">draw_ci_pi</span></span>(<span>ax: matplotlib.axes._axes.Axes, ci: numpy.ndarray, pi: numpy.ndarray, x_line: numpy.ndarray, y_line: numpy.ndarray)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Drawing a confidence interval and a prediction interval</p></div>
-</dd>
-<dt id="omniplot.utils.line_annotate"><code class="name flex">
-<span>def <span class="ident">line_annotate</span></span>(<span>text, line, x, *args, **kwargs)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Add a sloped annotation to <em>line</em> at position <em>x</em> with <em>text</em></p>
-<p>Optionally an arrow pointing from the text to the graph at <em>x</em> can be drawn.</p>
-<h2 id="usage">Usage</h2>
-<p>x = linspace(0, 2*pi)
-line, = ax.plot(x, sin(x))
-line_annotate("sin(x)", line, 1.5)</p>
-<h2 id="see-also">See Also</h2>
-<p><code><a title="omniplot.utils.LineAnnotation" href="#omniplot.utils.LineAnnotation">LineAnnotation</a></code>
-<code>plt.annotate</code></p></div>
-</dd>
-<dt id="omniplot.utils.optimal_kmeans"><code class="name flex">
-<span>def <span class="ident">optimal_kmeans</span></span>(<span>X: Union[numpy.ndarray, list], testrange: list, topn: int = 2) ‑> List[int]</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
 </section>
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
@@ -113,7 +935,100 @@ text at. The coordinate system is determined by <em>textcoords</em>.</dd>
 </dl>
 <h2 id="see-also">See Also</h2>
 <p><code>Annotation</code>
-<code><a title="omniplot.utils.line_annotate" href="#omniplot.utils.line_annotate">line_annotate()</a></code></p></div>
+<code>line_annotate</code></p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class LineAnnotation(Annotation):
+    &#34;&#34;&#34;A sloped annotation to *line* at position *x* with *text*
+    Optionally an arrow pointing from the text to the graph at *x* can be drawn.
+    Usage
+    -----
+    fig, ax = subplots()
+    x = linspace(0, 2*pi)
+    line, = ax.plot(x, sin(x))
+    ax.add_artist(LineAnnotation(&#34;text&#34;, line, 1.5))
+    &#34;&#34;&#34;
+
+    def __init__(
+        self, text, line, x, xytext=(0, 5), textcoords=&#34;offset points&#34;, **kwargs
+    ):
+        &#34;&#34;&#34;Annotate the point at *x* of the graph *line* with text *text*.
+
+        By default, the text is displayed with the same rotation as the slope of the
+        graph at a relative position *xytext* above it (perpendicularly above).
+
+        An arrow pointing from the text to the annotated point *xy* can
+        be added by defining *arrowprops*.
+
+        Parameters
+        ----------
+        text : str
+            The text of the annotation.
+        line : Line2D
+            Matplotlib line object to annotate
+        x : float
+            The point *x* to annotate. y is calculated from the points on the line.
+        xytext : (float, float), default: (0, 5)
+            The position *(x, y)* relative to the point *x* on the *line* to place the
+            text at. The coordinate system is determined by *textcoords*.
+        **kwargs
+            Additional keyword arguments are passed on to `Annotation`.
+
+        See also
+        --------
+        `Annotation`
+        `line_annotate`
+        &#34;&#34;&#34;
+        assert textcoords.startswith(
+            &#34;offset &#34;
+        ), &#34;*textcoords* must be &#39;offset points&#39; or &#39;offset pixels&#39;&#34;
+
+        self.line = line
+        self.xytext = xytext
+
+        # Determine points of line immediately to the left and right of x
+        xs, ys = line.get_data()
+
+        def neighbours(x, xs, ys, try_invert=True):
+            inds, = np.where((xs &lt;= x)[:-1] &amp; (xs &gt; x)[1:])
+            if len(inds) == 0:
+                assert try_invert, &#34;line must cross x&#34;
+                return neighbours(x, xs[::-1], ys[::-1], try_invert=False)
+
+            i = inds[0]
+            return np.asarray([(xs[i], ys[i]), (xs[i+1], ys[i+1])])
+        
+        self.neighbours = n1, n2 = neighbours(x, xs, ys)
+        
+        # Calculate y by interpolating neighbouring points
+        y = n1[1] + ((x - n1[0]) * (n2[1] - n1[1]) / (n2[0] - n1[0]))
+
+        kwargs = {
+            &#34;horizontalalignment&#34;: &#34;center&#34;,
+            &#34;rotation_mode&#34;: &#34;anchor&#34;,
+            **kwargs,
+        }
+        super().__init__(text, (x, y), xytext=xytext, textcoords=textcoords, **kwargs)
+
+    def get_rotation(self):
+        &#34;&#34;&#34;Determines angle of the slope of the neighbours in display coordinate system
+        &#34;&#34;&#34;
+        transData = self.line.get_transform()
+        dx, dy = np.diff(transData.transform(self.neighbours), axis=0).squeeze()
+        return np.rad2deg(np.arctan2(dy, dx))
+
+    def update_positions(self, renderer):
+        &#34;&#34;&#34;Updates relative position of annotation text
+        Note
+        ----
+        Called during annotation `draw` call
+        &#34;&#34;&#34;
+        xytext = Affine2D().rotate_deg(self.get_rotation()).transform(self.xytext)
+        self.set_position(xytext)
+        super().update_positions(renderer)</code></pre>
+</details>
 <h3>Ancestors</h3>
 <ul class="hlist">
 <li>matplotlib.text.Annotation</li>
@@ -128,6 +1043,17 @@ text at. The coordinate system is determined by <em>textcoords</em>.</dd>
 </code></dt>
 <dd>
 <div class="desc"><p>Determines angle of the slope of the neighbours in display coordinate system</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_rotation(self):
+    &#34;&#34;&#34;Determines angle of the slope of the neighbours in display coordinate system
+    &#34;&#34;&#34;
+    transData = self.line.get_transform()
+    dx, dy = np.diff(transData.transform(self.neighbours), axis=0).squeeze()
+    return np.rad2deg(np.arctan2(dy, dx))</code></pre>
+</details>
 </dd>
 <dt id="omniplot.utils.LineAnnotation.set"><code class="name flex">
 <span>def <span class="ident">set</span></span>(<span>self, *, agg_filter=&lt;UNSET&gt;, alpha=&lt;UNSET&gt;, animated=&lt;UNSET&gt;, anncoords=&lt;UNSET&gt;, annotation_clip=&lt;UNSET&gt;, backgroundcolor=&lt;UNSET&gt;, bbox=&lt;UNSET&gt;, clip_box=&lt;UNSET&gt;, clip_on=&lt;UNSET&gt;, clip_path=&lt;UNSET&gt;, color=&lt;UNSET&gt;, fontfamily=&lt;UNSET&gt;, fontproperties=&lt;UNSET&gt;, fontsize=&lt;UNSET&gt;, fontstretch=&lt;UNSET&gt;, fontstyle=&lt;UNSET&gt;, fontvariant=&lt;UNSET&gt;, fontweight=&lt;UNSET&gt;, gid=&lt;UNSET&gt;, horizontalalignment=&lt;UNSET&gt;, in_layout=&lt;UNSET&gt;, label=&lt;UNSET&gt;, linespacing=&lt;UNSET&gt;, math_fontfamily=&lt;UNSET&gt;, mouseover=&lt;UNSET&gt;, multialignment=&lt;UNSET&gt;, parse_math=&lt;UNSET&gt;, path_effects=&lt;UNSET&gt;, picker=&lt;UNSET&gt;, position=&lt;UNSET&gt;, rasterized=&lt;UNSET&gt;, rotation=&lt;UNSET&gt;, rotation_mode=&lt;UNSET&gt;, sketch_params=&lt;UNSET&gt;, snap=&lt;UNSET&gt;, text=&lt;UNSET&gt;, transform=&lt;UNSET&gt;, transform_rotates_text=&lt;UNSET&gt;, url=&lt;UNSET&gt;, usetex=&lt;UNSET&gt;, verticalalignment=&lt;UNSET&gt;, visible=&lt;UNSET&gt;, wrap=&lt;UNSET&gt;, x=&lt;UNSET&gt;, y=&lt;UNSET&gt;, zorder=&lt;UNSET&gt;)</span>
@@ -183,6 +1109,12 @@ wrap: bool
 x: float
 y: float
 zorder: float</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">cls.set = lambda self, **kwargs: Artist.set(self, **kwargs)</code></pre>
+</details>
 </dd>
 <dt id="omniplot.utils.LineAnnotation.update_positions"><code class="name flex">
 <span>def <span class="ident">update_positions</span></span>(<span>self, renderer)</span>
@@ -192,6 +1124,20 @@ zorder: float</p></div>
 Note</p>
 <hr>
 <p>Called during annotation <code>draw</code> call</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def update_positions(self, renderer):
+    &#34;&#34;&#34;Updates relative position of annotation text
+    Note
+    ----
+    Called during annotation `draw` call
+    &#34;&#34;&#34;
+    xytext = Affine2D().rotate_deg(self.get_rotation()).transform(self.xytext)
+    self.set_position(xytext)
+    super().update_positions(renderer)</code></pre>
+</details>
 </dd>
 </dl>
 </dd>
@@ -207,16 +1153,6 @@ Note</p>
 <li><h3>Super-module</h3>
 <ul>
 <li><code><a title="omniplot" href="index.html">omniplot</a></code></li>
-</ul>
-</li>
-<li><h3><a href="#header-functions">Functions</a></h3>
-<ul class="two-column">
-<li><code><a title="omniplot.utils.baumkuchen" href="#omniplot.utils.baumkuchen">baumkuchen</a></code></li>
-<li><code><a title="omniplot.utils.calc_r2" href="#omniplot.utils.calc_r2">calc_r2</a></code></li>
-<li><code><a title="omniplot.utils.ci_pi" href="#omniplot.utils.ci_pi">ci_pi</a></code></li>
-<li><code><a title="omniplot.utils.draw_ci_pi" href="#omniplot.utils.draw_ci_pi">draw_ci_pi</a></code></li>
-<li><code><a title="omniplot.utils.line_annotate" href="#omniplot.utils.line_annotate">line_annotate</a></code></li>
-<li><code><a title="omniplot.utils.optimal_kmeans" href="#omniplot.utils.optimal_kmeans">optimal_kmeans</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
