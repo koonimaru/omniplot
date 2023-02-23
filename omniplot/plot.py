@@ -55,7 +55,7 @@ def radialtree(df: pd.DataFrame,
                ztransform: bool=True,
                save: str="",
                distance_method="euclidean",
-               tree_method="ward",
+               tree_method="ward",title: str="",
                **kwargs) -> Dict:
     """
     Drawing a radial dendrogram with color labels.
@@ -158,7 +158,7 @@ def correlation(df: pd.DataFrame,
                 clustermap_param:dict={},
                 ztransform: bool=True,
                 xticklabels =False,
-                yticklabels=False):
+                yticklabels=False,title: str="",):
     """
     Drawing a heatmap with correlations or distances between observations 
     
@@ -268,7 +268,7 @@ def triangle_heatmap(df,
                      grid_pos: list=[],
                      grid_labels: list=[],
                      show: bool=False, 
-                     save: str="")-> dict:
+                     save: str="",title: str="")-> dict:
     
     """
     Creating a heatmap with 45 degree rotation.
@@ -418,6 +418,7 @@ def complex_clustermap(df: pd.DataFrame,
                        yticklabels=False,
                        show_plot_labels=False,
                        figsize=[],
+                       title: str="",
                        save: str="",
                        **kwargs):
     """
@@ -903,6 +904,7 @@ def dotplot(df: pd.DataFrame,
             column_order: list=[],
             colorpalette="coolwarm",
             show: bool=False,
+            title: str="",
             ) -> Dict[str, plt.Axes]:
     """
     Drawing a dotplot that can represent two different variables as dot sizes and colors on a regular grid.
@@ -1118,6 +1120,7 @@ def violinplot(df,
                xorder: list=[],
                equal_var: bool=False, 
                yunit: str="",
+               title: str="",
                save: str="",**kwargs):
     """
     Draw a boxplot with a statistical test 
@@ -1265,7 +1268,8 @@ def stacked_barplot(df: pd.DataFrame,
                     show: bool=False,
                     figsize: List[int]=[4,6],
                     xunit: str="",
-                    yunit: str="",)-> Dict:
+                    yunit: str="",
+                    title: str="",)-> Dict:
     
     """
     Drawing a stacked barplot with or without the fisher's exact test 
@@ -1696,7 +1700,7 @@ def nice_piechart(df: pd.DataFrame,
                   palette: str="tab20c",
                   ncols: int=2,
                   ignore: float=0.05,
-                  show_values: bool=True) ->Dict:
+                  show_values: bool=True,title: str="",) ->Dict:
     
     if type(category)==str:
         category=[category]
@@ -1746,6 +1750,7 @@ def nice_piechart_num(df: pd.DataFrame,hue: List[str],
                   ncols: int=2,
                   ignore: float=0.05,
                   show_values: bool=True,
+                  title: str="",
                   figsize=[]) ->Dict:
     
     if category=="":
@@ -1792,7 +1797,6 @@ def stackedlines(df: pd.DataFrame,
                 x: str,
                 y: list,
                 sort: bool=True,
-                title: str="",
                 inverse: bool=False,
                 show_values: bool=False,
                 remove_all_zero: bool=False,
@@ -1808,6 +1812,7 @@ def stackedlines(df: pd.DataFrame,
                 ylabel: str="",
                 yunit: str="",
                 xunit: str="",
+                title: str="",
                 hatch: bool=False):
     """
     Drawing a scatter plot of which points are represented by pie charts. 
@@ -1956,6 +1961,7 @@ def decomplot(df,category: str="",
               pcapram={"random_state":0},
               nmfparam={"random_state":0},
               save: str="",
+              title: str="",
               saveparam: dict={}) :
     
     """
@@ -2170,7 +2176,8 @@ def manifoldplot(df,category="",
                  method="tsne",
                  n_components=2,
                  n_neighbors=4, 
-                 show=False, 
+                 show=False,
+                 title: str="",
                  **kwargs):
     """
     Reducing the dimensionality of data and drawing a scatter plot. 
@@ -2308,42 +2315,67 @@ def clusterplot(df,category: Union[List[str], str]="",
               n_clusters: Union[str , int]=3,
               x: str="",
               y: str="",
+              size: float=10,
               reduce_dimension: str="umap", 
-              testrange=[1,20],
+              testrange=[2,20],
               show: bool=False,
               min_dist: float=0.25,
               n_neighbors: int=15,
               eps: Union[List[float], float]=0.5,
               pcacomponent: Optional[int]=None,
               ztranform=True,
-              palette=["Spectral","cubehelix"],save: str="",**kwargs)->Dict:
+              palette=["Spectral","cubehelix"],
+              save: str="",
+              title: str="",
+              piesize_scale: float=0.02,**kwargs)->Dict:
     """
     Clustering data and draw them as a scatter plot optionally with dimensionality reduction.  
     
     Parameters
     ----------
     df : pandas DataFrame
-    
+    x, y: str, optional
+        The column names to be the x and y axes of scatter plots. If reduce_dimension=True, these options will be
+        ignored.
     category: str
         the column name of a known sample category (if exists). 
     method: str
         Method name for clustering. 
-        Available methods: ["kmeans", 
-                            "hierarchical",
-                            "dbscan",
-                            ]
-    n_clusters: int or str
+        "kmeans"
+        "hierarchical",
+        "dbscan"
+        "fuzzy" : fuzzy c-mean clustering using scikit-fuzzy
+    n_clusters: int or str, optional (default: 3)
         The number of clusters to be created. If "auto" is provided, it will estimate optimal 
         cluster numbers with "Sum of squared distances" for k-mean clustering and silhouette method for others. 
     eps: int or list[int]
         DBSCAN's hyper parameter. It will affect the total number of clusters. 
-    reduce_dimension: str
-        Dimensionality reduction method. Default: umap. 
-        if "" is passed, no reduction methods are applied. In this case, data must be 2 dimention or x and y options must be specified.
-    
+    reduce_dimension: str, optional (default: "umap")
+        Dimensionality reduction method. if "" is passed, no reduction methods are applied. 
+        In this case, data must have only two dimentions or x and y options must be specified.
     show : bool
         Whether or not to show the figure.
+    size: float, optional (default: 10)
+        The size of points in the scatter plot.
+        
+    testrange: list, optional (default: [1,20])
+        The range of cluster numbers to be tested when n_clusters="auto".
+    show: bool, optional (default: False)
+        Whether to show figures
+    min_dist: float, optional (default: 0.25)
+        A UMAP parameter
+    n_neighbors: int, optinal (default: 15)
+        A UMAP parameter.
+    eps: Union[List[float], float], optional (default: 0.5)
+        A DBSCAN parameter.
+    pcacomponent: Optional[int]=None,
+        The number of PCA component. PCA result will be used by UMAP and hierarchical clustering.
+    ztranform: bool, optinal (default: True)
+        Whether to convert data into z scores.
+    palette: list, optional (default: ["Spectral","cubehelix"])
     
+    save: str="",
+    piesize_scale: float=0.02
     Returns
     -------
     Raises
@@ -2431,7 +2463,39 @@ def clusterplot(df,category: Union[List[str], str]="",
         print("Top two optimal cluster No are: {}, {}".format(K[srtindex[0]],K[srtindex[1]]))
         n_clusters=[K[srtindex[0]],K[srtindex[1]]]
         
-        _save(save)
+        _save(save, method)
+    elif n_clusters=="auto" and method=="fuzzy":
+        try:
+            import skfuzzy as fuzz
+        except ImportError:
+            from pip._internal import main as pip
+            pip(['install', '--user', 'scikit-fuzzy'])
+            import skfuzzy as fuzz
+        fpcs = []
+        K = list(range(*testrange))
+        _X=X.T
+        for nc in K:
+            
+            cntr, u, u0, d, jm, p, fpc = fuzz.cmeans(_X, nc, 2, error=0.005, maxiter=1000, init=None)
+            
+            fpcs.append(fpc)
+        
+        srtindex=np.argsort(fpcs)[::-1]
+        plt.subplots()
+        plt.plot(K, fpcs, '-')
+     
+        plt.plot([K[srtindex[0]],K[srtindex[0]]],[0,np.amax(fpcs)], "--", color="r")
+        plt.text(K[srtindex[0]], np.amax(fpcs)*0.95, "N="+str(K[srtindex[0]]))
+        plt.plot([K[srtindex[1]],K[srtindex[1]]],[0,np.amax(fpcs)], "--", color="r")
+        plt.text(K[srtindex[1]], np.amax(fpcs)*0.95, "N="+str(K[srtindex[1]]))
+        plt.xticks(K)
+        plt.xlabel('Cluster number')
+        plt.ylabel('Fuzzy partition coefficient')
+        print("Top two optimal cluster No are: {}, {}".format(K[srtindex[0]],K[srtindex[1]]))
+        n_clusters=[K[srtindex[0]],K[srtindex[1]]]
+        
+        
+        _save(save, method)
     elif n_clusters=="auto" and method=="hierarchical":
         import scipy.spatial.distance as ssd
         
@@ -2469,13 +2533,13 @@ def clusterplot(df,category: Union[List[str], str]="",
         plt.plot([newK[srtindex[1]],newK[srtindex[1]]],[0,np.amax(scores)], "--", color="r")
         plt.text(newK[srtindex[1]], np.amax(scores)*0.95, "N="+str(newK[srtindex[1]]))
         plt.xticks(newK)
-        plt.xlabel('K')
+        plt.xlabel('Cluster number')
         plt.ylabel('Silhouette scores')
         plt.title('Optimal cluster number searches by silhouette method')    
         
         print("Top two optimal cluster No are: {}, {}".format(newK[srtindex[0]],newK[srtindex[1]]))
         n_clusters=[newK[srtindex[0]],newK[srtindex[1]]]
-        
+        _save(save, method)
     elif n_clusters=="auto" and method=="dbscan":
         # import scipy.spatial.distance as ssd
         # D=ssd.pdist(X)
@@ -2527,7 +2591,7 @@ def clusterplot(df,category: Union[List[str], str]="",
         
         print("Top two optimal cluster No are: {}, {}".format(newK[srtindex[0]],newK[srtindex[1]]))
         eps=[_K[srtindex[0]],_K[srtindex[1]]]
-        
+        _save(save, method)
     else:
         n_clusters=[n_clusters]
     if method=="kmeans":
@@ -2596,21 +2660,91 @@ def clusterplot(df,category: Union[List[str], str]="",
             
             
         hue="dbscan"
+    
+    elif method=="fuzzy":
+        try:
+            import skfuzzy as fuzz
+        except ImportError:
+            from pip._internal import main as pip
+            pip(['install', '--user', 'scikit-fuzzy'])
+            import skfuzzy as fuzz
+        
+        dfnews=[]
+        fuzzylabels=[]
+        if reduce_dimension=="umap":
+            x="UMAP1"
+            y="UMAP2"
+        _X=X.T
+        for nc in n_clusters:
+            
+            cntr, u, u0, d, jm, p, fpc = fuzz.cmeans(_X, nc, 2, error=0.005, maxiter=1000, init=None)
+            
+            dfnew=pd.DataFrame(data = np.array([X[:,0],X[:,1]]).T, columns = [x, y], index=original_index)
+            fuzzylabels.append(u.T)
+            dfnews.append(dfnew)
+        hue="fuzzy"
+        
     _dfnews={}
-    for dfnew, K in zip(dfnews, n_clusters): 
-        if len(category)==0:
-            axnum=1
-            fig, ax=plt.subplots(ncols=1, figsize=[4,4])
-            ax=[ax]
-        else:
-            fig, ax=plt.subplots(ncols=1+len(category), figsize=[4+4*len(category),4])
-        sns.scatterplot(data=dfnew,x=x,y=y,hue=hue, ax=ax[0], palette=palette[0],**kwargs)
-        ax[0].set_title("Cluster number="+str(K))
-        if len(category)!=0:
-            for i, cat in enumerate(category):
-                dfnew[cat]=category_val[:,i]
-                sns.scatterplot(data=dfnew,x=x,y=y,hue=cat, ax=ax[i+1], palette=palette[1],**kwargs)
-        _dfnews[K]=dfnew 
+    
+    if method=="fuzzy":
+        for dfnew, K, fl in zip(dfnews, n_clusters, fuzzylabels): 
+            if len(category)==0:
+                fig, ax=plt.subplots(ncols=2, figsize=[8,4])
+                ax=[ax]
+            else:
+                fig, ax=plt.subplots(ncols=2+len(category), figsize=[8+4*len(category),4])
+                
+            _cmap=plt.get_cmap(palette[0], K)
+            colors=[]
+            for c in fl:
+                tmp=np.zeros([3])
+                for i in range(K):
+                    #print(_cmap(i))
+                    #print(c[i])
+                    tmp+=np.array(_cmap(i))[:3]*c[i]
+                colors.append(tmp)
+            
+            ax[0].scatter(dfnew[x], dfnew[y], c=colors, s=size)
+            #sns.scatterplot(data=dfnew,x=x,y=y,hue=hue, ax=ax[0], palette=palette[0],**kwargs)
+            ax[0].set_title("Fuzzy c-means. Cluster num="+str(K))
+            legend_elements = [Line2D([0], [0], marker='o', color='lavender', 
+                                      label="fuzzy"+str(i),
+                                      markerfacecolor=_cmap(i), 
+                                      markersize=10)
+                      for i in range(K)]
+    
+            ax[0].legend(handles=legend_elements,loc="best")
+            for i in range(K):
+                dfnew["fuzzy"+str(i)]=fl[:,i]
+            
+            pie_scatter(dfnew, x=x,y=y, 
+                        category=["fuzzy"+str(i) for i in range(K)],
+                        piesize_scale=piesize_scale, 
+                        ax=ax[1],
+                        label="",bbox_to_anchor="best", title="Probability is represented by pie charts")
+            
+            
+            if len(category)!=0:
+                for i, cat in enumerate(category):
+                    dfnew[cat]=category_val[:,i]
+                    sns.scatterplot(data=dfnew,x=x,y=y,hue=cat, ax=ax[i+2], palette=palette[1], s=size,**kwargs)
+            _dfnews[K]=dfnew 
+    else:
+    
+        for dfnew, K in zip(dfnews, n_clusters): 
+            if len(category)==0:
+                axnum=1
+                fig, ax=plt.subplots(ncols=1, figsize=[4,4])
+                ax=[ax]
+            else:
+                fig, ax=plt.subplots(ncols=1+len(category), figsize=[4+4*len(category),4])
+            sns.scatterplot(data=dfnew,x=x,y=y,hue=hue, ax=ax[0], palette=palette[0], s=size,**kwargs)
+            ax[0].set_title(method+" Cluster number="+str(K))
+            if len(category)!=0:
+                for i, cat in enumerate(category):
+                    dfnew[cat]=category_val[:,i]
+                    sns.scatterplot(data=dfnew,x=x,y=y,hue=cat, ax=ax[i+1], palette=palette[1], s=size,**kwargs)
+            _dfnews[K]=dfnew 
     return {"data": _dfnews, "axes":ax}
 
 def volcanoplot():
@@ -2627,6 +2761,7 @@ def regression_single(df,
                       robust_param={},
                       xunit: str="",
                       yunit: str="",
+                      title: str="",
                       random_state: int=42,
                       save: str="") -> Dict:
     """
@@ -2678,6 +2813,7 @@ def regression_single(df,
     n = X.shape[0]
     plt.rcParams.update({'font.size': 14})
     fig, ax = plt.subplots(figsize=figsize)
+    fig.suptitle(title)
     plt.subplots_adjust(left=0.15)
     if method=="ransac":
         from sklearn.linear_model import RANSACRegressor
@@ -2827,13 +2963,13 @@ def pie_scatter(df: pd.DataFrame,
                 x: str, 
                 y: str, 
                 category: list, 
-                piesize: float=0.01, 
+                
                 logscalex: bool=False,
                 logscaley: bool=False,
                 pie_palette: str="tab20c",
                 label: Union[List, str]="all",topn=10,
                 ax: Optional[plt.Axes]=None,
-                sizes: Union[List, str]="",
+                piesizes: Union[List, str]="",
                 save: str="",
                 show: bool=False,
                 edge_color: str="gray",
@@ -2842,7 +2978,11 @@ def pie_scatter(df: pd.DataFrame,
                 xunit: str="",
                 yunit: str="",
                 xlabel: str="",
-                ylabel: str="",) -> dict:
+                ylabel: str="", 
+                title: str="",
+                
+                bbox_to_anchor: Union[List, str]=[0.95, 1],
+                piesize_scale: float=0.01) -> dict:
     """
     Drawing a scatter plot of which points are represented by pie charts. 
     
@@ -2873,7 +3013,8 @@ def pie_scatter(df: pd.DataFrame,
         pie chart size. 
     label: str, optional (default: "all")
         "all": all 
-        "topn_of_sum":
+        "topn_of_sum": top n samples are labeled
+        "": no labels
     logscalex, logscaley: bool, optional (default: False)
         Whether to scale x an y axes with logarithm
     ax: Optional[plt.Axes] optional, (default: None)
@@ -2930,14 +3071,14 @@ def pie_scatter(df: pd.DataFrame,
     Frac=df[category]
     
     index=df.index
-    piesize=np.amax([np.amax(X), np.amax(Y)])*piesize
+    piesize_scale=np.amax([np.amax(X), np.amax(Y)])*piesize_scale
     
-    if sizes=="sum_of_each":
+    if piesizes=="sum_of_each":
         sums=Frac.sum(axis=1)
         sumsrt=np.argsort(sums)[::-1]
         sumsrt=set(sumsrt[:topn])
         sums=sums/np.amax(sums)
-        sums=piesize*(sums+min_piesize)
+        sums=piesize_scale*(sums+min_piesize)
     _colors=[colors[f] for f in unique_labels]
     for i, (_x, _y, _ind) in enumerate(zip(X, Y, index)):
         _frac=Frac.loc[_ind].values 
@@ -2946,17 +3087,17 @@ def pie_scatter(df: pd.DataFrame,
         angle=0
         #print(sums.loc[_ind])
         for fr, co in zip(_frac, _colors):
-            if type(sizes)==str:
-                if sizes=="sum_of_each":
+            if type(piesizes)==str:
+                if piesizes=="sum_of_each":
                     _baumkuchen_xy(ax, _x, _y, angle, fr, 0, sums.loc[_ind],20, co, edge_color=edge_color)
-                elif sizes=="":
-                    _baumkuchen_xy(ax, _x, _y, angle, fr, 0, piesize,20, co, edge_color=edge_color)
+                elif piesizes=="":
+                    _baumkuchen_xy(ax, _x, _y, angle, fr, 0, piesize_scale,20, co, edge_color=edge_color)
                 else:
                     pass
-            elif type(sizes)==list and len(sizes) !=0:
-                _baumkuchen_xy(ax, _x, _y, angle, fr, 0, piesize*sizes[i],20, co, edge_color=edge_color)
+            elif type(piesizes)==list and len(piesizes) !=0:
+                _baumkuchen_xy(ax, _x, _y, angle, fr, 0, piesize_scale*piesizes[i],20, co, edge_color=edge_color)
             else:
-                _baumkuchen_xy(ax, _x, _y, angle, fr, 0, piesize,20, co, edge_color=edge_color)
+                _baumkuchen_xy(ax, _x, _y, angle, fr, 0, piesize_scale,20, co, edge_color=edge_color)
             angle+=fr
         
         if type(label)==str:
@@ -2981,8 +3122,11 @@ def pie_scatter(df: pd.DataFrame,
     plt.ylabel(y+yscale)
     legend_elements = [Line2D([0], [0], marker='o', color='lavender', label=ul,markerfacecolor=colors[ul], markersize=10)
                       for ul in unique_labels]
-    
-    ax.legend(handles=legend_elements,bbox_to_anchor=(0.95, 1))
+    if type(bbox_to_anchor)==str:
+        ax.legend(handles=legend_elements,loc=bbox_to_anchor)
+    else:
+        ax.legend(handles=legend_elements,bbox_to_anchor=bbox_to_anchor)
+    ax.set_title(title)
     _save(save, "pie_scatter")
     return {"axes":ax}
 
@@ -3015,7 +3159,7 @@ if __name__=="__main__":
     test="pie_scatter"
     
     test="correlation"
-    test="stackedlines"
+    test="cluster"
     if test=="stackedlines":
         f="/media/koh/grasnas/home/data/omniplot/energy/owid-energy-data.csv"
         df=pd.read_csv(f)
@@ -3127,7 +3271,8 @@ if __name__=="__main__":
         df=df.dropna(axis=0)
         features=["species","sex","bill_length_mm","bill_depth_mm","flipper_length_mm","body_mass_g"]
         df=df[features]
-        clusterplot(df,category=["species","sex"],method="kmeans",n_clusters="auto")
+        #clusterplot(df,category=["species","sex"],method="kmeans",n_clusters="auto")
+        clusterplot(df,category=["species","sex"],method="fuzzy",n_clusters="auto", piesize_scale=0.03)
         #clusterplot(df,category="species",method="dbscan",eps=0.35)
         plt.show()
     elif test=="violinplot":
