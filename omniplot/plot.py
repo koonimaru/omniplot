@@ -14,9 +14,7 @@ from natsort import natsort_keygen
 from matplotlib.patches import Rectangle
 import scipy.cluster.hierarchy as sch
 import fastcluster as fcl
-from sklearn.decomposition import TruncatedSVD
-from sklearn.pipeline import make_pipeline
-from sklearn.random_projection import SparseRandomProjection
+
 import sys 
 import matplotlib as mpl
 from sklearn.cluster import KMeans, DBSCAN
@@ -29,7 +27,7 @@ from itertools import combinations
 import os
 #script_dir = os.path.dirname( __file__ )
 #sys.path.append( script_dir )
-from omniplot.utils import _line_annotate, _dendrogram_threshold, _radialtree2,_get_cluster_classes,_calc_curveture, _draw_ci_pi,_calc_r2,_ci_pi, _save, _baumkuchen_xy
+from omniplot.utils import _line_annotate, _dendrogram_threshold, _radialtree2,_get_cluster_classes,_calc_curveture, _draw_ci_pi,_calc_r2,_ci_pi, _save, _baumkuchen_xy, _get_embedding
 import scipy.stats as stats
 from joblib import Parallel, delayed
 from omniplot.chipseq_utils import _calc_pearson
@@ -55,7 +53,8 @@ def radialtree(df: pd.DataFrame,
                ztransform: bool=True,
                save: str="",
                distance_method="euclidean",
-               tree_method="ward",title: str="",
+               tree_method="ward",
+               title: str="",
                **kwargs) -> Dict:
     """
     Drawing a radial dendrogram with color labels.
@@ -144,6 +143,8 @@ def radialtree(df: pd.DataFrame,
                         color_threshold=t,no_plot=True)
     sample_classes={k: list(category_df[k]) for k in category_df.columns}
     ax=_radialtree2(Z, sample_classes=sample_classes,addlabels=False, **kwargs)
+    if title !="":
+        ax.set_title(title)
     _save(save, "radialtree")
     clusters = _get_cluster_classes(Z)
     return {"axes":ax, "clusters":clusters}
@@ -158,7 +159,8 @@ def correlation(df: pd.DataFrame,
                 clustermap_param:dict={},
                 ztransform: bool=True,
                 xticklabels =False,
-                yticklabels=False,title: str="",):
+                yticklabels=False,
+                title: str="",):
     """
     Drawing a heatmap with correlations or distances between observations 
     
@@ -225,9 +227,9 @@ def correlation(df: pd.DataFrame,
     else:
         dmat=squareform(pdist(X, method))
     if method=="pearson":
-            title="Pearson correlation"
+            ctitle="Pearson correlation"
     else:
-        title=method+" distance"    
+        ctitle=method+" distance"    
         
         
     if len(category) >0:
@@ -242,7 +244,7 @@ def correlation(df: pd.DataFrame,
                                xticklabels=xticklabels,
                                yticklabels=yticklabels,
                                figsize=figsize,
-                               cbar_kws={"label":title}, )
+                               cbar_kws={"label":ctitle}, )
         return res
     else:
         
@@ -259,7 +261,7 @@ def correlation(df: pd.DataFrame,
                    annot=show_values,
                    **clustermap_param)
         
-        g.cax.set_ylabel(title, rotation=-90,va="bottom")
+        g.cax.set_ylabel(ctitle, rotation=-90,va="bottom")
         plt.setp(g.ax_heatmap.get_yticklabels(), rotation=0)  # For y axis
         plt.setp(g.ax_heatmap.get_xticklabels(), rotation=90) # For x axis
         return {"grid":g}
@@ -405,7 +407,7 @@ def complex_clustermap(df: pd.DataFrame,
                        col_scatter: list=[],
                        row_bar: list=[],
                        col_bar: list=[],
-                       
+                       ctitle: str="",
                        approx_clusternum: int=10,
                        approx_clusternum_col: int=3,
                        color_var: int=0,
@@ -444,9 +446,13 @@ def complex_clustermap(df: pd.DataFrame,
         The approximate number of row clusters to be created. Labeling the groups of leaves with different colors. The result of hierarchical clustering won't change.    
     approx_clusternum_col : int
         The approximate number of column clusters to be created. Labeling the groups of leaves with different colors. The result of hierarchical clustering won't change.
+    ctitle : str
+        The title for color values.
     
-    color_var : int
-        The title for color values. If not set, "color_val" will be used.
+    color_var : int, optional
+        The number of potential colors in dendrograms. If some clusters in the dendrogram share a same color (because the number of clusters is too many), 
+        give this option may solve the problem. 
+        
     merginalsum : bool
         Whether or not to draw bar plots for merginal distribution.
     show : bool
@@ -478,6 +484,8 @@ def complex_clustermap(df: pd.DataFrame,
     sns.set(font_scale=1)
     if ztranform==True:
         df[heatmap_col]=df[heatmap_col].apply(zscore)
+        if ctitle =="":
+            ctitle="zscore"
     
     if len(col_plot)!=0 or len(col_scatter)!=0 or len(col_bar)!=0:
         if dfcol==None:
@@ -571,7 +579,7 @@ def complex_clustermap(df: pd.DataFrame,
             g=sns.clustermap(df[heatmap_col],col_colors=_col_colors, 
                              row_colors=_row_colors,
                              method=method,xticklabels=xticklabels, yticklabels=yticklabels,
-                             figsize=figsize,dendrogram_ratio=0.1,
+                             figsize=figsize,dendrogram_ratio=0.1,cbar_kws={"label":ctitle},
                              **kwargs)
             g.ax_col_colors.invert_yaxis()
             g.ax_row_colors.invert_xaxis()
@@ -583,10 +591,10 @@ def complex_clustermap(df: pd.DataFrame,
                              xticklabels=xticklabels, 
                              yticklabels=yticklabels,
                              dendrogram_ratio=0.1,
-                             figsize=figsize,**kwargs)
+                             figsize=figsize,cbar_kws={"label":ctitle},**kwargs)
             g.ax_col_colors.invert_yaxis()
         elif len(_row_colors) >0:
-            g=sns.clustermap(df[heatmap_col],row_colors=_row_colors,method=method,xticklabels=xticklabels, yticklabels=yticklabels,dendrogram_ratio=0.1,figsize=figsize,**kwargs)
+            g=sns.clustermap(df[heatmap_col],row_colors=_row_colors,method=method,cbar_kws={"label":ctitle},xticklabels=xticklabels, yticklabels=yticklabels,dendrogram_ratio=0.1,figsize=figsize,**kwargs)
             g.ax_row_colors.invert_xaxis()
         
         rowplotcount=0
@@ -799,7 +807,7 @@ def complex_clustermap(df: pd.DataFrame,
             legend_num+=1
         
     else:
-        g=sns.clustermap(df,method=method,**kwargs)
+        g=sns.clustermap(df,method=method,cbar_kws={"label":ctitle},**kwargs)
     if color_var>0:
         cmap = cm.nipy_spectral(np.linspace(0, 1, color_var))
     else:
@@ -871,14 +879,11 @@ def complex_clustermap(df: pd.DataFrame,
                 col_cdata["Index"].append(_v)
                 col_cdata["RGB"].append(matplotlib.colors.to_rgb(c))
     """Setting the col dendrogram ends here"""
-    
+    if title !="":
+        g.fig.suptitle(title, va="bottom")
     plt.setp(g.ax_heatmap.xaxis.get_majorticklabels(), rotation=90)
     plt.subplots_adjust(bottom=0.165, right=0.75)
-    if save!="":
-        if save.endswith(".pdf") or save.endswith(".png") or save.endswith(".svg"):
-            plt.savefig(save)
-        else:
-            plt.savefig(save+"_complexheatmap.pdf")
+    _save(save, "complex_clustermap")
     if show:
         plt.show()
     if return_col_cluster==True:
@@ -2056,12 +2061,9 @@ def decomplot(df,category: str="",
             dfpc_list.append(dfpc)
             combnum+=1
         plt.tight_layout(pad=0.5)
-        if save!="":
-            if save.endswith(".pdf") or save.endswith(".png") or save.endswith(".svg"):
-                h, ext=os.path.splitext(save)
-                plt.savefig(h[0]+"_PCA"+ext, **saveparam)
-            else:
-                plt.savefig(save+"_PCA.pdf",**saveparam) 
+        fig.suptitle(title)
+        _save(save, "PCA")
+        
         if explained_variance==True:
             fig, ax2=plt.subplots()
             exp_var_pca = pca.explained_variance_ratio_
@@ -2078,12 +2080,8 @@ def decomplot(df,category: str="",
             plt.step(range(0,len(cum_sum_eigenvalues)), cum_sum_eigenvalues, where='mid',label='Cumulative explained variance')
             plt.ylabel('Explained variance ratio')
             plt.xlabel('Principal component index')
-            if save!="":
-                if save.endswith(".pdf") or save.endswith(".png") or save.endswith(".svg"):
-                    h, ext=os.path.splitext(save)
-                    plt.savefig(h[0]+"_ExplainedVar"+ext, **saveparam)
-                else:
-                    plt.savefig(save+"_ExplainedVar.pdf",**saveparam) 
+            _save(save, "ExplainedVar")
+            
         if show==True:
             plt.show()
         else:
@@ -2115,12 +2113,8 @@ def decomplot(df,category: str="",
             dfpc_list.append(dfpc)
         
         fig.tight_layout()
-        if save!="":
-            if save.endswith(".pdf") or save.endswith(".png") or save.endswith(".svg"):
-                h, ext=os.path.splitext(save)
-                plt.savefig(h[0]+"_NMF"+ext, **saveparam)
-            else:
-                plt.savefig(save+"_NMF.pdf",**saveparam) 
+        fig.suptitle(title)
+        _save(save, "NMF")
         if explained_variance==True:
             fig, axes2=plt.subplots(nrows=component, figsize=[5,5])
             axes2=axes2.flatten()
@@ -2154,14 +2148,8 @@ def decomplot(df,category: str="",
             # dfh=pd.DataFrame(data=dfh)
             # #dotplot(dfw,row="index",col="p",size_val="val")
             # dotplot(dfh,row="p",col="feature",size_val="val",)
+            _save(save, "Coefficients")
             
-            if save!="":
-                if save.endswith(".pdf") or save.endswith(".png") or save.endswith(".svg"):
-                    h, ext=os.path.splitext(save)
-                    plt.savefig(h[0]+"_Coefficients"+ext, **saveparam)
-                else:
-                    plt.savefig(save+"_Coefficients.pdf",**saveparam)    
-                
             if show==True:
                 plt.show()
             return {"data": dfpc_list, "W":W, "H":H,"axes":axes,"axes_explained":axes2}
@@ -2177,7 +2165,7 @@ def manifoldplot(df,category="",
                  n_components=2,
                  n_neighbors=4, 
                  show=False,
-                 title: str="",
+                 title: str="",param: dict={},
                  **kwargs):
     """
     Reducing the dimensionality of data and drawing a scatter plot. 
@@ -2189,7 +2177,7 @@ def manifoldplot(df,category="",
         the column name of a known sample category (if exists). 
     method: str
         Method name for decomposition. 
-        Available methods: ["tsne", 
+        Available methods: ["tsne", "umap",
                             "isomap",
                             "random_projection",
                             "linear_discriminant",
@@ -2218,15 +2206,7 @@ def manifoldplot(df,category="",
     Examples
     --------
     """    
-    from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-    from sklearn.ensemble import RandomTreesEmbedding
-    from sklearn.manifold import (
-        Isomap,
-        LocallyLinearEmbedding,
-        MDS,
-        SpectralEmbedding,
-        TSNE,)
-    from sklearn.neighbors import NeighborhoodComponentsAnalysis
+    
     if category !="":
         category_val=df[category].values
         df=df.drop([category], axis=1)
@@ -2239,95 +2219,42 @@ def manifoldplot(df,category="",
     x=zscore(x, axis=0)
     features=df.columns
     original_index=df.index
-    if method=="random_projection": 
-        embedding=SparseRandomProjection(
-            n_components=n_components, random_state=42
-        )
-    elif method=="linear_discriminant": 
-        embedding=LinearDiscriminantAnalysis(
-            n_components=n_components
-        )
-    elif method=="isomap": 
-        embedding=Isomap(n_neighbors=n_neighbors, n_components=n_components)
-    
-    elif method=="lle": 
-        embedding=LocallyLinearEmbedding(
-            n_neighbors=n_neighbors, n_components=n_components, method="standard"
-        )
-    elif method=="modlle": 
-        embedding=LocallyLinearEmbedding(
-            n_neighbors=n_neighbors, n_components=n_components, method="modified"
-        )
-    elif method=="hessian_lle": 
-        embedding=LocallyLinearEmbedding(
-            n_neighbors=n_neighbors, n_components=n_components, method="hessian"
-        )
-    elif method=="ltsa_lle": 
-        embedding=LocallyLinearEmbedding(
-            n_neighbors=n_neighbors, n_components=n_components, method="ltsa"
-        )
-    elif method=="mds": 
-        embedding=MDS(
-            n_components=n_components, n_init=1, max_iter=120, n_jobs=2, normalized_stress="auto"
-        )
-    elif method=="random_trees": 
-        embedding=make_pipeline(
-            RandomTreesEmbedding(n_estimators=200, max_depth=5, random_state=0),
-            TruncatedSVD(n_components=n_components),
-        )
-    elif method=="spectral": 
-        embedding=SpectralEmbedding(
-            n_components=n_components, random_state=0, eigen_solver="arpack"
-        )
-    elif method=="tsne": 
-        embedding=TSNE(
-            n_components=n_components,
-            n_iter=500,
-            n_iter_without_progress=150,
-            n_jobs=2,
-            random_state=0,perplexity=10
-        )
-    elif method=="nca": 
-        embedding=NeighborhoodComponentsAnalysis(
-            n_components=n_components, init="pca", random_state=0
-        )
-    elif method=="umap":
-        import umap 
-        embedding=umap.UMAP(
-            min_dist=0.25,n_neighbors=15
-        )
-    else:
-        raise Exception(f"Medthod {method} does not exist.")
+    embedding=_get_embedding(method=method,param=param)
     Xt=embedding.fit_transform(x)
     dft = pd.DataFrame(data = np.array([Xt[:,0],Xt[:,1]]).T, columns = ["d1", "d2"],index=original_index)
+    fig, ax=plt.subplots()
     if category !="":
-        fig, ax=plt.subplots()
+        
         dft[category]=category_val
         sns.scatterplot(data=dft, x="d1", y="d2", hue=category, ax=ax,**kwargs)
     else:
         sns.scatterplot(data=dft, x="d1", y="d2", ax=ax,**kwargs)
+    if title !="":
+        fig.suptitle(title)
     if show==True:
         plt.show()
     return {"data": dft, "axes": ax}
 
-def clusterplot(df,category: Union[List[str], str]="", 
-              method: str="kmeans",
-              n_clusters: Union[str , int]=3,
-              x: str="",
-              y: str="",
-              size: float=10,
-              reduce_dimension: str="umap", 
-              testrange=[2,20],
-              show: bool=False,
-              min_dist: float=0.25,
-              n_neighbors: int=15,
-              eps: Union[List[float], float]=0.5,
-              pcacomponent: Optional[int]=None,
-              ztranform=True,
-              palette=["Spectral","cubehelix"],
-              save: str="",
-              title: str="",
-              piesize_scale: float=0.02,**kwargs)->Dict:
+def clusterplot(df,
+                variables: List=[],
+                category: Union[List[str], str]="", 
+                method: str="kmeans",
+                n_clusters: Union[str , int]=3,
+                x: str="",
+                y: str="",
+                size: float=10,
+                reduce_dimension: str="umap", 
+                testrange=[1,20],
+                show: bool=False,
+                min_dist: float=0.25,
+                n_neighbors: int=15,
+                eps: Union[List[float], float]=0.5,
+                pcacomponent: Optional[int]=None,
+                ztranform=True,
+                palette=["Spectral","cubehelix"],
+                save: str="",
+                title: str="",
+                piesize_scale: float=0.02,**kwargs)->Dict:
     """
     Clustering data and draw them as a scatter plot optionally with dimensionality reduction.  
     
@@ -2392,8 +2319,13 @@ def clusterplot(df,category: Union[List[str], str]="",
     
     
     original_index=df.index
-    
-    if len(category) !=0:
+    if len(n_clusters) !=0:
+        X = df[variables].values
+        if len(category) !=0:
+            if type(category)==str:
+                category=[category]
+            category_val=df[category].values
+    elif len(category) !=0:
         if type(category)==str:
             category=[category]
         category_val=df[category].values
@@ -2408,6 +2340,7 @@ def clusterplot(df,category: Union[List[str], str]="",
     
     if ztranform:
         X=zscore(X, axis=0)
+        
     if pcacomponent==None:
             
         if 20<X.shape[1]:
@@ -2456,7 +2389,7 @@ def clusterplot(df,category: Union[List[str], str]="",
         plt.plot([K[srtindex[1]],K[srtindex[1]]],[0,np.amax(Sum_of_squared_distances)], "--", color="r")
         plt.text(K[srtindex[1]], np.amax(Sum_of_squared_distances)*0.95, "N="+str(K[srtindex[1]]))
         plt.xticks(K)
-        plt.xlabel('K')
+        plt.xlabel('Cluster number')
         plt.ylabel('Sum of squared distances')
         plt.title('Elbow method for optimal cluster number')    
         plt.legend()
