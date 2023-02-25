@@ -27,7 +27,7 @@ from itertools import combinations
 import os
 #script_dir = os.path.dirname( __file__ )
 #sys.path.append( script_dir )
-from omniplot.utils import _line_annotate, _dendrogram_threshold, _radialtree2,_get_cluster_classes,_calc_curveture, _draw_ci_pi,_calc_r2,_ci_pi, _save, _baumkuchen_xy, _get_embedding
+from omniplot.utils import _separate_data, _line_annotate, _dendrogram_threshold, _radialtree2,_get_cluster_classes,_calc_curveture, _draw_ci_pi,_calc_r2,_ci_pi, _save, _baumkuchen_xy, _get_embedding
 import scipy.stats as stats
 from joblib import Parallel, delayed
 from omniplot.chipseq_utils import _calc_pearson
@@ -1953,7 +1953,9 @@ def stackedlines(df: pd.DataFrame,
 
 # scatter plots
         
-def decomplot(df,category: str="", 
+def decomplot(df: pd.DataFrame,
+              variables: List=[],
+              category: Union[List, str]="", 
               method: str="pca", 
               component: int=3,
               arrow_color: str="yellow",
@@ -2001,26 +2003,39 @@ def decomplot(df,category: str="",
     --------
     Examples
     --------
-    """    
-    if category !="":
-        category_val=df[category].values
-        df=df.drop([category], axis=1)
-        x = df.values
-        assert x.dtype==float, f"data must contain only float values except {category} column."
-        
-    else:    
-        x = df.values
-        assert x.dtype==float, "data must contain only float values."
+    """
+    x, category=_separate_data(df, variables=variables, category=category)
+    # if category !="":
+    #     category_val=df[category].values
+    #     df=df.drop([category], axis=1)
+    #     x = df.values
+    #     assert x.dtype==float, f"data must contain only float values except {category} column."
+    #
+    # else:    
+    #     x = df.values
+    #     assert x.dtype==float, "data must contain only float values."
     original_index=df.index
     features=df.columns
     dfpc_list=[]
-    if method=="pca":
-        if regularization:
-            x=zscore(x, axis=0)
-        pca = PCA(n_components=component,**pcapram)
-        pccomp = pca.fit_transform(x)
+    comb=list(combinations(np.arange(component), 2))
         
-        comb=list(combinations(np.arange(component), 2))
+    if len(category)!=0:
+        figures={}
+        for cat in category:
+            if len(comb)==1:
+                fig, axes=plt.subplots()
+                axes=[axes]
+            else:
+                nrows=len(comb)//2+int(len(comb)%2!=0)
+                if len(figsize)==0:
+                    figsize=[8,3*nrows]
+                
+                fig, axes=plt.subplots(ncols=2, nrows=nrows, figsize=figsize)
+                plt.subplots_adjust(top=0.9,right=0.8)
+                axes=axes.flatten()
+            figures[cat]={"fig": fig, "axes":axes}
+    else:
+        figures={}
         if len(comb)==1:
             fig, axes=plt.subplots()
             axes=[axes]
@@ -2032,37 +2047,55 @@ def decomplot(df,category: str="",
             fig, axes=plt.subplots(ncols=2, nrows=nrows, figsize=figsize)
             plt.subplots_adjust(top=0.9,right=0.8)
             axes=axes.flatten()
+        figures["nocat"]={"fig": fig, "axes":axes}
+    if method=="pca":
+        if regularization:
+            x=zscore(x, axis=0)
+        pca = PCA(n_components=component,**pcapram)
+        pccomp = pca.fit_transform(x)
         loadings = pca.components_.T * np.sqrt(pca.explained_variance_)
         combnum=0
-        for (i, j), ax in zip(comb, axes):
+        for axi, (i, j) in enumerate(comb):
             xlabel, ylabel='pc'+str(i+1), 'pc'+str(j+1)
             dfpc = pd.DataFrame(data = np.array([pccomp[:,i],pccomp[:,j]]).T, columns = [xlabel, ylabel],index=original_index)
-            if category!="":
-                dfpc[category]=category_val
-                if combnum==1:
-                    sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=category, ax=ax)
-                    ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0)
-                else:
-                    sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=category, ax=ax,
-                                    legend=False)
-            else:
-                sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, ax=ax)
             _loadings=np.array([loadings[:,i],loadings[:,j]]).T
             a=np.sum(_loadings**2, axis=1)
             srtindx=np.argsort(a)[::-1][:arrow_num]
             _loadings=_loadings[srtindx]
             _features=np.array(features)[srtindx]
-            for k, feature in enumerate(_features):
-                
-                #ax.plot([0,_loadings[k, 0] ], [0,_loadings[k, 1] ],color=arrow_color)
-                ax.arrow(0, 0, _loadings[k, 0],_loadings[k, 1],color=arrow_color,width=0.005,head_width=0.1)
-                ax.text(_loadings[k, 0],_loadings[k, 1],feature,color=arrow_text_color)
+            
+            if len(category)!=0:
+                for cat in category:
+                    dfpc[cat]=df[cat]
+                    if combnum==1:
+                        sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=cat, ax=figures[cat]["axes"][axi])
+                        figures[cat]["axes"][axi].legend(bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0)
+                    else:
+                        sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=cat, ax=figures[cat]["axes"][axi],
+                                        legend=False)
+                    for k, feature in enumerate(_features):
+                        figures[cat]["axes"][axi].arrow(0, 0, _loadings[k, 0],_loadings[k, 1],color=arrow_color,width=0.005,head_width=0.1)
+                        figures[cat]["axes"][axi].text(_loadings[k, 0],_loadings[k, 1],feature,color=arrow_text_color)
+            else:
+                sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, ax=figures["nocat"][axi])
+            
+                for k, feature in enumerate(_features):
+                    #ax.plot([0,_loadings[k, 0] ], [0,_loadings[k, 1] ],color=arrow_color)
+                    figures["nocat"][axi].arrow(0, 0, _loadings[k, 0],_loadings[k, 1],color=arrow_color,width=0.005,head_width=0.1)
+                    figures["nocat"][axi].text(_loadings[k, 0],_loadings[k, 1],feature,color=arrow_text_color)
     
             dfpc_list.append(dfpc)
             combnum+=1
-        plt.tight_layout(pad=0.5)
-        fig.suptitle(title)
-        _save(save, "PCA")
+        
+        if len(category)!=0:
+            for cat in category:
+                figures[cat]["fig"].suptitle(title)
+                figures[cat]["fig"].tight_layout(pad=0.5)
+                _save(save, cat+"_PCA", fig=figures[cat]["fig"])
+        else:
+            figures["nocat"]["fig"].suptitle(title)
+            figures["nocat"]["fig"].tight_layout(pad=0.5)
+            _save(save, "PCA")
         
         if explained_variance==True:
             fig, ax2=plt.subplots()
@@ -2081,39 +2114,42 @@ def decomplot(df,category: str="",
             plt.ylabel('Explained variance ratio')
             plt.xlabel('Principal component index')
             _save(save, "ExplainedVar")
-            
+        else:
+            ax2=None
         if show==True:
             plt.show()
-        else:
-            return {"data": dfpc_list,"pca": pca, "axes":axes, "axes_explained":ax2}
+        return {"data": dfpc_list,"pca": pca, "axes":figures, "axes_explained":ax2}
     elif method=="nmf":
         nmf=NMF(n_components=component,**nmfparam)
         if regularization:
             x=x/np.sum(x,axis=0)[None,:]
         W = nmf.fit_transform(x)
         H = nmf.components_
-        comb=list(combinations(np.arange(component), 2))
-        if len(comb)==1:
-            fig, axes=plt.subplots()
-            axes=[axes]
-        else:
-            nrows=len(comb)//2+int(len(comb)%2!=0)
-            if len(figsize)==0:
-                figsize=[8,3*nrows]
-            
-            fig, axes=plt.subplots(ncols=2, nrows=nrows, figsize=figsize)
-            plt.subplots_adjust(top=0.9,right=0.8)
-            axes=axes.flatten()
-
-        for (i, j), ax in zip(comb, axes):
+        combnum=0
+        for axi, (i, j) in enumerate(comb):
             xlabel, ylabel='p'+str(i+1), 'p'+str(j+1)
             dfpc = pd.DataFrame(data = np.array([W[:,i],W[:,j]]).T, columns = [xlabel, ylabel],index=original_index)
-            dfpc[category]=category_val
-            sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=category, ax=ax)
+            if len(category)!=0:
+                for cat in category:
+                    dfpc[cat]=df[cat]
+                    if combnum==1:
+                        sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=cat, ax=figures[cat]["axes"][axi])
+                        figures[cat]["axes"][axi].legend(bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0)
+                    else:
+                        sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=cat, ax=figures[cat]["axes"][axi],
+                                        legend=False)
+            else:
+                sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=category, ax=figures["nocat"][axi])
             dfpc_list.append(dfpc)
-        
-        fig.tight_layout()
-        fig.suptitle(title)
+            combnum+=1
+        if len(category)!=0:
+            for cat in category:
+                figures[cat]["fig"].suptitle(title)
+                figures[cat]["fig"].tight_layout(pad=0.5)
+                _save(save, cat+"_NMF", fig=figures[cat]["fig"])
+        else:
+            figures["nocat"]["fig"].suptitle(title)
+            figures["nocat"]["fig"].tight_layout(pad=0.5)
         _save(save, "NMF")
         if explained_variance==True:
             fig, axes2=plt.subplots(nrows=component, figsize=[5,5])
@@ -2149,10 +2185,11 @@ def decomplot(df,category: str="",
             # #dotplot(dfw,row="index",col="p",size_val="val")
             # dotplot(dfh,row="p",col="feature",size_val="val",)
             _save(save, "Coefficients")
-            
-            if show==True:
-                plt.show()
-            return {"data": dfpc_list, "W":W, "H":H,"axes":axes,"axes_explained":axes2}
+        else:
+            axes2=None
+        if show==True:
+            plt.show()
+        return {"data": dfpc_list, "W":W, "H":H,"axes":figures,"axes_explained":axes2}
     elif method=="lda":
         lda=LatentDirichletAllocation(n_components=component, random_state=0)
         if regularization:
@@ -2160,12 +2197,15 @@ def decomplot(df,category: str="",
         
     else:
         raise Exception('{} is not in options. Available options are: pca, nmf'.format(method))
-def manifoldplot(df,category="", 
-                 method="tsne",
-                 n_components=2,
-                 n_neighbors=4, 
-                 show=False,
-                 title: str="",param: dict={},
+def manifoldplot(df: pd.DataFrame,
+                 variables: List=[],
+                 category: Union[List, str]="", 
+                 method: str="tsne",
+                 show: bool=False,
+                 figsize=[5,5],
+                 title: str="",
+                 param: dict={},
+                 save: str="",
                  **kwargs):
     """
     Reducing the dimensionality of data and drawing a scatter plot. 
@@ -2173,18 +2213,23 @@ def manifoldplot(df,category="",
     Parameters
     ----------
     df : pandas DataFrame
-    category: str
+    category: list or str, optional
         the column name of a known sample category (if exists). 
     method: str
         Method name for decomposition. 
-        Available methods: ["tsne", "umap",
-                            "isomap",
-                            "random_projection",
-                            "linear_discriminant",
-                            "lle",
-                            "modlle",
-                            "hessian_lle",
-                            "mds"]
+        Available methods: {"random_projection": "Sparse random projection",
+                            "linear_discriminant": "Linear discriminant analysis",
+                            "isomap": "Isomap",
+                            "lle": "Locally linear embedding",
+                            "modlle": "Modified locally linear embedding",
+                            "hessian_lle":" Hessian locally linear embedding",
+                            "ltsa_lle": "LTSA",
+                            "mds": "MDS",
+                            "random_trees": "Random Trees Embedding",
+                            "spectral": "Spectral embedding",
+                            "tsne": "TSNE",
+                            "nca": "Neighborhood components analysis",
+                            "umap":"UMAP"}
     component: int
         The number of components
     n_neighbors: int
@@ -2206,34 +2251,46 @@ def manifoldplot(df,category="",
     Examples
     --------
     """    
-    
-    if category !="":
-        category_val=df[category].values
-        df=df.drop([category], axis=1)
-        x = df.values
-        assert x.dtype==float, f"data must contain only float values except {category} column."
-        
-    else:    
-        x = df.values
-        assert x.dtype==float, "data must contain only float values."
+    method_dict={"random_projection": "Sparse random projection",
+    "linear_discriminant": "Linear discriminant analysis",
+    "isomap": "Isomap",
+    "lle": "Locally linear embedding",
+    "modlle": "Modified locally linear embedding",
+    "hessian_lle":" Hessian locally linear embedding",
+    "ltsa_lle": "LTSA",
+    "mds": "MDS",
+    "random_trees": "Random Trees Embedding",
+    "spectral": "Spectral embedding",
+    "tsne": "TSNE",
+    "nca": "Neighborhood components analysis",
+    "umap":"UMAP"}
+    x, category=_separate_data(df, variables=variables, category=category)
+   
     x=zscore(x, axis=0)
     features=df.columns
     original_index=df.index
     embedding=_get_embedding(method=method,param=param)
     Xt=embedding.fit_transform(x)
     dft = pd.DataFrame(data = np.array([Xt[:,0],Xt[:,1]]).T, columns = ["d1", "d2"],index=original_index)
-    fig, ax=plt.subplots()
-    if category !="":
-        
-        dft[category]=category_val
-        sns.scatterplot(data=dft, x="d1", y="d2", hue=category, ax=ax,**kwargs)
+    
+    if len(category) !=0:
+        figsize=[5*len(category),5]
+        fig, axes=plt.subplots(figsize=figsize, ncols=len(category))
+        axes=axes.flatten()
+        for cat,ax in zip(category, axes):
+            dft[cat]=df[cat]
+            sns.scatterplot(data=dft, x="d1", y="d2", hue=cat, ax=ax,**kwargs)
     else:
-        sns.scatterplot(data=dft, x="d1", y="d2", ax=ax,**kwargs)
+        fig, axes=plt.subplots(figsize=figsize)
+        sns.scatterplot(data=dft, x="d1", y="d2", ax=axes,**kwargs)
     if title !="":
         fig.suptitle(title)
+    else:
+        fig.suptitle(method_dict[method])
     if show==True:
         plt.show()
-    return {"data": dft, "axes": ax}
+    _save(save, method_dict[method])
+    return {"data": dft, "axes": axes}
 
 def clusterplot(df,
                 variables: List=[],
@@ -3074,10 +3131,6 @@ if __name__=="__main__":
     test="decomp"
     test="manifold"
     test="triangle_heatmap"
-    
-    test="decomp"
-    
-    
     test="radialtree"
     
     test="violinplot"
@@ -3092,7 +3145,8 @@ if __name__=="__main__":
     test="pie_scatter"
     
     test="correlation"
-    test="cluster"
+    test="manifold"
+    test="decomp"
     if test=="stackedlines":
         f="/media/koh/grasnas/home/data/omniplot/energy/owid-energy-data.csv"
         df=pd.read_csv(f)
@@ -3188,16 +3242,19 @@ if __name__=="__main__":
     elif test=="decomp":
         df=sns.load_dataset("penguins")
         df=df.dropna(axis=0)
-        features=["species","bill_length_mm","bill_depth_mm","flipper_length_mm","body_mass_g"]
-        df=df[features]
-        decomplot(df,category="species",method="pca")
+        variables=["bill_length_mm","bill_depth_mm","flipper_length_mm","body_mass_g"]
+
+        decomplot(df, variables=variables,category=["species","sex"],method="nmf")
         plt.show()
     elif test=="manifold":
         df=sns.load_dataset("penguins")
         df=df.dropna(axis=0)
-        features=["species","bill_length_mm","bill_depth_mm","flipper_length_mm","body_mass_g"]
-        df=df[features]
-        manifoldplot(df,category="species",method="tsne")
+        variables=["bill_length_mm","bill_depth_mm","flipper_length_mm","body_mass_g"]
+        #df=df[features]
+        manifoldplot(df, 
+                     variables=variables,
+                     category=["species", "island"],
+                     method="tsne")
         plt.show()
     elif test=="cluster":
         df=sns.load_dataset("penguins")

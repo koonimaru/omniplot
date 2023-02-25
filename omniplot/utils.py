@@ -856,13 +856,20 @@ def _multipage(filename, figs=None, dpi=200):
         fig.savefig(pp, format='pdf')
     pp.close()
     
-def _save(save, suffix):
+def _save(save, suffix, fig=None):
     if save !="":
         if save.endswith(".pdf") or save.endswith(".png") or save.endswith(".svg"):
             h, t=os.path.splitext(save)
-            plt.savefig(h+"_"+suffix+t)
+            if fig!=None:
+                fig.savefig(h+"_"+suffix+t)
+            else:
+                plt.savefig(h+"_"+suffix+t)
         else:
-            plt.savefig(save+"_"+suffix+".pdf")
+            if fig!=None:
+                fig.savefig(h+"_"+suffix+t)
+            else:
+                
+                plt.savefig(save+"_"+suffix+".pdf")
 
 
 from sklearn.decomposition import TruncatedSVD
@@ -872,7 +879,11 @@ from sklearn.random_projection import SparseRandomProjection
 def _get_embedding(method="umap",param={}):
     
     
-    defaul_params={"tsne": dict(n_components=2,n_iter=500,n_iter_without_progress=150,perplexity=10,n_jobs=2,random_state=42),
+    defaul_params={"tsne": dict(n_components=2,n_iter=500,
+                                n_iter_without_progress=150,
+                                perplexity=10,
+                                n_jobs=2,
+                                random_state=42),
                 "random_projection": dict(n_components=2, random_state=42, eigen_solver="arpack"),
                 "svd": dict(n_components=2),
                 "random_trees": dict(n_estimators=200, max_depth=5, random_state=42),
@@ -941,3 +952,34 @@ def _get_embedding(method="umap",param={}):
     else:
         raise Exception(f"Medthod {method} does not exist.")
     return embedding
+
+
+def _separate_data(df, variables=[], 
+                   category=""):
+    if len(variables) !=0:
+        x = df[variables].values
+        if len(category) !=0:
+            if type(category)==str:
+                category=[category]
+            #category_val=df[category].values
+        
+        if x.dtype!=float: 
+            raise TypeError(f"variables must contain only float values.")
+    elif len(category) !=0:
+        if type(category)==str:
+            category=[category]
+        #category_val=df[category].values
+        df=df.drop(category, axis=1)
+        x = df.values
+        if x.dtype!=float: 
+            raise TypeError(f"data must contain only float values except {category} column. \
+        or you can specify the numeric variables with the option 'variables'.")
+        
+    else:    
+        x = df.values
+        #category_val=[]
+        if x.dtype!=float: 
+            raise TypeError(f"data must contain only float values. \
+        or you can specify the numeric variables with the option 'variables'.")
+        
+    return x, category
