@@ -15,7 +15,10 @@ class _Basic_plot():
                  palette: str="",
                  fonts: dict={},
                  show_legend: bool=True,
-                 dpi: float=400, title=""):
+                 dpi: float=400,
+                 xunit: str="",
+                 yunit: str="",
+                 title=""):
         
         self.save=save
         self.xscale=xscale
@@ -33,7 +36,11 @@ class _Basic_plot():
             self.fig=None
         
         
-        
+    
+    
+    
+    
+    
     
     
 

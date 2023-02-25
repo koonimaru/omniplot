@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
 <meta name="generator" content="pdoc 0.10.0" />
-<title>omniplot.statistics API documentation</title>
+<title>omniplot.plot_classes API documentation</title>
 <meta name="description" content="" />
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
@@ -19,65 +19,68 @@
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>omniplot.statistics</code></h1>
+<h1 class="title">Module <code>omniplot.plot_classes</code></h1>
 </header>
 <section id="section-intro">
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">import numpy as np
-import sys
-import statsmodels.api as sm
-import statsmodels.formula.api as smf
+<pre><code class="python">import matplotlib.pyplot as plt
+from typing import List, Optional, Dict, Set, Union, Any
+from matplotlib.backends.backend_pdf import PdfPages
+import os
+class _Basic_plot():
+    
+    def __init__(self, 
+                 ax: Optional[plt.Axes]=None,
+                 ncols: int=1,
+                 nrows: int=1,
+                 figsize: List[float]=[5,5],  
+                 save: str=&#34;&#34;,
+                 yscale: str=&#34;&#34;,
+                 xscale: str=&#34;&#34;,
+                 palette: str=&#34;&#34;,
+                 fonts: dict={},
+                 show_legend: bool=True,
+                 dpi: float=400, title=&#34;&#34;):
+        
+        self.save=save
+        self.xscale=xscale
+        self.yscale=yscale
+        self.palette=palette
+        self.fonts=fonts
+        self.show_legend=show_legend
+        self.dpi=dpi
+        if ax==None:
+            fig, ax=plt.subplots(ncols=ncols, nrows=nrows, figsize=figsize)
+            self.fig=fig 
+            self.ax=ax.flatten()
+        else:
+            self.ax=ax
+            self.fig=None
+        
+        
+        
+    
+    
 
-def nb_regression(x, y):
-    _x=np.stack([np.ones(x.shape[0]),x],axis=-1)
-    poisson_training_results = sm.GLM(y, _x, family=sm.families.Poisson()).fit()
-    print(poisson_training_results.summary())
-    pmu=poisson_training_results.mu
-    #print(pmu)
-    _y=((y-pmu)**2-pmu)/pmu
-    ols_expr = &#34;&#34;&#34;AUX_OLS_DEP ~ BB_LAMBDA - 1&#34;&#34;&#34;
-    train={&#34;AUX_OLS_DEP&#34;:_y, &#34;BB_LAMBDA&#34;:pmu}
-    
-    aux_olsr_results = smf.ols(ols_expr, train).fit()
-    print(aux_olsr_results.params[0])
-    nb2_training_results = sm.GLM(y, _x,family=sm.families.NegativeBinomial(alpha=aux_olsr_results.params[0])).fit()
-    print(nb2_training_results.summary())
-    print(nb2_training_results.params)
-    return {&#34;dispersion&#34;: aux_olsr_results.params[0], &#34;beta&#34;: nb2_training_results.params}
-
-def main():
-    import matplotlib.pyplot as plt
-    import sys
-    beta_0 = 2
-    beta_1 = 0.05
-    
-    N = 2000
-    x = np.random.randint(0, 50, N)
-    
-    true_mu = np.exp(beta_0 + beta_1 * x)
-    true_r = 0.3
-    p =1- true_mu / (float(true_r) + true_mu)
-    
-    y = np.random.negative_binomial(n = true_r, p = p, size = N)
-    _x=np.arange(50)
-    
-    
-    
-    res=nb_regression(x, y)
-    print(res)
-    _y=np.exp(res[&#34;beta&#34;][0] + res[&#34;beta&#34;][1] * _x)
-    sde=(_y+res[&#34;dispersion&#34;]*_y**2)**0.5
-    plt.plot(_x, _y)
-    plt.fill_between(_x, _y+sde,np.where(_y-sde&lt;0, 0,_y-sde), color=&#34;skyblue&#34;)
-    plt.scatter(x, y, color=&#39;gray&#39;, s=10)
-    plt.xlabel(&#39;x&#39;)
-    plt.ylabel(&#39;y&#39;)
-    plt.show()
-if __name__ == &#39;__main__&#39;:
-    main()</code></pre>
+    def _multipage(self, filename, figs=None, dpi=400):
+        pp = PdfPages(filename)
+        if figs is None:
+            figs = [plt.figure(n) for n in plt.get_fignums()]
+        for fig in figs:
+            fig.savefig(pp, format=&#39;pdf&#39;)
+        pp.close()
+        
+    def _save(self, suffix):
+        save=self.save
+        if save !=&#34;&#34;:
+            if save.endswith(&#34;.pdf&#34;) or save.endswith(&#34;.png&#34;) or save.endswith(&#34;.svg&#34;):
+                h, t=os.path.splitext(save)
+                plt.savefig(h+&#34;_&#34;+suffix+t)
+            else:
+                plt.savefig(save+&#34;_&#34;+suffix+&#34;.pdf&#34;)    </code></pre>
 </details>
 </section>
 <section>
@@ -85,75 +88,6 @@ if __name__ == &#39;__main__&#39;:
 <section>
 </section>
 <section>
-<h2 class="section-title" id="header-functions">Functions</h2>
-<dl>
-<dt id="omniplot.statistics.main"><code class="name flex">
-<span>def <span class="ident">main</span></span>(<span>)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def main():
-    import matplotlib.pyplot as plt
-    import sys
-    beta_0 = 2
-    beta_1 = 0.05
-    
-    N = 2000
-    x = np.random.randint(0, 50, N)
-    
-    true_mu = np.exp(beta_0 + beta_1 * x)
-    true_r = 0.3
-    p =1- true_mu / (float(true_r) + true_mu)
-    
-    y = np.random.negative_binomial(n = true_r, p = p, size = N)
-    _x=np.arange(50)
-    
-    
-    
-    res=nb_regression(x, y)
-    print(res)
-    _y=np.exp(res[&#34;beta&#34;][0] + res[&#34;beta&#34;][1] * _x)
-    sde=(_y+res[&#34;dispersion&#34;]*_y**2)**0.5
-    plt.plot(_x, _y)
-    plt.fill_between(_x, _y+sde,np.where(_y-sde&lt;0, 0,_y-sde), color=&#34;skyblue&#34;)
-    plt.scatter(x, y, color=&#39;gray&#39;, s=10)
-    plt.xlabel(&#39;x&#39;)
-    plt.ylabel(&#39;y&#39;)
-    plt.show()</code></pre>
-</details>
-</dd>
-<dt id="omniplot.statistics.nb_regression"><code class="name flex">
-<span>def <span class="ident">nb_regression</span></span>(<span>x, y)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def nb_regression(x, y):
-    _x=np.stack([np.ones(x.shape[0]),x],axis=-1)
-    poisson_training_results = sm.GLM(y, _x, family=sm.families.Poisson()).fit()
-    print(poisson_training_results.summary())
-    pmu=poisson_training_results.mu
-    #print(pmu)
-    _y=((y-pmu)**2-pmu)/pmu
-    ols_expr = &#34;&#34;&#34;AUX_OLS_DEP ~ BB_LAMBDA - 1&#34;&#34;&#34;
-    train={&#34;AUX_OLS_DEP&#34;:_y, &#34;BB_LAMBDA&#34;:pmu}
-    
-    aux_olsr_results = smf.ols(ols_expr, train).fit()
-    print(aux_olsr_results.params[0])
-    nb2_training_results = sm.GLM(y, _x,family=sm.families.NegativeBinomial(alpha=aux_olsr_results.params[0])).fit()
-    print(nb2_training_results.summary())
-    print(nb2_training_results.params)
-    return {&#34;dispersion&#34;: aux_olsr_results.params[0], &#34;beta&#34;: nb2_training_results.params}</code></pre>
-</details>
-</dd>
-</dl>
 </section>
 <section>
 </section>
@@ -167,12 +101,6 @@ if __name__ == &#39;__main__&#39;:
 <li><h3>Super-module</h3>
 <ul>
 <li><code><a title="omniplot" href="index.html">omniplot</a></code></li>
-</ul>
-</li>
-<li><h3><a href="#header-functions">Functions</a></h3>
-<ul class="">
-<li><code><a title="omniplot.statistics.main" href="#omniplot.statistics.main">main</a></code></li>
-<li><code><a title="omniplot.statistics.nb_regression" href="#omniplot.statistics.nb_regression">nb_regression</a></code></li>
 </ul>
 </li>
 </ul>

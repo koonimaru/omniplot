@@ -22,6 +22,38 @@
 <h1 class="title">Module <code>omniplot.scripts.gff2tss</code></h1>
 </header>
 <section id="section-intro">
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">import sys
+import os 
+
+
+
+def writetss(f):
+    foname=os.path.splitext(f)[0]+&#34;_tss.bed&#34;
+    
+    tmp=[]
+    with open(f) as fin, open(foname,&#34;w&#34;) as fout:
+        for l in fin:
+            if l.startswith(&#34;#&#34;):
+                continue
+            l=l.split()
+            if l[2]==&#34;transcript&#34;:
+                chrom, s, e, name, ori=l[0],str(int(l[3])-1),l[4], l[8], l[6]
+                tmp.append([chrom, int(s), int(e), name, ori])
+        tmp = sorted(tmp, key = lambda x: (x[1], x[2]))
+        for chrom, s, e, name, ori in tmp:
+            fout.write(&#34;\t&#34;.join([chrom, str(s), str(e), name, ori+&#34;\n&#34;]))
+
+def main(f):
+    writetss(f)
+
+if __name__==&#34;__main__&#34;:
+    f=sys.argv[1]
+    main(f)</code></pre>
+</details>
 </section>
 <section>
 </section>
@@ -35,12 +67,39 @@
 </code></dt>
 <dd>
 <div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def main(f):
+    writetss(f)</code></pre>
+</details>
 </dd>
 <dt id="omniplot.scripts.gff2tss.writetss"><code class="name flex">
 <span>def <span class="ident">writetss</span></span>(<span>f)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def writetss(f):
+    foname=os.path.splitext(f)[0]+&#34;_tss.bed&#34;
+    
+    tmp=[]
+    with open(f) as fin, open(foname,&#34;w&#34;) as fout:
+        for l in fin:
+            if l.startswith(&#34;#&#34;):
+                continue
+            l=l.split()
+            if l[2]==&#34;transcript&#34;:
+                chrom, s, e, name, ori=l[0],str(int(l[3])-1),l[4], l[8], l[6]
+                tmp.append([chrom, int(s), int(e), name, ori])
+        tmp = sorted(tmp, key = lambda x: (x[1], x[2]))
+        for chrom, s, e, name, ori in tmp:
+            fout.write(&#34;\t&#34;.join([chrom, str(s), str(e), name, ori+&#34;\n&#34;]))</code></pre>
+</details>
 </dd>
 </dl>
 </section>

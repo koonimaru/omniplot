@@ -579,7 +579,8 @@ def correlation(df: pd.DataFrame,
                 node_color="b",
                 bundle: bool=True,
                 show_edges: bool=True,
-                save: str="") -> Dict:
+                save: str="",
+                clustering_param={}) -> Dict:
     """
     Drawing a network based on correlations or distances between observations.
     Parameters
@@ -675,19 +676,29 @@ def correlation(df: pd.DataFrame,
         if dmat[i,j]>=threshold:
             G.add_edge(original_index[i], original_index[j], weight=dmat[i,j])
     
-    if clustering =="best_partition": 
+    if clustering =="louvain": 
         try:
             import community
         except ImportError as e:
             raise("can not import community. Try 'pip install louvain'")
-        comm=community.best_partition(G)
+        comm=community.best_partition(G, **clustering_param)
     
-    elif clustering =="louvain":
+    elif clustering =="greedy_modularity":
         from networkx.algorithms import community
-        comm=community.louvain.louvain_communities(G)
-        
-        
-        
+        comm=community.greedy_modularity_communities(G, **clustering_param)
+        comm=list(comm)
+    elif clustering =="kernighan_lin_bisection":
+        from networkx.algorithms import community
+        comm=community.kernighan_lin_bisection(G, **clustering_param)
+        comm=list(comm)
+    elif clustering =="asyn_lpa_communities":
+        from networkx.algorithms import community
+        comm=community.asyn_lpa_communities(G, **clustering_param)
+        comm=list(comm)
+    elif clustering =="asyn_fluidc":
+        from networkx.algorithms import community
+        comm=community.asyn_lpa_communities(G, **clustering_param)
+        comm=list(comm)    
         #print(comm)
     weights=[]
     for s, t, w in G.edges(data=True):
@@ -715,7 +726,7 @@ def correlation(df: pd.DataFrame,
         colors[cat]=[]
         for g in G.nodes:
             colors[cat].append(_cmap_dict[_cats[original_index.index(g)]])
-    if clustering =="best_partition":
+    if clustering =="louvain":
         u=set()
         for k, v in comm.items():
             u.add(v)
@@ -725,7 +736,15 @@ def correlation(df: pd.DataFrame,
         colors[clustering]=[]
         for g in G.nodes:
             colors[clustering].append(_cmap_dict[comm[g]])
-    
+    else:
+        _cmp=plt.get_cmap(palette, len(comm))
+        _cmap_dict={i: _cmp(i) for i in range(len(comm))}
+        colorlut[clustering]=_cmap_dict
+        colors[clustering]=[]
+        for g in G.nodes:
+            for i, com in enumerate(comm):
+                if g in com:
+                    colors[clustering].append(_cmap_dict[i])
     
     if edge_color=="weight":
         edge_color=weights
@@ -794,7 +813,7 @@ def correlation(df: pd.DataFrame,
             axes[-1].legend(handles=legendhandles, loc='best', title=clustering)
             if bundle==True:
                 axes[-1].plot(hb.x, hb.y, "y", zorder=1, linewidth=3)
-    _save(save)
+    _save(save, "network_correlation")
     return {"axes":axes,"networkx":G, "distance_mat":dmat}
 
 
@@ -802,6 +821,7 @@ if __name__=="__main__":
     
     test="sankey_category"
     test="pienode"
+    test="correlation"
     if test=="correlation":
         df=sns.load_dataset("penguins")
         df=df.dropna(axis=0)
@@ -809,7 +829,7 @@ if __name__=="__main__":
         correlation(df, category=["species", "island","sex"], 
                     method="pearson", 
                     ztransform=True,
-                    clustering ="best_partition",show_edges=True, bundle=False)
+                    clustering ="louvain",show_edges=True, bundle=False)
         plt.show()
         
     elif test=="sankey_category":

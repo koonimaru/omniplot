@@ -856,10 +856,130 @@ def _multipage(filename, figs=None, dpi=200):
         fig.savefig(pp, format='pdf')
     pp.close()
     
-def _save(save, suffix):
+def _save(save, suffix, fig=None):
     if save !="":
         if save.endswith(".pdf") or save.endswith(".png") or save.endswith(".svg"):
             h, t=os.path.splitext(save)
-            plt.savefig(h+"_"+suffix+t)
+            if fig!=None:
+                fig.savefig(h+"_"+suffix+t)
+            else:
+                plt.savefig(h+"_"+suffix+t)
         else:
-            plt.savefig(save+"_"+suffix+".pdf")
+            if fig!=None:
+                fig.savefig(h+"_"+suffix+t)
+            else:
+                
+                plt.savefig(save+"_"+suffix+".pdf")
+
+
+from sklearn.decomposition import TruncatedSVD
+from sklearn.pipeline import make_pipeline
+from sklearn.random_projection import SparseRandomProjection
+
+def _get_embedding(method="umap",param={}):
+    
+    
+    defaul_params={"tsne": dict(n_components=2,n_iter=500,
+                                n_iter_without_progress=150,
+                                perplexity=10,
+                                n_jobs=2,
+                                random_state=42),
+                "random_projection": dict(n_components=2, random_state=42, eigen_solver="arpack"),
+                "svd": dict(n_components=2),
+                "random_trees": dict(n_estimators=200, max_depth=5, random_state=42),
+                "mds": dict(n_components=2, n_init=1, max_iter=120, n_jobs=2, normalized_stress="auto"),
+                "lle": dict(n_neighbors=5, n_components=2, ),
+                "isomap":dict(n_neighbors=4, n_components=2),
+                "linear_discriminant":dict(n_components=2),
+                "random_projection": dict(n_components=2, random_state=42),
+                "nca": dict(n_components=2, init="pca", random_state=42),
+                "umap": dict(min_dist=0.25,n_neighbors=15)}
+    if len(param)!=0:
+        params={method: param}
+    else:
+        params=defaul_params
+    from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+    from sklearn.ensemble import RandomTreesEmbedding
+    from sklearn.manifold import (
+        Isomap,
+        LocallyLinearEmbedding,
+        MDS,
+        SpectralEmbedding,
+        TSNE,)
+    from sklearn.neighbors import NeighborhoodComponentsAnalysis
+    
+    if method=="random_projection": 
+        embedding=SparseRandomProjection(**params[method]
+        )
+    elif method=="linear_discriminant": 
+        embedding=LinearDiscriminantAnalysis(**params[method])
+    elif method=="isomap": 
+        embedding=Isomap(**params[method])
+    
+    elif method=="lle": 
+        embedding=LocallyLinearEmbedding(method="standard", **params[method]
+        )
+    elif method=="modlle": 
+        embedding=LocallyLinearEmbedding(method="modified",**params["lle"] 
+        )
+    elif method=="hessian_lle": 
+        embedding=LocallyLinearEmbedding(method="hessian", **params["lle"] 
+        )
+    elif method=="ltsa_lle": 
+        embedding=LocallyLinearEmbedding( method="ltsa", **params["lle"] 
+        )
+    elif method=="mds": 
+        embedding=MDS(**params[method]
+        )
+    elif method=="random_trees": 
+        embedding=make_pipeline(
+            RandomTreesEmbedding(**params[method]),
+            TruncatedSVD(**params["svd"], ),
+        )
+    elif method=="spectral": 
+        embedding=SpectralEmbedding(**params[method],
+        )
+    elif method=="tsne": 
+        embedding=TSNE(**params[method], 
+        )
+    elif method=="nca": 
+        embedding=NeighborhoodComponentsAnalysis(
+            **params[method]
+        )
+    elif method=="umap":
+        import umap 
+        embedding=umap.UMAP(**params[method])
+    else:
+        raise Exception(f"Medthod {method} does not exist.")
+    return embedding
+
+
+def _separate_data(df, variables=[], 
+                   category=""):
+    if len(variables) !=0:
+        x = df[variables].values
+        if len(category) !=0:
+            if type(category)==str:
+                category=[category]
+            #category_val=df[category].values
+        
+        if x.dtype!=float: 
+            raise TypeError(f"variables must contain only float values.")
+    elif len(category) !=0:
+        if type(category)==str:
+            category=[category]
+        #category_val=df[category].values
+        df=df.drop(category, axis=1)
+        x = df.values
+        if x.dtype!=float: 
+            raise TypeError(f"data must contain only float values except {category} column. \
+        or you can specify the numeric variables with the option 'variables'.")
+        
+    else:    
+        x = df.values
+        #category_val=[]
+        if x.dtype!=float: 
+            raise TypeError(f"data must contain only float values. \
+        or you can specify the numeric variables with the option 'variables'.")
+        
+    return x, category
