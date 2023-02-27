@@ -1445,7 +1445,8 @@ def _stacked_barplot(df: pd.DataFrame,
                     #
     if show:
         plt.show()
-    
+    if title !="":
+        fig.suptitle(title)
     return {"pval":pvals,"axes":ax}
 
 
@@ -1472,9 +1473,9 @@ def stacked_barplot(df: pd.DataFrame,
     df : pandas DataFrame
     
     x: str or list
-        The category to place in x axis. Multiple categories can be given by a list.
+        The category to place in x axis. Multiple categories can be passed by a list.
     hue: str or list
-        Counting samples by the hue category. Multiple categories can be given by a list.
+        Counting samples by the hue category. Multiple categories can be passed by a list.
     order: list, optional
         The order of x axis labels
     hue_order: list, optional
@@ -1485,7 +1486,7 @@ def stacked_barplot(df: pd.DataFrame,
         Examples: [["Adelie","Chinstrap" ],
                     ["Gentoo","Chinstrap" ],
                     ["Adelie","Gentoo" ]]
-    show_number: bool, optional
+    show_values: bool, optional
         Wheter to exhibit the values of fractions/counts/percentages.
     
     show : bool, optional
@@ -1612,7 +1613,9 @@ def stacked_barplot(df: pd.DataFrame,
     
     cmap=plt.get_cmap("tab20b")
     ncols=len(x)*len(hue)-len(set(x)&set(hue))
-    
+    if ncols<1:
+        ncols=1
+        
     figsize=[4*ncols, 6]
     fig, axes=plt.subplots(figsize=figsize,ncols=ncols)
     #plt.subplots_adjust(left=0.2,right=0.6, bottom=0.17)
@@ -1712,9 +1715,11 @@ def stacked_barplot(df: pd.DataFrame,
                                 
                                 
     plt.tight_layout(w_pad=2)
+    
+    if title !="":
+        fig.suptitle(title)
     if show:
         plt.show()
-    
     return {"pval":pvals,"axes":ax}
 
 
@@ -1843,7 +1848,8 @@ def stackedlines(df: pd.DataFrame,
     Parameters
     ----------
     df : pandas DataFrame
-        A wide form dataframe. Index names are used to label points
+        A wide form dataframe. Index names are used to label points. It accepts negative values, but not recommended as 
+        it does not make sense.
         e.g.) 
               year    biofuel_consumption    coal_consumption    gas_consumption    hydro_consumption    nuclear_consumption    oil_consumption
         90    1990                 16.733            5337.998           5170.609              864.271               1723.004           9306.913
@@ -1904,32 +1910,47 @@ def stackedlines(df: pd.DataFrame,
         
         if inverse==True:
             for i, _x in enumerate(X):
-                
-                srtidx=np.argsort(Y[:,i])[::-1]
+                _Y=Y[:,i]
+                srtidx=np.argsort(_Y)[::-1]
                 _bottom=0
+                _bottom_neg=0
                 for _idx in srtidx:
                     _col=y[_idx]
                     yval=Y[_idx,i]
-                    Ydict[_col].append([_bottom, yval+_bottom])
-                    _bottom+=yval
+                    if yval>=0:
+                        Ydict[_col].append([_bottom, yval+_bottom])
+                        _bottom+=yval
+                    else:
+                        Ydict[_col].append([_bottom_neg, yval+_bottom_neg])
+                        _bottom_neg+=yval
         else:
             for i, _x in enumerate(X):
-                
-                srtidx=np.argsort(Y[:,i])
+                _Y=Y[:,i]
+                srtidx=np.argsort(_Y)
                 _bottom=0
+                _bottom_neg=0
                 for _idx in srtidx:
                     _col=y[_idx]
                     yval=Y[_idx,i]
-                    Ydict[_col].append([_bottom, yval+_bottom])
-                    _bottom+=yval
+                    if yval>=0:
+                        Ydict[_col].append([_bottom, yval+_bottom])
+                        _bottom+=yval
+                    else:
+                        Ydict[_col].append([_bottom_neg, yval+_bottom_neg])
+                        _bottom_neg+=yval
     else:
         for i, _x in enumerate(X):
-
+            _Y=Y[:,i]
             _bottom=0
+            _bottom_neg=0
             for _idx,_col in enumerate(y):
                 yval=Y[_idx,i]
-                Ydict[_col].append([_bottom, yval+_bottom])
-                _bottom+=yval
+                if yval>=0:
+                    Ydict[_col].append([_bottom, yval+_bottom])
+                    _bottom+=yval
+                else:
+                    Ydict[_col].append([_bottom_neg, yval+_bottom_neg])
+                    _bottom_neg+=yval
     if ax ==None:
         fig, ax=plt.subplots(figsize=figsize)
         
@@ -2323,13 +2344,14 @@ def clusterplot(df,
                 y: str="",
                 size: float=10,
                 reduce_dimension: str="umap", 
-                testrange=[1,20],
+                testrange: list=[1,20],
+                topn_cluster_num: int=2,
                 show: bool=False,
                 min_dist: float=0.25,
                 n_neighbors: int=15,
                 eps: Union[List[float], float]=0.5,
                 pcacomponent: Optional[int]=None,
-                ztranform=True,
+                ztranform: bool=True,
                 palette=["Spectral","cubehelix"],
                 save: str="",
                 title: str="",
@@ -2349,7 +2371,7 @@ def clusterplot(df,
         Method name for clustering. 
         "kmeans"
         "hierarchical",
-        "dbscan"
+        "dbscan": Density-Based Clustering Algorithms
         "fuzzy" : fuzzy c-mean clustering using scikit-fuzzy
     n_clusters: int or str, optional (default: 3)
         The number of clusters to be created. If "auto" is provided, it will estimate optimal 
@@ -2359,13 +2381,14 @@ def clusterplot(df,
     reduce_dimension: str, optional (default: "umap")
         Dimensionality reduction method. if "" is passed, no reduction methods are applied. 
         In this case, data must have only two dimentions or x and y options must be specified.
-    show : bool
-        Whether or not to show the figure.
     size: float, optional (default: 10)
         The size of points in the scatter plot.
         
     testrange: list, optional (default: [1,20])
         The range of cluster numbers to be tested when n_clusters="auto".
+    topn_cluster_num: int, optional (default: 2)
+        Top n optimal cluster numbers to be plotted when n_clusters="auto".
+    
     show: bool, optional (default: False)
         Whether to show figures
     min_dist: float, optional (default: 0.25)
@@ -2398,7 +2421,7 @@ def clusterplot(df,
     
     
     original_index=df.index
-    if len(n_clusters) !=0:
+    if len(variables) !=0:
         X = df[variables].values
         if len(category) !=0:
             if type(category)==str:
@@ -2462,19 +2485,18 @@ def clusterplot(df,
         plt.subplots()
         plt.plot(K, Sum_of_squared_distances, '-', label='Sum of squared distances')
         plt.plot(K, perp*np.amax(Sum_of_squared_distances), label="curveture")
-        
-        plt.plot([K[srtindex[0]],K[srtindex[0]]],[0,np.amax(Sum_of_squared_distances)], "--", color="r")
-        plt.text(K[srtindex[0]], np.amax(Sum_of_squared_distances)*0.95, "N="+str(K[srtindex[0]]))
-        plt.plot([K[srtindex[1]],K[srtindex[1]]],[0,np.amax(Sum_of_squared_distances)], "--", color="r")
-        plt.text(K[srtindex[1]], np.amax(Sum_of_squared_distances)*0.95, "N="+str(K[srtindex[1]]))
+        for i in range(topn_cluster_num):
+            plt.plot([K[srtindex[i]],K[srtindex[i]]],[0,np.amax(Sum_of_squared_distances)], "--", color="r")
+            plt.text(K[srtindex[i]], np.amax(Sum_of_squared_distances)*0.95, "N="+str(K[srtindex[i]]))
         plt.xticks(K)
         plt.xlabel('Cluster number')
         plt.ylabel('Sum of squared distances')
         plt.title('Elbow method for optimal cluster number')    
         plt.legend()
-        print("Top two optimal cluster No are: {}, {}".format(K[srtindex[0]],K[srtindex[1]]))
-        n_clusters=[K[srtindex[0]],K[srtindex[1]]]
-        
+        #print("Top two optimal cluster No are: {}, {}".format(K[srtindex[0]],K[srtindex[1]]))
+        #n_clusters=[K[srtindex[0]],K[srtindex[1]]]
+        n_clusters=[ K[i] for i in srtindex[:topn_cluster_num]]
+        print("Top two optimal cluster No are:", n_clusters)
         _save(save, method)
     elif n_clusters=="auto" and method=="fuzzy":
         try:
@@ -2496,15 +2518,14 @@ def clusterplot(df,
         plt.subplots()
         plt.plot(K, fpcs, '-')
      
-        plt.plot([K[srtindex[0]],K[srtindex[0]]],[0,np.amax(fpcs)], "--", color="r")
-        plt.text(K[srtindex[0]], np.amax(fpcs)*0.95, "N="+str(K[srtindex[0]]))
-        plt.plot([K[srtindex[1]],K[srtindex[1]]],[0,np.amax(fpcs)], "--", color="r")
-        plt.text(K[srtindex[1]], np.amax(fpcs)*0.95, "N="+str(K[srtindex[1]]))
+        for i in range(topn_cluster_num):
+            plt.plot([K[srtindex[i]],K[srtindex[i]]],[0,np.amax(fpcs)], "--", color="r")
+            plt.text(K[srtindex[i]], np.amax(fpcs)*0.95, "N="+str(K[srtindex[i]]))
         plt.xticks(K)
         plt.xlabel('Cluster number')
         plt.ylabel('Fuzzy partition coefficient')
-        print("Top two optimal cluster No are: {}, {}".format(K[srtindex[0]],K[srtindex[1]]))
-        n_clusters=[K[srtindex[0]],K[srtindex[1]]]
+        n_clusters=[ K[i] for i in srtindex[:topn_cluster_num]]
+        print("Top two optimal cluster No are:", n_clusters)
         
         
         _save(save, method)
@@ -2540,17 +2561,16 @@ def clusterplot(df,
         srtindex=np.argsort(scores)[::-1]
         plt.subplots()
         plt.plot(newK, scores, '-')
-        plt.plot([newK[srtindex[0]],newK[srtindex[0]]],[0,np.amax(scores)], "--", color="r")
-        plt.text(newK[srtindex[0]], np.amax(scores)*0.95, "N="+str(newK[srtindex[0]]))
-        plt.plot([newK[srtindex[1]],newK[srtindex[1]]],[0,np.amax(scores)], "--", color="r")
-        plt.text(newK[srtindex[1]], np.amax(scores)*0.95, "N="+str(newK[srtindex[1]]))
+        for i in range(topn_cluster_num):
+            plt.plot([newK[srtindex[i]],newK[srtindex[i]]],[0,np.amax(scores)], "--", color="r")
+            plt.text(newK[srtindex[i]], np.amax(scores)*0.95, "N="+str(newK[srtindex[i]]))
         plt.xticks(newK)
         plt.xlabel('Cluster number')
         plt.ylabel('Silhouette scores')
         plt.title('Optimal cluster number searches by silhouette method')    
         
-        print("Top two optimal cluster No are: {}, {}".format(newK[srtindex[0]],newK[srtindex[1]]))
-        n_clusters=[newK[srtindex[0]],newK[srtindex[1]]]
+        n_clusters=[ newK[i] for i in srtindex[:topn_cluster_num]]
+        print("Top two optimal cluster No are:", n_clusters)
         _save(save, method)
     elif n_clusters=="auto" and method=="dbscan":
         # import scipy.spatial.distance as ssd
@@ -2592,17 +2612,17 @@ def clusterplot(df,
         srtindex=np.argsort(scores)[::-1]
         plt.subplots()
         plt.plot(newK, scores, '-')
-        plt.plot([newK[srtindex[0]],newK[srtindex[0]]],[0,np.amax(scores)], "--", color="r")
-        plt.text(newK[srtindex[0]], np.amax(scores)*0.95, "N="+str(newK[srtindex[0]]))
-        plt.plot([newK[srtindex[1]],newK[srtindex[1]]],[0,np.amax(scores)], "--", color="r")
-        plt.text(newK[srtindex[1]], np.amax(scores)*0.95, "N="+str(newK[srtindex[1]]))
+        
+        for i in range(topn_cluster_num):
+            plt.plot([newK[srtindex[i]],newK[srtindex[i]]],[0,np.amax(Sum_of_squared_distances)], "--", color="r")
+            plt.text(newK[srtindex[i]], np.amax(Sum_of_squared_distances)*0.95, "N="+str(newK[srtindex[i]]))
         plt.xticks(newK)
         plt.xlabel('eps')
         plt.ylabel('Silhouette scores')
         plt.title('Optimal cluster number searches by silhouette method')    
-        
-        print("Top two optimal cluster No are: {}, {}".format(newK[srtindex[0]],newK[srtindex[1]]))
-        eps=[_K[srtindex[0]],_K[srtindex[1]]]
+
+        n_clusters=[ newK[i] for i in srtindex[:topn_cluster_num]]
+        print("Top two optimal cluster No are:", n_clusters)
         _save(save, method)
     else:
         n_clusters=[n_clusters]
@@ -2714,11 +2734,12 @@ def clusterplot(df,
                     #print(_cmap(i))
                     #print(c[i])
                     tmp+=np.array(_cmap(i))[:3]*c[i]
+                tmp=np.where(tmp>1, 1, tmp)
                 colors.append(tmp)
             
             ax[0].scatter(dfnew[x], dfnew[y], c=colors, s=size)
             #sns.scatterplot(data=dfnew,x=x,y=y,hue=hue, ax=ax[0], palette=palette[0],**kwargs)
-            ax[0].set_title("Fuzzy c-means. Cluster num="+str(K))
+            ax[0].set_title("Fuzzy c-means. Cluster num="+str(K), alpha=0.5)
             legend_elements = [Line2D([0], [0], marker='o', color='lavender', 
                                       label="fuzzy"+str(i),
                                       markerfacecolor=_cmap(i), 
@@ -3154,21 +3175,19 @@ if __name__=="__main__":
     test="manifold"
     test="triangle_heatmap"
     test="radialtree"
-    
     test="violinplot"
     test="cluster"
     test="regression"
-    
     test="complex_clustermap"
-    
     test="dotplot"
     test="regression"
     test="nice_piechart_num"
     test="pie_scatter"
-    
     test="correlation"
     test="manifold"
     test="stacked"
+    test="stackedlines"
+    test="cluster"
     if test=="stackedlines":
         f="/media/koh/grasnas/home/data/omniplot/energy/owid-energy-data.csv"
         df=pd.read_csv(f)
@@ -3183,6 +3202,13 @@ if __name__=="__main__":
              'solar_consumption',
              'wind_consumption']
         stackedlines(df=_df, x="year",y=cols,title="Japan", remove_all_zero=True, inverse=True,show_values=True, yunit="twh")
+        
+        _df=pd.DataFrame({"x":np.arange(100),
+                          "y0":np.random.normal(loc=0.0, scale=1.0, size=100)-3,
+                          "y1":np.random.normal(loc=0.0, scale=1.0, size=100)+3,
+                          "y2":np.random.normal(loc=0.0, scale=1.0, size=100)-4})
+        stackedlines(df=_df, x="x",y=["y0","y1", "y2"],title="Japan",bbox_to_anchor=[1,1], sort=True, remove_all_zero=False, inverse=False,show_values=False, yunit="twh")
+        
         plt.show()
     elif test=="correlation":
         df=sns.load_dataset("penguins")
@@ -3283,8 +3309,8 @@ if __name__=="__main__":
         df=df.dropna(axis=0)
         features=["species","sex","bill_length_mm","bill_depth_mm","flipper_length_mm","body_mass_g"]
         df=df[features]
-        #clusterplot(df,category=["species","sex"],method="kmeans",n_clusters="auto")
-        clusterplot(df,category=["species","sex"],method="fuzzy",n_clusters="auto", piesize_scale=0.03)
+        clusterplot(df,category=["species","sex"],method="hierarchical",n_clusters="auto")
+        #clusterplot(df,category=["species","sex"],method="fuzzy",n_clusters="auto", piesize_scale=0.03,topn_cluster_num=3)
         #clusterplot(df,category="species",method="dbscan",eps=0.35)
         plt.show()
     elif test=="violinplot":
