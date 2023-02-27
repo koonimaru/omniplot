@@ -35,7 +35,7 @@ import itertools as it
 
 colormap_list=["nipy_spectral", "terrain","tab20b","tab20c","gist_rainbow","hsv","CMRmap","coolwarm","gnuplot","gist_stern","brg","rainbow","jet"]
 hatch_list = ['//', '\\\\', '||', '--', '++', 'xx', 'oo', 'OO', '..', '**','/o', '\\|', '|*', '-\\', '+o', 'x*', 'o-', 'O|', 'O.', '*-']
-
+maker_list=['.', 'v', '^', '<', '>', 's', 'p', '*', 'h', 'D', 'd', 'P', 'X','o', '1', '2', '3', '4', '+', 'x', '|', '_']
 
 plt.rcParams['font.family']= 'sans-serif'
 plt.rcParams['font.sans-serif'] = ['Arial']
@@ -1262,7 +1262,7 @@ def violinplot(df,
 
 
 
-def stacked_barplot(df: pd.DataFrame,
+def _stacked_barplot(df: pd.DataFrame,
                     x: Union[str, list],
                     hue: Union[str, list],
                     scale: str="fraction",
@@ -1274,7 +1274,8 @@ def stacked_barplot(df: pd.DataFrame,
                     figsize: List[int]=[4,6],
                     xunit: str="",
                     yunit: str="",
-                    title: str="",)-> Dict:
+                    title: str="",
+                    hatch: bool=False)-> Dict:
     
     """
     Drawing a stacked barplot with or without the fisher's exact test 
@@ -1322,13 +1323,15 @@ def stacked_barplot(df: pd.DataFrame,
     --------
     """
     
+    data: Dict={}
+    
     if df[x].isnull().values.any():
         df[x]=df[x].replace(np.nan, "NA")
     
     if df[hue].isnull().values.any():
         df[hue]=df[hue].replace(np.nan, "NA")
     
-    data={}
+    
     if len(order)==0:
         u=np.unique(df[x])
         keys=sorted(list(u))
@@ -1378,12 +1381,15 @@ def stacked_barplot(df: pd.DataFrame,
     elif scale=="percentage":
         unit="%"
     pos={}
+    #_hatch_list=[hatch_list[i] for i in range(len(keys))]
     for i, h in enumerate(hues):
         
         heights=np.array([data[key][i] for key in keys])
         
-        
-        plt.bar(keys, heights,width=0.5, bottom=bottom, color=cmap(i/len(hues)), label=h)
+        if hatch==True:
+            plt.bar(keys, heights,width=0.5, bottom=bottom, color=cmap(i/len(hues)), label=h, hatch=hatch_list[i])
+        else:
+            plt.bar(keys, heights,width=0.5, bottom=bottom, color=cmap(i/len(hues)), label=h)
         if show_values==True:
             for j in range(len(keys)):
                 if scale=="absolute":
@@ -1443,7 +1449,7 @@ def stacked_barplot(df: pd.DataFrame,
     return {"pval":pvals,"axes":ax}
 
 
-def _stacked_barplot(df: pd.DataFrame,
+def stacked_barplot(df: pd.DataFrame,
                     x: Union[str, list],
                     hue: Union[str, list],
                     scale: str="fraction",
@@ -1452,7 +1458,11 @@ def _stacked_barplot(df: pd.DataFrame,
                     test_pairs: List[List[str]]=[],
                     show_values: bool=True,
                     show: bool=False,
-                    figsize: List[int]=[4,6])-> Dict:
+                    figsize: List[int]=[4,6],
+                    xunit: str="",
+                    yunit: str="",
+                    title: str="",
+                    hatch: bool=False)-> Dict:
     
     """
     Drawing a stacked barplot with or without the fisher's exact test 
@@ -1462,9 +1472,9 @@ def _stacked_barplot(df: pd.DataFrame,
     df : pandas DataFrame
     
     x: str or list
-        The category to place in x axis. Only str values are accepted.
+        The category to place in x axis. Multiple categories can be given by a list.
     hue: str or list
-        Counting samples by the hue category. Only str values are accepted.
+        Counting samples by the hue category. Multiple categories can be given by a list.
     order: list, optional
         The order of x axis labels
     hue_order: list, optional
@@ -1553,6 +1563,7 @@ def _stacked_barplot(df: pd.DataFrame,
     
     pvals={}
     if len(test_pairs) >0:
+        print("mlp stands for -log10(p value)")
         for _hue in hue:
             
             for i, h in enumerate(huekeys[_hue]):
@@ -1601,10 +1612,14 @@ def _stacked_barplot(df: pd.DataFrame,
     
     cmap=plt.get_cmap("tab20b")
     ncols=len(x)*len(hue)-len(set(x)&set(hue))
+    
     figsize=[4*ncols, 6]
     fig, axes=plt.subplots(figsize=figsize,ncols=ncols)
     #plt.subplots_adjust(left=0.2,right=0.6, bottom=0.17)
-    axes=axes.flatten()
+    if ncols==1:
+        axes=[axes]
+    else:
+        axes=axes.flatten()
     
     if scale=="absolute":
         unit=""
@@ -1614,6 +1629,7 @@ def _stacked_barplot(df: pd.DataFrame,
         unit="%"
     axindex=0
     pos={}
+    #_hatch_list=[hatch_list[i] for i in range(len(keys))]
     for _x in x:
         pos[_x]={}
         for _hue in hue:
@@ -1628,8 +1644,10 @@ def _stacked_barplot(df: pd.DataFrame,
                 
                 heights=np.array([data[_x][_hue][key][i] for key in keys])
                 
-                
-                ax.bar(keys, heights,width=0.5, bottom=bottom, color=cmap(i/len(hues)), label=h)
+                if hatch==True:
+                    ax.bar(keys, heights,width=0.5, bottom=bottom, color=cmap(i/len(hues)), label=h, hatch=hatch_list[i])
+                else:
+                    ax.bar(keys, heights,width=0.5, bottom=bottom, color=cmap(i/len(hues)), label=h)
                 if show_values==True:
                     for j in range(len(keys)):
                         if scale=="absolute":
@@ -1653,7 +1671,7 @@ def _stacked_barplot(df: pd.DataFrame,
             ax.set_ylabel(ylabel)
             axindex+=1
             if len(pvals)>0 and _x in pvals:
-                print("mlp stands for -log10(p value)")
+                
                 for _hue in hue:
                     if _x==_hue:
                         continue
@@ -1661,8 +1679,8 @@ def _stacked_barplot(df: pd.DataFrame,
                         continue
                     hues=huekeys[_hue]
                     for i, h in enumerate(hues):
-                        print(pos)
-                        print(pos[_x])
+                        #print(pos)
+                        #print(pos[_x])
                         _pos=pos[_x][_hue][h]
                         for idx1, idx2, pval in pvals[_x][_hue][h]:
                             
@@ -1674,18 +1692,18 @@ def _stacked_barplot(df: pd.DataFrame,
                             r1=np.array([idx1, he1/2+bot1])
                             r2=np.array([idx2, he2/2+bot2])
                             r=r2-r1
-                            print(ax.get_xlim(),ax.get_ylim())
+                            #print(ax.get_xlim(),ax.get_ylim())
                             r=np.array([1,3])*r/np.array([ax.get_xlim()[1]-ax.get_xlim()[0],ax.get_ylim()[1]-ax.get_ylim()[0]])
                             #r=ax.transData.transform(r)
                             if idx2<idx1:
                                 r=-r
-                            print(r)
+                            #print(r)
                             r=r*(r @ r)**(-0.5)
-                            print(h,r)
+                            #print(h,r)
                             angle=np.arccos(r[0])
                             if r[1]<0:
                                 angle= -angle
-                            print(angle)
+                            #print(angle)
                             if pval < 0.05:
                                 pval_str=str(np.round(-np.log10(pval), decimals=1))
                             else:
@@ -2015,7 +2033,11 @@ def decomplot(df: pd.DataFrame,
     #     x = df.values
     #     assert x.dtype==float, "data must contain only float values."
     original_index=df.index
-    features=df.columns
+    if len(variables)!=0:
+        features=variables
+    else:
+        
+        features=sorted(list(set(df.columns) - set(category)))
     dfpc_list=[]
     comb=list(combinations(np.arange(component), 2))
         
@@ -3138,7 +3160,7 @@ if __name__=="__main__":
     test="regression"
     
     test="complex_clustermap"
-    test="stacked"
+    
     test="dotplot"
     test="regression"
     test="nice_piechart_num"
@@ -3146,7 +3168,7 @@ if __name__=="__main__":
     
     test="correlation"
     test="manifold"
-    test="decomp"
+    test="stacked"
     if test=="stackedlines":
         f="/media/koh/grasnas/home/data/omniplot/energy/owid-energy-data.csv"
         df=pd.read_csv(f)
@@ -3244,7 +3266,7 @@ if __name__=="__main__":
         df=df.dropna(axis=0)
         variables=["bill_length_mm","bill_depth_mm","flipper_length_mm","body_mass_g"]
 
-        decomplot(df, variables=variables,category=["species","sex"],method="nmf")
+        decomplot(df, variables=variables,category=["species","sex"],method="pca")
         plt.show()
     elif test=="manifold":
         df=sns.load_dataset("penguins")
@@ -3276,7 +3298,11 @@ if __name__=="__main__":
     elif test=="stacked": 
         df=sns.load_dataset("penguins")
         df=df.dropna(axis=0)
-        _stacked_barplot(df, x=["species","island"],hue=["sex","island"], scale="absolute", test_pairs=[["Adelie","Gentoo"]])
+        stacked_barplot(df, x=["species","island"],
+                         hue=["sex","island"], scale="absolute", order=[
+                                                                        ["Chinstrap","Gentoo","Adelie"],
+                                                                        ["Dream","Biscoe","Torgersen"]],
+                         test_pairs=[["Adelie","Gentoo"]], hatch=True)
         plt.show()
     elif test=="pie_scatter":
         f="/home/koh/ews/omniplot/data/energy_vs_gdp.csv"
