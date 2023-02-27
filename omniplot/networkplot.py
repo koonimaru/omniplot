@@ -12,7 +12,7 @@ from matplotlib.collections import PatchCollection
 from matplotlib.patches import Rectangle
 import pandas as pd
 from omniplot.chipseq_utils import _calc_pearson
-from omniplot.utils import _baumkuchen_xy, _save
+from omniplot.utils import _baumkuchen_xy, _save, _separate_data
 from scipy.stats import zscore
 from joblib import Parallel, delayed
 from scipy.spatial.distance import pdist, squareform
@@ -556,6 +556,7 @@ def _bundlle_edges(G, pos):
     
 
 def correlation(df: pd.DataFrame, 
+                variables: list=[],
                 category: Union[str, list]=[],
                 method="pearson",
                 layout: str="spring_layout",
@@ -587,7 +588,9 @@ def correlation(df: pd.DataFrame,
     
     ----------
     df : pandas DataFrame
-        
+    variables: list, optional (default: [])
+        the names of values to calculate correlations
+         
     category: str or list, optional (default: [])
         the names of categorical values to display as color labels
     method: str, optional (default: "pearson")
@@ -643,18 +646,20 @@ def correlation(df: pd.DataFrame,
     """
     
     original_index=list(df.index)
-    if len(category) !=0:
-
-        if type(category)==str:
-            category=[category]
-        #df=df.drop(category, axis=1)
-        valnames=list(set(df.columns) -set(category)) 
-        X = df[valnames].values
-        assert X.dtype==float, f"data must contain only float values except {category} columns."
-        
-    else:    
-        X = df.values
-        assert X.dtype==float, "data must contain only float values."
+    X, category=_separate_data(df, variables=variables, category=category)
+    #
+    # if len(category) !=0:
+    #
+    #     if type(category)==str:
+    #         category=[category]
+    #     #df=df.drop(category, axis=1)
+    #     valnames=list(set(df.columns) -set(category)) 
+    #     X = df[valnames].values
+    #     assert X.dtype==float, f"data must contain only float values except {category} columns."
+    #
+    # else:    
+    #     X = df.values
+    #     assert X.dtype==float, "data must contain only float values."
     if ztransform==True:
         X=zscore(X, axis=0)
     if method=="pearson":

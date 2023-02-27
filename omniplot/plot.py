@@ -980,6 +980,9 @@ def dotplot(df: pd.DataFrame,
     Examples
     --------
     """
+    if x !="" and y!="":
+        row=y
+        col=x
     if size_val!="":
         _df=df.pivot_table(index=col,columns=row,values=size_val)
         if len(column_order)>0:
