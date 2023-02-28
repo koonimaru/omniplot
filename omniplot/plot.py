@@ -496,7 +496,7 @@ def complex_clustermap(df: pd.DataFrame,
     --------
     """#print(kwargs)
     rnum, cnum=df.shape
-    if len(heatmap_col)!=0 and len(variables)==0:
+    if len(heatmap_col)==0 and len(variables)==0:
         raise Exception("Please specify the variables option")
     if len(heatmap_col)!=0:
         variables=heatmap_col
