@@ -33,9 +33,9 @@ from joblib import Parallel, delayed
 from omniplot.chipseq_utils import _calc_pearson
 import itertools as it
 
-colormap_list=["nipy_spectral", "terrain","tab20b","tab20c","gist_rainbow","hsv","CMRmap","coolwarm","gnuplot","gist_stern","brg","rainbow","jet"]
-hatch_list = ['//', '\\\\', '||', '--', '++', 'xx', 'oo', 'OO', '..', '**','/o', '\\|', '|*', '-\\', '+o', 'x*', 'o-', 'O|', 'O.', '*-']
-maker_list=['.', 'v', '^', '<', '>', 's', 'p', '*', 'h', 'D', 'd', 'P', 'X','o', '1', '2', '3', '4', '+', 'x', '|', '_']
+colormap_list: list=["nipy_spectral", "terrain","tab20b","tab20c","gist_rainbow","hsv","CMRmap","coolwarm","gnuplot","gist_stern","brg","rainbow","jet"]
+hatch_list: list = ['//', '\\\\', '||', '--', '++', 'xx', 'oo', 'OO', '..', '**','/o', '\\|', '|*', '-\\', '+o', 'x*', 'o-', 'O|', 'O.', '*-']
+maker_list: list=['.', 'v', '^', '<', '>', 's', 'p', '*', 'h', 'D', 'd', 'P', 'X','o', '1', '2', '3', '4', '+', 'x', '|', '_']
 
 plt.rcParams['font.family']= 'sans-serif'
 plt.rcParams['font.sans-serif'] = ['Arial']
@@ -70,7 +70,6 @@ def radialtree(df: pd.DataFrame,
         Approximate number of clusters to produce
     x: str, optional
         the name of columns containing sample names. If not provided, the index will be considered sample names.
-    
     variables: list, optional
         the name of columns containing variables to calculate the distances between samples
     category: str or list of str
@@ -106,33 +105,39 @@ def radialtree(df: pd.DataFrame,
     """
     if len(y)!=0:
         variables=y
-    if len(variables)!=0 and len(category)!=0:
-        if type(category)==str:
-            category=[category]
-        category_df=df[category]
-        df=df[variables]
-        X = df.values
-        #print(X)
-        assert X.dtype==float, f"{x} columns must contain only float values."
-    
-    
-    elif len(category) !=0:
-        if type(category)==str:
-            category=[category]
-        category_df=df[category]
-        df=df.drop(category, axis=1)
-        X = df.values
-        #print(X)
-        assert X.dtype==float, f"data must contain only float values except {category} column."
-        
-    else:    
-        X = df.values
-        assert X.dtype==float, "data must contain only float values."
     
     if x !="":
         _labels=df[x]
+        df=df.drop(x, axis=1)
     else:
         _labels=df.index
+
+    X, category=_separate_data(df, variables=variables, category=category)
+    category_df=df[category]
+    # if len(variables)!=0 and len(category)!=0:
+    #     if type(category)==str:
+    #         category=[category]
+    #     category_df=df[category]
+    #     df=df[variables]
+    #     X = df.values
+    #     #print(X)
+    #     assert X.dtype==float, f"{x} columns must contain only float values."
+    #
+    #
+    # elif len(category) !=0:
+    #     if type(category)==str:
+    #         category=[category]
+    #     category_df=df[category]
+    #     df=df.drop(category, axis=1)
+    #     X = df.values
+    #     #print(X)
+    #     assert X.dtype==float, f"data must contain only float values except {category} column."
+    #
+    # else:    
+    #     X = df.values
+    #     assert X.dtype==float, "data must contain only float values."
+    
+    
     
     if ztransform==True:
         X=zscore(X, axis=0)
@@ -172,6 +177,9 @@ def correlation(df: pd.DataFrame,
     ----------
     df : pandas DataFrame
         
+    variables: List, optional
+        the names of values to calculate correlations  
+    
     category: str or list, optional
         the names of categorical values to display as color labels
     mthod: str
@@ -207,19 +215,19 @@ def correlation(df: pd.DataFrame,
     --------
     """
     original_index=df.index
-    
-    if len(category) !=0:
-
-        if type(category)==str:
-            category=[category]
-        #df=df.drop(category, axis=1)
-        valnames=list(set(df.columns) -set(category)) 
-        X = df[valnames].values
-        assert X.dtype==float, f"data must contain only float values except {category} column."
-        
-    else:    
-        X = df.values
-        assert X.dtype==float, "data must contain only float values."
+    X, category=_separate_data(df, variables=variables, category=category)
+    # if len(category) !=0:
+    #
+    #     if type(category)==str:
+    #         category=[category]
+    #     #df=df.drop(category, axis=1)
+    #     valnames=list(set(df.columns) -set(category)) 
+    #     X = df[valnames].values
+    #     assert X.dtype==float, f"data must contain only float values except {category} column."
+    #
+    # else:    
+    #     X = df.values
+    #     assert X.dtype==float, "data must contain only float values."
     if ztransform==True:
         X=zscore(X, axis=0)
     if method=="pearson":
@@ -248,7 +256,7 @@ def correlation(df: pd.DataFrame,
                                xticklabels=xticklabels,
                                yticklabels=yticklabels,
                                figsize=figsize,
-                               cbar_kws={"label":ctitle}, )
+                               ctitle=ctitle )
         return res
     else:
         
@@ -400,9 +408,8 @@ def triangle_heatmap(df,
     
     
 def complex_clustermap(df: pd.DataFrame,
-                       variables: list,
+                       variables: list=[],
                        dfcol: Optional[pd.DataFrame]=None, 
-                       
                        row_colors: list=[],
                        col_colors: list=[],
                        row_plot: list=[],
@@ -419,13 +426,13 @@ def complex_clustermap(df: pd.DataFrame,
                        show: bool=False,
                        method: str="ward",
                        return_col_cluster: bool=True,
-                       ztranform=True,
-                       xticklabels=True, 
-                       yticklabels=False,
-                       show_plot_labels=False,
-                       figsize=[],
+                       ztranform: bool=True,
+                       xticklabels: bool=True, 
+                       yticklabels: bool=False,
+                       show_plot_labels: bool=False,
+                       figsize: list=[],
                        title: str="",
-                       save: str="",
+                       save: str="",heatmap_col: list=[],
                        **kwargs):
     """
     Drawing a clustered heatmap with merginal plots.
@@ -433,39 +440,47 @@ def complex_clustermap(df: pd.DataFrame,
     Parameters
     ----------
     df : pandas DataFrame
-    variables : list 
-    row_colormap: dict
-        the column name of a category that is going to be placed in the row of the dotplot
-    col_colormap: dict
-        the column name of a category that is going to be placed in the column of the dotplot
-    row_plot : dict
-        The column name for the values represented as dot colors.
-    col_plot : dict
-        The column name for the values represented as dot sizes. 
-    row_color_legend: dict
-        The scale of dots. If resulting dots are too large (or small), you can reduce (or increase) dot sizes by adjusting this value.
-    col_color_legend: dict
-        The scale of dots. If resulting dots are too large (or small), you can reduce (or increase) dot sizes by adjusting this value.
-    
-    approx_clusternum : int
+    variables : list
+        the column names of variables for heatmap
+    row_colors, col_colors: list, optional
+        the column names of categorical values to be plotted as color labels. for the col_colors to be plotted, dfcol options will be needed.
+    row_plot, col_plot : list, optional
+        The column names for the values to be plotted as lines.
+    row_scatter, col_scatter: list, optional
+        The column names for the values to be plotted as points.
+    row_bar, col_bar: list, optional
+        The column names for the values to be plotted as bars.
+    approx_clusternum : int, optional
         The approximate number of row clusters to be created. Labeling the groups of leaves with different colors. The result of hierarchical clustering won't change.    
-    approx_clusternum_col : int
+    approx_clusternum_col : int, optional
         The approximate number of column clusters to be created. Labeling the groups of leaves with different colors. The result of hierarchical clustering won't change.
-    ctitle : str
-        The title for color values.
-    
+
     color_var : int, optional
         The number of potential colors in dendrograms. If some clusters in the dendrogram share a same color (because the number of clusters is too many), 
         give this option may solve the problem. 
-        
-    merginalsum : bool
+    merginalsum : bool, optional
         Whether or not to draw bar plots for merginal distribution.
-    show : bool
+    show : bool, optional
         Whether or not to show the figure.
-    method : string
-        Method for hierarchical clustering.
+    method : string, optional (default: "ward")
+        Method for hierarchical clustering. ["ward", "single", 
     return_col_cluster : string
         The title for color values. If not set, "color_val" will be used.
+    
+    ztranform: bool, optional (default: True)
+    xticklabels: bool, optional (default: True)
+        Whether or not to show xtick labels
+    yticklabels: bool, optional (default: False)
+        Whether or not to show ytick labels
+    show_plot_labels: bool, optional (default: False)
+        Whether or not to show plot labels.
+    figsize: list, optional
+        
+    title: str, optional
+    save: str, optional
+    
+    heatmap_col: list, optional
+        The same as the "variables" option. Will be deprecated.
     Returns
     -------
         dict: {"row_clusters":pd.DataFrame,"col_clusters":pd.DataFrame, "grid":g}
@@ -481,6 +496,10 @@ def complex_clustermap(df: pd.DataFrame,
     --------
     """#print(kwargs)
     rnum, cnum=df.shape
+    if len(heatmap_col)==0 and len(variables)==0:
+        raise Exception("Please specify the variables option")
+    if len(heatmap_col)!=0:
+        variables=heatmap_col
     cnum=len(variables)
     if len(figsize)==0:
         xsize=np.amin([2*cnum, 20])
@@ -794,20 +813,20 @@ def complex_clustermap(df: pd.DataFrame,
             g.ax_col_colors.set_yticks(col_ticks, labels=np.round(col_labels,2), fontsize=8)
         
         legend_num=0
-        for title, colorlut in _row_color_legend.items():
+        for _title, colorlut in _row_color_legend.items():
             legendhandles=[]
             for label, color in colorlut.items():
                 legendhandles.append(Line2D([0], [0], color=color,linewidth=5, label=label))
             #g.add_legend(legend_data=legendhandles,title="Aroma",label_order=["W","F","Y"])
-            legend1=g.ax_heatmap.legend(handles=legendhandles, loc=[1.15,0.8-0.2*legend_num], title=title)
+            legend1=g.ax_heatmap.legend(handles=legendhandles, loc=[1.15,0.8-0.2*legend_num], title=_title)
             g.ax_heatmap.add_artist(legend1)
             legend_num+=1
-        for title, colorlut in _col_color_legend.items():
+        for _title, colorlut in _col_color_legend.items():
             legendhandles=[]
             for label, color in colorlut.items():
                 legendhandles.append(Line2D([0], [0], color=color,linewidth=5, label=label))
             #g.add_legend(legend_data=legendhandles,title="Aroma",label_order=["W","F","Y"])
-            legend1=g.ax_heatmap.legend(handles=legendhandles, loc=[1.15,0.8-0.2*legend_num], title=title)
+            legend1=g.ax_heatmap.legend(handles=legendhandles, loc=[1.15,0.8-0.2*legend_num], title=_title)
             g.ax_heatmap.add_artist(legend1)
             legend_num+=1
         
@@ -897,8 +916,8 @@ def complex_clustermap(df: pd.DataFrame,
         return {"data":g.data2d,"row_clusters":pd.DataFrame(cdata),"col_clusters":None, "grid":g}
 
 def dotplot(df: pd.DataFrame,
-            row: str="",
-            col: str="",
+            y: str="",
+            x: str="",
             dfc=pd.DataFrame(),
             scaling: float=10,
             color_val: str="",
@@ -915,6 +934,8 @@ def dotplot(df: pd.DataFrame,
             colorpalette="coolwarm",
             show: bool=False,
             title: str="",
+            row: str="",
+            col: str="",
             ) -> Dict[str, plt.Axes]:
     """
     Drawing a dotplot that can represent two different variables as dot sizes and colors on a regular grid.
@@ -967,6 +988,9 @@ def dotplot(df: pd.DataFrame,
     Examples
     --------
     """
+    if x !="" and y!="":
+        row=y
+        col=x
     if size_val!="":
         _df=df.pivot_table(index=col,columns=row,values=size_val)
         if len(column_order)>0:
@@ -1112,6 +1136,8 @@ def dotplot(df: pd.DataFrame,
     #plt.tight_layout()
     plt.subplots_adjust(left=0.3,bottom=0.2)
     #plt.tight_layout()
+    if title !="":
+        fig.suptitle(title)
     _save(save, "dotplot")
     if show==True:
         plt.show()
@@ -2013,6 +2039,7 @@ def decomplot(df: pd.DataFrame,
               nmfparam={"random_state":0},
               save: str="",
               title: str="",
+              barrierfree: bool=True,
               saveparam: dict={}) :
     
     """
@@ -2363,6 +2390,7 @@ def clusterplot(df,
                 palette=["Spectral","cubehelix"],
                 save: str="",
                 title: str="",
+                barrierfree: bool=True,
                 piesize_scale: float=0.02,**kwargs)->Dict:
     """
     Clustering data and draw them as a scatter plot optionally with dimensionality reduction.  
@@ -2553,7 +2581,7 @@ def clusterplot(df,
                         sample2cluster[sample]="C"+str(i)
                     i+=1
                 scores.append(silhouette_score(X, [sample2cluster[sample] for sample in labels], metric = 'euclidean')/_k)
-        print(scores)
+
         scores=np.array(scores)
         srtindex=np.argsort(scores)[::-1]
         plt.subplots()
@@ -2570,19 +2598,13 @@ def clusterplot(df,
         print("Top two optimal cluster No are:", n_clusters)
         _save(save, method)
     elif n_clusters=="auto" and method=="dbscan":
-        # import scipy.spatial.distance as ssd
-        # D=ssd.pdist(X)
-        #
+
         from sklearn.neighbors import NearestNeighbors
         neigh = NearestNeighbors(n_neighbors=2)
         nbrs = neigh.fit(X)
         distances, indices = nbrs.kneighbors(X)
         distances = np.sort(distances[:,1], axis=0)
-        #
-        # plt.plot(distances)
-        # plt.show()
-        # sys.exit()
-        print(np.amin(distances), np.amax(distances))
+
         K=np.linspace(np.amin(distances), np.amax(distances),20)
         newK=[]
         scores=[]
@@ -2591,7 +2613,7 @@ def clusterplot(df,
             db = DBSCAN(eps=k, min_samples=5, n_jobs=-1)
             dbX=db.fit(X)
             labels=np.unique(dbX.labels_[dbX.labels_>=0])
-            print(k,labels)
+  
             if len(labels)<2:
                 continue
             _k=len(labels)
@@ -2599,7 +2621,7 @@ def clusterplot(df,
                 newK.append(_k)
                 _K.append(k)
                 scores.append(silhouette_score(X[dbX.labels_>=0], dbX.labels_[dbX.labels_>=0], metric = 'euclidean')/_k)
-        print(scores)
+
         scores=np.array(scores)
         
         _ksort=np.argsort(newK)
@@ -2828,7 +2850,8 @@ def clusterplot(df,
                 for i, cat in enumerate(category):
                     dfnew[cat]=df[cat]
                     sns.scatterplot(data=dfnew,x=x,y=y,hue=cat, ax=ax[i+1], palette=palette[1], s=size,**kwargs)
-            _dfnews[K]=dfnew 
+            _dfnews[K]=dfnew
+    _save(save, method+"_scatter")
     return {"data": _dfnews, "axes":ax}
 
 def volcanoplot():
@@ -3083,10 +3106,13 @@ def pie_scatter(df: pd.DataFrame,
             
     x,y : str
         the names of columns to be x and y axes of the scatter plot.
+        e.g.)
+            x="population", y="GDP"
         
     category: str or list
         the names of categorical values to display as pie charts
-    
+        e.g.)
+            category=["gas", "coal", "nuclear"]
     pie_palette : str
         A colormap name
     xlabel: str, optional
@@ -3238,7 +3264,7 @@ if __name__=="__main__":
     test="manifold"
     test="stacked"
     test="stackedlines"
-    test="complex_clustermap"
+    test="correlation"
     if test=="stackedlines":
         f="/media/koh/grasnas/home/data/omniplot/energy/owid-energy-data.csv"
         df=pd.read_csv(f)
@@ -3266,7 +3292,7 @@ if __name__=="__main__":
         df=df.dropna(axis=0)
         
             
-        correlation(df, category=["species", "island","sex"], method="euclidean", ztransform=True)
+        correlation(df, category=["species", "island","sex"], method="pearson", ztransform=True)
         plt.show()
     elif test=="nice_piechart":
         df=sns.load_dataset("penguins")
@@ -3323,7 +3349,6 @@ if __name__=="__main__":
         dfcol=pd.DataFrame({"features":["bill","bill","flipper"]})
         complex_clustermap(df,
                            dfcol=dfcol,
-                           
                             variables=["bill_length_mm","bill_depth_mm","flipper_length_mm"],
                             row_colors=["species","sex"],
                             row_scatter=["body_mass_g"],
@@ -3331,12 +3356,13 @@ if __name__=="__main__":
                             row_bar=["body_mass_g"],
                             col_colors=["features"],
                             approx_clusternum=3,
-                            merginalsum=True)
+                            merginalsum=True, title="Penguins")
         plt.show()
     elif test=="radialtree":
         df=sns.load_dataset("penguins")
         df=df.dropna(axis=0)
-        radialtree(df, category=["species","island","sex"])
+        variables=["bill_length_mm","bill_depth_mm","flipper_length_mm"]
+        radialtree(df, variables=variables, category=["species","island","sex"])
         plt.show()
     elif test=="decomp":
         df=sns.load_dataset("penguins")
