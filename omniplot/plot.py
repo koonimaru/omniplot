@@ -33,9 +33,9 @@ from joblib import Parallel, delayed
 from omniplot.chipseq_utils import _calc_pearson
 import itertools as it
 
-colormap_list=["nipy_spectral", "terrain","tab20b","tab20c","gist_rainbow","hsv","CMRmap","coolwarm","gnuplot","gist_stern","brg","rainbow","jet"]
-hatch_list = ['//', '\\\\', '||', '--', '++', 'xx', 'oo', 'OO', '..', '**','/o', '\\|', '|*', '-\\', '+o', 'x*', 'o-', 'O|', 'O.', '*-']
-maker_list=['.', 'v', '^', '<', '>', 's', 'p', '*', 'h', 'D', 'd', 'P', 'X','o', '1', '2', '3', '4', '+', 'x', '|', '_']
+colormap_list: list=["nipy_spectral", "terrain","tab20b","tab20c","gist_rainbow","hsv","CMRmap","coolwarm","gnuplot","gist_stern","brg","rainbow","jet"]
+hatch_list: list = ['//', '\\\\', '||', '--', '++', 'xx', 'oo', 'OO', '..', '**','/o', '\\|', '|*', '-\\', '+o', 'x*', 'o-', 'O|', 'O.', '*-']
+maker_list: list=['.', 'v', '^', '<', '>', 's', 'p', '*', 'h', 'D', 'd', 'P', 'X','o', '1', '2', '3', '4', '+', 'x', '|', '_']
 
 plt.rcParams['font.family']= 'sans-serif'
 plt.rcParams['font.sans-serif'] = ['Arial']
@@ -70,7 +70,6 @@ def radialtree(df: pd.DataFrame,
         Approximate number of clusters to produce
     x: str, optional
         the name of columns containing sample names. If not provided, the index will be considered sample names.
-    
     variables: list, optional
         the name of columns containing variables to calculate the distances between samples
     category: str or list of str
@@ -106,33 +105,39 @@ def radialtree(df: pd.DataFrame,
     """
     if len(y)!=0:
         variables=y
-    if len(variables)!=0 and len(category)!=0:
-        if type(category)==str:
-            category=[category]
-        category_df=df[category]
-        df=df[variables]
-        X = df.values
-        #print(X)
-        assert X.dtype==float, f"{x} columns must contain only float values."
-    
-    
-    elif len(category) !=0:
-        if type(category)==str:
-            category=[category]
-        category_df=df[category]
-        df=df.drop(category, axis=1)
-        X = df.values
-        #print(X)
-        assert X.dtype==float, f"data must contain only float values except {category} column."
-        
-    else:    
-        X = df.values
-        assert X.dtype==float, "data must contain only float values."
     
     if x !="":
         _labels=df[x]
+        df=df.drop(x, axis=1)
     else:
         _labels=df.index
+
+    X, category=_separate_data(df, variables=variables, category=category)
+    category_df=df[category]
+    # if len(variables)!=0 and len(category)!=0:
+    #     if type(category)==str:
+    #         category=[category]
+    #     category_df=df[category]
+    #     df=df[variables]
+    #     X = df.values
+    #     #print(X)
+    #     assert X.dtype==float, f"{x} columns must contain only float values."
+    #
+    #
+    # elif len(category) !=0:
+    #     if type(category)==str:
+    #         category=[category]
+    #     category_df=df[category]
+    #     df=df.drop(category, axis=1)
+    #     X = df.values
+    #     #print(X)
+    #     assert X.dtype==float, f"data must contain only float values except {category} column."
+    #
+    # else:    
+    #     X = df.values
+    #     assert X.dtype==float, "data must contain only float values."
+    
+    
     
     if ztransform==True:
         X=zscore(X, axis=0)
@@ -172,6 +177,9 @@ def correlation(df: pd.DataFrame,
     ----------
     df : pandas DataFrame
         
+    variables: List, optional
+        the names of values to calculate correlations  
+    
     category: str or list, optional
         the names of categorical values to display as color labels
     mthod: str
@@ -207,19 +215,19 @@ def correlation(df: pd.DataFrame,
     --------
     """
     original_index=df.index
-    
-    if len(category) !=0:
-
-        if type(category)==str:
-            category=[category]
-        #df=df.drop(category, axis=1)
-        valnames=list(set(df.columns) -set(category)) 
-        X = df[valnames].values
-        assert X.dtype==float, f"data must contain only float values except {category} column."
-        
-    else:    
-        X = df.values
-        assert X.dtype==float, "data must contain only float values."
+    X, category=_separate_data(df, variables=variables, category=category)
+    # if len(category) !=0:
+    #
+    #     if type(category)==str:
+    #         category=[category]
+    #     #df=df.drop(category, axis=1)
+    #     valnames=list(set(df.columns) -set(category)) 
+    #     X = df[valnames].values
+    #     assert X.dtype==float, f"data must contain only float values except {category} column."
+    #
+    # else:    
+    #     X = df.values
+    #     assert X.dtype==float, "data must contain only float values."
     if ztransform==True:
         X=zscore(X, axis=0)
     if method=="pearson":
@@ -805,20 +813,20 @@ def complex_clustermap(df: pd.DataFrame,
             g.ax_col_colors.set_yticks(col_ticks, labels=np.round(col_labels,2), fontsize=8)
         
         legend_num=0
-        for title, colorlut in _row_color_legend.items():
+        for _title, colorlut in _row_color_legend.items():
             legendhandles=[]
             for label, color in colorlut.items():
                 legendhandles.append(Line2D([0], [0], color=color,linewidth=5, label=label))
             #g.add_legend(legend_data=legendhandles,title="Aroma",label_order=["W","F","Y"])
-            legend1=g.ax_heatmap.legend(handles=legendhandles, loc=[1.15,0.8-0.2*legend_num], title=title)
+            legend1=g.ax_heatmap.legend(handles=legendhandles, loc=[1.15,0.8-0.2*legend_num], title=_title)
             g.ax_heatmap.add_artist(legend1)
             legend_num+=1
-        for title, colorlut in _col_color_legend.items():
+        for _title, colorlut in _col_color_legend.items():
             legendhandles=[]
             for label, color in colorlut.items():
                 legendhandles.append(Line2D([0], [0], color=color,linewidth=5, label=label))
             #g.add_legend(legend_data=legendhandles,title="Aroma",label_order=["W","F","Y"])
-            legend1=g.ax_heatmap.legend(handles=legendhandles, loc=[1.15,0.8-0.2*legend_num], title=title)
+            legend1=g.ax_heatmap.legend(handles=legendhandles, loc=[1.15,0.8-0.2*legend_num], title=_title)
             g.ax_heatmap.add_artist(legend1)
             legend_num+=1
         
@@ -2031,6 +2039,7 @@ def decomplot(df: pd.DataFrame,
               nmfparam={"random_state":0},
               save: str="",
               title: str="",
+              barrierfree: bool=True,
               saveparam: dict={}) :
     
     """
@@ -2381,6 +2390,7 @@ def clusterplot(df,
                 palette=["Spectral","cubehelix"],
                 save: str="",
                 title: str="",
+                barrierfree: bool=True,
                 piesize_scale: float=0.02,**kwargs)->Dict:
     """
     Clustering data and draw them as a scatter plot optionally with dimensionality reduction.  
@@ -2571,7 +2581,7 @@ def clusterplot(df,
                         sample2cluster[sample]="C"+str(i)
                     i+=1
                 scores.append(silhouette_score(X, [sample2cluster[sample] for sample in labels], metric = 'euclidean')/_k)
-        print(scores)
+
         scores=np.array(scores)
         srtindex=np.argsort(scores)[::-1]
         plt.subplots()
@@ -2588,19 +2598,13 @@ def clusterplot(df,
         print("Top two optimal cluster No are:", n_clusters)
         _save(save, method)
     elif n_clusters=="auto" and method=="dbscan":
-        # import scipy.spatial.distance as ssd
-        # D=ssd.pdist(X)
-        #
+
         from sklearn.neighbors import NearestNeighbors
         neigh = NearestNeighbors(n_neighbors=2)
         nbrs = neigh.fit(X)
         distances, indices = nbrs.kneighbors(X)
         distances = np.sort(distances[:,1], axis=0)
-        #
-        # plt.plot(distances)
-        # plt.show()
-        # sys.exit()
-        print(np.amin(distances), np.amax(distances))
+
         K=np.linspace(np.amin(distances), np.amax(distances),20)
         newK=[]
         scores=[]
@@ -2609,7 +2613,7 @@ def clusterplot(df,
             db = DBSCAN(eps=k, min_samples=5, n_jobs=-1)
             dbX=db.fit(X)
             labels=np.unique(dbX.labels_[dbX.labels_>=0])
-            print(k,labels)
+  
             if len(labels)<2:
                 continue
             _k=len(labels)
@@ -2617,7 +2621,7 @@ def clusterplot(df,
                 newK.append(_k)
                 _K.append(k)
                 scores.append(silhouette_score(X[dbX.labels_>=0], dbX.labels_[dbX.labels_>=0], metric = 'euclidean')/_k)
-        print(scores)
+
         scores=np.array(scores)
         
         _ksort=np.argsort(newK)
@@ -2846,7 +2850,8 @@ def clusterplot(df,
                 for i, cat in enumerate(category):
                     dfnew[cat]=df[cat]
                     sns.scatterplot(data=dfnew,x=x,y=y,hue=cat, ax=ax[i+1], palette=palette[1], s=size,**kwargs)
-            _dfnews[K]=dfnew 
+            _dfnews[K]=dfnew
+    _save(save, method+"_scatter")
     return {"data": _dfnews, "axes":ax}
 
 def volcanoplot():
@@ -3101,10 +3106,13 @@ def pie_scatter(df: pd.DataFrame,
             
     x,y : str
         the names of columns to be x and y axes of the scatter plot.
+        e.g.)
+            x="population", y="GDP"
         
     category: str or list
         the names of categorical values to display as pie charts
-    
+        e.g.)
+            category=["gas", "coal", "nuclear"]
     pie_palette : str
         A colormap name
     xlabel: str, optional
@@ -3256,7 +3264,7 @@ if __name__=="__main__":
     test="manifold"
     test="stacked"
     test="stackedlines"
-    test="complex_clustermap"
+    test="radialtree"
     if test=="stackedlines":
         f="/media/koh/grasnas/home/data/omniplot/energy/owid-energy-data.csv"
         df=pd.read_csv(f)
@@ -3348,12 +3356,13 @@ if __name__=="__main__":
                             row_bar=["body_mass_g"],
                             col_colors=["features"],
                             approx_clusternum=3,
-                            merginalsum=True)
+                            merginalsum=True, title="Penguins")
         plt.show()
     elif test=="radialtree":
         df=sns.load_dataset("penguins")
         df=df.dropna(axis=0)
-        radialtree(df, category=["species","island","sex"])
+        variables=["bill_length_mm","bill_depth_mm","flipper_length_mm"]
+        radialtree(df, variables=variables, category=["species","island","sex"])
         plt.show()
     elif test=="decomp":
         df=sns.load_dataset("penguins")
