@@ -817,7 +817,7 @@ def complex_clustermap(df: pd.DataFrame,
             legendhandles=[]
             for label, color in colorlut.items():
                 legendhandles.append(Line2D([0], [0], color=color,linewidth=5, label=label))
-            #g.add_legend(legend_data=legendhandles,title="Aroma",label_order=["W","F","Y"])
+
             legend1=g.ax_heatmap.legend(handles=legendhandles, loc=[1.15,0.8-0.2*legend_num], title=_title)
             g.ax_heatmap.add_artist(legend1)
             legend_num+=1
@@ -825,7 +825,7 @@ def complex_clustermap(df: pd.DataFrame,
             legendhandles=[]
             for label, color in colorlut.items():
                 legendhandles.append(Line2D([0], [0], color=color,linewidth=5, label=label))
-            #g.add_legend(legend_data=legendhandles,title="Aroma",label_order=["W","F","Y"])
+
             legend1=g.ax_heatmap.legend(handles=legendhandles, loc=[1.15,0.8-0.2*legend_num], title=_title)
             g.ax_heatmap.add_artist(legend1)
             legend_num+=1
@@ -1488,13 +1488,15 @@ def stacked_barplot(df: pd.DataFrame,
                     order: Optional[list]=None,
                     hue_order: Optional[list]=None,
                     test_pairs: List[List[str]]=[],
+                    palette: str="tab20b",
                     show_values: bool=True,
                     show: bool=False,
                     figsize: List[int]=[4,6],
                     xunit: str="",
                     yunit: str="",
                     title: str="",
-                    hatch: bool=False)-> Dict:
+                    hatch: bool=False,
+                    rotation: int=90)-> Dict:
     
     """
     Drawing a stacked barplot with or without the fisher's exact test 
@@ -1642,7 +1644,7 @@ def stacked_barplot(df: pd.DataFrame,
                 for key in keys:
                     data[_x][_hue][key]=np.array(data[_x][_hue][key])/np.sum(data[_x][_hue][key])*100
     
-    cmap=plt.get_cmap("tab20b")
+    cmap=plt.get_cmap(palette)
     ncols=len(x)*len(hue)-len(set(x)&set(hue))
     if ncols<1:
         ncols=1
@@ -1690,10 +1692,11 @@ def stacked_barplot(df: pd.DataFrame,
                         else:
                             ax.text(j,bottom[j]+heights[j]/2,"{:.2f}{}".format(heights[j],unit), 
                                  bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="y", lw=1, alpha=0.8))
-                ax.set_xticks(ax.get_xticks())
-                ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
+                
                 pos[_x][_hue][h]={key: [he, bo] for key, he, bo in zip(keys, heights, bottom)}
                 bottom+=heights
+            ax.set_xticks(ax.get_xticks(), labels=keys, rotation=rotation)
+            #ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
             ax.legend(loc=[1.01,0])
             ax.set_xlabel(_x)
             if scale=="absolute":
@@ -3237,6 +3240,10 @@ def pie_scatter(df: pd.DataFrame,
     else:
         ax.legend(handles=legend_elements,bbox_to_anchor=bbox_to_anchor)
     ax.set_title(title)
+    if yunit!="":
+        ax.text(0, 1, "({})".format(yunit), transform=ax.transAxes, ha="right")
+    if xunit!="":
+        ax.text(1, 0, "({})".format(xunit), transform=ax.transAxes, ha="left",va="top")
     _save(save, "pie_scatter")
     return {"axes":ax}
 
@@ -3265,6 +3272,7 @@ if __name__=="__main__":
     test="stacked"
     test="stackedlines"
     test="correlation"
+    test="stacked"
     if test=="stackedlines":
         f="/media/koh/grasnas/home/data/omniplot/energy/owid-energy-data.csv"
         df=pd.read_csv(f)
@@ -3402,11 +3410,13 @@ if __name__=="__main__":
     elif test=="stacked": 
         df=sns.load_dataset("penguins")
         df=df.dropna(axis=0)
-        stacked_barplot(df, x=["species","island"],
-                         hue=["sex","island"], scale="absolute", order=[
-                                                                        ["Chinstrap","Gentoo","Adelie"],
-                                                                        ["Dream","Biscoe","Torgersen"]],
-                         test_pairs=[["Adelie","Gentoo"]], hatch=True)
+        # stacked_barplot(df, x=["species","island"],
+        #                  hue=["sex","island"], scale="absolute", order=[
+        #                                                                 ["Chinstrap","Gentoo","Adelie"],
+        #                                                                 ["Dream","Biscoe","Torgersen"]],
+        #                  test_pairs=[["Adelie","Gentoo"]], hatch=True)
+        stacked_barplot(df, x="species",
+                         hue="sex", scale="percentage", hatch=True)
         plt.show()
     elif test=="pie_scatter":
         f="/home/koh/ews/omniplot/data/energy_vs_gdp.csv"
