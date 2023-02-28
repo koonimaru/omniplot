@@ -256,7 +256,7 @@ def correlation(df: pd.DataFrame,
                                xticklabels=xticklabels,
                                yticklabels=yticklabels,
                                figsize=figsize,
-                               cbar_kws={"label":ctitle}, )
+                               ctitle=ctitle )
         return res
     else:
         
@@ -496,7 +496,7 @@ def complex_clustermap(df: pd.DataFrame,
     --------
     """#print(kwargs)
     rnum, cnum=df.shape
-    if len(heatmap_col)!=0 and len(variables)==0:
+    if len(heatmap_col)==0 and len(variables)==0:
         raise Exception("Please specify the variables option")
     if len(heatmap_col)!=0:
         variables=heatmap_col
@@ -3264,7 +3264,7 @@ if __name__=="__main__":
     test="manifold"
     test="stacked"
     test="stackedlines"
-    test="radialtree"
+    test="correlation"
     if test=="stackedlines":
         f="/media/koh/grasnas/home/data/omniplot/energy/owid-energy-data.csv"
         df=pd.read_csv(f)
@@ -3292,7 +3292,7 @@ if __name__=="__main__":
         df=df.dropna(axis=0)
         
             
-        correlation(df, category=["species", "island","sex"], method="euclidean", ztransform=True)
+        correlation(df, category=["species", "island","sex"], method="pearson", ztransform=True)
         plt.show()
     elif test=="nice_piechart":
         df=sns.load_dataset("penguins")
