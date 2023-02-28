@@ -561,7 +561,7 @@ def correlation(df: pd.DataFrame,
                 method="pearson",
                 layout: str="spring_layout",
                 palette: str="tab20c",
-                clustering: str="",
+                clustering: str="louvain",
                 figsize: list=[],
                 ztransform: bool=True,
                 threshold: Union[float, str]=0.5,
@@ -600,8 +600,8 @@ def correlation(df: pd.DataFrame,
         Networkx layouts include: pydot_layout, spring_layout, random_layout, circular_layout and so on. Please see https://networkx.org/documentation/stable/reference/drawing.html
     palette : str, optional (default: "tab20c")
         A colormap name.
-    clustering: str, optional (default: "")
-        Networkx clustering methods include:  best_partition
+    clustering: str, optional (default: "louvain")
+        Networkx clustering methods include:  "louvain", "greedy_modularity", "kernighan_lin_bisection", "asyn_lpa_communities","asyn_fluidc"
     figsize : List[int], optional
         The figure size, e.g., [4, 6].
     ztransform : bool, optional
@@ -644,6 +644,11 @@ def correlation(df: pd.DataFrame,
     Examples
     --------
     """
+    clustering_options=["","louvain", "greedy_modularity", "kernighan_lin_bisection", "asyn_lpa_communities","asyn_fluidc"]
+    if not clustering in clustering_options:
+        raise Exception("Available clustering methods are "+", ".join(clustering_options))
+    
+    
     
     original_index=list(df.index)
     X, category=_separate_data(df, variables=variables, category=category)
@@ -703,7 +708,9 @@ def correlation(df: pd.DataFrame,
     elif clustering =="asyn_fluidc":
         from networkx.algorithms import community
         comm=community.asyn_lpa_communities(G, **clustering_param)
-        comm=list(comm)    
+        comm=list(comm)
+    elif clustering=="":
+        comm=[]
         #print(comm)
     weights=[]
     for s, t, w in G.edges(data=True):
@@ -731,25 +738,27 @@ def correlation(df: pd.DataFrame,
         colors[cat]=[]
         for g in G.nodes:
             colors[cat].append(_cmap_dict[_cats[original_index.index(g)]])
-    if clustering =="louvain":
-        u=set()
-        for k, v in comm.items():
-            u.add(v)
-        _cmp=plt.get_cmap(palette, len(u))
-        _cmap_dict={k: _cmp(i) for i, k in enumerate(u)}
-        colorlut[clustering]=_cmap_dict
-        colors[clustering]=[]
-        for g in G.nodes:
-            colors[clustering].append(_cmap_dict[comm[g]])
-    else:
-        _cmp=plt.get_cmap(palette, len(comm))
-        _cmap_dict={i: _cmp(i) for i in range(len(comm))}
-        colorlut[clustering]=_cmap_dict
-        colors[clustering]=[]
-        for g in G.nodes:
-            for i, com in enumerate(comm):
-                if g in com:
-                    colors[clustering].append(_cmap_dict[i])
+            
+    if clustering!="":
+        if clustering =="louvain":
+            u=set()
+            for k, v in comm.items():
+                u.add(v)
+            _cmp=plt.get_cmap(palette, len(u))
+            _cmap_dict={k: _cmp(i) for i, k in enumerate(u)}
+            colorlut[clustering]=_cmap_dict
+            colors[clustering]=[]
+            for g in G.nodes:
+                colors[clustering].append(_cmap_dict[comm[g]])
+        else:
+            _cmp=plt.get_cmap(palette, len(comm))
+            _cmap_dict={i: _cmp(i) for i in range(len(comm))}
+            colorlut[clustering]=_cmap_dict
+            colors[clustering]=[]
+            for g in G.nodes:
+                for i, com in enumerate(comm):
+                    if g in com:
+                        colors[clustering].append(_cmap_dict[i])
     
     if edge_color=="weight":
         edge_color=weights
@@ -834,7 +843,7 @@ if __name__=="__main__":
         correlation(df, category=["species", "island","sex"], 
                     method="pearson", 
                     ztransform=True,
-                    clustering ="louvain",show_edges=True, bundle=False)
+                    clustering ="asyn_fluidc",show_edges=True, bundle=False)
         plt.show()
         
     elif test=="sankey_category":
