@@ -18,6 +18,8 @@ still several kinds of plots cannot be drawn without hassle. This module is aime
 tools that allow users to draw complex plots, such as a scatter plot with PCA and loadings or clustering analysis in one liner.
 
 ## Install
+omniplot best works with python3.8. But, greater python versions may be OK. Please try installation with conda, if something wrong with pip installation.
+
 ```bash
 pip install cython
 git clone https://github.com/koonimaru/omniplot.git
@@ -36,6 +38,7 @@ or
 git clone https://github.com/koonimaru/omniplot.git
 cd omniplot
 conda env create -f environment.yml python=3.8
+conda activate omniplot
 ```
 
 Known issues:<br>
@@ -49,58 +52,29 @@ And you may want to visit an auto-generated [API](https://koonimaru.github.io/om
 
 ## Example usage
 ```python
-import numpy as np
-from omniplot import plot as op
-import seaborn as sns
+import pandas as pd
+from omniplot import networkplot as netp
+import seaborn as  sns
+import matplotlib.pyplot as plt
 df=sns.load_dataset("penguins")
 df=df.dropna(axis=0)
-op.radialtree(df, category=["species","island","sex"])
-
-```
-## Example usage
-```python
-import pandas as pd
-import numpy as np
-from omniplot import plot as op
-s=20
-mat=np.arange(s*s).reshape([s,s])
-import string, random
-letters = string.ascii_letters+string.digits
-labels=[''.join(random.choice(letters) for i in range(10)) for _ in range(s)]
-df=pd.DataFrame(data=mat, index=labels, columns=labels)
-op.triangle_heatmap(df,grid_pos=[2*s//10,5*s//10,7*s//10],grid_labels=["A","B","C","D"])
-
-```
-## Example usage
-```python
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import igraph
-from omniplot import networkplot as netp
-edges=[[0,0],[0,1],[0,2],[2,1],[2,3],[3,4]]
-edge_width=[1 for i in range(len(edges))]
-nodes=["A","B","C","D","E"]
-pie_features={"A":{"frac":np.array([50,50]),"label":np.array(["a","b"])},
-              "B":{"frac":np.array([90,5,5]),"label":np.array(["a","b","c"])},
-              "C":{"frac":np.array([100]),"label":np.array(["c"])},
-              "D":{"frac":np.array([100]),"label":np.array(["b"])},
-              "E":{"frac":np.array([100]),"label":np.array(["a"])}}
-
-g=igraph.Graph(edges=edges)
-layout = g.layout("fr")
-
-
-netp.pienodes(g, vertex_label=nodes,
-         node_features=pie_features,
-         layout=layout,
-vertex_color="lightblue",
-edge_color="gray",
-edge_arrow_size=0.03,
-edge_width=edge_width,
-keep_aspect_ratio=True)
+df=df.reset_index()
+res=netp.correlation(df, category=["species", "island","sex"], 
+            method="pearson", 
+            ztransform=True,
+            clustering ="louvain",show_edges=True, bundle=False)
 plt.show()
-
 ```
+## Example usage
+```python
+import seaborn as sns
+from omniplot import plot as op
+import matplotlib.pyplot as plt
+df=sns.load_dataset("penguins")
+df=df.dropna(axis=0)
+res=op.radialtree(df, category=["species","island","sex"])
+plt.show()
+```
+
 
 [logo-image]: images/logo.png
