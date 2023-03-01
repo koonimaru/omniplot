@@ -34,24 +34,7 @@ class _Basic_plot():
         else:
             self.ax=ax
             self.fig=None
-        
-        
-    
-    
-    
-    
-    
-    
-    
 
-    def _multipage(self, filename, figs=None, dpi=400):
-        pp = PdfPages(filename)
-        if figs is None:
-            figs = [plt.figure(n) for n in plt.get_fignums()]
-        for fig in figs:
-            fig.savefig(pp, format='pdf')
-        pp.close()
-        
     def _save(self, suffix):
         save=self.save
         if save !="":
@@ -59,4 +42,42 @@ class _Basic_plot():
                 h, t=os.path.splitext(save)
                 plt.savefig(h+"_"+suffix+t)
             else:
-                plt.savefig(save+"_"+suffix+".pdf")    
+                plt.savefig(save+"_"+suffix+".pdf", dpi=self.dpi)
+
+class _Multiple_variables(_Basic_plot):
+    
+    def __init__(self):
+        super().__init__()
+    
+    
+    def _separate_data(self, df, variables=[], 
+                   category=""):
+        if len(variables) !=0:
+            X = df[variables].values
+            if len(category) !=0:
+                if type(category)==str:
+                    category=[category]
+                #category_val=df[category].values
+            
+            if X.dtype!=float: 
+                raise TypeError(f"variables must contain only float values.")
+        elif len(category) !=0:
+            if type(category)==str:
+                category=[category]
+            #category_val=df[category].values
+            df=df.drop(category, axis=1)
+            X = df.values
+            if X.dtype!=float: 
+                raise TypeError(f"data must contain only float values except {category} column. \
+            or you can specify the numeric variables with the option 'variables'.")
+            
+        else:    
+            X = df.values
+            #category_val=[]
+            if X.dtype!=float: 
+                raise TypeError(f"data must contain only float values. \
+            or you can specify the numeric variables with the option 'variables'.")
+            
+        return X, category
+        
+        
