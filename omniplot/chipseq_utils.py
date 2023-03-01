@@ -4,7 +4,10 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
-import pyBigWig as pwg
+try:
+    import pyBigWig as pwg
+except ImportError:
+    pass
 import time
 import os 
 import scipy.stats

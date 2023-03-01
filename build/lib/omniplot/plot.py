@@ -1518,10 +1518,14 @@ def stacked_barplot(df: pd.DataFrame,
         The order of hue labels
     scale: str, optional
         Scaling method. Available options are: fraction, percentage, absolute
-    test_pairs : pairs of categorical values related to x. It will calculate -log10 (p value) (mlp) of the fisher exact test.
+    test_pairs : list, optional
+        pairs of categorical values related to x. It will calculate -log10 (p value) (mlp) of the fisher exact test.
         Examples: [["Adelie","Chinstrap" ],
                     ["Gentoo","Chinstrap" ],
                     ["Adelie","Gentoo" ]]
+    palette : str or dict, optional (default: "tab20c")
+        A matplotlib colormap name or dictionary in which keys are values of the hue category and values are RGB array.
+        e.g.) palette={""}
     show_values: bool, optional
         Wheter to exhibit the values of fractions/counts/percentages.
     
@@ -2413,8 +2417,10 @@ def clusterplot(df,
                 palette=["Spectral","cubehelix"],
                 save: str="",
                 title: str="",
-                barrierfree: bool=True,ax: Optional[plt.Axes]=None,
-                piesize_scale: float=0.02,**kwargs)->Dict:
+                barrierfree: bool=True,
+                ax: Optional[plt.Axes]=None,
+                piesize_scale: float=0.02,
+                min_cluster_size: int=10,**kwargs)->Dict:
     """
     Clustering data and draw them as a scatter plot optionally with dimensionality reduction.  
     
@@ -2656,8 +2662,8 @@ def clusterplot(df,
         plt.plot(newK, scores, '-')
         
         for i in range(topn_cluster_num):
-            plt.plot([newK[srtindex[i]],newK[srtindex[i]]],[0,np.amax(scores)], "--", color="r")
-            plt.text(newK[srtindex[i]], np.amax(scores)*0.95, "N="+str(newK[srtindex[i]]))
+            plt.plot([_K[srtindex[i]],_K[srtindex[i]]],[0,np.amax(scores)], "--", color="r")
+            plt.text(_K[srtindex[i]], np.amax(scores)*0.95, "N="+str(newK[srtindex[i]]))
         plt.xticks(newK)
         plt.xlabel('eps')
         plt.ylabel('Silhouette scores')
@@ -2666,6 +2672,66 @@ def clusterplot(df,
         _n_clusters=[ newK[i] for i in range(topn_cluster_num)]
         print("Top two optimal cluster No are:", _n_clusters)
         eps=[_K[i] for i in srtindex[:topn_cluster_num]]
+        _save(save, method)
+        
+    elif n_clusters=="auto" and method=="hdbscan":
+        try:
+            import hdbscan
+        except ImportError:
+            from pip._internal import main as pip
+            pip(['install', '--user', 'hdbscan'])
+            import hdbscan
+        
+        from sklearn.neighbors import NearestNeighbors
+        neigh = NearestNeighbors(n_neighbors=2)
+        nbrs = neigh.fit(X)
+        distances, indices = nbrs.kneighbors(X)
+        distances = np.sort(distances[:,1], axis=0)
+
+        #K=np.linspace(0.01,1,10)
+        K=np.arange(2, 20,1)
+        print(K)
+        newK=[]
+        scores=[]
+        _K=[]
+        for k in K:
+            db = hdbscan.HDBSCAN(min_cluster_size=k, 
+                                 #cluster_selection_epsilon=k,
+                                 algorithm='best', 
+                                 alpha=1.0,leaf_size=40,
+                                metric='euclidean', min_samples=None, p=None, core_dist_n_jobs=-1)
+            dbX=db.fit(X)
+            labels=np.unique(dbX.labels_[dbX.labels_>=0])
+  
+            if len(labels)<2:
+                continue
+            _k=len(labels)
+            if not _k in newK:
+                newK.append(_k)
+                _K.append(k)
+                scores.append(silhouette_score(X[dbX.labels_>=0], dbX.labels_[dbX.labels_>=0], metric = 'euclidean')/_k)
+        
+        scores=np.array(scores)
+        
+        _ksort=np.argsort(newK)
+        _K=np.array(_K)[_ksort]
+        newK=np.array(newK)[_ksort]
+        scores=np.array(scores)[_ksort]
+        srtindex=np.argsort(scores)[::-1]
+        plt.subplots()
+        plt.plot(newK, scores, '-')
+        
+        for i in range(topn_cluster_num):
+            plt.plot([_K[srtindex[i]],_K[srtindex[i]]],[0,np.amax(scores)], "--", color="r")
+            plt.text(_K[srtindex[i]], np.amax(scores)*0.95, "N="+str(newK[srtindex[i]]))
+        plt.xticks(_K)
+        plt.xlabel('min_cluster_size')
+        plt.ylabel('Silhouette scores')
+        plt.title('Optimal cluster number searches by silhouette method')    
+
+        _n_clusters=[ newK[i] for i in range(topn_cluster_num)]
+        print("Top two optimal cluster No are:", _n_clusters)
+        min_cluster_size=[_K[i] for i in srtindex[:topn_cluster_num]]
         _save(save, method)
     else:
         n_clusters=[n_clusters]
@@ -2748,12 +2814,12 @@ def clusterplot(df,
             pip(['install', '--user', 'hdbscan'])
             import hdbscan
 
-        if type(eps)==float:
-            eps=[eps]
+        if type(min_cluster_size)==int:
+            min_cluster_size=[min_cluster_size]
         n_clusters=[]
         fuzzylabels=[]
-        for e in eps:
-            db = hdbscan.HDBSCAN(min_cluster_size=10, 
+        for e in min_cluster_size:
+            db = hdbscan.HDBSCAN(min_cluster_size=e,
                                  prediction_data=True,
                                  algorithm='best', 
                                  alpha=1.0, 
@@ -2837,7 +2903,7 @@ def clusterplot(df,
                 _title="HDBSCAN. Cluster num="+_K
             ax[0].set_title(_title, alpha=0.5)
             legend_elements = [Line2D([0], [0], marker='o', color='lavender', 
-                                      label="fuzzy"+str(i),
+                                      label=method+str(i),
                                       markerfacecolor=_cmap(i), 
                                       markersize=10)
                       for i in range(K)]
@@ -3292,7 +3358,7 @@ if __name__=="__main__":
     test="stacked"
     test="stackedlines"
     test="correlation"
-    test="stacked"
+    test="cluster"
     if test=="stackedlines":
         f="/media/koh/grasnas/home/data/omniplot/energy/owid-energy-data.csv"
         df=pd.read_csv(f)
@@ -3417,7 +3483,7 @@ if __name__=="__main__":
         #clusterplot(df,category=["species","sex"],method="hierarchical",n_clusters="auto")
         #clusterplot(df,category=["species","sex"],method="fuzzy",n_clusters="auto", piesize_scale=0.03,topn_cluster_num=3)
         #clusterplot(df,category=["species","sex"],method="hdbscan",eps=0.35)
-        clusterplot(df,category=["species","sex"],method="hierarchical",n_clusters="auto")
+        clusterplot(df,category=["species","sex"],method="hdbscan",n_clusters="auto")
         plt.show()
     elif test=="violinplot":
         df=sns.load_dataset("penguins")
