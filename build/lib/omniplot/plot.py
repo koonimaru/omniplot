@@ -817,7 +817,7 @@ def complex_clustermap(df: pd.DataFrame,
             legendhandles=[]
             for label, color in colorlut.items():
                 legendhandles.append(Line2D([0], [0], color=color,linewidth=5, label=label))
-            #g.add_legend(legend_data=legendhandles,title="Aroma",label_order=["W","F","Y"])
+
             legend1=g.ax_heatmap.legend(handles=legendhandles, loc=[1.15,0.8-0.2*legend_num], title=_title)
             g.ax_heatmap.add_artist(legend1)
             legend_num+=1
@@ -825,7 +825,7 @@ def complex_clustermap(df: pd.DataFrame,
             legendhandles=[]
             for label, color in colorlut.items():
                 legendhandles.append(Line2D([0], [0], color=color,linewidth=5, label=label))
-            #g.add_legend(legend_data=legendhandles,title="Aroma",label_order=["W","F","Y"])
+
             legend1=g.ax_heatmap.legend(handles=legendhandles, loc=[1.15,0.8-0.2*legend_num], title=_title)
             g.ax_heatmap.add_artist(legend1)
             legend_num+=1
@@ -1157,7 +1157,8 @@ def violinplot(df,
                equal_var: bool=False, 
                yunit: str="",
                title: str="",
-               save: str="",**kwargs):
+               save: str="",
+               ax: Optional[plt.Axes]=None,**kwargs):
     """
     Draw a boxplot with a statistical test 
     
@@ -1488,13 +1489,17 @@ def stacked_barplot(df: pd.DataFrame,
                     order: Optional[list]=None,
                     hue_order: Optional[list]=None,
                     test_pairs: List[List[str]]=[],
+                    palette: Union[str,dict]="tab20c",
                     show_values: bool=True,
                     show: bool=False,
-                    figsize: List[int]=[4,6],
+                    figsize: List[int]=[],
                     xunit: str="",
                     yunit: str="",
                     title: str="",
-                    hatch: bool=False)-> Dict:
+                    hatch: bool=False,
+                    rotation: int=90,
+                    ax: Optional[plt.Axes]=None,
+                    show_legend:bool=True)-> Dict:
     
     """
     Drawing a stacked barplot with or without the fisher's exact test 
@@ -1559,15 +1564,18 @@ def stacked_barplot(df: pd.DataFrame,
 
     xkeys={}
     keysx={}
+    meankey_len=0
     for i, _x in enumerate(x):
         if order==None:
             u=np.unique(df[_x])
             keys=sorted(list(u))
         else:
             keys=order[i]
+        meankey_len+=len(keys)
         xkeys[_x]=keys
         for k in keys:
             keysx[k]=_x
+    meankey_len=meankey_len//len(x)
     huekeys={}
     for i, _hue in enumerate(hue):
         if hue_order==None:
@@ -1641,15 +1649,20 @@ def stacked_barplot(df: pd.DataFrame,
                     continue
                 for key in keys:
                     data[_x][_hue][key]=np.array(data[_x][_hue][key])/np.sum(data[_x][_hue][key])*100
-    
-    cmap=plt.get_cmap("tab20b")
+    if type(palette)==str:
+        cmap=plt.get_cmap(palette)
+        
     ncols=len(x)*len(hue)-len(set(x)&set(hue))
     if ncols<1:
         ncols=1
-        
-    figsize=[4*ncols, 6]
-    fig, axes=plt.subplots(figsize=figsize,ncols=ncols)
-    #plt.subplots_adjust(left=0.2,right=0.6, bottom=0.17)
+    if len(figsize)==0:
+        figsize=[(4+0.1*meankey_len)*ncols, 6]
+    if ax!=None:
+        axes=ax
+        fig=None
+    else:
+        fig, axes=plt.subplots(figsize=figsize,ncols=ncols)
+    
     if ncols==1:
         axes=[axes]
     else:
@@ -1678,10 +1691,16 @@ def stacked_barplot(df: pd.DataFrame,
                 
                 heights=np.array([data[_x][_hue][key][i] for key in keys])
                 
-                if hatch==True:
-                    ax.bar(keys, heights,width=0.5, bottom=bottom, color=cmap(i/len(hues)), label=h, hatch=hatch_list[i])
+                if type(palette)==dict:
+                    if hatch==True:
+                        ax.bar(keys, heights,width=0.5, bottom=bottom, color=palette[h], label=h, hatch=hatch_list[i])
+                    else:
+                        ax.bar(keys, heights,width=0.5, bottom=bottom, color=palette[h], label=h)
                 else:
-                    ax.bar(keys, heights,width=0.5, bottom=bottom, color=cmap(i/len(hues)), label=h)
+                    if hatch==True:
+                        ax.bar(keys, heights,width=0.5, bottom=bottom, color=cmap(i/len(hues)), label=h, hatch=hatch_list[i])
+                    else:
+                        ax.bar(keys, heights,width=0.5, bottom=bottom, color=cmap(i/len(hues)), label=h)
                 if show_values==True:
                     for j in range(len(keys)):
                         if scale=="absolute":
@@ -1690,11 +1709,13 @@ def stacked_barplot(df: pd.DataFrame,
                         else:
                             ax.text(j,bottom[j]+heights[j]/2,"{:.2f}{}".format(heights[j],unit), 
                                  bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="y", lw=1, alpha=0.8))
-                ax.set_xticks(ax.get_xticks())
-                ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
+                
                 pos[_x][_hue][h]={key: [he, bo] for key, he, bo in zip(keys, heights, bottom)}
                 bottom+=heights
-            ax.legend(loc=[1.01,0])
+            ax.set_xticks(ax.get_xticks(), labels=keys, rotation=rotation)
+            #ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
+            if show_legend==True:
+                ax.legend(loc=[1.01,0])
             ax.set_xlabel(_x)
             if scale=="absolute":
                 ylabel="Counts"
@@ -1743,11 +1764,12 @@ def stacked_barplot(df: pd.DataFrame,
                             else:
                                 pval_str="ns"
                             _line_annotate( "mlp="+pval_str, line, (idx1+idx2)/2, color="magenta")
-                                
-                                
-    plt.tight_layout(w_pad=2)
+    if len(x)==1 and len(hue)==1:
+        plt.subplots_adjust(top=0.93,left=0.1,right=0.7, bottom=0.17)                            
+    else:
+        plt.tight_layout(w_pad=2)
     
-    if title !="":
+    if title !="" and fig !=None:
         fig.suptitle(title)
     if show:
         plt.show()
@@ -2040,7 +2062,8 @@ def decomplot(df: pd.DataFrame,
               save: str="",
               title: str="",
               barrierfree: bool=True,
-              saveparam: dict={}) :
+              saveparam: dict={},
+              ax: Optional[plt.Axes]=None,) :
     
     """
     Decomposing data and drawing a scatter plot and some plots for explained variables. 
@@ -2283,7 +2306,7 @@ def manifoldplot(df: pd.DataFrame,
                  figsize=[5,5],
                  title: str="",
                  param: dict={},
-                 save: str="",
+                 save: str="",ax: Optional[plt.Axes]=None,
                  **kwargs):
     """
     Reducing the dimensionality of data and drawing a scatter plot. 
@@ -2390,7 +2413,7 @@ def clusterplot(df,
                 palette=["Spectral","cubehelix"],
                 save: str="",
                 title: str="",
-                barrierfree: bool=True,
+                barrierfree: bool=True,ax: Optional[plt.Axes]=None,
                 piesize_scale: float=0.02,**kwargs)->Dict:
     """
     Clustering data and draw them as a scatter plot optionally with dimensionality reduction.  
@@ -2869,7 +2892,7 @@ def regression_single(df,
                       xunit: str="",
                       yunit: str="",
                       title: str="",
-                      random_state: int=42,
+                      random_state: int=42,ax: Optional[plt.Axes]=None,
                       save: str="") -> Dict:
     """
     Drawing a scatter plot with a single variable linear regression.  
@@ -3237,6 +3260,10 @@ def pie_scatter(df: pd.DataFrame,
     else:
         ax.legend(handles=legend_elements,bbox_to_anchor=bbox_to_anchor)
     ax.set_title(title)
+    if yunit!="":
+        ax.text(0, 1, "({})".format(yunit), transform=ax.transAxes, ha="right")
+    if xunit!="":
+        ax.text(1, 0, "({})".format(xunit), transform=ax.transAxes, ha="left",va="top")
     _save(save, "pie_scatter")
     return {"axes":ax}
 
@@ -3265,6 +3292,7 @@ if __name__=="__main__":
     test="stacked"
     test="stackedlines"
     test="correlation"
+    test="stacked"
     if test=="stackedlines":
         f="/media/koh/grasnas/home/data/omniplot/energy/owid-energy-data.csv"
         df=pd.read_csv(f)
@@ -3407,6 +3435,8 @@ if __name__=="__main__":
                                                                         ["Chinstrap","Gentoo","Adelie"],
                                                                         ["Dream","Biscoe","Torgersen"]],
                          test_pairs=[["Adelie","Gentoo"]], hatch=True)
+        stacked_barplot(df, x="species",
+                         hue="sex", scale="percentage", hatch=True)
         plt.show()
     elif test=="pie_scatter":
         f="/home/koh/ews/omniplot/data/energy_vs_gdp.csv"
