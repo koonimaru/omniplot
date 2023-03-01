@@ -12,3 +12,6 @@ joblib
 pyranges
 ray
 intervaltree
+networkx
+datashader
+python-louvain
