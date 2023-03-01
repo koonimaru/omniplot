@@ -1518,10 +1518,14 @@ def stacked_barplot(df: pd.DataFrame,
         The order of hue labels
     scale: str, optional
         Scaling method. Available options are: fraction, percentage, absolute
-    test_pairs : pairs of categorical values related to x. It will calculate -log10 (p value) (mlp) of the fisher exact test.
+    test_pairs : list, optional
+        pairs of categorical values related to x. It will calculate -log10 (p value) (mlp) of the fisher exact test.
         Examples: [["Adelie","Chinstrap" ],
                     ["Gentoo","Chinstrap" ],
                     ["Adelie","Gentoo" ]]
+    palette : str or dict, optional (default: "tab20c")
+        A matplotlib colormap name or dictionary in which keys are values of the hue category and values are RGB array.
+        e.g.) palette={""}
     show_values: bool, optional
         Wheter to exhibit the values of fractions/counts/percentages.
     

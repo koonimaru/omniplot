@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
-import pyBigWig as pwg
+
 import os 
 import scipy.stats
 from scipy.spatial.distance import squareform, pdist
@@ -41,6 +41,13 @@ import time
 import pyranges as pr
 import warnings
 import sys
+
+try:
+    import pyBigWig as pwg
+except:
+    raise Exception("If you want to use chipseq functions. You need to install pyBigWig.")
+
+
 def plot_bigwig(files: dict, 
                 bed: Union[str, list], 
                 gff: str,

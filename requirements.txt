@@ -11,5 +11,4 @@ natsort
 joblib
 pyranges
 ray
-pyBigWig
 intervaltree

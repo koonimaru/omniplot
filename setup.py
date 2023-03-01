@@ -71,7 +71,7 @@ setup(
                       "statsmodels",
                       "natsort",
                       "joblib","pyranges",
-                      "ray","pyBigWig",
+                      "ray",
                       "intervaltree"
                       ],
     long_description=open('README.md').read(),
