@@ -380,7 +380,8 @@ def pienodes(g: igraph.Graph,
              node_label: str="all",
              piesize: Optional[float]=None,
              label_color: str="black",
-             figsize: list=[],save: str="",
+             figsize: list=[],
+             save: str="",
              **kwargs) -> Dict: 
     """
     Drawing a network whose noses are pie charts.
@@ -529,6 +530,7 @@ def pienodes(g: igraph.Graph,
                       for ul in unique_labels]
     
     ax.legend(handles=legend_elements,bbox_to_anchor=(0.95, 1))
+    _save(save, "pienodes")
     return {"axes":ax}
 
 

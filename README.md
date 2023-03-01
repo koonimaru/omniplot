@@ -25,6 +25,7 @@ cd omniplot
 pip install .
 ```
 or 
+
 ```bash
 pip install cython
 pip install git+https://github.com/koonimaru/omniplot.git

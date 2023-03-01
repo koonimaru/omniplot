@@ -1157,7 +1157,8 @@ def violinplot(df,
                equal_var: bool=False, 
                yunit: str="",
                title: str="",
-               save: str="",**kwargs):
+               save: str="",
+               ax: Optional[plt.Axes]=None,**kwargs):
     """
     Draw a boxplot with a statistical test 
     
@@ -1488,15 +1489,17 @@ def stacked_barplot(df: pd.DataFrame,
                     order: Optional[list]=None,
                     hue_order: Optional[list]=None,
                     test_pairs: List[List[str]]=[],
-                    palette: str="tab20b",
+                    palette: Union[str,dict]="tab20c",
                     show_values: bool=True,
                     show: bool=False,
-                    figsize: List[int]=[4,6],
+                    figsize: List[int]=[],
                     xunit: str="",
                     yunit: str="",
                     title: str="",
                     hatch: bool=False,
-                    rotation: int=90)-> Dict:
+                    rotation: int=90,
+                    ax: Optional[plt.Axes]=None,
+                    show_legend:bool=True)-> Dict:
     
     """
     Drawing a stacked barplot with or without the fisher's exact test 
@@ -1561,15 +1564,18 @@ def stacked_barplot(df: pd.DataFrame,
 
     xkeys={}
     keysx={}
+    meankey_len=0
     for i, _x in enumerate(x):
         if order==None:
             u=np.unique(df[_x])
             keys=sorted(list(u))
         else:
             keys=order[i]
+        meankey_len+=len(keys)
         xkeys[_x]=keys
         for k in keys:
             keysx[k]=_x
+    meankey_len=meankey_len//len(x)
     huekeys={}
     for i, _hue in enumerate(hue):
         if hue_order==None:
@@ -1643,15 +1649,20 @@ def stacked_barplot(df: pd.DataFrame,
                     continue
                 for key in keys:
                     data[_x][_hue][key]=np.array(data[_x][_hue][key])/np.sum(data[_x][_hue][key])*100
-    
-    cmap=plt.get_cmap(palette)
+    if type(palette)==str:
+        cmap=plt.get_cmap(palette)
+        
     ncols=len(x)*len(hue)-len(set(x)&set(hue))
     if ncols<1:
         ncols=1
-        
-    figsize=[4*ncols, 6]
-    fig, axes=plt.subplots(figsize=figsize,ncols=ncols)
-    #plt.subplots_adjust(left=0.2,right=0.6, bottom=0.17)
+    if len(figsize)==0:
+        figsize=[(4+0.1*meankey_len)*ncols, 6]
+    if ax!=None:
+        axes=ax
+        fig=None
+    else:
+        fig, axes=plt.subplots(figsize=figsize,ncols=ncols)
+    
     if ncols==1:
         axes=[axes]
     else:
@@ -1680,10 +1691,16 @@ def stacked_barplot(df: pd.DataFrame,
                 
                 heights=np.array([data[_x][_hue][key][i] for key in keys])
                 
-                if hatch==True:
-                    ax.bar(keys, heights,width=0.5, bottom=bottom, color=cmap(i/len(hues)), label=h, hatch=hatch_list[i])
+                if type(palette)==dict:
+                    if hatch==True:
+                        ax.bar(keys, heights,width=0.5, bottom=bottom, color=palette[h], label=h, hatch=hatch_list[i])
+                    else:
+                        ax.bar(keys, heights,width=0.5, bottom=bottom, color=palette[h], label=h)
                 else:
-                    ax.bar(keys, heights,width=0.5, bottom=bottom, color=cmap(i/len(hues)), label=h)
+                    if hatch==True:
+                        ax.bar(keys, heights,width=0.5, bottom=bottom, color=cmap(i/len(hues)), label=h, hatch=hatch_list[i])
+                    else:
+                        ax.bar(keys, heights,width=0.5, bottom=bottom, color=cmap(i/len(hues)), label=h)
                 if show_values==True:
                     for j in range(len(keys)):
                         if scale=="absolute":
@@ -1697,7 +1714,8 @@ def stacked_barplot(df: pd.DataFrame,
                 bottom+=heights
             ax.set_xticks(ax.get_xticks(), labels=keys, rotation=rotation)
             #ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
-            ax.legend(loc=[1.01,0])
+            if show_legend==True:
+                ax.legend(loc=[1.01,0])
             ax.set_xlabel(_x)
             if scale=="absolute":
                 ylabel="Counts"
@@ -1746,11 +1764,12 @@ def stacked_barplot(df: pd.DataFrame,
                             else:
                                 pval_str="ns"
                             _line_annotate( "mlp="+pval_str, line, (idx1+idx2)/2, color="magenta")
-                                
-                                
-    plt.tight_layout(w_pad=2)
+    if len(x)==1 and len(hue)==1:
+        plt.subplots_adjust(top=0.93,left=0.1,right=0.7, bottom=0.17)                            
+    else:
+        plt.tight_layout(w_pad=2)
     
-    if title !="":
+    if title !="" and fig !=None:
         fig.suptitle(title)
     if show:
         plt.show()
@@ -2043,7 +2062,8 @@ def decomplot(df: pd.DataFrame,
               save: str="",
               title: str="",
               barrierfree: bool=True,
-              saveparam: dict={}) :
+              saveparam: dict={},
+              ax: Optional[plt.Axes]=None,) :
     
     """
     Decomposing data and drawing a scatter plot and some plots for explained variables. 
@@ -2286,7 +2306,7 @@ def manifoldplot(df: pd.DataFrame,
                  figsize=[5,5],
                  title: str="",
                  param: dict={},
-                 save: str="",
+                 save: str="",ax: Optional[plt.Axes]=None,
                  **kwargs):
     """
     Reducing the dimensionality of data and drawing a scatter plot. 
@@ -2394,7 +2414,9 @@ def clusterplot(df,
                 save: str="",
                 title: str="",
                 barrierfree: bool=True,
-                piesize_scale: float=0.02,**kwargs)->Dict:
+                ax: Optional[plt.Axes]=None,
+                piesize_scale: float=0.02,
+                min_cluster_size: int=10,**kwargs)->Dict:
     """
     Clustering data and draw them as a scatter plot optionally with dimensionality reduction.  
     
@@ -2636,8 +2658,8 @@ def clusterplot(df,
         plt.plot(newK, scores, '-')
         
         for i in range(topn_cluster_num):
-            plt.plot([newK[srtindex[i]],newK[srtindex[i]]],[0,np.amax(scores)], "--", color="r")
-            plt.text(newK[srtindex[i]], np.amax(scores)*0.95, "N="+str(newK[srtindex[i]]))
+            plt.plot([_K[srtindex[i]],_K[srtindex[i]]],[0,np.amax(scores)], "--", color="r")
+            plt.text(_K[srtindex[i]], np.amax(scores)*0.95, "N="+str(newK[srtindex[i]]))
         plt.xticks(newK)
         plt.xlabel('eps')
         plt.ylabel('Silhouette scores')
@@ -2646,6 +2668,66 @@ def clusterplot(df,
         _n_clusters=[ newK[i] for i in range(topn_cluster_num)]
         print("Top two optimal cluster No are:", _n_clusters)
         eps=[_K[i] for i in srtindex[:topn_cluster_num]]
+        _save(save, method)
+        
+    elif n_clusters=="auto" and method=="hdbscan":
+        try:
+            import hdbscan
+        except ImportError:
+            from pip._internal import main as pip
+            pip(['install', '--user', 'hdbscan'])
+            import hdbscan
+        
+        from sklearn.neighbors import NearestNeighbors
+        neigh = NearestNeighbors(n_neighbors=2)
+        nbrs = neigh.fit(X)
+        distances, indices = nbrs.kneighbors(X)
+        distances = np.sort(distances[:,1], axis=0)
+
+        #K=np.linspace(0.01,1,10)
+        K=np.arange(2, 20,1)
+        print(K)
+        newK=[]
+        scores=[]
+        _K=[]
+        for k in K:
+            db = hdbscan.HDBSCAN(min_cluster_size=k, 
+                                 #cluster_selection_epsilon=k,
+                                 algorithm='best', 
+                                 alpha=1.0,leaf_size=40,
+                                metric='euclidean', min_samples=None, p=None, core_dist_n_jobs=-1)
+            dbX=db.fit(X)
+            labels=np.unique(dbX.labels_[dbX.labels_>=0])
+  
+            if len(labels)<2:
+                continue
+            _k=len(labels)
+            if not _k in newK:
+                newK.append(_k)
+                _K.append(k)
+                scores.append(silhouette_score(X[dbX.labels_>=0], dbX.labels_[dbX.labels_>=0], metric = 'euclidean')/_k)
+        
+        scores=np.array(scores)
+        
+        _ksort=np.argsort(newK)
+        _K=np.array(_K)[_ksort]
+        newK=np.array(newK)[_ksort]
+        scores=np.array(scores)[_ksort]
+        srtindex=np.argsort(scores)[::-1]
+        plt.subplots()
+        plt.plot(newK, scores, '-')
+        
+        for i in range(topn_cluster_num):
+            plt.plot([_K[srtindex[i]],_K[srtindex[i]]],[0,np.amax(scores)], "--", color="r")
+            plt.text(_K[srtindex[i]], np.amax(scores)*0.95, "N="+str(newK[srtindex[i]]))
+        plt.xticks(_K)
+        plt.xlabel('min_cluster_size')
+        plt.ylabel('Silhouette scores')
+        plt.title('Optimal cluster number searches by silhouette method')    
+
+        _n_clusters=[ newK[i] for i in range(topn_cluster_num)]
+        print("Top two optimal cluster No are:", _n_clusters)
+        min_cluster_size=[_K[i] for i in srtindex[:topn_cluster_num]]
         _save(save, method)
     else:
         n_clusters=[n_clusters]
@@ -2728,12 +2810,12 @@ def clusterplot(df,
             pip(['install', '--user', 'hdbscan'])
             import hdbscan
 
-        if type(eps)==float:
-            eps=[eps]
+        if type(min_cluster_size)==int:
+            min_cluster_size=[min_cluster_size]
         n_clusters=[]
         fuzzylabels=[]
-        for e in eps:
-            db = hdbscan.HDBSCAN(min_cluster_size=10, 
+        for e in min_cluster_size:
+            db = hdbscan.HDBSCAN(min_cluster_size=e,
                                  prediction_data=True,
                                  algorithm='best', 
                                  alpha=1.0, 
@@ -2817,7 +2899,7 @@ def clusterplot(df,
                 _title="HDBSCAN. Cluster num="+_K
             ax[0].set_title(_title, alpha=0.5)
             legend_elements = [Line2D([0], [0], marker='o', color='lavender', 
-                                      label="fuzzy"+str(i),
+                                      label=method+str(i),
                                       markerfacecolor=_cmap(i), 
                                       markersize=10)
                       for i in range(K)]
@@ -2872,7 +2954,7 @@ def regression_single(df,
                       xunit: str="",
                       yunit: str="",
                       title: str="",
-                      random_state: int=42,
+                      random_state: int=42,ax: Optional[plt.Axes]=None,
                       save: str="") -> Dict:
     """
     Drawing a scatter plot with a single variable linear regression.  
@@ -3272,7 +3354,7 @@ if __name__=="__main__":
     test="stacked"
     test="stackedlines"
     test="correlation"
-    test="stacked"
+    test="cluster"
     if test=="stackedlines":
         f="/media/koh/grasnas/home/data/omniplot/energy/owid-energy-data.csv"
         df=pd.read_csv(f)
@@ -3397,7 +3479,7 @@ if __name__=="__main__":
         #clusterplot(df,category=["species","sex"],method="hierarchical",n_clusters="auto")
         #clusterplot(df,category=["species","sex"],method="fuzzy",n_clusters="auto", piesize_scale=0.03,topn_cluster_num=3)
         #clusterplot(df,category=["species","sex"],method="hdbscan",eps=0.35)
-        clusterplot(df,category=["species","sex"],method="hierarchical",n_clusters="auto")
+        clusterplot(df,category=["species","sex"],method="hdbscan",n_clusters="auto")
         plt.show()
     elif test=="violinplot":
         df=sns.load_dataset("penguins")
@@ -3410,11 +3492,11 @@ if __name__=="__main__":
     elif test=="stacked": 
         df=sns.load_dataset("penguins")
         df=df.dropna(axis=0)
-        # stacked_barplot(df, x=["species","island"],
-        #                  hue=["sex","island"], scale="absolute", order=[
-        #                                                                 ["Chinstrap","Gentoo","Adelie"],
-        #                                                                 ["Dream","Biscoe","Torgersen"]],
-        #                  test_pairs=[["Adelie","Gentoo"]], hatch=True)
+        stacked_barplot(df, x=["species","island"],
+                         hue=["sex","island"], scale="absolute", order=[
+                                                                        ["Chinstrap","Gentoo","Adelie"],
+                                                                        ["Dream","Biscoe","Torgersen"]],
+                         test_pairs=[["Adelie","Gentoo"]], hatch=True)
         stacked_barplot(df, x="species",
                          hue="sex", scale="percentage", hatch=True)
         plt.show()
