@@ -692,7 +692,7 @@ def correlation(df: pd.DataFrame,
         try:
             import community
         except ImportError as e:
-            raise("can not import community. Try 'pip install louvain'")
+            raise Exception("can not import community. Try 'pip install python-louvain'")
         comm=community.best_partition(G, **clustering_param)
     
     elif clustering =="greedy_modularity":

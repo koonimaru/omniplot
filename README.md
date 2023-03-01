@@ -21,16 +21,16 @@ tools that allow users to draw complex plots, such as a scatter plot with PCA an
 omniplot best works with python3.8. But, greater python versions may be OK. Please try installation with conda, if something wrong with pip installation.
 
 ```bash
-pip install cython
-git clone https://github.com/koonimaru/omniplot.git
+pip install cython --user
+git clone https://github.com/koonimaru/omniplot.git --user
 cd omniplot
 pip install .
 ```
 or 
 
 ```bash
-pip install cython
-pip install git+https://github.com/koonimaru/omniplot.git
+pip install cython --user
+pip install git+https://github.com/koonimaru/omniplot.git --user
 ```
 or
 
@@ -40,6 +40,7 @@ cd omniplot
 conda env create -f environment.yml python=3.8
 conda activate omniplot
 ```
+And [this](https://ipython.readthedocs.io/en/stable/install/kernel_install.html#kernels-for-different-environments) is how to use conda environment in jupyerlab.
 
 Known issues:<br>
 If you get errors saying "error: invalid command 'bdist_wheel'", please try pip install --upgrade pip wheel setuptools
