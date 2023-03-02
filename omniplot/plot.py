@@ -66,7 +66,7 @@ def radialtree(df: pd.DataFrame,
         A wide format data. 
         
         
-    n_clusters: int
+    n_clusters: int, optional (default: 3)
         Approximate number of clusters to produce
     x: str, optional
         the name of columns containing sample names. If not provided, the index will be considered sample names.
@@ -169,7 +169,7 @@ def correlation(df: pd.DataFrame,
                 ztransform: bool=True,
                 xticklabels =False,
                 yticklabels=False,
-                title: str="",):
+                title: str="",)->Dict:
     """
     Drawing a heatmap with correlations or distances between observations 
     
@@ -603,8 +603,10 @@ def complex_clustermap(df: pd.DataFrame,
             g=sns.clustermap(df[variables],col_colors=_col_colors, 
                              row_colors=_row_colors,
                              method=method,xticklabels=xticklabels, yticklabels=yticklabels,
-                             figsize=figsize,dendrogram_ratio=0.1,cbar_kws={"label":ctitle},
+                             figsize=figsize,dendrogram_ratio=0.1,
+                             cbar_kws=dict(ticks=[0, 0.50, 1], orientation='horizontal'),
                              **kwargs)
+            
             g.ax_col_colors.invert_yaxis()
             g.ax_row_colors.invert_xaxis()
         elif len(_col_colors) >0:
@@ -615,11 +617,20 @@ def complex_clustermap(df: pd.DataFrame,
                              xticklabels=xticklabels, 
                              yticklabels=yticklabels,
                              dendrogram_ratio=0.1,
-                             figsize=figsize,cbar_kws={"label":ctitle},**kwargs)
+                             cbar_kws=dict(ticks=[0, 0.50, 1], orientation='horizontal'),
+                             figsize=figsize,**kwargs)
             g.ax_col_colors.invert_yaxis()
         elif len(_row_colors) >0:
-            g=sns.clustermap(df[variables],row_colors=_row_colors,method=method,cbar_kws={"label":ctitle},xticklabels=xticklabels, yticklabels=yticklabels,dendrogram_ratio=0.1,figsize=figsize,**kwargs)
+            g=sns.clustermap(df[variables],row_colors=_row_colors,method=method,
+                             xticklabels=xticklabels, yticklabels=yticklabels,dendrogram_ratio=0.1,figsize=figsize,
+                             cbar_kws=dict(orientation='horizontal'),
+                             **kwargs)
             g.ax_row_colors.invert_xaxis()
+
+        
+        #for spine in g.ax_cbar.spines:
+        #    g.ax_cbar.spines[spine].set_linewidth(2)
+
         
         rowplotcount=0
         colplotcount=0
@@ -878,6 +889,7 @@ def complex_clustermap(df: pd.DataFrame,
     
     
     """coloring the col dendrogram based on branch numbers crossed with the threshold"""
+    col_cdata=None
     if g.dendrogram_col != None:
         t=_dendrogram_threshold(g.dendrogram_col.dendrogram,approx_clusternum_col)
         den=hierarchy.dendrogram(g.dendrogram_col.linkage,
@@ -903,17 +915,24 @@ def complex_clustermap(df: pd.DataFrame,
                 col_cdata["Index"].append(_v)
                 col_cdata["RGB"].append(matplotlib.colors.to_rgb(c))
     """Setting the col dendrogram ends here"""
+    
+    
+    g.fig.subplots_adjust(bottom=0.175, right=0.70)
+    
+    x0, _y0, _w, _h = g.cbar_pos
+    
+    g.ax_cbar.set_title(ctitle)
+    #g.ax_cbar.tick_params(axis='x', length=5)
+    g.ax_cbar.set_position(pos=[0.80, 0.3, 0.1, 0.02], which="both")
     if title !="":
         g.fig.suptitle(title, va="bottom")
     plt.setp(g.ax_heatmap.xaxis.get_majorticklabels(), rotation=90)
-    plt.subplots_adjust(bottom=0.165, right=0.75)
+   
     _save(save, "complex_clustermap")
     if show:
         plt.show()
-    if return_col_cluster==True:
-        return {"data":g.data2d,"row_clusters":pd.DataFrame(cdata),"col_clusters":pd.DataFrame(col_cdata), "grid":g}
-    else:
-        return {"data":g.data2d,"row_clusters":pd.DataFrame(cdata),"col_clusters":None, "grid":g}
+    return {"data":g.data2d,"row_clusters":pd.DataFrame(cdata),"col_clusters":pd.DataFrame(col_cdata), "grid":g}
+ 
 
 def dotplot(df: pd.DataFrame,
             y: str="",
@@ -2397,7 +2416,7 @@ def manifoldplot(df: pd.DataFrame,
     _save(save, method_dict[method])
     return {"data": dft, "axes": axes}
 
-def clusterplot(df,
+def clusterplot(df: pd.DataFrame,
                 variables: List=[],
                 category: Union[List[str], str]="", 
                 method: str="kmeans",
@@ -3358,7 +3377,7 @@ if __name__=="__main__":
     test="stacked"
     test="stackedlines"
     test="correlation"
-    test="cluster"
+    test="correlation"
     if test=="stackedlines":
         f="/media/koh/grasnas/home/data/omniplot/energy/owid-energy-data.csv"
         df=pd.read_csv(f)
