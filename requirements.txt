@@ -15,3 +15,4 @@ intervaltree
 networkx
 datashader
 python-louvain
+skfuzzy
