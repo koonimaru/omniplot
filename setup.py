@@ -72,7 +72,7 @@ setup(
                       "natsort",
                       "joblib","pyranges",
                       "ray",
-                      "intervaltree","networkx","datashader","python-louvain","skfuzzy"
+                      "intervaltree","networkx","datashader","python-louvain"
                       ],
     long_description=open('README.md').read(),
 )
