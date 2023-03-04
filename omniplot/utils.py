@@ -19,6 +19,13 @@ sns.set_theme()
 from matplotlib.text import Annotation
 from matplotlib.transforms import Affine2D
 import os 
+
+__all__=["_create_color_markerlut", 
+         "_separate_data", "_line_annotate", "_dendrogram_threshold", "_radialtree2",
+         "_get_cluster_classes","_calc_curveture", "_draw_ci_pi","_calc_r2",
+         "_ci_pi", "_save", "_baumkuchen_xy", "_get_embedding"]
+
+
 class LineAnnotation(Annotation):
     """A sloped annotation to *line* at position *x* with *text*
     Optionally an arrow pointing from the text to the graph at *x* can be drawn.
@@ -983,3 +990,17 @@ def _separate_data(df, variables=[],
         or you can specify the numeric variables with the option 'variables'.")
         
     return x, category
+
+def _create_color_markerlut(df, cat, palette, markers=[]):
+    color_lut={}
+    marker_lut={}
+
+    uniq_labels=sorted(list(set(df[cat])))
+    _cmap=plt.get_cmap(palette, len(uniq_labels))
+    
+    color_lut={u: _cmap(i) for i, u in enumerate(uniq_labels)}
+    if len(markers)!=0:
+        marker_lut={u: markers[i] for i, u in enumerate(uniq_labels)}
+
+    return color_lut, marker_lut
+

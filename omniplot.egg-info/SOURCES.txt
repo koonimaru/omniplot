@@ -9,7 +9,9 @@ omniplot/igraph_classes.py
 omniplot/networkplot.py
 omniplot/plot.py
 omniplot/plot_classes.py
+omniplot/proportion.py
 omniplot/regressionplot.py
+omniplot/scatter.py
 omniplot/statistics.py
 omniplot/utils.py
 omniplot.egg-info/PKG-INFO
