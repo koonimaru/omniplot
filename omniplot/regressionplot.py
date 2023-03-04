@@ -219,7 +219,59 @@ def regression_single(df,
             plt.plot(plotline_X.flatten(),y_line)
     return ax, {"coefficient":coef,"intercept":intercept,"coefficient_pval":coef_p, "r2":r2}
 
-def regression_single_nonlinear():
+def regression_single_polynomial(df: pd.DataFrame, 
+                      x: str,
+                      y: str, 
+                      method: str="ransac",
+                      category: str="", 
+                      figsize: List[int]=[5,5],
+                      show=False, ransac_param={"max_trials":1000},
+                      robust_param={},
+                      xunit: str="",
+                      yunit: str="",
+                      title: str="",
+                      random_state: int=42,ax: Optional[plt.Axes]=None,
+                      save: str="") -> Dict:
+    """
+    Drawing a scatter plot with a single variable linear regression.  
+    
+    Parameters
+    ----------
+    df : pandas DataFrame
+    
+    x: str
+        the column name of x axis. 
+    y: str
+        the column name of y axis. 
+
+    method: str
+        Method name for regression. Default: ransac
+        Available methods: ["ransac", 
+                            "robust",
+                            "lasso","elastic_net"
+                            ]
+    figsize: list[int]
+        figure size
+    show : bool
+        Whether or not to show the figure.
+    
+    Returns
+    -------
+    dict: dict {"axes":ax, "coefficient":coef,"intercept":intercept,"coefficient_pval":coef_p, "r2":r2, "fitted_model":fitted_model}
+    
+        fitted_model:
+            this can be used like: y_predict=fitted_model.predict(_X)
+    Raises
+    ------
+    Notes
+    -----
+    References
+    ----------
+    See Also
+    --------
+    Examples
+    --------
+    """ 
     pass
 
 

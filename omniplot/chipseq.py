@@ -44,9 +44,11 @@ import sys
 
 try:
     import pyBigWig as pwg
-except:
-    raise Exception("If you want to use chipseq functions. You need to install pyBigWig.")
-
+except ImportError as e:
+    print("If you want to use chipseq functions. You need to install pyBigWig.")
+except Exception as err:
+    print(f"Unexpected {err=}, {type(err)=}")
+    raise
 
 def plot_bigwig(files: dict, 
                 bed: Union[str, list], 
@@ -1443,9 +1445,9 @@ if __name__=="__main__":
     test="plot_bed_correlation"
     
     test="plot_average"
-    test="plot_genebody"
+    #test="plot_genebody"
     #test="call_superenhancer"
-    test="plot_genebody"
+    #test="plot_genebody"
     import glob
     
     if test=="plot_bed_correlation":
