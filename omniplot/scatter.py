@@ -1016,7 +1016,8 @@ def decomplot(df: pd.DataFrame,
                         figures[cat]["axes"][axi].text(_loadings[k, 0],_loadings[k, 1],feature,color=arrow_text_color)
             else:
                 sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, ax=figures["nocat"][axi],palette=palette)
-                _scatter(dfpc, xlabel,ylabel, cat, figures["nocat"][axi], lut, barrierfree, size)
+                # cat=None
+                # _scatter(dfpc, xlabel,ylabel, cat, figures["nocat"][axi], lut, barrierfree, size)
                 for k, feature in enumerate(_features):
                     #ax.plot([0,_loadings[k, 0] ], [0,_loadings[k, 1] ],color=arrow_color)
                     figures["nocat"][axi].arrow(0, 0, _loadings[k, 0],_loadings[k, 1],color=arrow_color,width=0.005,head_width=0.1)
@@ -1078,8 +1079,9 @@ def decomplot(df: pd.DataFrame,
                         figures[cat]["axes"][axi].legend(bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0,palette=palette)
 
             else:
-                # sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=category, ax=figures["nocat"][axi],palette=palette)
-                _scatter(dfpc, xlabel,ylabel, cat, figures["nocat"][axi], lut, barrierfree, size)
+                sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=category, ax=figures["nocat"][axi],palette=palette)
+                # cat=None
+                # _scatter(dfpc, xlabel,ylabel, cat, figures["nocat"][axi], lut, barrierfree, size)
             dfpc_list.append(dfpc)
             combnum+=1
         if len(category)!=0:
@@ -1147,8 +1149,10 @@ def manifoldplot(df: pd.DataFrame,
                  figsize=[5,5],
                  title: str="",
                  param: dict={},
-                 save: str="",ax: Optional[plt.Axes]=None,
+                 save: str="",
+                 ax: Optional[plt.Axes]=None,
                  palette="tab20c",
+                 markers: bool=False,size: float=10,
                  **kwargs):
     """
     Reducing the dimensionality of data and drawing a scatter plot. 
@@ -1208,7 +1212,20 @@ def manifoldplot(df: pd.DataFrame,
     "nca": "Neighborhood components analysis",
     "umap":"UMAP"}
     x, category=_separate_data(df, variables=variables, category=category)
-   
+    barrierfree=False
+    if type(markers)==bool:
+            
+        if markers==True:
+            barrierfree=True
+            markers=maker_list 
+        else: 
+            markers=[]
+    if len(category)!=0:
+        lut={}
+        for i, cat in enumerate(category):
+            _clut, _mlut=_create_color_markerlut(df, cat,palette,markers)
+            lut[cat]={"colorlut":_clut, "markerlut":_mlut}
+
     x=zscore(x, axis=0)
     features=df.columns
     original_index=df.index
@@ -1222,7 +1239,8 @@ def manifoldplot(df: pd.DataFrame,
         axes=axes.flatten()
         for cat,ax in zip(category, axes):
             dft[cat]=df[cat]
-            sns.scatterplot(data=dft, x="d1", y="d2", hue=cat, ax=ax,palette=palette,**kwargs)
+            _scatter(dft, "d1","d2", cat, ax, lut, barrierfree, size)
+            # sns.scatterplot(data=dft, x="d1", y="d2", hue=cat, ax=ax,palette=palette,**kwargs)
     else:
         fig, axes=plt.subplots(figsize=figsize)
         sns.scatterplot(data=dft, x="d1", y="d2", ax=axes,palette=palette,**kwargs)
