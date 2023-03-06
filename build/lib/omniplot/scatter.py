@@ -175,17 +175,6 @@ def clusterplot(df: pd.DataFrame,
         normy=1-normy
         normx=np.linspace(0,1, len(K))
         perp=_calc_curveture(normx, normy)
-        # perp=[]
-        # for i, (nx, ny) in enumerate(zip(normx, normy)):
-        #     if i==0:
-        #         perp.append(0)
-        #         continue
-        #     r=(nx**2+ny**2)**0.5
-        #     sina=ny/r
-        #     cosa=nx/r
-        #     sinamb=sina*np.cos(np.pi*0.25)-cosa*np.sin(np.pi*0.25)
-        #     perp.append(r*sinamb)
-        # perp=np.array(perp)
         srtindex=np.argsort(perp)[::-1]
         plt.subplots()
         plt.plot(K, Sum_of_squared_distances, '-', label='Sum of squared distances')
@@ -529,6 +518,8 @@ def clusterplot(df: pd.DataFrame,
                         
         lut={}
         for i, cat in enumerate(category):
+            if df[cat].dtype==float :
+                continue 
             _clut, _mlut=_create_color_markerlut(df, cat,palette[1],markers)
             lut[cat]={"colorlut":_clut, "markerlut":_mlut}
  
@@ -594,18 +585,20 @@ def clusterplot(df: pd.DataFrame,
                 for i, cat in enumerate(category):
                     dfnew[cat]=df[cat]
                     #sns.scatterplot(data=dfnew,x=x,y=y,hue=cat, ax=ax[i+2], palette=palette[1], s=size,**kwargs)
-                    if barrierfree==True:
+                    if dfnew[cat].dtype==float :
+                        sc=ax[i+1].scatter(dfnew[x], dfnew[y], c=dfnew[cat], s=size)
+                        plt.colorbar(sc,ax=ax[i+1], label=cat, shrink=0.3,aspect=5,orientation="vertical")
+                    elif barrierfree==True:
                         
                         for key in lut[cat]["colorlut"].keys():
                             _dfnew=dfnew.loc[dfnew[cat]==key]
                             ax[i+2].scatter(_dfnew[x], _dfnew[y], color=lut[cat]["colorlut"][key], marker=lut[cat]["markerlut"][key], label=key)
-                        ax[i+2].legend(title=key)
-                        
+                        ax[i+2].legend(title=cat)
                     else:
                         for key in lut[cat]["colorlut"].keys():
                             _dfnew=dfnew.loc[dfnew[cat]==key]
                             ax[i+2].scatter(_dfnew[x], _dfnew[y], color=lut[cat]["colorlut"][key], label=key, s=size)
-                        ax[i+2].legend(title=key)
+                        ax[i+2].legend(title=cat)
 
 
 
@@ -645,18 +638,22 @@ def clusterplot(df: pd.DataFrame,
             if len(category)!=0:
                 for i, cat in enumerate(category):
                     dfnew[cat]=df[cat]
-                    if barrierfree==True:
+
+                    if dfnew[cat].dtype==float :
+                        sc=ax[i+1].scatter(dfnew[x], dfnew[y], c=dfnew[cat], label=key, s=size)
+                        plt.colorbar(sc,ax=ax[i+1], label=cat, shrink=0.3,aspect=5,orientation="vertical")
+                    elif barrierfree==True:
                         
                         for key in lut[cat]["colorlut"].keys():
                             _dfnew=dfnew.loc[dfnew[cat]==key]
                             ax[i+1].scatter(_dfnew[x], _dfnew[y], color=lut[cat]["colorlut"][key], marker=lut[cat]["markerlut"][key], label=key)
-                        
+                        ax[i+1].legend(title=cat)
                         
                     else:
                         for key in lut[cat]["colorlut"].keys():
                             _dfnew=dfnew.loc[dfnew[cat]==key]
                             ax[i+1].scatter(_dfnew[x], _dfnew[y], color=lut[cat]["colorlut"][key], label=key, s=size)
-                    ax[i+1].legend(title=cat)
+                        ax[i+1].legend(title=cat)
                         
             _dfnews[K]=dfnew
     _save(save, method+"_scatter")
@@ -937,7 +934,7 @@ def decomplot(df: pd.DataFrame,
                         
         lut={}
         for i, cat in enumerate(category):
-            _clut, _mlut=_create_color_markerlut(df, cat,palette[1],markers)
+            _clut, _mlut=_create_color_markerlut(df, cat,palette,markers)
             lut[cat]={"colorlut":_clut, "markerlut":_mlut}
 
 
