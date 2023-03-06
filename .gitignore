@@ -1,2 +1,12 @@
 /test/
 tests/tests.py
+.vscode/launch.json
+.vscode/settings.json
+docs/conf.py
+docs/index.rst
+docs/make.bat
+docs/Makefile
+docs/modules.rst
+docs/omniplot.scripts.rst
+docs/omniplot.rst
+docs/omniplot.cython_utils.rst

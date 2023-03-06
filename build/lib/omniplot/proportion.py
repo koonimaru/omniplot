@@ -232,6 +232,89 @@ def _stacked_barplot(df: pd.DataFrame,
     return {"pval":pvals,"axes":ax}
 
 
+def _float2hist(val, bin_num=10):
+    nans=np.isnan(val)
+    ranges=[]
+    allcounts=[]
+
+    if np.sum(nans)>0:
+        val=val[~nans]
+        nancount=np.sum(nans)
+        ranges.append("NA")
+        allcounts.append(nancount)
+
+    n=(np.amax(val)-np.amin(val))/bin_num
+    binsize=round(n,-round(np.log10(n)))
+    _n=np.abs(np.amin(val))
+    minval=round(_n,-round(np.log10(n)))
+    if np.amin(_val)<0:
+        minval-=binsize
+    _n=np.abs(np.amax(_val))
+    maxval=round(_n,-round(np.log10(n)))
+    bins=np.linspace(minval, maxval, bin_num+1)
+    counts, _=np.histogram(val, bins=bins)
+    for i in range(counts.shape[0]):
+        if np.abs(bins[i])<0.001 or np.abs(bins[i])>=10**3:
+            num1="{:.2E}".format(bins[i])
+            num2="{:.2E}".format(bins[i+1])
+        else:
+            num1=str(bins[i])
+            num2=str(bins[i+1])
+        ranges.append(num1+"-"+num2)
+        allcounts.append(counts[i])
+    return ranges, allcounts
+
+
+def _float2cat(val, bin_num=10):
+    nans=np.isnan(val)
+    if np.sum(nans)>0:
+        _val=val[~nans]
+    else:
+        _val=val
+    n=(np.amax(_val)-np.amin(_val))/bin_num
+    binsize=round(n,-round(np.log10(n)))
+    _n=np.abs(np.amin(_val))
+    minval=round(_n,-round(np.log10(n)))
+    if np.amin(_val)<minval:
+        
+
+        minval-=binsize
+        if np.amin(_val) >0 and minval <0:
+            minval=0
+    _n=np.abs(np.amax(_val))
+    maxval=round(_n,-round(np.log10(n)))
+    if maxval<np.amax(_val):
+        maxval+=binsize
+    bins=[ minval+i*binsize for i in range(bin_num) if minval+i*binsize<=maxval]
+    bindict={}
+    for b in bins[:-1]:
+        if binsize<0.001 or binsize>=10**3:
+            num1="{:.2E}".format(b)
+            num2="{:.2E}".format(b+binsize)
+        else:
+            num1=str(b)
+            num2=str(b+binsize)
+        bindict[b]=num1+"-"+num2
+    val_string=[]
+
+    for v in val:
+        if np.isnan(v)==True:
+            val_string.append("NA")
+        else:
+            label=""
+            for i in range(len(bins)-1):
+                if bins[i] <=v< bins[i]+binsize:
+                    label=bindict[bins[i]]
+                    break
+            if label=="":
+                if v==maxval:
+                    label=bindict[bins[i]]
+            val_string.append(label)
+
+    return val_string
+
+
+
 def stacked_barplot(df: pd.DataFrame,
                     x: Union[str, list],
                     hue: Union[str, list],
@@ -249,7 +332,8 @@ def stacked_barplot(df: pd.DataFrame,
                     hatch: bool=False,
                     rotation: int=90,
                     ax: Optional[plt.Axes]=None,
-                    show_legend:bool=True)-> Dict:
+                    show_legend:bool=True,
+                    bin_num: Union[dict, int]=10)-> Dict:
     
     """
     Drawing a stacked barplot with or without the fisher's exact test 
@@ -259,7 +343,8 @@ def stacked_barplot(df: pd.DataFrame,
     df : pandas DataFrame
     
     x: str or list
-        The category to place in x axis. Multiple categories can be passed by a list.
+        The category to place in x axis. Multiple categories can be passed by a list. 
+        It mainly works with categorical values, including strings boolians and integers, but also can take float values by automatically creating a histogram.
     hue: str or list
         Counting samples by the hue category. Multiple categories can be passed by a list.
     order: list, optional
@@ -284,7 +369,20 @@ def stacked_barplot(df: pd.DataFrame,
     
     figsize : List[int], optional
         The figure size, e.g., [4, 6].
-     
+    title: str optional, (default:"")
+        The title of the figure.
+    hatch: bool, optional (default: False)
+        Adding hatches to the bars
+    rotation: int, optional (default:90)
+        The orientation of the x axis labels.
+    ax: plt.Axes, optional (default: None)
+        The ax object to be plotted.
+    show_legend: bool, optional (default: True)
+        Whether to show legends.
+    bin_num: dict, int, optional (default: 10)
+        A histogram bin number when columns with float values are selected. 
+        You can specify the bin number of each column by using dictionary (e.g., bin_num={"A":10,"B",5}).
+
     Returns
     -------
     dict {"pval":pvals,"axes":ax}
@@ -309,17 +407,31 @@ def stacked_barplot(df: pd.DataFrame,
         hue=[hue]
         if hue_order!=None:
             hue_order=[hue_order]
+    
     for _x in x:
-        if df[_x].isnull().values.any():
+
+        if df[_x].dtype==float:
+            if type(bin_num)==dict:
+                df[_x]=_float2cat(df[_x].values,bin_num=bin_num[_x])
+            else:
+                df[_x]=_float2cat(df[_x].values,bin_num=bin_num)
+
+        elif df[_x].isnull().values.any():
             df[_x]=df[_x].replace(np.nan, "NA")
     for _hue in hue:
-        if df[_hue].isnull().values.any():
-            df[_hue]=df[_hue].replace(np.nan, "NA")
+        if df[_hue].dtype==float:
+            if type(bin_num)==dict:
+                df[_hue]=_float2cat(df[_hue].values,bin_num=bin_num[_x])
+            else:
+                df[_hue]=_float2cat(df[_hue].values,bin_num=bin_num)
 
-    xkeys={}
-    keysx={}
+        elif df[_hue].isnull().values.any():
+            df[_hue]=df[_hue].replace(np.nan, "NA")
+    data: dict={}
+    xkeys: dict={}
+    keysx: dict={}
     meankey_len=0
-    for i, _x in enumerate(x):
+    for i, _x in enumerate(x):              
         if order==None:
             u=np.unique(df[_x])
             keys=sorted(list(u))
@@ -340,7 +452,7 @@ def stacked_barplot(df: pd.DataFrame,
             hues=hue_order[i]
         huekeys[_hue]=hues
     
-    data={}
+    
     for _x, keys in xkeys.items():
         data[_x]={}
         for key in keys:
@@ -469,7 +581,7 @@ def stacked_barplot(df: pd.DataFrame,
             ax.set_xticks(ax.get_xticks(), labels=keys, rotation=rotation)
             #ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
             if show_legend==True:
-                ax.legend(loc=[1.01,0])
+                ax.legend(title=_hue,loc=[1.01,0])
             ax.set_xlabel(_x)
             if scale=="absolute":
                 ylabel="Counts"

@@ -515,16 +515,17 @@ def clusterplot(df: pd.DataFrame,
             dfnews.append(dfnew)
         hue="fuzzy"
     
-
-    if len(category)!=0:
-        barrierfree=False
-        if type(markers)==bool:
+    barrierfree=False
+    if type(markers)==bool:
             
-            if markers==True:
-                barrierfree=True
-                markers=maker_list 
-            else: 
-                markers=[]
+        if markers==True:
+            barrierfree=True
+            markers=maker_list 
+        else: 
+            markers=[]
+    if len(category)!=0:
+        
+        
                         
         lut={}
         for i, cat in enumerate(category):
