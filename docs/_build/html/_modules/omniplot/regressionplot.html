@@ -1,0 +1,483 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>omniplot.regressionplot &mdash; omniplot 0.3.0 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> omniplot
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">omniplot</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+        
+      <li>omniplot.regressionplot</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for omniplot.regressionplot</h1><div class="highlight"><pre>
+<span></span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">seaborn</span> <span class="k">as</span> <span class="nn">sns</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">from</span> <span class="nn">matplotlib</span> <span class="kn">import</span> <span class="n">cm</span>
+<span class="kn">from</span> <span class="nn">matplotlib.lines</span> <span class="kn">import</span> <span class="n">Line2D</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span>
+<span class="kn">import</span> <span class="nn">matplotlib.colors</span>
+<span class="kn">import</span> <span class="nn">sys</span> 
+<span class="kn">import</span> <span class="nn">matplotlib</span> <span class="k">as</span> <span class="nn">mpl</span>
+<span class="kn">from</span> <span class="nn">scipy.spatial.distance</span> <span class="kn">import</span> <span class="n">pdist</span><span class="p">,</span> <span class="n">squareform</span>
+<span class="kn">from</span> <span class="nn">scipy.stats</span> <span class="kn">import</span> <span class="n">zscore</span>
+<span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">combinations</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="n">script_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span> <span class="vm">__file__</span> <span class="p">)</span>
+<span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="n">script_dir</span> <span class="p">)</span>
+<span class="kn">from</span> <span class="nn">utils</span> <span class="kn">import</span> <span class="n">_dendrogram_threshold</span><span class="p">,</span> <span class="n">_radialtree2</span><span class="p">,</span><span class="n">_get_cluster_classes</span><span class="p">,</span><span class="n">_calc_curveture</span><span class="p">,</span> <span class="n">_draw_ci_pi</span><span class="p">,</span><span class="n">_calc_r2</span><span class="p">,</span><span class="n">_ci_pi</span>
+<span class="kn">import</span> <span class="nn">scipy.stats</span> <span class="k">as</span> <span class="nn">stats</span>
+
+<span class="n">colormap_list</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;nipy_spectral&quot;</span><span class="p">,</span> <span class="s2">&quot;terrain&quot;</span><span class="p">,</span><span class="s2">&quot;tab20b&quot;</span><span class="p">,</span><span class="s2">&quot;gist_rainbow&quot;</span><span class="p">,</span><span class="s2">&quot;CMRmap&quot;</span><span class="p">,</span><span class="s2">&quot;coolwarm&quot;</span><span class="p">,</span><span class="s2">&quot;gnuplot&quot;</span><span class="p">,</span><span class="s2">&quot;gist_stern&quot;</span><span class="p">,</span><span class="s2">&quot;brg&quot;</span><span class="p">,</span><span class="s2">&quot;rainbow&quot;</span><span class="p">]</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">rcParams</span><span class="p">[</span><span class="s1">&#39;font.family&#39;</span><span class="p">]</span><span class="o">=</span> <span class="s1">&#39;sans-serif&#39;</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">rcParams</span><span class="p">[</span><span class="s1">&#39;font.sans-serif&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;Arial&#39;</span><span class="p">]</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">rcParams</span><span class="p">[</span><span class="s1">&#39;svg.fonttype&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;none&#39;</span>
+<span class="n">sns</span><span class="o">.</span><span class="n">set_theme</span><span class="p">()</span>
+
+<div class="viewcode-block" id="regression_single"><a class="viewcode-back" href="../../omniplot.html#omniplot.regressionplot.regression_single">[docs]</a><span class="k">def</span> <span class="nf">regression_single</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> 
+                      <span class="n">x</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span>
+                      <span class="n">y</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> 
+                      <span class="n">method</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s2">&quot;ransac&quot;</span><span class="p">,</span>
+                      <span class="n">category</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> 
+                      <span class="n">figsize</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span><span class="o">=</span><span class="p">[</span><span class="mi">5</span><span class="p">,</span><span class="mi">5</span><span class="p">],</span>
+                      <span class="n">show</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">ransac_param</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;max_trials&quot;</span><span class="p">:</span><span class="mi">1000</span><span class="p">},</span>
+                      <span class="n">robust_param</span><span class="o">=</span><span class="p">{})</span> <span class="o">-&gt;</span> <span class="n">plt</span><span class="o">.</span><span class="n">Axes</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Drawing a scatter plot with a single variable linear regression.  </span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    df : pandas DataFrame</span>
+<span class="sd">    </span>
+<span class="sd">    x: str</span>
+<span class="sd">        the column name of x axis. </span>
+<span class="sd">    y: str</span>
+<span class="sd">        the column name of y axis. </span>
+
+<span class="sd">    method: str</span>
+<span class="sd">        Method name for regression. Default: ransac</span>
+<span class="sd">        Available methods: [&quot;ransac&quot;, </span>
+<span class="sd">                            &quot;robust&quot;,</span>
+<span class="sd">                            &quot;lasso&quot;,&quot;elastic_net&quot;</span>
+<span class="sd">                            ]</span>
+<span class="sd">    figsize: list[int]</span>
+<span class="sd">        figure size</span>
+<span class="sd">    show : bool</span>
+<span class="sd">        Whether or not to show the figure.</span>
+<span class="sd">    </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    ax: plt.Axes</span>
+<span class="sd">        axis object</span>
+<span class="sd">    dict: dict</span>
+<span class="sd">    z    dictionary containing estimated parameters</span>
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    References</span>
+<span class="sd">    ----------</span>
+<span class="sd">    See Also</span>
+<span class="sd">    --------</span>
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &quot;&quot;&quot;</span> 
+    
+    
+    <span class="n">Y</span><span class="o">=</span><span class="n">df</span><span class="p">[</span><span class="n">y</span><span class="p">]</span>
+    <span class="n">_X</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="n">x</span><span class="p">])</span><span class="o">.</span><span class="n">reshape</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">X</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="n">x</span><span class="p">])</span>
+    <span class="n">plotline_X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">X</span><span class="o">.</span><span class="n">max</span><span class="p">())</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">rcParams</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;font.size&#39;</span><span class="p">:</span> <span class="mi">14</span><span class="p">})</span>
+    <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">subplots_adjust</span><span class="p">(</span><span class="n">left</span><span class="o">=</span><span class="mf">0.15</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">method</span><span class="o">==</span><span class="s2">&quot;ransac&quot;</span><span class="p">:</span>
+        <span class="kn">from</span> <span class="nn">sklearn.linear_model</span> <span class="kn">import</span> <span class="n">RANSACRegressor</span>
+        
+        
+        
+        <span class="n">fit_df</span><span class="o">=</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">()</span>
+        <span class="n">ransac</span> <span class="o">=</span> <span class="n">RANSACRegressor</span><span class="p">(</span><span class="n">random_state</span><span class="o">=</span><span class="mi">42</span><span class="p">,</span><span class="o">**</span><span class="n">ransac_param</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">_X</span><span class="p">,</span><span class="n">Y</span><span class="p">)</span>
+        <span class="n">fit_df</span><span class="p">[</span><span class="s2">&quot;ransac_regression&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">ransac</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">plotline_X</span><span class="p">)</span>
+        <span class="n">coef</span> <span class="o">=</span> <span class="n">ransac</span><span class="o">.</span><span class="n">estimator_</span><span class="o">.</span><span class="n">coef_</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">intercept</span><span class="o">=</span><span class="n">ransac</span><span class="o">.</span><span class="n">estimator_</span><span class="o">.</span><span class="n">intercept_</span>
+        <span class="n">inlier_mask</span> <span class="o">=</span> <span class="n">ransac</span><span class="o">.</span><span class="n">inlier_mask_</span>
+        <span class="n">outlier_mask</span> <span class="o">=</span> <span class="o">~</span><span class="n">inlier_mask</span>
+        
+                                <span class="c1"># number of samples</span>
+        <span class="n">y_model</span><span class="o">=</span><span class="n">ransac</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">_X</span><span class="p">)</span>
+
+        <span class="n">r2</span> <span class="o">=</span> <span class="n">_calc_r2</span><span class="p">(</span><span class="n">X</span><span class="p">,</span><span class="n">Y</span><span class="p">)</span>
+        <span class="c1"># mean squared error</span>
+        <span class="n">MSE</span> <span class="o">=</span> <span class="mi">1</span><span class="o">/</span><span class="n">n</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span> <span class="p">(</span><span class="n">Y</span> <span class="o">-</span> <span class="n">y_model</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="p">)</span>
+        
+        <span class="c1"># to plot the adjusted model</span>
+        <span class="n">x_line</span> <span class="o">=</span> <span class="n">plotline_X</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+        <span class="n">y_line</span> <span class="o">=</span> <span class="n">fit_df</span><span class="p">[</span><span class="s2">&quot;ransac_regression&quot;</span><span class="p">]</span>
+         
+        <span class="n">ci</span><span class="p">,</span> <span class="n">pi</span><span class="p">,</span> <span class="n">std_error</span><span class="o">=</span><span class="n">_ci_pi</span><span class="p">(</span><span class="n">X</span><span class="p">,</span><span class="n">Y</span><span class="p">,</span><span class="n">plotline_X</span><span class="o">.</span><span class="n">flatten</span><span class="p">(),</span><span class="n">y_model</span><span class="p">)</span>
+        <span class="n">sigma</span><span class="o">=</span><span class="n">std_error</span><span class="o">*</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span> <span class="o">@</span> <span class="n">X</span><span class="p">)</span><span class="o">**</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span><span class="p">)</span>
+        <span class="c1">#sigma=stats.t.sf(, df=X.shape[0]-2)</span>
+        <span class="n">coef_p</span><span class="o">=</span><span class="n">stats</span><span class="o">.</span><span class="n">t</span><span class="o">.</span><span class="n">sf</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">ransac</span><span class="o">.</span><span class="n">estimator_</span><span class="o">.</span><span class="n">coef_</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">/</span><span class="n">sigma</span><span class="p">),</span> <span class="n">df</span><span class="o">=</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">-</span><span class="mi">2</span><span class="p">)</span>
+        <span class="c1">############### Ploting</span>
+
+        <span class="n">_draw_ci_pi</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">ci</span><span class="p">,</span> <span class="n">pi</span><span class="p">,</span><span class="n">x_line</span><span class="p">,</span> <span class="n">y_line</span><span class="p">)</span>
+        <span class="n">sns</span><span class="o">.</span><span class="n">scatterplot</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">X</span><span class="p">[</span><span class="n">inlier_mask</span><span class="p">],</span> <span class="n">y</span><span class="o">=</span><span class="n">Y</span><span class="p">[</span><span class="n">inlier_mask</span><span class="p">],</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;blue&quot;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Inliers&quot;</span><span class="p">)</span>
+        <span class="n">sns</span><span class="o">.</span><span class="n">scatterplot</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">X</span><span class="p">[</span><span class="n">outlier_mask</span><span class="p">],</span> <span class="n">y</span><span class="o">=</span><span class="n">Y</span><span class="p">[</span><span class="n">outlier_mask</span><span class="p">],</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;red&quot;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Outliers&quot;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+        <span class="c1">#print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">&quot;RANSAC regression, r2: </span><span class="si">{:.2f}</span><span class="s2">, MSE: </span><span class="si">{:.2f}</span><span class="se">\n</span><span class="s2">y = </span><span class="si">{:.2f}</span><span class="s2"> + </span><span class="si">{:.2f}</span><span class="s2">x, coefficient p-value: </span><span class="si">{:.2E}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">r2</span><span class="p">,</span> <span class="n">MSE</span><span class="p">,</span><span class="n">coef</span><span class="p">,</span><span class="n">intercept</span><span class="p">,</span><span class="n">coef_p</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">plotline_X</span><span class="o">.</span><span class="n">flatten</span><span class="p">(),</span><span class="n">fit_df</span><span class="p">[</span><span class="s2">&quot;ransac_regression&quot;</span><span class="p">])</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">category</span><span class="p">)</span><span class="o">!=</span><span class="mi">0</span><span class="p">:</span>
+            <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">subplots_adjust</span><span class="p">(</span><span class="n">left</span><span class="o">=</span><span class="mf">0.15</span><span class="p">)</span>
+            <span class="n">_draw_ci_pi</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">ci</span><span class="p">,</span> <span class="n">pi</span><span class="p">,</span><span class="n">x_line</span><span class="p">,</span> <span class="n">y_line</span><span class="p">)</span>
+            <span class="n">sns</span><span class="o">.</span><span class="n">scatterplot</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">df</span><span class="p">,</span><span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">hue</span><span class="o">=</span><span class="n">category</span><span class="p">)</span>
+            
+            <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+            <span class="c1">#print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">&quot;RANSAC regression, r2: </span><span class="si">{:.2f}</span><span class="s2">, MSE: </span><span class="si">{:.2f}</span><span class="se">\n</span><span class="s2">y = </span><span class="si">{:.2f}</span><span class="s2"> + </span><span class="si">{:.2f}</span><span class="s2">x, coefficient p-value: </span><span class="si">{:.2E}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">r2</span><span class="p">,</span> <span class="n">MSE</span><span class="p">,</span><span class="n">coef</span><span class="p">,</span><span class="n">intercept</span><span class="p">,</span><span class="n">coef_p</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">plotline_X</span><span class="o">.</span><span class="n">flatten</span><span class="p">(),</span><span class="n">fit_df</span><span class="p">[</span><span class="s2">&quot;ransac_regression&quot;</span><span class="p">])</span>
+    <span class="k">elif</span> <span class="n">method</span><span class="o">==</span><span class="s2">&quot;robust&quot;</span><span class="p">:</span>
+        <span class="kn">import</span> <span class="nn">statsmodels.api</span> <span class="k">as</span> <span class="nn">sm</span>
+        <span class="n">rlm_model</span> <span class="o">=</span> <span class="n">sm</span><span class="o">.</span><span class="n">RLM</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">sm</span><span class="o">.</span><span class="n">add_constant</span><span class="p">(</span><span class="n">X</span><span class="p">),</span>
+        <span class="n">M</span><span class="o">=</span><span class="n">sm</span><span class="o">.</span><span class="n">robust</span><span class="o">.</span><span class="n">norms</span><span class="o">.</span><span class="n">HuberT</span><span class="p">(),</span><span class="o">**</span><span class="n">robust_param</span><span class="p">)</span>
+        <span class="n">rlm_results</span> <span class="o">=</span> <span class="n">rlm_model</span><span class="o">.</span><span class="n">fit</span><span class="p">()</span>
+        <span class="n">summary</span><span class="o">=</span><span class="n">rlm_results</span><span class="o">.</span><span class="n">summary</span><span class="p">()</span>
+        <span class="n">coef</span><span class="o">=</span><span class="n">rlm_results</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">intercept</span><span class="o">=</span><span class="n">rlm_results</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">intercept_p</span><span class="o">=</span><span class="n">rlm_results</span><span class="o">.</span><span class="n">pvalues</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">coef_p</span><span class="o">=</span><span class="n">rlm_results</span><span class="o">.</span><span class="n">pvalues</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">y_model</span><span class="o">=</span><span class="n">rlm_results</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">sm</span><span class="o">.</span><span class="n">add_constant</span><span class="p">(</span><span class="n">X</span><span class="p">))</span>
+        <span class="n">r2</span> <span class="o">=</span> <span class="n">_calc_r2</span><span class="p">(</span><span class="n">X</span><span class="p">,</span><span class="n">Y</span><span class="p">)</span>
+        <span class="n">x_line</span> <span class="o">=</span> <span class="n">plotline_X</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+        <span class="n">y_line</span> <span class="o">=</span> <span class="n">rlm_results</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">sm</span><span class="o">.</span><span class="n">add_constant</span><span class="p">(</span><span class="n">x_line</span><span class="p">))</span>
+        <span class="n">ci</span><span class="p">,</span> <span class="n">pi</span><span class="o">=</span><span class="n">_ci_pi</span><span class="p">(</span><span class="n">X</span><span class="p">,</span><span class="n">Y</span><span class="p">,</span><span class="n">plotline_X</span><span class="o">.</span><span class="n">flatten</span><span class="p">(),</span><span class="n">y_model</span><span class="p">)</span>
+        <span class="n">MSE</span> <span class="o">=</span> <span class="mi">1</span><span class="o">/</span><span class="n">n</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span> <span class="p">(</span><span class="n">Y</span> <span class="o">-</span> <span class="n">y_model</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="p">)</span>
+
+        <span class="n">_draw_ci_pi</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">ci</span><span class="p">,</span> <span class="n">pi</span><span class="p">,</span><span class="n">x_line</span><span class="p">,</span> <span class="n">y_line</span><span class="p">)</span>
+        <span class="n">sns</span><span class="o">.</span><span class="n">scatterplot</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">df</span><span class="p">,</span><span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;blue&quot;</span><span class="p">)</span>
+        <span class="c1">#print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">&quot;Robust linear regression, r2: </span><span class="si">{:.2f}</span><span class="s2">, MSE: </span><span class="si">{:.2f}</span><span class="se">\n</span><span class="s2">y = </span><span class="si">{:.2f}</span><span class="s2"> + </span><span class="si">{:.2f}</span><span class="s2">x , p-values: coefficient </span><span class="si">{:.2f}</span><span class="s2">, </span><span class="se">\</span>
+<span class="s2">        intercept </span><span class="si">{:.2f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">r2</span><span class="p">,</span> <span class="n">MSE</span><span class="p">,</span><span class="n">coef</span><span class="p">,</span><span class="n">intercept</span><span class="p">,</span><span class="n">coef_p</span><span class="p">,</span><span class="n">intercept_p</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">plotline_X</span><span class="o">.</span><span class="n">flatten</span><span class="p">(),</span><span class="n">y_line</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">category</span><span class="p">)</span><span class="o">!=</span><span class="mi">0</span><span class="p">:</span>
+            <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">subplots_adjust</span><span class="p">(</span><span class="n">left</span><span class="o">=</span><span class="mf">0.15</span><span class="p">)</span>
+            <span class="n">_draw_ci_pi</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">ci</span><span class="p">,</span> <span class="n">pi</span><span class="p">,</span><span class="n">x_line</span><span class="p">,</span> <span class="n">y_line</span><span class="p">)</span>
+            <span class="n">sns</span><span class="o">.</span><span class="n">scatterplot</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">df</span><span class="p">,</span><span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">hue</span><span class="o">=</span><span class="n">category</span><span class="p">)</span>
+            <span class="c1">#print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">&quot;Robust linear regression, r2: </span><span class="si">{:.2f}</span><span class="s2">, MSE: </span><span class="si">{:.2f}</span><span class="se">\n</span><span class="s2">y = </span><span class="si">{:.2f}</span><span class="s2"> + </span><span class="si">{:.2f}</span><span class="s2">x , p-values: coefficient </span><span class="si">{:.2f}</span><span class="s2">, </span><span class="se">\</span>
+<span class="s2">            intercept </span><span class="si">{:.2f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">r2</span><span class="p">,</span> <span class="n">MSE</span><span class="p">,</span><span class="n">coef</span><span class="p">,</span><span class="n">intercept</span><span class="p">,</span><span class="n">coef_p</span><span class="p">,</span><span class="n">intercept_p</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">plotline_X</span><span class="o">.</span><span class="n">flatten</span><span class="p">(),</span><span class="n">y_line</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">method</span><span class="o">==</span><span class="s2">&quot;lasso&quot;</span> <span class="ow">or</span> <span class="n">method</span><span class="o">==</span><span class="s2">&quot;elastic_net&quot;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">method</span><span class="o">==</span><span class="s2">&quot;lasso&quot;</span><span class="p">:</span>
+            <span class="n">method</span><span class="o">=</span><span class="s2">&quot;sqrt_lasso&quot;</span>
+        <span class="kn">import</span> <span class="nn">statsmodels.api</span> <span class="k">as</span> <span class="nn">sm</span>
+        <span class="n">rlm_model</span> <span class="o">=</span> <span class="n">sm</span><span class="o">.</span><span class="n">OLS</span><span class="p">(</span><span class="n">Y</span><span class="p">,</span> <span class="n">sm</span><span class="o">.</span><span class="n">add_constant</span><span class="p">(</span><span class="n">X</span><span class="p">))</span>
+        <span class="n">rlm_results</span> <span class="o">=</span> <span class="n">rlm_model</span><span class="o">.</span><span class="n">fit_regularized</span><span class="p">(</span><span class="n">method</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="nb">vars</span><span class="p">(</span><span class="n">rlm_results</span><span class="p">))</span>
+        <span class="nb">print</span><span class="p">(</span><span class="nb">vars</span><span class="p">(</span><span class="n">rlm_results</span><span class="o">.</span><span class="n">_results</span><span class="p">))</span>
+        <span class="c1">#summary=rlm_results.summary()</span>
+        <span class="n">coef</span><span class="o">=</span><span class="n">rlm_results</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">intercept</span><span class="o">=</span><span class="n">rlm_results</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">y_model</span><span class="o">=</span><span class="n">rlm_results</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">sm</span><span class="o">.</span><span class="n">add_constant</span><span class="p">(</span><span class="n">X</span><span class="p">))</span>
+        <span class="n">r2</span> <span class="o">=</span> <span class="n">_calc_r2</span><span class="p">(</span><span class="n">X</span><span class="p">,</span><span class="n">Y</span><span class="p">)</span>
+        <span class="n">x_line</span> <span class="o">=</span> <span class="n">plotline_X</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+        <span class="n">y_line</span> <span class="o">=</span> <span class="n">rlm_results</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">sm</span><span class="o">.</span><span class="n">add_constant</span><span class="p">(</span><span class="n">x_line</span><span class="p">))</span>
+        <span class="n">ci</span><span class="p">,</span> <span class="n">pi</span><span class="p">,</span> <span class="n">std_error</span><span class="o">=</span><span class="n">_ci_pi</span><span class="p">(</span><span class="n">X</span><span class="p">,</span><span class="n">Y</span><span class="p">,</span><span class="n">plotline_X</span><span class="o">.</span><span class="n">flatten</span><span class="p">(),</span><span class="n">y_model</span><span class="p">)</span>
+        <span class="n">sigma</span><span class="o">=</span><span class="n">std_error</span><span class="o">*</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span> <span class="o">@</span> <span class="n">X</span><span class="p">)</span><span class="o">**</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">sigma</span><span class="p">,</span><span class="n">coef</span> <span class="p">)</span>
+        <span class="n">coef_p</span><span class="o">=</span><span class="n">stats</span><span class="o">.</span><span class="n">t</span><span class="o">.</span><span class="n">sf</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">coef</span><span class="o">/</span><span class="n">sigma</span><span class="p">),</span> <span class="n">df</span><span class="o">=</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">-</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">MSE</span> <span class="o">=</span> <span class="mi">1</span><span class="o">/</span><span class="n">n</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span> <span class="p">(</span><span class="n">Y</span> <span class="o">-</span> <span class="n">y_model</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="p">)</span>
+
+        <span class="n">_draw_ci_pi</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">ci</span><span class="p">,</span> <span class="n">pi</span><span class="p">,</span><span class="n">x_line</span><span class="p">,</span> <span class="n">y_line</span><span class="p">)</span>   
+        <span class="n">sns</span><span class="o">.</span><span class="n">scatterplot</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">df</span><span class="p">,</span><span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;blue&quot;</span><span class="p">)</span>
+        <span class="c1">#print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">&quot;OLS (</span><span class="si">{}</span><span class="s2">), r2: </span><span class="si">{:.2f}</span><span class="s2">, MSE: </span><span class="si">{:.2f}</span><span class="se">\n</span><span class="s2">y = </span><span class="si">{:.2f}</span><span class="s2"> + </span><span class="si">{:.2f}</span><span class="s2">x, coefficient p-value: </span><span class="si">{:.2E}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">method</span><span class="p">,</span>
+            <span class="n">r2</span><span class="p">,</span> <span class="n">MSE</span><span class="p">,</span><span class="n">coef</span><span class="p">,</span><span class="n">intercept</span><span class="p">,</span><span class="n">coef_p</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">plotline_X</span><span class="o">.</span><span class="n">flatten</span><span class="p">(),</span><span class="n">y_line</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">category</span><span class="p">)</span><span class="o">!=</span><span class="mi">0</span><span class="p">:</span>
+            <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">subplots_adjust</span><span class="p">(</span><span class="n">left</span><span class="o">=</span><span class="mf">0.15</span><span class="p">)</span>
+            <span class="n">_draw_ci_pi</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">ci</span><span class="p">,</span> <span class="n">pi</span><span class="p">,</span><span class="n">x_line</span><span class="p">,</span> <span class="n">y_line</span><span class="p">)</span>
+            <span class="n">sns</span><span class="o">.</span><span class="n">scatterplot</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">df</span><span class="p">,</span><span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;blue&quot;</span><span class="p">,</span><span class="n">hue</span><span class="o">=</span><span class="n">category</span><span class="p">)</span>
+            <span class="c1">#print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">&quot;OLS (</span><span class="si">{}</span><span class="s2">), r2: </span><span class="si">{:.2f}</span><span class="s2">, MSE: </span><span class="si">{:.2f}</span><span class="se">\n</span><span class="s2">y = </span><span class="si">{:.2f}</span><span class="s2"> + </span><span class="si">{:.2f}</span><span class="s2">x, coefficient p-value: </span><span class="si">{:.2E}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">method</span><span class="p">,</span>
+                <span class="n">r2</span><span class="p">,</span> <span class="n">MSE</span><span class="p">,</span><span class="n">coef</span><span class="p">,</span><span class="n">intercept</span><span class="p">,</span><span class="n">coef_p</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">plotline_X</span><span class="o">.</span><span class="n">flatten</span><span class="p">(),</span><span class="n">y_line</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">ax</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;coefficient&quot;</span><span class="p">:</span><span class="n">coef</span><span class="p">,</span><span class="s2">&quot;intercept&quot;</span><span class="p">:</span><span class="n">intercept</span><span class="p">,</span><span class="s2">&quot;coefficient_pval&quot;</span><span class="p">:</span><span class="n">coef_p</span><span class="p">,</span> <span class="s2">&quot;r2&quot;</span><span class="p">:</span><span class="n">r2</span><span class="p">}</span></div>
+
+<div class="viewcode-block" id="regression_single_polynomial"><a class="viewcode-back" href="../../omniplot.html#omniplot.regressionplot.regression_single_polynomial">[docs]</a><span class="k">def</span> <span class="nf">regression_single_polynomial</span><span class="p">(</span><span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> 
+                      <span class="n">x</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                      <span class="n">y</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> 
+                      <span class="n">method</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s2">&quot;ransac&quot;</span><span class="p">,</span>
+                      <span class="n">category</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> 
+                      <span class="n">figsize</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span><span class="o">=</span><span class="p">[</span><span class="mi">5</span><span class="p">,</span><span class="mi">5</span><span class="p">],</span>
+                      <span class="n">show</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">ransac_param</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;max_trials&quot;</span><span class="p">:</span><span class="mi">1000</span><span class="p">},</span>
+                      <span class="n">robust_param</span><span class="o">=</span><span class="p">{},</span>
+                      <span class="n">xunit</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span>
+                      <span class="n">yunit</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span>
+                      <span class="n">title</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span>
+                      <span class="n">random_state</span><span class="p">:</span> <span class="nb">int</span><span class="o">=</span><span class="mi">42</span><span class="p">,</span><span class="n">ax</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">plt</span><span class="o">.</span><span class="n">Axes</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                      <span class="n">save</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Drawing a scatter plot with a single variable linear regression.  </span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    df : pandas DataFrame</span>
+<span class="sd">    </span>
+<span class="sd">    x: str</span>
+<span class="sd">        the column name of x axis. </span>
+<span class="sd">    y: str</span>
+<span class="sd">        the column name of y axis. </span>
+
+<span class="sd">    method: str</span>
+<span class="sd">        Method name for regression. Default: ransac</span>
+<span class="sd">        Available methods: [&quot;ransac&quot;, </span>
+<span class="sd">                            &quot;robust&quot;,</span>
+<span class="sd">                            &quot;lasso&quot;,&quot;elastic_net&quot;</span>
+<span class="sd">                            ]</span>
+<span class="sd">    figsize: list[int]</span>
+<span class="sd">        figure size</span>
+<span class="sd">    show : bool</span>
+<span class="sd">        Whether or not to show the figure.</span>
+<span class="sd">    </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    dict: dict {&quot;axes&quot;:ax, &quot;coefficient&quot;:coef,&quot;intercept&quot;:intercept,&quot;coefficient_pval&quot;:coef_p, &quot;r2&quot;:r2, &quot;fitted_model&quot;:fitted_model}</span>
+<span class="sd">    </span>
+<span class="sd">        fitted_model:</span>
+<span class="sd">            this can be used like: y_predict=fitted_model.predict(_X)</span>
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    References</span>
+<span class="sd">    ----------</span>
+<span class="sd">    See Also</span>
+<span class="sd">    --------</span>
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &quot;&quot;&quot;</span> 
+    <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="regression_multivariable"><a class="viewcode-back" href="../../omniplot.html#omniplot.regressionplot.regression_multivariable">[docs]</a><span class="k">def</span> <span class="nf">regression_multivariable</span><span class="p">():</span>
+    <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="regression_multivariable_nonlinear"><a class="viewcode-back" href="../../omniplot.html#omniplot.regressionplot.regression_multivariable_nonlinear">[docs]</a><span class="k">def</span> <span class="nf">regression_multivariable_nonlinear</span><span class="p">():</span>
+    <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="regression_glm"><a class="viewcode-back" href="../../omniplot.html#omniplot.regressionplot.regression_glm">[docs]</a><span class="k">def</span> <span class="nf">regression_glm</span><span class="p">():</span>
+    <span class="k">pass</span></div>
+
+
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2023, Koh Onimaru.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

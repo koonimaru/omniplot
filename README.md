@@ -39,6 +39,10 @@ git clone https://github.com/koonimaru/omniplot.git
 cd omniplot
 conda env create -f environment.yml python=3.8
 conda activate omniplot
+conda install ipykernel
+ipython kernel install --user --name=omniplot
+conda deactivate
+
 ```
 And [this](https://ipython.readthedocs.io/en/stable/install/kernel_install.html#kernels-for-different-environments) is how to use conda environment in jupyerlab.
 

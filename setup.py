@@ -41,7 +41,7 @@ ext_modules = []#cythonize("omniplot/cython/chipseq_utils.pyx")
 setup(
     name='omniplot',
     #version=VERSION,
-    version="0.2.0",
+    version="0.2.1",
     description='To draw scientific plots easily',
     author='Koh Onimaru',
     author_email='koh.onimaru@gmail.com',

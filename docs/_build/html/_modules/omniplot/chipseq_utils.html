@@ -1,0 +1,841 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>omniplot.chipseq_utils &mdash; omniplot 0.3.0 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> omniplot
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">omniplot</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+        
+      <li>omniplot.chipseq_utils</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for omniplot.chipseq_utils</h1><div class="highlight"><pre>
+<span></span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span><span class="p">,</span><span class="n">Dict</span><span class="p">,</span><span class="n">Optional</span><span class="p">,</span><span class="n">Union</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Iterable</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">seaborn</span> <span class="k">as</span> <span class="nn">sns</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">pyBigWig</span> <span class="k">as</span> <span class="nn">pwg</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="k">pass</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">os</span> 
+<span class="kn">import</span> <span class="nn">scipy.stats</span>
+<span class="kn">from</span> <span class="nn">scipy.spatial.distance</span> <span class="kn">import</span> <span class="n">squareform</span>
+<span class="kn">from</span> <span class="nn">scipy.spatial</span> <span class="kn">import</span> <span class="n">distance</span>
+<span class="kn">from</span> <span class="nn">joblib</span> <span class="kn">import</span> <span class="n">Parallel</span><span class="p">,</span> <span class="n">delayed</span>
+<span class="kn">import</span> <span class="nn">itertools</span> <span class="k">as</span> <span class="nn">it</span>
+<span class="kn">from</span> <span class="nn">joblib.externals.loky</span> <span class="kn">import</span> <span class="n">get_reusable_executor</span>
+<span class="n">sns</span><span class="o">.</span><span class="n">set_theme</span><span class="p">(</span><span class="n">font</span><span class="o">=</span><span class="s2">&quot;Arial&quot;</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;grid.linestyle&#39;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span><span class="s1">&#39;axes.facecolor&#39;</span><span class="p">:</span> <span class="s1">&#39;white&#39;</span><span class="p">})</span>
+<span class="kn">import</span> <span class="nn">itertools</span>
+<span class="kn">from</span> <span class="nn">sklearn.neighbors</span> <span class="kn">import</span> <span class="n">BallTree</span>
+<span class="kn">from</span> <span class="nn">intervaltree</span> <span class="kn">import</span> <span class="n">Interval</span><span class="p">,</span> <span class="n">IntervalTree</span>
+<span class="kn">import</span> <span class="nn">pickle</span>
+<span class="kn">import</span> <span class="nn">os</span>
+
+<span class="c1">#from cython_utils import chipseq_utils</span>
+<span class="k">def</span> <span class="nf">_range_diff</span><span class="p">(</span><span class="n">r1</span><span class="p">,</span> <span class="n">r2</span><span class="p">):</span>
+    <span class="n">s1</span><span class="p">,</span> <span class="n">e1</span> <span class="o">=</span> <span class="n">r1</span>
+    <span class="n">s2</span><span class="p">,</span> <span class="n">e2</span> <span class="o">=</span> <span class="n">r2</span>
+    <span class="n">endpoints</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">((</span><span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">,</span> <span class="n">e1</span><span class="p">,</span> <span class="n">e2</span><span class="p">))</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="n">endpoints</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">s1</span> <span class="ow">and</span> <span class="n">endpoints</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="n">s1</span><span class="p">:</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">endpoints</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">endpoints</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+    <span class="k">if</span> <span class="n">endpoints</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">==</span> <span class="n">e1</span> <span class="ow">and</span> <span class="n">endpoints</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">!=</span> <span class="n">e1</span><span class="p">:</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">endpoints</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">endpoints</span><span class="p">[</span><span class="mi">3</span><span class="p">]))</span>
+    <span class="k">return</span> <span class="n">result</span>
+
+<span class="k">def</span> <span class="nf">_multirange_diff</span><span class="p">(</span><span class="n">r1_list</span><span class="p">,</span> <span class="n">r2_list</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">r2</span> <span class="ow">in</span> <span class="n">r2_list</span><span class="p">:</span>
+        <span class="n">r1_list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">itertools</span><span class="o">.</span><span class="n">chain</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">_range_diff</span><span class="p">(</span><span class="n">r1</span><span class="p">,</span> <span class="n">r2</span><span class="p">)</span> <span class="k">for</span> <span class="n">r1</span> <span class="ow">in</span> <span class="n">r1_list</span><span class="p">]))</span>
+    <span class="k">return</span> <span class="n">r1_list</span>
+
+<div class="viewcode-block" id="gff_parser"><a class="viewcode-back" href="../../omniplot.html#omniplot.chipseq_utils.gff_parser">[docs]</a><span class="k">class</span> <span class="nc">gff_parser</span><span class="p">():</span>
+    <span class="n">resolution</span><span class="o">=</span><span class="mi">100000</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">gff</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">operator</span> <span class="kn">import</span> <span class="n">methodcaller</span>
+        <span class="n">time_start</span><span class="o">=</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="n">home</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="s1">&#39;~&#39;</span><span class="p">)</span>
+        <span class="n">cache</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">home</span><span class="p">,</span> <span class="s2">&quot;omniplot_cache&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">cache</span><span class="p">):</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">cache</span><span class="p">)</span>
+        <span class="n">h</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">gff</span><span class="p">)</span>
+        <span class="n">gffchache</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cache</span><span class="p">,</span> <span class="n">t</span><span class="o">+</span><span class="s2">&quot;.pickle&quot;</span><span class="p">)</span>
+        <span class="n">gffchache_info</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cache</span><span class="p">,</span> <span class="n">t</span><span class="o">+</span><span class="s2">&quot;_info.pickle&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">gffchache</span><span class="p">):</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">gffchache</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fin</span><span class="p">:</span>
+                <span class="n">data</span><span class="o">=</span><span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fin</span><span class="p">)</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">gffchache_info</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fin</span><span class="p">:</span>
+                <span class="n">info</span><span class="o">=</span><span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fin</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">data</span><span class="o">=</span><span class="p">{}</span>
+            <span class="n">info</span><span class="o">=</span><span class="p">{}</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">gff</span><span class="p">)</span> <span class="k">as</span> <span class="n">fin</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">fin</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">l</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">):</span>
+                        <span class="k">if</span> <span class="n">l</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;##gff-version&quot;</span><span class="p">):</span>
+                            <span class="n">l</span><span class="o">=</span><span class="n">l</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+                            <span class="n">info</span><span class="p">[</span><span class="s2">&quot;gff-version&quot;</span><span class="p">]</span><span class="o">=</span><span class="n">l</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                        <span class="k">elif</span> <span class="n">l</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;#description:&quot;</span><span class="p">):</span>
+                            <span class="n">l</span><span class="o">=</span><span class="n">l</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;: &quot;</span><span class="p">)</span>
+                            <span class="n">info</span><span class="p">[</span><span class="s2">&quot;description&quot;</span><span class="p">]</span><span class="o">=</span><span class="n">l</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                        <span class="k">elif</span> <span class="n">l</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;#provider:&quot;</span><span class="p">):</span>
+                            <span class="n">l</span><span class="o">=</span><span class="n">l</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;: &quot;</span><span class="p">)</span>
+                            <span class="n">info</span><span class="p">[</span><span class="s2">&quot;provider&quot;</span><span class="p">]</span><span class="o">=</span><span class="n">l</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                        <span class="k">elif</span> <span class="n">l</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;#format&quot;</span><span class="p">):</span>
+                            <span class="n">l</span><span class="o">=</span><span class="n">l</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;: &quot;</span><span class="p">)</span>
+                            <span class="n">info</span><span class="p">[</span><span class="s2">&quot;format&quot;</span><span class="p">]</span><span class="o">=</span><span class="n">l</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                        <span class="k">elif</span> <span class="n">l</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;#date&quot;</span><span class="p">):</span>
+                            <span class="n">l</span><span class="o">=</span><span class="n">l</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;: &quot;</span><span class="p">)</span>
+                            <span class="n">info</span><span class="p">[</span><span class="s2">&quot;date&quot;</span><span class="p">]</span><span class="o">=</span><span class="n">l</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                        <span class="k">continue</span>
+                    <span class="n">chrom</span><span class="p">,</span> <span class="n">source</span><span class="p">,</span> <span class="n">kind</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">ori</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="n">l</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+                    <span class="n">s</span><span class="p">,</span> <span class="n">e</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+                    <span class="n">meta</span><span class="o">=</span><span class="n">meta</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;;&quot;</span><span class="p">)</span>
+                    <span class="n">tmp</span><span class="o">=</span><span class="p">{}</span>
+                    <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">meta</span><span class="p">:</span>
+                        <span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="o">=</span><span class="n">m</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;=&quot;</span><span class="p">)</span>
+                        <span class="n">tmp</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">=</span><span class="n">v</span>
+                    
+
+                    <span class="c1"># if not chrom in data:</span>
+                    <span class="c1">#     data[chrom]={&quot;pos&quot;:[], &quot;kind&quot;:[],&quot;ori&quot;:[],&quot;meta&quot;:[]}</span>
+                    <span class="c1">#</span>
+                    <span class="c1">#</span>
+                    <span class="c1"># #tmp={k: v for k,v in map(methodcaller(&quot;split&quot;, &quot;=&quot;), meta)}</span>
+                    <span class="c1"># data[chrom][&quot;pos&quot;].append([s, e])</span>
+                    <span class="c1"># data[chrom][&quot;kind&quot;].append(kind)</span>
+                    <span class="c1"># data[chrom][&quot;ori&quot;].append(ori)</span>
+                    <span class="c1"># data[chrom][&quot;meta&quot;].append(tmp)        </span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">chrom</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+                        <span class="n">data</span><span class="p">[</span><span class="n">chrom</span><span class="p">]</span><span class="o">=</span><span class="p">{}</span>
+                  
+                    <span class="n">_s</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">resolution</span><span class="o">*</span><span class="p">(</span><span class="n">s</span><span class="o">//</span><span class="bp">self</span><span class="o">.</span><span class="n">resolution</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">_s</span> <span class="ow">in</span> <span class="n">data</span><span class="p">[</span><span class="n">chrom</span><span class="p">]:</span>
+                        <span class="n">data</span><span class="p">[</span><span class="n">chrom</span><span class="p">][</span><span class="n">_s</span><span class="p">]</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;pos&quot;</span><span class="p">:[],</span> <span class="s2">&quot;kind&quot;</span><span class="p">:[],</span><span class="s2">&quot;ori&quot;</span><span class="p">:[],</span><span class="s2">&quot;meta&quot;</span><span class="p">:[]}</span>
+                    <span class="n">data</span><span class="p">[</span><span class="n">chrom</span><span class="p">][</span><span class="n">_s</span><span class="p">][</span><span class="s2">&quot;pos&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">s</span><span class="p">,</span> <span class="n">e</span><span class="p">])</span>
+                    <span class="n">data</span><span class="p">[</span><span class="n">chrom</span><span class="p">][</span><span class="n">_s</span><span class="p">][</span><span class="s2">&quot;kind&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">kind</span><span class="p">)</span>
+                    <span class="n">data</span><span class="p">[</span><span class="n">chrom</span><span class="p">][</span><span class="n">_s</span><span class="p">][</span><span class="s2">&quot;ori&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ori</span><span class="p">)</span>
+                    <span class="n">data</span><span class="p">[</span><span class="n">chrom</span><span class="p">][</span><span class="n">_s</span><span class="p">][</span><span class="s2">&quot;meta&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tmp</span><span class="p">)</span>  
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">gffchache</span><span class="p">,</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fin</span><span class="p">:</span>
+                <span class="n">pickle</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">fin</span><span class="p">)</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">gffchache_info</span><span class="p">,</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fin</span><span class="p">:</span>
+                <span class="n">pickle</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">info</span><span class="p">,</span> <span class="n">fin</span><span class="p">)</span>         
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">=</span><span class="n">data</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="o">=</span><span class="n">info</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span><span class="o">-</span><span class="n">time_start</span><span class="p">)</span>
+<div class="viewcode-block" id="gff_parser.get_genes"><a class="viewcode-back" href="../../omniplot.html#omniplot.chipseq_utils.gff_parser.get_genes">[docs]</a>    <span class="k">def</span> <span class="nf">get_genes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chrom</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                  <span class="n">start</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> 
+                  <span class="n">end</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+                  <span class="n">gene_type</span><span class="p">:</span> <span class="nb">set</span><span class="o">=</span><span class="nb">set</span><span class="p">([</span><span class="s2">&quot;protein_coding&quot;</span><span class="p">]))</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">:</span>
+        <span class="n">_data</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">chrom</span><span class="p">]</span>
+        <span class="n">genes</span><span class="o">=</span><span class="p">[]</span>
+        
+        
+        <span class="n">_start</span><span class="o">=</span><span class="n">start</span><span class="o">//</span><span class="bp">self</span><span class="o">.</span><span class="n">resolution</span>
+        <span class="n">_end</span><span class="o">=</span><span class="n">end</span><span class="o">//</span><span class="bp">self</span><span class="o">.</span><span class="n">resolution</span>
+        <span class="k">for</span> <span class="n">h</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">_start</span><span class="p">,</span> <span class="n">_end</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+            <span class="n">_h</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">resolution</span><span class="o">*</span><span class="n">h</span>
+            <span class="n">_data2</span><span class="o">=</span><span class="n">_data</span><span class="p">[</span><span class="n">_h</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">se</span><span class="p">,</span> <span class="n">kind</span><span class="p">,</span> <span class="n">meta</span><span class="p">,</span> <span class="n">ori</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">_data2</span><span class="p">[</span><span class="s2">&quot;pos&quot;</span><span class="p">],</span> <span class="n">_data2</span><span class="p">[</span><span class="s2">&quot;kind&quot;</span><span class="p">],</span> <span class="n">_data2</span><span class="p">[</span><span class="s2">&quot;meta&quot;</span><span class="p">],</span> <span class="n">_data2</span><span class="p">[</span><span class="s2">&quot;ori&quot;</span><span class="p">])):</span>
+                <span class="n">s</span><span class="p">,</span> <span class="n">e</span><span class="o">=</span><span class="n">se</span>
+                <span class="k">if</span> <span class="n">e</span> <span class="o">&lt;</span> <span class="n">start</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="k">if</span> <span class="n">s</span><span class="o">&gt;</span><span class="n">end</span><span class="p">:</span>
+                    <span class="k">break</span>
+                <span class="k">if</span> <span class="n">kind</span><span class="o">==</span><span class="s2">&quot;gene&quot;</span> <span class="ow">and</span> <span class="n">meta</span><span class="p">[</span><span class="s2">&quot;gene_type&quot;</span><span class="p">]</span> <span class="ow">in</span> <span class="n">gene_type</span><span class="p">:</span>
+                    
+                
+                    <span class="k">if</span> <span class="n">start</span><span class="o">&lt;=</span><span class="n">s</span> <span class="ow">and</span> <span class="n">e</span><span class="o">&lt;=</span><span class="n">end</span><span class="p">:</span>
+                        <span class="n">genename</span><span class="o">=</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;gene_name&quot;</span><span class="p">]</span>
+                        <span class="n">genes</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">genename</span><span class="p">,</span><span class="n">s</span><span class="p">,</span><span class="n">e</span><span class="p">,</span><span class="n">ori</span><span class="p">])</span>
+                    <span class="k">elif</span> <span class="n">start</span><span class="o">&lt;=</span><span class="n">s</span><span class="o">&lt;=</span><span class="n">end</span> <span class="ow">and</span> <span class="n">end</span><span class="o">&lt;</span><span class="n">e</span><span class="p">:</span>
+                        <span class="n">genename</span><span class="o">=</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;gene_name&quot;</span><span class="p">]</span>
+                        <span class="n">genes</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">genename</span><span class="p">,</span><span class="n">s</span><span class="p">,</span><span class="n">end</span><span class="p">,</span><span class="n">ori</span><span class="p">])</span>
+                    <span class="k">elif</span> <span class="n">s</span><span class="o">&lt;</span><span class="n">start</span> <span class="ow">and</span> <span class="n">start</span><span class="o">&lt;=</span><span class="n">e</span><span class="o">&lt;=</span><span class="n">end</span>  <span class="ow">and</span> <span class="n">meta</span><span class="p">[</span><span class="s2">&quot;gene_type&quot;</span><span class="p">]</span> <span class="ow">in</span> <span class="n">gene_type</span><span class="p">:</span>
+                        <span class="n">genename</span><span class="o">=</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;gene_name&quot;</span><span class="p">]</span>
+                        <span class="n">genes</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">genename</span><span class="p">,</span><span class="n">start</span><span class="p">,</span><span class="n">e</span><span class="p">,</span><span class="n">ori</span><span class="p">])</span>
+        
+        
+        <span class="c1"># _data=self.data[chrom]</span>
+        <span class="c1"># genes=[]</span>
+        <span class="c1"># for i, (se, kind, meta, ori) in enumerate(zip(_data[&quot;pos&quot;], _data[&quot;kind&quot;], _data[&quot;meta&quot;], _data[&quot;ori&quot;])):</span>
+        <span class="c1">#     s, e=se</span>
+        <span class="c1">#     if e &lt; start:</span>
+        <span class="c1">#         continue</span>
+        <span class="c1">#     if s&gt;end:</span>
+        <span class="c1">#         break</span>
+        <span class="c1">#     if kind==&quot;gene&quot; and meta[&quot;gene_type&quot;] in gene_type:</span>
+        <span class="c1">#</span>
+        <span class="c1">#</span>
+        <span class="c1">#         if start&lt;=s and e&lt;=end:</span>
+        <span class="c1">#             genename=meta[&quot;gene_name&quot;]</span>
+        <span class="c1">#             genes.append([genename,s,e,ori])</span>
+        <span class="c1">#         elif start&lt;=s&lt;=end and end&lt;e:</span>
+        <span class="c1">#             genename=meta[&quot;gene_name&quot;]</span>
+        <span class="c1">#             genes.append([genename,s,end,ori])</span>
+        <span class="c1">#         elif s&lt;start and start&lt;=e&lt;=end  and meta[&quot;gene_type&quot;] in gene_type:</span>
+        <span class="c1">#             genename=meta[&quot;gene_name&quot;]</span>
+        <span class="c1">#             genes.append([genename,start,e,ori])</span>
+                
+            
+
+        <span class="k">return</span> <span class="n">genes</span></div>
+<div class="viewcode-block" id="gff_parser.get_tss"><a class="viewcode-back" href="../../omniplot.html#omniplot.chipseq_utils.gff_parser.get_tss">[docs]</a>    <span class="k">def</span> <span class="nf">get_tss</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gene_type</span><span class="o">=</span><span class="nb">set</span><span class="p">([</span><span class="s2">&quot;protein_coding&quot;</span><span class="p">])):</span>
+        
+        <span class="n">tss</span><span class="o">=</span><span class="p">{}</span>
+        
+        <span class="k">for</span> <span class="n">chrom</span><span class="p">,</span> <span class="n">_data</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">tss</span><span class="p">[</span><span class="n">chrom</span><span class="p">]</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;pos&quot;</span><span class="p">:[],</span><span class="s2">&quot;genes&quot;</span><span class="p">:[]}</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">s</span><span class="p">,</span><span class="n">e</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">_data</span><span class="p">[</span><span class="s2">&quot;pos&quot;</span><span class="p">]):</span>
+                <span class="k">if</span> <span class="n">_data</span><span class="p">[</span><span class="s2">&quot;kind&quot;</span><span class="p">][</span><span class="n">i</span><span class="p">]</span><span class="o">==</span><span class="s2">&quot;gene&quot;</span> <span class="ow">and</span> <span class="n">_data</span><span class="p">[</span><span class="s2">&quot;meta&quot;</span><span class="p">][</span><span class="n">i</span><span class="p">][</span><span class="s2">&quot;gene_type&quot;</span><span class="p">]</span> <span class="ow">in</span> <span class="n">gene_type</span><span class="p">:</span>
+                    <span class="n">tss</span><span class="p">[</span><span class="n">chrom</span><span class="p">][</span><span class="s2">&quot;genes&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_data</span><span class="p">[</span><span class="s2">&quot;meta&quot;</span><span class="p">][</span><span class="n">i</span><span class="p">][</span><span class="s2">&quot;gene_name&quot;</span><span class="p">])</span>
+                    <span class="k">if</span> <span class="n">_data</span><span class="p">[</span><span class="s2">&quot;ori&quot;</span><span class="p">][</span><span class="n">i</span><span class="p">]</span><span class="o">==</span><span class="s2">&quot;+&quot;</span><span class="p">:</span>
+                        <span class="n">tss</span><span class="p">[</span><span class="n">chrom</span><span class="p">][</span><span class="s2">&quot;pos&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">tss</span><span class="p">[</span><span class="n">chrom</span><span class="p">][</span><span class="s2">&quot;pos&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+        
+        <span class="k">return</span> <span class="n">tss</span> </div>
+    
+<div class="viewcode-block" id="gff_parser.get_tss_extend"><a class="viewcode-back" href="../../omniplot.html#omniplot.chipseq_utils.gff_parser.get_tss_extend">[docs]</a>    <span class="k">def</span> <span class="nf">get_tss_extend</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gene_type</span><span class="o">=</span><span class="nb">set</span><span class="p">([</span><span class="s2">&quot;protein_coding&quot;</span><span class="p">]),</span> <span class="n">extend</span><span class="o">=</span><span class="mi">5000</span><span class="p">):</span>
+        
+        <span class="n">tss</span><span class="o">=</span><span class="p">{}</span>
+        
+        <span class="k">for</span> <span class="n">chrom</span><span class="p">,</span> <span class="n">_data</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">tss</span><span class="p">[</span><span class="n">chrom</span><span class="p">]</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;pos&quot;</span><span class="p">:[],</span><span class="s2">&quot;genes&quot;</span><span class="p">:[]}</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">s</span><span class="p">,</span><span class="n">e</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">_data</span><span class="p">[</span><span class="s2">&quot;pos&quot;</span><span class="p">]):</span>
+                <span class="k">if</span> <span class="n">_data</span><span class="p">[</span><span class="s2">&quot;kind&quot;</span><span class="p">][</span><span class="n">i</span><span class="p">]</span><span class="o">==</span><span class="s2">&quot;gene&quot;</span> <span class="ow">and</span> <span class="n">_data</span><span class="p">[</span><span class="s2">&quot;meta&quot;</span><span class="p">][</span><span class="n">i</span><span class="p">][</span><span class="s2">&quot;gene_type&quot;</span><span class="p">]</span> <span class="ow">in</span> <span class="n">gene_type</span><span class="p">:</span>
+                    <span class="n">tss</span><span class="p">[</span><span class="n">chrom</span><span class="p">][</span><span class="s2">&quot;genes&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_data</span><span class="p">[</span><span class="s2">&quot;meta&quot;</span><span class="p">][</span><span class="n">i</span><span class="p">][</span><span class="s2">&quot;gene_name&quot;</span><span class="p">])</span>
+                    <span class="k">if</span> <span class="n">_data</span><span class="p">[</span><span class="s2">&quot;ori&quot;</span><span class="p">][</span><span class="n">i</span><span class="p">]</span><span class="o">==</span><span class="s2">&quot;+&quot;</span><span class="p">:</span>
+                        <span class="n">tss</span><span class="p">[</span><span class="n">chrom</span><span class="p">][</span><span class="s2">&quot;pos&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">s</span><span class="o">-</span><span class="n">extend</span><span class="p">,</span><span class="n">s</span><span class="o">+</span><span class="n">extend</span><span class="p">])</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">tss</span><span class="p">[</span><span class="n">chrom</span><span class="p">][</span><span class="s2">&quot;pos&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">e</span><span class="o">-</span><span class="n">extend</span><span class="p">,</span><span class="n">e</span><span class="o">+</span><span class="n">extend</span><span class="p">])</span>
+        
+        <span class="k">return</span> <span class="n">tss</span></div>
+    
+<div class="viewcode-block" id="gff_parser.closest_genes"><a class="viewcode-back" href="../../omniplot.html#omniplot.chipseq_utils.gff_parser.closest_genes">[docs]</a>    <span class="k">def</span> <span class="nf">closest_genes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">peaks</span><span class="p">,</span> <span class="n">K</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+        <span class="n">tss</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">get_tss</span><span class="p">()</span>
+        
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">peaks</span><span class="p">)</span><span class="o">==</span><span class="nb">list</span><span class="p">:</span>
+            <span class="n">_peaks</span><span class="o">=</span><span class="p">{}</span>
+            <span class="k">for</span> <span class="n">chrom</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">peaks</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">chrom</span> <span class="ow">in</span> <span class="n">_peaks</span><span class="p">:</span>
+                    <span class="n">_peaks</span><span class="p">[</span><span class="n">chrom</span><span class="p">]</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;se&quot;</span><span class="p">:[],</span><span class="s2">&quot;center&quot;</span><span class="p">:[]}</span>
+                <span class="n">_peaks</span><span class="p">[</span><span class="n">chrom</span><span class="p">][</span><span class="s2">&quot;center&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">s</span><span class="o">+</span><span class="n">e</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">)</span>
+                <span class="n">_peaks</span><span class="p">[</span><span class="n">chrom</span><span class="p">][</span><span class="s2">&quot;se&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">s</span><span class="p">,</span><span class="n">e</span><span class="p">])</span>
+            <span class="n">peaks</span><span class="o">=</span><span class="n">_peaks</span>
+        <span class="n">genes_peaks</span><span class="o">=</span><span class="p">[]</span>
+        <span class="n">i</span><span class="o">=</span><span class="mi">0</span>
+        <span class="k">for</span> <span class="n">chrom</span> <span class="ow">in</span> <span class="n">tss</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">chrom</span> <span class="ow">in</span> <span class="n">peaks</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">_tss</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">tss</span><span class="p">[</span><span class="n">chrom</span><span class="p">][</span><span class="s2">&quot;pos&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">reshape</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">_genes</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">tss</span><span class="p">[</span><span class="n">chrom</span><span class="p">][</span><span class="s2">&quot;genes&quot;</span><span class="p">])</span>
+            <span class="n">_peaks</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">peaks</span><span class="p">[</span><span class="n">chrom</span><span class="p">][</span><span class="s2">&quot;center&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">reshape</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">tree</span> <span class="o">=</span> <span class="n">BallTree</span><span class="p">(</span><span class="n">_tss</span><span class="p">)</span>
+            <span class="n">dist</span><span class="p">,</span> <span class="n">ind</span> <span class="o">=</span> <span class="n">tree</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">_peaks</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="n">K</span><span class="p">)</span> 
+            <span class="k">for</span> <span class="n">_ind</span><span class="p">,</span> <span class="n">_dist</span><span class="p">,</span> <span class="p">(</span><span class="n">s</span><span class="p">,</span><span class="n">e</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">ind</span><span class="p">),</span> <span class="nb">list</span><span class="p">(</span><span class="n">dist</span><span class="p">),</span><span class="n">peaks</span><span class="p">[</span><span class="n">chrom</span><span class="p">][</span><span class="s2">&quot;se&quot;</span><span class="p">]):</span>
+                <span class="n">_closest</span><span class="o">=</span><span class="n">_genes</span><span class="p">[</span><span class="n">_ind</span><span class="p">]</span>
+                <span class="n">genes_peaks</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">chrom</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="s2">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">_closest</span><span class="p">)),</span> <span class="s2">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="n">_dist</span><span class="p">)))])</span>
+        <span class="k">return</span> <span class="n">genes_peaks</span></div></div>
+    
+<span class="k">def</span> <span class="nf">_calc_pearson2</span><span class="p">(</span><span class="n">_ind</span><span class="p">,</span> <span class="n">_mat</span><span class="p">):</span>
+    <span class="n">_a</span><span class="p">,</span> <span class="n">_b</span><span class="o">=</span><span class="n">_mat</span><span class="p">[</span><span class="n">_ind</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span> <span class="n">_mat</span><span class="p">[</span><span class="n">_ind</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
+    <span class="n">_af</span><span class="o">=</span><span class="n">_a</span><span class="o">&gt;</span><span class="n">np</span><span class="o">.</span><span class="n">quantile</span><span class="p">(</span><span class="n">_a</span><span class="p">,</span> <span class="mf">0.75</span><span class="p">)</span>
+    <span class="n">_bf</span><span class="o">=</span><span class="n">_b</span><span class="o">&gt;</span><span class="n">np</span><span class="o">.</span><span class="n">quantile</span><span class="p">(</span><span class="n">_b</span><span class="p">,</span> <span class="mf">0.75</span><span class="p">)</span>
+    <span class="c1">#_ab=</span>
+    <span class="c1">#filt=_ab&gt;0.02</span>
+    <span class="n">filt</span><span class="o">=</span><span class="n">_af</span><span class="o">+</span><span class="n">_bf</span>
+    <span class="n">_a</span><span class="o">=</span><span class="n">_a</span><span class="p">[</span><span class="n">filt</span><span class="p">]</span>
+    <span class="n">_b</span><span class="o">=</span><span class="n">_b</span><span class="p">[</span><span class="n">filt</span><span class="p">]</span>
+    <span class="n">p</span><span class="o">=</span><span class="n">scipy</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">pearsonr</span><span class="p">(</span><span class="n">_a</span><span class="p">,</span> <span class="n">_b</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">p</span>
+<span class="k">def</span> <span class="nf">_calc_pearson</span><span class="p">(</span><span class="n">_ind</span><span class="p">,</span> <span class="n">_mat</span><span class="p">):</span>
+    <span class="n">p</span><span class="o">=</span><span class="n">scipy</span><span class="o">.</span><span class="n">stats</span><span class="o">.</span><span class="n">pearsonr</span><span class="p">(</span><span class="n">_mat</span><span class="p">[</span><span class="n">_ind</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span> <span class="n">_mat</span><span class="p">[</span><span class="n">_ind</span><span class="p">[</span><span class="mi">1</span><span class="p">]])[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="c1">#p=scipy.stats.spearmanr(_mat[_ind[0]], _mat[_ind[1]])[0]</span>
+    <span class="c1">#p=distance.cdist([_mat[_ind[0]]], [_mat[_ind[1]]])[0][0]</span>
+    <span class="k">return</span> <span class="n">p</span>
+
+<span class="k">def</span> <span class="nf">_read_bw</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">chrom</span><span class="p">,</span> <span class="n">chrom_size</span><span class="p">,</span> <span class="n">step</span><span class="p">):</span>
+        <span class="n">bw</span><span class="o">=</span><span class="n">pwg</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+        <span class="n">val</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">bw</span><span class="o">.</span><span class="n">values</span><span class="p">(</span><span class="n">chrom</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="n">chrom_size</span><span class="p">))</span>
+        <span class="n">rem</span><span class="o">=</span><span class="n">chrom_size</span><span class="o">%</span><span class="n">step</span>
+        <span class="n">val</span><span class="o">=</span><span class="n">val</span><span class="p">[:</span><span class="n">val</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">-</span><span class="n">rem</span><span class="p">]</span>
+        <span class="n">val</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">nan_to_num</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+        <span class="n">val</span><span class="o">=</span><span class="n">val</span><span class="o">.</span><span class="n">reshape</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="n">step</span><span class="p">])</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">val</span>
+<span class="k">def</span> <span class="nf">_read_peaks</span><span class="p">(</span><span class="n">peakfile</span><span class="p">):</span>
+    <span class="n">peaks</span><span class="o">=</span><span class="p">{}</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">peakfile</span><span class="p">)</span> <span class="k">as</span> <span class="n">fin</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">fin</span><span class="p">:</span>
+            <span class="n">l</span><span class="o">=</span><span class="n">l</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">l</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">in</span> <span class="n">peaks</span><span class="p">:</span>
+                <span class="n">peaks</span><span class="p">[</span><span class="n">l</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span><span class="o">=</span><span class="p">[]</span>
+            <span class="n">peaks</span><span class="p">[</span><span class="n">l</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="nb">int</span><span class="p">(</span><span class="n">l</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span><span class="nb">int</span><span class="p">(</span><span class="n">l</span><span class="p">[</span><span class="mi">2</span><span class="p">])])</span>
+    <span class="k">return</span> <span class="n">peaks</span>
+
+<span class="k">def</span> <span class="nf">_stitching</span><span class="p">(</span><span class="n">peakfile</span><span class="p">,</span> <span class="n">stitchdist</span><span class="p">):</span>
+    <span class="n">speaks</span><span class="o">=</span><span class="p">{}</span>
+    
+    <span class="k">for</span> <span class="n">chrom</span><span class="p">,</span> <span class="n">intervals</span> <span class="ow">in</span> <span class="n">peakfile</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">intervals</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+        <span class="n">stack</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c1"># insert first interval into stack</span>
+        <span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">intervals</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">intervals</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
+            <span class="c1"># Check for overlapping interval,</span>
+            <span class="c1"># if interval overlap</span>
+            <span class="k">if</span> <span class="n">i</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;</span><span class="n">stitchdist</span><span class="p">:</span>
+                <span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">i</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+        <span class="n">speaks</span><span class="p">[</span><span class="n">chrom</span><span class="p">]</span><span class="o">=</span><span class="n">stack</span>
+    <span class="k">return</span> <span class="n">speaks</span>
+
+<span class="k">def</span> <span class="nf">_stitching_for_pyrange</span><span class="p">(</span><span class="n">peakfile</span><span class="p">,</span> <span class="n">stitchdist</span><span class="p">):</span>
+    <span class="n">speaks</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Chromosome&quot;</span><span class="p">:[],</span><span class="s2">&quot;Start&quot;</span><span class="p">:[],</span><span class="s2">&quot;End&quot;</span><span class="p">:[]}</span>
+    
+    <span class="k">for</span> <span class="n">chrom</span><span class="p">,</span> <span class="n">intervals</span> <span class="ow">in</span> <span class="n">peakfile</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">intervals</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+        <span class="n">stack</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c1"># insert first interval into stack</span>
+        <span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">intervals</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">intervals</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
+            <span class="c1"># Check for overlapping interval,</span>
+            <span class="c1"># if interval overlap</span>
+            <span class="k">if</span> <span class="n">i</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;</span><span class="n">stitchdist</span><span class="p">:</span>
+                <span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">i</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">s</span><span class="p">,</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">stack</span><span class="p">:</span>
+            <span class="n">speaks</span><span class="p">[</span><span class="s2">&quot;Chromosome&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">chrom</span><span class="p">)</span>
+            <span class="n">speaks</span><span class="p">[</span><span class="s2">&quot;Start&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+            <span class="n">speaks</span><span class="p">[</span><span class="s2">&quot;End&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+        <span class="c1">#speaks[chrom]=stack</span>
+    <span class="k">return</span> <span class="n">speaks</span>
+
+<span class="k">def</span> <span class="nf">_read_tss</span><span class="p">(</span><span class="n">tss</span><span class="p">,</span> <span class="n">tss_dist</span><span class="p">):</span>
+    <span class="n">tss_pos</span><span class="o">=</span><span class="p">{}</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">tss</span><span class="p">)</span> <span class="k">as</span> <span class="n">fin</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">fin</span><span class="p">:</span>
+            <span class="n">l</span><span class="o">=</span><span class="n">l</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">l</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">in</span> <span class="n">tss_pos</span><span class="p">:</span>
+                <span class="n">tss_pos</span><span class="p">[</span><span class="n">l</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span><span class="o">=</span><span class="p">[]</span>
+            <span class="k">if</span> <span class="n">l</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span><span class="o">==</span><span class="s2">&quot;+&quot;</span><span class="p">:</span>
+                <span class="n">tss_pos</span><span class="p">[</span><span class="n">l</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="nb">int</span><span class="p">(</span><span class="n">l</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span><span class="o">-</span><span class="n">tss_dist</span><span class="p">,</span><span class="nb">int</span><span class="p">(</span><span class="n">l</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span><span class="o">+</span><span class="n">tss_dist</span><span class="p">])</span>
+            <span class="k">elif</span> <span class="n">l</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span><span class="o">==</span><span class="s2">&quot;-&quot;</span><span class="p">:</span>
+                <span class="n">tss_pos</span><span class="p">[</span><span class="n">l</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="nb">int</span><span class="p">(</span><span class="n">l</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span><span class="o">-</span><span class="n">tss_dist</span><span class="p">,</span><span class="nb">int</span><span class="p">(</span><span class="n">l</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span><span class="o">+</span><span class="n">tss_dist</span><span class="p">])</span>
+            
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;TSS bed file format must look like &#39;chromsome</span><span class="se">\t</span><span class="s2">start</span><span class="se">\t</span><span class="s2">end</span><span class="se">\t</span><span class="s2">name</span><span class="se">\t</span><span class="s2">orientation&#39;&quot;</span><span class="p">)</span>
+            
+    <span class="k">return</span> <span class="n">tss_pos</span>
+
+<span class="k">def</span> <span class="nf">_interval_subtraction</span><span class="p">(</span><span class="n">list1</span><span class="p">,</span> <span class="n">list2</span><span class="p">):</span>
+    <span class="n">t</span> <span class="o">=</span> <span class="n">IntervalTree</span><span class="p">([</span><span class="n">Interval</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span><span class="p">,</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">list1</span><span class="p">])</span>
+
+    <span class="n">newt</span><span class="o">=</span><span class="n">Parallel</span><span class="p">(</span><span class="n">n_jobs</span><span class="o">=-</span><span class="mi">1</span><span class="p">)(</span><span class="n">delayed</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">chop</span><span class="p">)(</span><span class="n">s</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span><span class="p">,</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">list2</span><span class="p">)</span>
+    <span class="c1">#print(newt[:10])</span>
+    <span class="n">_newt</span><span class="o">=</span><span class="p">[]</span>
+    <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">newt</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">val</span><span class="o">!=</span><span class="kc">None</span><span class="p">:</span>
+            <span class="n">_newt</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+    <span class="n">newt</span><span class="o">=</span><span class="nb">sorted</span><span class="p">(</span><span class="n">_newt</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">[[</span><span class="n">_t</span><span class="o">.</span><span class="n">begin</span><span class="p">,</span> <span class="n">_t</span><span class="o">.</span><span class="n">end</span><span class="p">]</span> <span class="k">for</span> <span class="n">_t</span> <span class="ow">in</span> <span class="n">newt</span><span class="p">]</span>
+<span class="k">def</span> <span class="nf">_remove_close_to_tss</span><span class="p">(</span><span class="n">stitched</span><span class="p">,</span> <span class="n">tss_pos</span><span class="p">):</span>
+    <span class="n">_stitched</span><span class="o">=</span><span class="p">{}</span>
+    <span class="n">chroms</span><span class="o">=</span><span class="n">stitched</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+    <span class="c1"># tmp=[]</span>
+    <span class="c1"># for chrom in chroms:</span>
+    <span class="c1">#     tmp.extend(interval_subtraction(stitched[chrom], tss_pos[chrom]))</span>
+    <span class="c1"># print(tmp[:10])</span>
+    <span class="n">tmp</span><span class="o">=</span><span class="n">Parallel</span><span class="p">(</span><span class="n">n_jobs</span><span class="o">=-</span><span class="mi">1</span><span class="p">)(</span><span class="n">delayed</span><span class="p">(</span><span class="n">_multirange_diff</span><span class="p">)(</span><span class="n">stitched</span><span class="p">[</span><span class="n">chrom</span><span class="p">],</span> <span class="n">tss_pos</span><span class="p">[</span><span class="n">chrom</span><span class="p">])</span> <span class="k">for</span> <span class="n">chrom</span> <span class="ow">in</span> <span class="n">chroms</span><span class="p">)</span>
+    <span class="n">_stitched</span><span class="o">=</span><span class="p">{</span><span class="n">chrom</span><span class="p">:</span> <span class="n">_tmp</span> <span class="k">for</span> <span class="n">chrom</span><span class="p">,</span> <span class="n">_tmp</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">chroms</span><span class="p">,</span><span class="n">tmp</span><span class="p">)</span> <span class="p">}</span>
+    <span class="c1"># for chrom, se in stitched.items():</span>
+    <span class="c1">#</span>
+    <span class="c1">#     tsslist=tss_pos[chrom]</span>
+    <span class="c1">#     _stitched[chrom]=multirange_diff(se, tsslist)</span>
+        
+    <span class="c1">#</span>
+    <span class="c1"># for s, e in se:</span>
+    <span class="c1">#     news=[s]</span>
+    <span class="c1">#     newe=[e]</span>
+    <span class="c1">#     tss_inbetween=False</span>
+    <span class="c1">#     for _tss, ori in tsslist:</span>
+    <span class="c1">#         if s+tss_dist&lt;_tss:</span>
+    <span class="c1">#             continue</span>
+    <span class="c1">#         if _tss &gt;e+tss_dist:</span>
+    <span class="c1">#             break</span>
+    <span class="c1">#         if s &lt;= _tss &lt;= e:</span>
+    <span class="c1">#             newe.append(_tss-tss_dist)</span>
+    <span class="c1">#             news.append(_tss+tss_dist)</span>
+    <span class="c1">#             tss_inbetween=True</span>
+    <span class="c1">#             continue</span>
+    <span class="c1">#         if 0&lt; _tss-e&lt; tss_dist:</span>
+    <span class="c1">#             _e=_tss-tss_dist</span>
+    <span class="c1">#             newe.append(_e)</span>
+    <span class="c1">#         if 0 &lt; s-_tss &lt; tss_dist:</span>
+    <span class="c1">#             _s=_tss+tss_dist</span>
+    <span class="c1">#             news.append(_s)</span>
+    <span class="c1">#     _e=min(newe)</span>
+    <span class="c1">#     _s=max(news)</span>
+    <span class="c1">#     if _s==107683009:</span>
+    <span class="c1">#         print(chrom, s,e)</span>
+    <span class="c1">#     if _e &lt;=s:</span>
+    <span class="c1">#         continue</span>
+    <span class="c1">#     if e &lt;=_s:</span>
+    <span class="c1">#         continue</span>
+    <span class="c1">#     if tss_inbetween:</span>
+    <span class="c1">#         _stitched[chrom].append([_s,e])</span>
+    <span class="c1">#         _stitched[chrom].append([s,_e])</span>
+    <span class="c1">#     else:</span>
+    <span class="c1">#         _stitched[chrom].append([_s,_e])</span>
+    <span class="k">return</span> <span class="n">_stitched</span>
+
+<span class="k">def</span> <span class="nf">_find_extremes</span><span class="p">(</span><span class="n">signals</span><span class="p">,</span> <span class="n">pos</span><span class="p">):</span>
+    <span class="n">signals</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">signals</span><span class="p">)</span>
+    <span class="n">srt</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">signals</span><span class="p">)</span>
+    <span class="n">signals</span><span class="o">=</span><span class="n">signals</span><span class="p">[</span><span class="n">srt</span><span class="p">]</span>
+    <span class="n">pos</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">pos</span><span class="p">)</span>
+    <span class="n">pos</span><span class="o">=</span><span class="n">pos</span><span class="p">[</span><span class="n">srt</span><span class="p">]</span>
+    
+    <span class="n">y</span><span class="o">=</span><span class="n">signals</span>
+    <span class="n">_y</span><span class="o">=</span><span class="n">y</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+    <span class="n">x</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span> <span class="n">y</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">b</span><span class="o">=</span><span class="mi">0</span>
+    <span class="n">possitives</span><span class="o">=</span><span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])):</span>
+        <span class="n">__y</span><span class="o">=</span><span class="n">x</span><span class="o">-</span><span class="n">i</span><span class="o">/</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">_y</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="c1">#print(y)</span>
+        <span class="n">possitives</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">_y</span><span class="o">-</span><span class="n">__y</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">))</span>
+
+    <span class="n">index</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">possitives</span><span class="p">)</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">possitives</span><span class="p">)</span>
+    
+    
+    <span class="k">return</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">pos</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">srt</span>
+
+<span class="k">def</span> <span class="nf">_readgff</span><span class="p">(</span><span class="n">_gff</span><span class="p">,</span> <span class="n">_kind</span><span class="p">,</span> <span class="n">tss_dist</span><span class="p">):</span>
+    <span class="n">gff_dict</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Chromosome&quot;</span><span class="p">:[],</span> <span class="s2">&quot;Start&quot;</span><span class="p">:</span> <span class="p">[],</span> <span class="s2">&quot;End&quot;</span><span class="p">:</span> <span class="p">[]}</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">_gff</span><span class="p">)</span> <span class="k">as</span> <span class="n">fin</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">fin</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">l</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">):</span>
+                <span class="k">continue</span>
+            <span class="n">chrom</span><span class="p">,</span> <span class="n">source</span><span class="p">,</span> <span class="n">kind</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">ori</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="n">l</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">kind</span> <span class="o">!=</span><span class="n">_kind</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">s</span><span class="p">,</span> <span class="n">e</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">ori</span><span class="o">==</span><span class="s2">&quot;+&quot;</span><span class="p">:</span>
+                <span class="n">gff_dict</span><span class="p">[</span><span class="s2">&quot;Chromosome&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">chrom</span><span class="p">)</span>
+                <span class="n">gff_dict</span><span class="p">[</span><span class="s2">&quot;Start&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">s</span><span class="o">-</span><span class="n">tss_dist</span><span class="p">)</span>
+                <span class="n">gff_dict</span><span class="p">[</span><span class="s2">&quot;End&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">s</span><span class="o">+</span><span class="n">tss_dist</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">gff_dict</span><span class="p">[</span><span class="s2">&quot;Chromosome&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">chrom</span><span class="p">)</span>
+                <span class="n">gff_dict</span><span class="p">[</span><span class="s2">&quot;Start&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">e</span><span class="o">-</span><span class="n">tss_dist</span><span class="p">)</span>
+                <span class="n">gff_dict</span><span class="p">[</span><span class="s2">&quot;End&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">e</span><span class="o">+</span><span class="n">tss_dist</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">gff_dict</span>
+
+<span class="k">def</span> <span class="nf">_readgtf</span><span class="p">(</span><span class="n">_gff</span><span class="p">,</span> <span class="n">_kind</span><span class="p">,</span><span class="n">tss_dist</span><span class="p">):</span>
+    <span class="n">gff_dict</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Chromosome&quot;</span><span class="p">:[],</span> <span class="s2">&quot;Start&quot;</span><span class="p">:</span> <span class="p">[],</span> <span class="s2">&quot;End&quot;</span><span class="p">:</span> <span class="p">[]}</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">_gff</span><span class="p">)</span> <span class="k">as</span> <span class="n">fin</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">fin</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">l</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">):</span>
+                <span class="k">continue</span>
+            <span class="n">chrom</span><span class="p">,</span> <span class="n">source</span><span class="p">,</span> <span class="n">kind</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">ori</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="n">l</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">kind</span> <span class="o">!=</span><span class="n">_kind</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">s</span><span class="p">,</span> <span class="n">e</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">ori</span><span class="o">==</span><span class="s2">&quot;+&quot;</span><span class="p">:</span>
+                <span class="n">gff_dict</span><span class="p">[</span><span class="s2">&quot;Chromosome&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">chrom</span><span class="p">)</span>
+                <span class="n">gff_dict</span><span class="p">[</span><span class="s2">&quot;Start&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">s</span><span class="o">-</span><span class="n">tss_dist</span><span class="p">)</span>
+                <span class="n">gff_dict</span><span class="p">[</span><span class="s2">&quot;End&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">s</span><span class="o">+</span><span class="n">tss_dist</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">gff_dict</span><span class="p">[</span><span class="s2">&quot;Chromosome&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">chrom</span><span class="p">)</span>
+                <span class="n">gff_dict</span><span class="p">[</span><span class="s2">&quot;Start&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">e</span><span class="o">-</span><span class="n">tss_dist</span><span class="p">)</span>
+                <span class="n">gff_dict</span><span class="p">[</span><span class="s2">&quot;End&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">e</span><span class="o">+</span><span class="n">tss_dist</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">gff_dict</span>
+
+<span class="k">def</span> <span class="nf">_readgff2</span><span class="p">(</span><span class="n">_gff</span><span class="p">,</span> <span class="n">_kind</span><span class="p">,</span> <span class="n">others</span><span class="o">=</span><span class="p">[]):</span>
+    <span class="n">gff_dict</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Chromosome&quot;</span><span class="p">:[],</span> <span class="s2">&quot;Start&quot;</span><span class="p">:</span> <span class="p">[],</span> <span class="s2">&quot;End&quot;</span><span class="p">:</span> <span class="p">[]}</span>
+    <span class="k">for</span> <span class="n">other</span> <span class="ow">in</span> <span class="n">others</span><span class="p">:</span>
+        <span class="n">gff_dict</span><span class="p">[</span><span class="n">other</span><span class="p">]</span><span class="o">=</span><span class="p">[]</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">_gff</span><span class="p">)</span> <span class="k">as</span> <span class="n">fin</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">fin</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">l</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">):</span>
+                <span class="k">continue</span>
+            <span class="n">chrom</span><span class="p">,</span> <span class="n">source</span><span class="p">,</span> <span class="n">kind</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">ori</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="n">l</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">kind</span> <span class="o">!=</span><span class="n">_kind</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">tmp</span><span class="o">=</span><span class="p">{}</span>
+            <span class="c1">#print(meta)</span>
+            <span class="n">meta</span><span class="o">=</span><span class="n">meta</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;;&quot;</span><span class="p">)</span>
+            
+            <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">meta</span><span class="p">:</span>
+                <span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="o">=</span><span class="n">m</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;=&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">others</span><span class="p">:</span>
+                    <span class="n">tmp</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">=</span><span class="n">v</span>
+            <span class="n">s</span><span class="p">,</span> <span class="n">e</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+            <span class="n">gff_dict</span><span class="p">[</span><span class="s2">&quot;Chromosome&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">chrom</span><span class="p">)</span>
+            <span class="n">gff_dict</span><span class="p">[</span><span class="s2">&quot;Start&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+            <span class="n">gff_dict</span><span class="p">[</span><span class="s2">&quot;End&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">other</span> <span class="ow">in</span> <span class="n">others</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">other</span> <span class="ow">in</span> <span class="n">tmp</span><span class="p">:</span>
+                    <span class="n">gff_dict</span><span class="p">[</span><span class="n">other</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tmp</span><span class="p">[</span><span class="n">other</span><span class="p">])</span>
+                <span class="k">elif</span> <span class="n">other</span><span class="o">==</span><span class="s2">&quot;Strand&quot;</span><span class="p">:</span>
+                    <span class="n">gff_dict</span><span class="p">[</span><span class="n">other</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ori</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">gff_dict</span>
+
+<span class="k">def</span> <span class="nf">_readgff_transcripts</span><span class="p">(</span><span class="n">_gff</span><span class="p">,</span> <span class="n">_extend</span><span class="p">,</span> <span class="n">avoid</span><span class="o">=</span><span class="s2">&quot;chrM&quot;</span><span class="p">):</span>
+    
+    <span class="n">transcripts</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;+&quot;</span><span class="p">:{},</span><span class="s2">&quot;-&quot;</span><span class="p">:{}}</span>
+    
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">_gff</span><span class="p">)</span> <span class="k">as</span> <span class="n">fin</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">fin</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">l</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">):</span>
+                <span class="k">continue</span>
+            <span class="n">chrom</span><span class="p">,</span> <span class="n">source</span><span class="p">,</span> <span class="n">kind</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">ori</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="n">l</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">chrom</span><span class="o">==</span><span class="n">avoid</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">s</span><span class="p">,</span> <span class="n">e</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">kind</span> <span class="o">==</span><span class="s2">&quot;exon&quot;</span><span class="p">:</span>
+                <span class="n">tmp</span><span class="o">=</span><span class="p">{}</span>
+                <span class="c1">#print(meta)</span>
+                <span class="n">meta</span><span class="o">=</span><span class="n">meta</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;;&quot;</span><span class="p">)</span>
+                
+                <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">meta</span><span class="p">:</span>
+                    <span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="o">=</span><span class="n">m</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;=&quot;</span><span class="p">)</span>
+                    <span class="n">tmp</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">=</span><span class="n">v</span>
+                <span class="k">if</span> <span class="s2">&quot;pseudogene&quot;</span> <span class="ow">in</span> <span class="n">tmp</span><span class="p">[</span><span class="s2">&quot;gene_type&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">):</span>
+                    <span class="k">continue</span>
+                <span class="n">tid</span><span class="o">=</span><span class="n">tmp</span><span class="p">[</span><span class="s2">&quot;transcript_id&quot;</span><span class="p">]</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">tid</span> <span class="ow">in</span> <span class="n">transcripts</span><span class="p">[</span><span class="n">ori</span><span class="p">]:</span>
+                    <span class="n">transcripts</span><span class="p">[</span><span class="n">ori</span><span class="p">][</span><span class="n">tid</span><span class="p">]</span><span class="o">=</span><span class="p">[]</span>
+                <span class="n">transcripts</span><span class="p">[</span><span class="n">ori</span><span class="p">][</span><span class="n">tid</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">chrom</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">e</span><span class="p">])</span>
+    <span class="n">_transcripts</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;+&quot;</span><span class="p">:{},</span><span class="s2">&quot;-&quot;</span><span class="p">:{}}</span>
+    <span class="k">for</span> <span class="n">strand</span><span class="p">,</span> <span class="n">tids</span> <span class="ow">in</span> <span class="n">transcripts</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">strand</span><span class="o">==</span><span class="s2">&quot;+&quot;</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">tid</span><span class="p">,</span> <span class="n">exons</span> <span class="ow">in</span> <span class="n">tids</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">_transcripts</span><span class="p">[</span><span class="n">strand</span><span class="p">][</span><span class="n">tid</span><span class="p">]</span><span class="o">=</span><span class="p">[]</span>
+                <span class="n">total_len</span><span class="o">=</span><span class="mi">0</span>
+                <span class="n">i</span><span class="o">=</span><span class="mi">0</span>
+                <span class="k">for</span> <span class="n">chrom</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">exons</span><span class="p">:</span>
+            
+                    <span class="n">total_len</span><span class="o">+=</span><span class="n">e</span><span class="o">-</span><span class="n">s</span>
+                    <span class="k">if</span> <span class="n">i</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
+                        <span class="n">s</span><span class="o">=</span><span class="n">s</span><span class="o">-</span><span class="n">_extend</span>
+                        <span class="k">if</span> <span class="n">s</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                            <span class="n">s</span><span class="o">=</span><span class="mi">0</span>
+                    <span class="k">if</span> <span class="n">total_len</span><span class="o">&gt;</span><span class="n">_extend</span><span class="p">:</span>
+                        <span class="n">e</span><span class="o">=</span><span class="n">e</span><span class="o">-</span><span class="p">(</span><span class="n">total_len</span><span class="o">-</span><span class="n">_extend</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">s</span><span class="o">&lt;</span><span class="n">e</span><span class="p">:</span>
+                            <span class="n">_transcripts</span><span class="p">[</span><span class="n">strand</span><span class="p">][</span><span class="n">tid</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">chrom</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">e</span><span class="p">])</span>
+                        <span class="k">break</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">_transcripts</span><span class="p">[</span><span class="n">strand</span><span class="p">][</span><span class="n">tid</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">chrom</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">e</span><span class="p">])</span>
+                    <span class="n">i</span><span class="o">+=</span><span class="mi">1</span>
+                
+        <span class="k">elif</span> <span class="n">strand</span><span class="o">==</span><span class="s2">&quot;-&quot;</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">tid</span><span class="p">,</span> <span class="n">exons</span> <span class="ow">in</span> <span class="n">tids</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">_transcripts</span><span class="p">[</span><span class="n">strand</span><span class="p">][</span><span class="n">tid</span><span class="p">]</span><span class="o">=</span><span class="p">[]</span>
+                <span class="n">total_len</span><span class="o">=</span><span class="mi">0</span>
+                <span class="n">i</span><span class="o">=</span><span class="mi">0</span>
+                <span class="k">for</span> <span class="n">chrom</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">e</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="n">exons</span><span class="p">):</span>
+                    <span class="n">total_len</span><span class="o">+=</span><span class="n">e</span><span class="o">-</span><span class="n">s</span>
+                    <span class="k">if</span> <span class="n">i</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
+                        <span class="n">e</span><span class="o">=</span><span class="n">e</span><span class="o">+</span><span class="n">_extend</span>
+                    <span class="k">if</span> <span class="n">total_len</span><span class="o">&gt;</span><span class="n">_extend</span><span class="p">:</span>
+                        <span class="n">s</span><span class="o">=</span><span class="n">s</span><span class="o">+</span><span class="p">(</span><span class="n">total_len</span><span class="o">-</span><span class="n">_extend</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">s</span><span class="o">&lt;</span><span class="n">e</span><span class="p">:</span>
+                            <span class="n">_transcripts</span><span class="p">[</span><span class="n">strand</span><span class="p">][</span><span class="n">tid</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">chrom</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">e</span><span class="p">])</span>
+                        <span class="k">break</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">_transcripts</span><span class="p">[</span><span class="n">strand</span><span class="p">][</span><span class="n">tid</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">chrom</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">e</span><span class="p">])</span>
+                    <span class="n">i</span><span class="o">+=</span><span class="mi">1</span>
+    <span class="k">return</span> <span class="n">_transcripts</span>
+
+<span class="k">def</span> <span class="nf">_readgtf2</span><span class="p">(</span><span class="n">_gff</span><span class="p">,</span> <span class="n">_kind</span><span class="p">,</span> <span class="n">others</span><span class="o">=</span><span class="p">[]):</span>
+    <span class="n">gff_dict</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Chromosome&quot;</span><span class="p">:[],</span> <span class="s2">&quot;Start&quot;</span><span class="p">:</span> <span class="p">[],</span> <span class="s2">&quot;End&quot;</span><span class="p">:</span> <span class="p">[]}</span>
+    <span class="k">for</span> <span class="n">other</span> <span class="ow">in</span> <span class="n">others</span><span class="p">:</span>
+        <span class="n">gff_dict</span><span class="p">[</span><span class="n">other</span><span class="p">]</span><span class="o">=</span><span class="p">[]</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">_gff</span><span class="p">)</span> <span class="k">as</span> <span class="n">fin</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">fin</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">l</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">):</span>
+                <span class="k">continue</span>
+            <span class="n">chrom</span><span class="p">,</span> <span class="n">source</span><span class="p">,</span> <span class="n">kind</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">ori</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="n">l</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s2">&quot;;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">kind</span> <span class="o">!=</span><span class="n">_kind</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">tmp</span><span class="o">=</span><span class="p">{}</span>
+            <span class="c1">#print(meta)</span>
+            <span class="n">meta</span><span class="o">=</span><span class="n">meta</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;; &quot;</span><span class="p">)</span>
+            <span class="c1">#print(meta)</span>
+            <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">meta</span><span class="p">:</span>
+                <span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="o">=</span><span class="n">m</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+                <span class="n">v</span><span class="o">=</span><span class="n">v</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;&quot;;&#39;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">others</span><span class="p">:</span>
+                    <span class="n">tmp</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">=</span><span class="n">v</span>
+
+            <span class="n">s</span><span class="p">,</span> <span class="n">e</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+            <span class="n">gff_dict</span><span class="p">[</span><span class="s2">&quot;Chromosome&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">chrom</span><span class="p">)</span>
+            <span class="n">gff_dict</span><span class="p">[</span><span class="s2">&quot;Start&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+            <span class="n">gff_dict</span><span class="p">[</span><span class="s2">&quot;End&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">other</span> <span class="ow">in</span> <span class="n">others</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">other</span> <span class="ow">in</span> <span class="n">tmp</span><span class="p">:</span>
+                    <span class="n">gff_dict</span><span class="p">[</span><span class="n">other</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tmp</span><span class="p">[</span><span class="n">other</span><span class="p">])</span>
+                <span class="k">elif</span> <span class="n">other</span><span class="o">==</span><span class="s2">&quot;Strand&quot;</span><span class="p">:</span>
+                    <span class="n">gff_dict</span><span class="p">[</span><span class="n">other</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ori</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">gff_dict</span>
+
+<span class="k">def</span> <span class="nf">_read_and_reshape_bw</span><span class="p">(</span><span class="n">chrom</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="n">_bw</span><span class="p">,</span> <span class="n">binsize</span><span class="p">):</span>
+    <span class="n">bw</span><span class="o">=</span><span class="n">pwg</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">_bw</span><span class="p">)</span>
+    <span class="n">val</span><span class="o">=</span><span class="n">bw</span><span class="o">.</span><span class="n">values</span><span class="p">(</span><span class="n">chrom</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+    <span class="c1">#print(val)</span>
+    <span class="n">val</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+    <span class="c1">#print(val.shape)</span>
+    <span class="n">val</span><span class="o">=</span><span class="n">val</span><span class="o">.</span><span class="n">reshape</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="n">binsize</span><span class="p">])</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="c1">#print(val.shape)</span>
+    <span class="n">_sum</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">_sum</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
+        <span class="n">mean</span><span class="o">=</span><span class="mi">0</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">mean</span><span class="o">=</span><span class="n">_sum</span><span class="o">/</span><span class="p">(</span><span class="n">e</span><span class="o">-</span><span class="n">s</span><span class="p">)</span>
+    <span class="c1"># mean=bw.stats(chrom, s, e, exact=True)[0]</span>
+    <span class="c1"># if mean==None:</span>
+    <span class="c1">#     mean=0</span>
+    <span class="k">return</span> <span class="n">val</span><span class="p">,</span> <span class="n">mean</span> 
+
+<span class="k">def</span> <span class="nf">_read_bw_stats</span><span class="p">(</span><span class="n">chrom</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="n">_bw</span><span class="p">):</span>
+    <span class="n">bw</span><span class="o">=</span><span class="n">pwg</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">_bw</span><span class="p">)</span>
+    <span class="n">val</span><span class="o">=</span><span class="n">bw</span><span class="o">.</span><span class="n">stats</span><span class="p">(</span><span class="n">chrom</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">e</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">val</span><span class="o">==</span><span class="kc">None</span><span class="p">:</span>
+        <span class="n">val</span><span class="o">=</span><span class="mi">0</span>
+    <span class="k">return</span> <span class="n">val</span> 
+<span class="k">def</span> <span class="nf">_read_and_reshape_np</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="n">bw</span><span class="p">,</span> <span class="n">binsize</span><span class="p">):</span>
+    <span class="n">val</span><span class="o">=</span><span class="n">bw</span><span class="p">[</span><span class="n">s</span><span class="p">:</span><span class="n">e</span><span class="p">]</span>
+    <span class="c1">#print(val)</span>
+    <span class="n">val</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+    <span class="c1">#print(val.shape)</span>
+    <span class="n">val</span><span class="o">=</span><span class="n">val</span><span class="o">.</span><span class="n">reshape</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="n">binsize</span><span class="p">])</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="c1">#print(val.shape)</span>
+    <span class="n">mean</span><span class="o">=</span><span class="n">val</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">mean</span><span class="o">==</span><span class="kc">None</span><span class="p">:</span>
+        <span class="n">mean</span><span class="o">=</span><span class="mi">0</span>
+    <span class="k">return</span> <span class="n">val</span><span class="p">,</span> <span class="n">mean</span>
+
+<span class="k">def</span> <span class="nf">_flatten_gen_comp</span><span class="p">(</span><span class="n">lst</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">Any</span><span class="p">]:</span>
+                <span class="sd">&quot;&quot;&quot;Flatten a list using generators comprehensions.&quot;&quot;&quot;</span>
+                <span class="k">return</span> <span class="p">(</span><span class="n">item</span>
+                        <span class="k">for</span> <span class="n">sublist</span> <span class="ow">in</span> <span class="n">lst</span>
+                        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">sublist</span><span class="p">)</span>
+                
+<span class="k">def</span> <span class="nf">_read_transcripts</span><span class="p">(</span><span class="n">_bw</span><span class="p">,</span> <span class="n">_pos</span><span class="p">,</span> <span class="n">binsize</span><span class="p">,</span> <span class="n">extend</span><span class="p">):</span>
+    <span class="n">expected</span><span class="o">=</span><span class="mi">2</span><span class="o">*</span><span class="n">extend</span><span class="o">//</span><span class="n">binsize</span>
+    <span class="n">bw</span><span class="o">=</span><span class="n">pwg</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">_bw</span><span class="p">)</span>
+    <span class="n">vals</span><span class="o">=</span><span class="p">[]</span>
+    <span class="k">for</span> <span class="n">chrom</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">_pos</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">val</span><span class="o">=</span><span class="n">bw</span><span class="o">.</span><span class="n">values</span><span class="p">(</span><span class="n">chrom</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">RuntimeError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">chrom</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+        <span class="n">vals</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+        
+    <span class="c1">#print(val)</span>
+    <span class="n">val</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">nan_to_num</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">_flatten_gen_comp</span><span class="p">(</span><span class="n">vals</span><span class="p">)))</span>
+    
+    
+    
+    <span class="n">val</span><span class="o">=</span><span class="n">val</span><span class="o">.</span><span class="n">reshape</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="n">binsize</span><span class="p">])</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">val</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">&lt;</span><span class="n">expected</span><span class="p">:</span>
+        
+        <span class="n">val</span> <span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">val</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="n">expected</span><span class="o">-</span><span class="n">val</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]])])</span>
+    <span class="k">return</span> <span class="n">val</span>
+    
+    
+    
+    
+    
+    
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2023, Koh Onimaru.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

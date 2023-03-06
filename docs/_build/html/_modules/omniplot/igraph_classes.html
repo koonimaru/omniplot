@@ -1,0 +1,533 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>omniplot.igraph_classes &mdash; omniplot 0.3.0 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> omniplot
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">omniplot</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+        
+      <li>omniplot.igraph_classes</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for omniplot.igraph_classes</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">This code was copied and mofified from https://igraph.readthedocs.io/en/stable/</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">igraph.configuration</span> <span class="kn">import</span> <span class="n">Configuration</span>
+<span class="kn">from</span> <span class="nn">warnings</span> <span class="kn">import</span> <span class="n">warn</span>
+<span class="kn">from</span> <span class="nn">igraph.drawing.colors</span> <span class="kn">import</span> <span class="n">Palette</span><span class="p">,</span> <span class="n">palettes</span>
+<span class="kn">from</span> <span class="nn">igraph._igraph</span> <span class="kn">import</span> <span class="n">convex_hull</span><span class="p">,</span> <span class="n">VertexSeq</span>
+<span class="kn">from</span> <span class="nn">igraph.drawing.baseclasses</span> <span class="kn">import</span> <span class="n">AbstractGraphDrawer</span>
+<span class="kn">from</span> <span class="nn">igraph.drawing.utils</span> <span class="kn">import</span> <span class="n">Point</span>
+
+<span class="kn">from</span> <span class="nn">igraph.drawing.matplotlib.edge</span> <span class="kn">import</span> <span class="n">MatplotlibEdgeDrawer</span>
+<span class="kn">from</span> <span class="nn">igraph.drawing.matplotlib.polygon</span> <span class="kn">import</span> <span class="n">MatplotlibPolygonDrawer</span>
+<span class="kn">from</span> <span class="nn">igraph.drawing.matplotlib.utils</span> <span class="kn">import</span> <span class="n">find_matplotlib</span>
+<span class="kn">from</span> <span class="nn">igraph.drawing.matplotlib.vertex</span> <span class="kn">import</span> <span class="n">MatplotlibVertexDrawer</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;MatplotlibGraphDrawer&quot;</span><span class="p">,)</span>
+
+<span class="n">_</span><span class="p">,</span> <span class="n">plt</span> <span class="o">=</span> <span class="n">find_matplotlib</span><span class="p">()</span>
+
+<span class="c1">#####################################################################</span>
+
+
+<div class="viewcode-block" id="MatplotlibGraphDrawer"><a class="viewcode-back" href="../../omniplot.html#omniplot.igraph_classes.MatplotlibGraphDrawer">[docs]</a><span class="k">class</span> <span class="nc">MatplotlibGraphDrawer</span><span class="p">(</span><span class="n">AbstractGraphDrawer</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Graph drawer that uses a pyplot.Axes as context&quot;&quot;&quot;</span>
+
+    <span class="n">_shape_dict</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;rectangle&quot;</span><span class="p">:</span> <span class="s2">&quot;s&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;circle&quot;</span><span class="p">:</span> <span class="s2">&quot;o&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;hidden&quot;</span><span class="p">:</span> <span class="s2">&quot;none&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;triangle-up&quot;</span><span class="p">:</span> <span class="s2">&quot;^&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;triangle-down&quot;</span><span class="p">:</span> <span class="s2">&quot;v&quot;</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">ax</span><span class="p">,</span>
+        <span class="n">vertex_drawer_factory</span><span class="o">=</span><span class="n">MatplotlibVertexDrawer</span><span class="p">,</span>
+        <span class="n">edge_drawer_factory</span><span class="o">=</span><span class="n">MatplotlibEdgeDrawer</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Constructs the graph drawer and associates it with the mpl Axes</span>
+
+<span class="sd">        @param ax: the matplotlib Axes to draw into.</span>
+<span class="sd">        @param vertex_drawer_factory: a factory method that returns an</span>
+<span class="sd">            L{AbstractVertexDrawer} instance bound to the given Matplotlib axes.</span>
+<span class="sd">            The factory method must take three parameters: the axes and the</span>
+<span class="sd">            palette to be used for drawing colored vertices, and the layout of</span>
+<span class="sd">            the graph. The default vertex drawer is L{MatplotlibVertexDrawer}.</span>
+<span class="sd">        @param edge_drawer_factory: a factory method that returns an</span>
+<span class="sd">            L{AbstractEdgeDrawer} instance bound to a given Matplotlib Axes.</span>
+<span class="sd">            The factory method must take two parameters: the Axes and the palette</span>
+<span class="sd">            to be used for drawing colored edges. The default edge drawer is</span>
+<span class="sd">            L{MatplotlibEdgeDrawer}.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ax</span> <span class="o">=</span> <span class="n">ax</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">vertex_drawer_factory</span> <span class="o">=</span> <span class="n">vertex_drawer_factory</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">edge_drawer_factory</span> <span class="o">=</span> <span class="n">edge_drawer_factory</span>
+
+<div class="viewcode-block" id="MatplotlibGraphDrawer.draw"><a class="viewcode-back" href="../../omniplot.html#omniplot.igraph_classes.MatplotlibGraphDrawer.draw">[docs]</a>    <span class="k">def</span> <span class="nf">draw</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">graph</span><span class="p">,</span><span class="n">alpha</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwds</span><span class="p">):</span>
+        <span class="c1"># Deferred import to avoid a cycle in the import graph</span>
+        <span class="kn">from</span> <span class="nn">igraph.clustering</span> <span class="kn">import</span> <span class="n">VertexClustering</span><span class="p">,</span> <span class="n">VertexCover</span>
+
+        <span class="c1"># Positional arguments are not used</span>
+        <span class="k">if</span> <span class="n">args</span><span class="p">:</span>
+            <span class="n">warn</span><span class="p">(</span>
+                <span class="s2">&quot;Positional arguments to plot functions are ignored &quot;</span>
+                <span class="s2">&quot;and will be deprecated soon.&quot;</span><span class="p">,</span>
+                <span class="ne">DeprecationWarning</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Some abbreviations for sake of simplicity</span>
+        <span class="n">directed</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">is_directed</span><span class="p">()</span>
+        <span class="n">ax</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ax</span>
+
+        <span class="c1"># Palette</span>
+        <span class="n">palette</span> <span class="o">=</span> <span class="n">kwds</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;palette&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">palette</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">palette</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span>
+                <span class="n">graph</span><span class="p">,</span>
+                <span class="s2">&quot;_default_palette&quot;</span><span class="p">,</span>
+                <span class="n">Configuration</span><span class="o">.</span><span class="n">instance</span><span class="p">()[</span><span class="s2">&quot;plotting.palette&quot;</span><span class="p">],</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="n">palette</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">palette</span><span class="p">,</span> <span class="n">Palette</span><span class="p">):</span>
+            <span class="n">palette</span> <span class="o">=</span> <span class="n">palettes</span><span class="p">[</span><span class="n">palette</span><span class="p">]</span>
+        <span class="c1"># Calculate/get the layout of the graph</span>
+        <span class="n">layout</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ensure_layout</span><span class="p">(</span><span class="n">kwds</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;layout&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span> <span class="n">graph</span><span class="p">)</span>
+
+        <span class="c1"># Decide whether we need to calculate the curvature of edges</span>
+        <span class="c1"># automatically -- and calculate them if needed.</span>
+        <span class="n">autocurve</span> <span class="o">=</span> <span class="n">kwds</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;autocurve&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">autocurve</span> <span class="ow">or</span> <span class="p">(</span>
+            <span class="n">autocurve</span> <span class="ow">is</span> <span class="kc">None</span>
+            <span class="ow">and</span> <span class="s2">&quot;edge_curved&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">kwds</span>
+            <span class="ow">and</span> <span class="s2">&quot;curved&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">graph</span><span class="o">.</span><span class="n">edge_attributes</span><span class="p">()</span>
+            <span class="ow">and</span> <span class="n">graph</span><span class="o">.</span><span class="n">ecount</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mi">10000</span>
+        <span class="p">):</span>
+            <span class="kn">from</span> <span class="nn">igraph</span> <span class="kn">import</span> <span class="n">autocurve</span>
+
+            <span class="n">default</span> <span class="o">=</span> <span class="n">kwds</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;edge_curved&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">default</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="n">default</span> <span class="o">=</span> <span class="mf">0.5</span>
+            <span class="n">default</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">default</span><span class="p">)</span>
+            <span class="n">kwds</span><span class="p">[</span><span class="s2">&quot;edge_curved&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">autocurve</span><span class="p">(</span>
+                <span class="n">graph</span><span class="p">,</span>
+                <span class="n">attribute</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                <span class="n">default</span><span class="o">=</span><span class="n">default</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Construct the vertex, edge and label drawers</span>
+        <span class="n">vertex_drawer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">vertex_drawer_factory</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">palette</span><span class="p">,</span> <span class="n">layout</span><span class="p">)</span>
+        <span class="n">edge_drawer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">edge_drawer_factory</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">palette</span><span class="p">)</span>
+
+        <span class="c1"># Construct the visual vertex/edge builders based on the specifications</span>
+        <span class="c1"># provided by the vertex_drawer and the edge_drawer</span>
+        <span class="n">vertex_builder</span> <span class="o">=</span> <span class="n">vertex_drawer</span><span class="o">.</span><span class="n">VisualVertexBuilder</span><span class="p">(</span><span class="n">graph</span><span class="o">.</span><span class="n">vs</span><span class="p">,</span> <span class="n">kwds</span><span class="p">)</span>
+        <span class="n">edge_builder</span> <span class="o">=</span> <span class="n">edge_drawer</span><span class="o">.</span><span class="n">VisualEdgeBuilder</span><span class="p">(</span><span class="n">graph</span><span class="o">.</span><span class="n">es</span><span class="p">,</span> <span class="n">kwds</span><span class="p">)</span>
+
+        <span class="c1"># Draw the highlighted groups (if any)</span>
+        <span class="k">if</span> <span class="s2">&quot;mark_groups&quot;</span> <span class="ow">in</span> <span class="n">kwds</span><span class="p">:</span>
+            <span class="n">mark_groups</span> <span class="o">=</span> <span class="n">kwds</span><span class="p">[</span><span class="s2">&quot;mark_groups&quot;</span><span class="p">]</span>
+
+            <span class="c1"># Deferred import to avoid a cycle in the import graph</span>
+            <span class="kn">from</span> <span class="nn">igraph.clustering</span> <span class="kn">import</span> <span class="n">VertexClustering</span><span class="p">,</span> <span class="n">VertexCover</span>
+
+            <span class="c1"># Figure out what to do with mark_groups in order to be able to</span>
+            <span class="c1"># iterate over it and get memberlist-color pairs</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">mark_groups</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                <span class="c1"># Dictionary mapping vertex indices or tuples of vertex</span>
+                <span class="c1"># indices to colors</span>
+                <span class="n">group_iter</span> <span class="o">=</span> <span class="nb">iter</span><span class="p">(</span><span class="n">mark_groups</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">mark_groups</span><span class="p">,</span> <span class="p">(</span><span class="n">VertexClustering</span><span class="p">,</span> <span class="n">VertexCover</span><span class="p">)):</span>
+                <span class="c1"># Vertex clustering</span>
+                <span class="n">group_iter</span> <span class="o">=</span> <span class="p">((</span><span class="n">group</span><span class="p">,</span> <span class="n">color</span><span class="p">)</span> <span class="k">for</span> <span class="n">color</span><span class="p">,</span> <span class="n">group</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">mark_groups</span><span class="p">))</span>
+            <span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">mark_groups</span><span class="p">,</span> <span class="s2">&quot;__iter__&quot;</span><span class="p">):</span>
+                <span class="c1"># Lists, tuples, iterators etc</span>
+                <span class="n">group_iter</span> <span class="o">=</span> <span class="nb">iter</span><span class="p">(</span><span class="n">mark_groups</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># False</span>
+                <span class="n">group_iter</span> <span class="o">=</span> <span class="nb">iter</span><span class="p">({}</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+
+            <span class="k">if</span> <span class="n">kwds</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;legend&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+                <span class="n">legend_info</span> <span class="o">=</span> <span class="p">{</span>
+                    <span class="s2">&quot;handles&quot;</span><span class="p">:</span> <span class="p">[],</span>
+                    <span class="s2">&quot;labels&quot;</span><span class="p">:</span> <span class="p">[],</span>
+                <span class="p">}</span>
+
+            <span class="c1"># Iterate over color-memberlist pairs</span>
+            <span class="k">for</span> <span class="n">group</span><span class="p">,</span> <span class="n">color_id</span> <span class="ow">in</span> <span class="n">group_iter</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">group</span> <span class="ow">or</span> <span class="n">color_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">continue</span>
+
+                <span class="n">color</span> <span class="o">=</span> <span class="n">palette</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">color_id</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">group</span><span class="p">,</span> <span class="n">VertexSeq</span><span class="p">):</span>
+                    <span class="n">group</span> <span class="o">=</span> <span class="p">[</span><span class="n">vertex</span><span class="o">.</span><span class="n">index</span> <span class="k">for</span> <span class="n">vertex</span> <span class="ow">in</span> <span class="n">group</span><span class="p">]</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">group</span><span class="p">,</span> <span class="s2">&quot;__iter__&quot;</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;group membership list must be iterable&quot;</span><span class="p">)</span>
+
+                <span class="c1"># Get the vertex indices that constitute the convex hull</span>
+                <span class="n">hull</span> <span class="o">=</span> <span class="p">[</span><span class="n">group</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">convex_hull</span><span class="p">([</span><span class="n">layout</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">group</span><span class="p">])]</span>
+
+                <span class="c1"># Calculate the preferred rounding radius for the corners</span>
+                <span class="n">corner_radius</span> <span class="o">=</span> <span class="mf">1.25</span> <span class="o">*</span> <span class="nb">max</span><span class="p">(</span><span class="n">vertex_builder</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span><span class="o">.</span><span class="n">size</span> <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">hull</span><span class="p">)</span>
+
+                <span class="c1"># Construct the polygon</span>
+                <span class="n">polygon</span> <span class="o">=</span> <span class="p">[</span><span class="n">layout</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">hull</span><span class="p">]</span>
+
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">polygon</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+                    <span class="c1"># Expand the polygon (which is a flat line otherwise)</span>
+                    <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="o">=</span> <span class="n">Point</span><span class="p">(</span><span class="o">*</span><span class="n">polygon</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="n">Point</span><span class="p">(</span><span class="o">*</span><span class="n">polygon</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+                    <span class="n">c</span> <span class="o">=</span> <span class="n">corner_radius</span> <span class="o">*</span> <span class="p">(</span><span class="n">a</span> <span class="o">-</span> <span class="n">b</span><span class="p">)</span><span class="o">.</span><span class="n">normalized</span><span class="p">()</span>
+                    <span class="n">n</span> <span class="o">=</span> <span class="n">Point</span><span class="p">(</span><span class="o">-</span><span class="n">c</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">c</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                    <span class="n">polygon</span> <span class="o">=</span> <span class="p">[</span><span class="n">a</span> <span class="o">+</span> <span class="n">n</span><span class="p">,</span> <span class="n">b</span> <span class="o">+</span> <span class="n">n</span><span class="p">,</span> <span class="n">b</span> <span class="o">-</span> <span class="n">c</span><span class="p">,</span> <span class="n">b</span> <span class="o">-</span> <span class="n">n</span><span class="p">,</span> <span class="n">a</span> <span class="o">-</span> <span class="n">n</span><span class="p">,</span> <span class="n">a</span> <span class="o">+</span> <span class="n">c</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># Expand the polygon around its center of mass</span>
+                    <span class="n">center</span> <span class="o">=</span> <span class="n">Point</span><span class="p">(</span>
+                        <span class="o">*</span><span class="p">[</span><span class="nb">sum</span><span class="p">(</span><span class="n">coords</span><span class="p">)</span> <span class="o">/</span> <span class="nb">float</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">coords</span><span class="p">))</span> <span class="k">for</span> <span class="n">coords</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">polygon</span><span class="p">)]</span>
+                    <span class="p">)</span>
+                    <span class="n">polygon</span> <span class="o">=</span> <span class="p">[</span>
+                        <span class="n">Point</span><span class="p">(</span><span class="o">*</span><span class="n">point</span><span class="p">)</span><span class="o">.</span><span class="n">towards</span><span class="p">(</span><span class="n">center</span><span class="p">,</span> <span class="o">-</span><span class="n">corner_radius</span><span class="p">)</span>
+                        <span class="k">for</span> <span class="n">point</span> <span class="ow">in</span> <span class="n">polygon</span>
+                    <span class="p">]</span>
+
+                <span class="c1"># Draw the hull</span>
+                <span class="n">facecolor</span> <span class="o">=</span> <span class="p">(</span><span class="n">color</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">color</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">color</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="mf">0.25</span> <span class="o">*</span> <span class="n">color</span><span class="p">[</span><span class="mi">3</span><span class="p">])</span>
+                <span class="n">drawer</span> <span class="o">=</span> <span class="n">MatplotlibPolygonDrawer</span><span class="p">(</span><span class="n">ax</span><span class="p">)</span>
+                <span class="n">drawer</span><span class="o">.</span><span class="n">draw</span><span class="p">(</span>
+                    <span class="n">polygon</span><span class="p">,</span>
+                    <span class="n">corner_radius</span><span class="o">=</span><span class="n">corner_radius</span><span class="p">,</span>
+                    <span class="n">facecolor</span><span class="o">=</span><span class="n">facecolor</span><span class="p">,</span>
+                    <span class="n">edgecolor</span><span class="o">=</span><span class="n">color</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="n">alpha</span><span class="p">,</span>
+                <span class="p">)</span>
+
+                <span class="k">if</span> <span class="n">kwds</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;legend&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+                    <span class="n">legend_info</span><span class="p">[</span><span class="s2">&quot;handles&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                        <span class="n">plt</span><span class="o">.</span><span class="n">Rectangle</span><span class="p">(</span>
+                            <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+                            <span class="mi">0</span><span class="p">,</span>
+                            <span class="mi">0</span><span class="p">,</span>
+                            <span class="n">facecolor</span><span class="o">=</span><span class="n">facecolor</span><span class="p">,</span>
+                            <span class="n">edgecolor</span><span class="o">=</span><span class="n">color</span><span class="p">,</span>
+                        <span class="p">)</span>
+                    <span class="p">)</span>
+                    <span class="n">legend_info</span><span class="p">[</span><span class="s2">&quot;labels&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">color_id</span><span class="p">))</span>
+
+            <span class="k">if</span> <span class="n">kwds</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;legend&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span>
+                    <span class="n">legend_info</span><span class="p">[</span><span class="s2">&quot;handles&quot;</span><span class="p">],</span>
+                    <span class="n">legend_info</span><span class="p">[</span><span class="s2">&quot;labels&quot;</span><span class="p">],</span>
+                <span class="p">)</span>
+
+        <span class="c1"># Determine the order in which we will draw the vertices and edges</span>
+        <span class="n">vertex_order</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_determine_vertex_order</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">kwds</span><span class="p">)</span>
+        <span class="n">edge_order</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_determine_edge_order</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">kwds</span><span class="p">)</span>
+
+        <span class="c1"># Construct the iterator that we will use to draw the vertices</span>
+        <span class="n">vs</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">vs</span>
+        <span class="k">if</span> <span class="n">vertex_order</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Default vertex order</span>
+            <span class="n">vertex_coord_iter</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="n">vs</span><span class="p">,</span> <span class="n">vertex_builder</span><span class="p">,</span> <span class="n">layout</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Specified vertex order</span>
+            <span class="n">vertex_coord_iter</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="p">(</span><span class="n">vs</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">vertex_builder</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">layout</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">vertex_order</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Draw the vertices</span>
+        <span class="n">drawer_method</span> <span class="o">=</span> <span class="n">vertex_drawer</span><span class="o">.</span><span class="n">draw</span>
+        <span class="k">for</span> <span class="n">vertex</span><span class="p">,</span> <span class="n">visual_vertex</span><span class="p">,</span> <span class="n">coords</span> <span class="ow">in</span> <span class="n">vertex_coord_iter</span><span class="p">:</span>
+            <span class="n">drawer_method</span><span class="p">(</span><span class="n">visual_vertex</span><span class="p">,</span> <span class="n">vertex</span><span class="p">,</span> <span class="n">coords</span><span class="p">)</span>
+
+        <span class="c1"># Construct the iterator that we will use to draw the vertex labels</span>
+        <span class="n">vs</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">vs</span>
+        <span class="k">if</span> <span class="n">vertex_order</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Default vertex order</span>
+            <span class="n">vertex_coord_iter</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="n">vertex_builder</span><span class="p">,</span> <span class="n">layout</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Specified vertex order</span>
+            <span class="n">vertex_coord_iter</span> <span class="o">=</span> <span class="p">((</span><span class="n">vertex_builder</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">layout</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">vertex_order</span><span class="p">)</span>
+
+        <span class="c1"># Draw the vertex labels</span>
+        <span class="k">for</span> <span class="n">vertex</span><span class="p">,</span> <span class="n">coords</span> <span class="ow">in</span> <span class="n">vertex_coord_iter</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">vertex</span><span class="o">.</span><span class="n">label</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="n">label_size</span> <span class="o">=</span> <span class="n">kwds</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="s2">&quot;vertex_label_size&quot;</span><span class="p">,</span>
+                <span class="n">vertex</span><span class="o">.</span><span class="n">label_size</span><span class="p">,</span>
+            <span class="p">)</span>
+
+            <span class="n">ax</span><span class="o">.</span><span class="n">text</span><span class="p">(</span>
+                <span class="o">*</span><span class="n">coords</span><span class="p">,</span>
+                <span class="n">vertex</span><span class="o">.</span><span class="n">label</span><span class="p">,</span>
+                <span class="n">fontsize</span><span class="o">=</span><span class="n">label_size</span><span class="p">,</span>
+                <span class="n">ha</span><span class="o">=</span><span class="s1">&#39;center&#39;</span><span class="p">,</span>
+                <span class="n">va</span><span class="o">=</span><span class="s1">&#39;center&#39;</span><span class="p">,</span>
+                <span class="c1"># TODO: overlap, offset, etc.</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Construct the iterator that we will use to draw the edges</span>
+        <span class="n">es</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">es</span>
+        <span class="k">if</span> <span class="n">edge_order</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Default edge order</span>
+            <span class="n">edge_coord_iter</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="n">es</span><span class="p">,</span> <span class="n">edge_builder</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Specified edge order</span>
+            <span class="n">edge_coord_iter</span> <span class="o">=</span> <span class="p">((</span><span class="n">es</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">edge_builder</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">edge_order</span><span class="p">)</span>
+
+        <span class="c1"># Draw the edges</span>
+        <span class="k">if</span> <span class="n">directed</span><span class="p">:</span>
+            <span class="n">drawer_method</span> <span class="o">=</span> <span class="n">edge_drawer</span><span class="o">.</span><span class="n">draw_directed_edge</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">drawer_method</span> <span class="o">=</span> <span class="n">edge_drawer</span><span class="o">.</span><span class="n">draw_undirected_edge</span>
+        <span class="k">for</span> <span class="n">edge</span><span class="p">,</span> <span class="n">visual_edge</span> <span class="ow">in</span> <span class="n">edge_coord_iter</span><span class="p">:</span>
+            <span class="n">src</span><span class="p">,</span> <span class="n">dest</span> <span class="o">=</span> <span class="n">edge</span><span class="o">.</span><span class="n">tuple</span>
+            <span class="n">src_vertex</span><span class="p">,</span> <span class="n">dest_vertex</span> <span class="o">=</span> <span class="n">vertex_builder</span><span class="p">[</span><span class="n">src</span><span class="p">],</span> <span class="n">vertex_builder</span><span class="p">[</span><span class="n">dest</span><span class="p">]</span>
+            <span class="n">drawer_method</span><span class="p">(</span><span class="n">visual_edge</span><span class="p">,</span> <span class="n">src_vertex</span><span class="p">,</span> <span class="n">dest_vertex</span><span class="p">)</span>
+
+        <span class="c1"># Draw the edge labels</span>
+        <span class="n">labels</span> <span class="o">=</span> <span class="n">kwds</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;edge_label&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">labels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">edge_label_iter</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="p">(</span><span class="n">labels</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">edge_builder</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">graph</span><span class="o">.</span><span class="n">es</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">graph</span><span class="o">.</span><span class="n">ecount</span><span class="p">())</span>
+            <span class="p">)</span>
+            <span class="k">for</span> <span class="n">label</span><span class="p">,</span> <span class="n">visual_edge</span><span class="p">,</span> <span class="n">edge</span> <span class="ow">in</span> <span class="n">edge_label_iter</span><span class="p">:</span>
+                <span class="c1"># Ask the edge drawer to propose an anchor point for the label</span>
+                <span class="n">src</span><span class="p">,</span> <span class="n">dest</span> <span class="o">=</span> <span class="n">edge</span><span class="o">.</span><span class="n">tuple</span>
+                <span class="n">src_vertex</span><span class="p">,</span> <span class="n">dest_vertex</span> <span class="o">=</span> <span class="n">vertex_builder</span><span class="p">[</span><span class="n">src</span><span class="p">],</span> <span class="n">vertex_builder</span><span class="p">[</span><span class="n">dest</span><span class="p">]</span>
+                <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">),</span> <span class="p">(</span><span class="n">halign</span><span class="p">,</span> <span class="n">valign</span><span class="p">)</span> <span class="o">=</span> <span class="n">edge_drawer</span><span class="o">.</span><span class="n">get_label_position</span><span class="p">(</span>
+                    <span class="n">visual_edge</span><span class="p">,</span>
+                    <span class="n">src_vertex</span><span class="p">,</span>
+                    <span class="n">dest_vertex</span><span class="p">,</span>
+                <span class="p">)</span>
+
+                <span class="n">text_kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+                <span class="n">text_kwargs</span><span class="p">[</span><span class="s1">&#39;ha&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">halign</span><span class="o">.</span><span class="n">value</span>
+                <span class="n">text_kwargs</span><span class="p">[</span><span class="s1">&#39;va&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">valign</span><span class="o">.</span><span class="n">value</span>
+
+                <span class="k">if</span> <span class="n">visual_edge</span><span class="o">.</span><span class="n">background</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">text_kwargs</span><span class="p">[</span><span class="s1">&#39;bbox&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+                        <span class="n">facecolor</span><span class="o">=</span><span class="n">visual_edge</span><span class="o">.</span><span class="n">background</span><span class="p">,</span>
+                        <span class="n">edgecolor</span><span class="o">=</span><span class="s1">&#39;none&#39;</span><span class="p">,</span>
+                    <span class="p">)</span>
+                    <span class="n">text_kwargs</span><span class="p">[</span><span class="s1">&#39;ha&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;center&#39;</span>
+                    <span class="n">text_kwargs</span><span class="p">[</span><span class="s1">&#39;va&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;center&#39;</span>
+
+                <span class="k">if</span> <span class="n">visual_edge</span><span class="o">.</span><span class="n">align_label</span><span class="p">:</span>
+                    <span class="c1"># Rotate the text to align with the edge</span>
+                    <span class="n">rotation</span> <span class="o">=</span> <span class="n">edge_drawer</span><span class="o">.</span><span class="n">get_label_rotation</span><span class="p">(</span>
+                        <span class="n">visual_edge</span><span class="p">,</span> <span class="n">src_vertex</span><span class="p">,</span> <span class="n">dest_vertex</span><span class="p">,</span>
+                    <span class="p">)</span>
+                    <span class="n">text_kwargs</span><span class="p">[</span><span class="s1">&#39;rotation&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">rotation</span>
+
+                <span class="n">ax</span><span class="o">.</span><span class="n">text</span><span class="p">(</span>
+                    <span class="n">x</span><span class="p">,</span>
+                    <span class="n">y</span><span class="p">,</span>
+                    <span class="n">label</span><span class="p">,</span>
+                    <span class="n">fontsize</span><span class="o">=</span><span class="n">visual_edge</span><span class="o">.</span><span class="n">label_size</span><span class="p">,</span>
+                    <span class="n">color</span><span class="o">=</span><span class="n">visual_edge</span><span class="o">.</span><span class="n">label_color</span><span class="p">,</span>
+                    <span class="o">**</span><span class="n">text_kwargs</span><span class="p">,</span>
+                    <span class="c1"># TODO: offset, etc.</span>
+                <span class="p">)</span>
+
+        <span class="c1"># Despine</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">spines</span><span class="p">[</span><span class="s2">&quot;right&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">set_visible</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">spines</span><span class="p">[</span><span class="s2">&quot;top&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">set_visible</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">spines</span><span class="p">[</span><span class="s2">&quot;left&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">set_visible</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">spines</span><span class="p">[</span><span class="s2">&quot;bottom&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">set_visible</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="c1"># Remove axis ticks</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_xticks</span><span class="p">([])</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_yticks</span><span class="p">([])</span>
+
+        <span class="c1"># Set equal aspect to get actual circles</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_aspect</span><span class="p">(</span><span class="s2">&quot;auto&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Autoscale for x/y axis limits</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">autoscale_view</span><span class="p">()</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2023, Koh Onimaru.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
