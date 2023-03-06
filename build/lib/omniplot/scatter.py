@@ -145,7 +145,7 @@ def clusterplot(df: pd.DataFrame,
     X, category=_separate_data(df, variables=variables, category=category)
     
     
-    if ztranform:
+    if ztranform==True:
         X=zscore(X, axis=0)
         
     if pcacomponent==None:
@@ -631,7 +631,7 @@ def clusterplot(df: pd.DataFrame,
                 for key in _clut.keys():
                     _dfnew=dfnew.loc[dfnew[hue]==key]
                     ax[0].scatter(_dfnew[x], _dfnew[y], color=_clut[key], marker=_mlut[key], label=key)
-                ax[0].legend(title=key)
+                
             else:
                 
                 _clut, _mlut=_create_color_markerlut(dfnew, hue,palette[0],markers)
@@ -640,7 +640,7 @@ def clusterplot(df: pd.DataFrame,
                     _dfnew=dfnew.loc[dfnew[hue]==key]
                     ax[0].scatter(_dfnew[x], _dfnew[y], color=_clut[key], label=key, s=size)
                     
-                ax[0].legend(title=key)
+            ax[0].legend(title=hue)
             ax[0].set_title(method+" Cluster number="+str(K))
             if len(category)!=0:
                 for i, cat in enumerate(category):
@@ -650,13 +650,13 @@ def clusterplot(df: pd.DataFrame,
                         for key in lut[cat]["colorlut"].keys():
                             _dfnew=dfnew.loc[dfnew[cat]==key]
                             ax[i+1].scatter(_dfnew[x], _dfnew[y], color=lut[cat]["colorlut"][key], marker=lut[cat]["markerlut"][key], label=key)
-                        ax[i+1].legend(title=key)
+                        
                         
                     else:
                         for key in lut[cat]["colorlut"].keys():
                             _dfnew=dfnew.loc[dfnew[cat]==key]
                             ax[i+1].scatter(_dfnew[x], _dfnew[y], color=lut[cat]["colorlut"][key], label=key, s=size)
-                        ax[i+1].legend(title=key)
+                    ax[i+1].legend(title=cat)
                         
             _dfnews[K]=dfnew
     _save(save, method+"_scatter")

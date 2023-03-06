@@ -529,6 +529,8 @@ def clusterplot(df: pd.DataFrame,
                         
         lut={}
         for i, cat in enumerate(category):
+            if df[cat].dtype==float :
+                continue 
             _clut, _mlut=_create_color_markerlut(df, cat,palette[1],markers)
             lut[cat]={"colorlut":_clut, "markerlut":_mlut}
  
@@ -594,18 +596,20 @@ def clusterplot(df: pd.DataFrame,
                 for i, cat in enumerate(category):
                     dfnew[cat]=df[cat]
                     #sns.scatterplot(data=dfnew,x=x,y=y,hue=cat, ax=ax[i+2], palette=palette[1], s=size,**kwargs)
-                    if barrierfree==True:
+                    if dfnew[cat].dtype==float :
+                        ax[i+1].scatter(_dfnew[x], _dfnew[y], color=dfnew[cat], label=key)
+
+                    elif barrierfree==True:
                         
                         for key in lut[cat]["colorlut"].keys():
                             _dfnew=dfnew.loc[dfnew[cat]==key]
                             ax[i+2].scatter(_dfnew[x], _dfnew[y], color=lut[cat]["colorlut"][key], marker=lut[cat]["markerlut"][key], label=key)
-                        ax[i+2].legend(title=key)
                         
                     else:
                         for key in lut[cat]["colorlut"].keys():
                             _dfnew=dfnew.loc[dfnew[cat]==key]
                             ax[i+2].scatter(_dfnew[x], _dfnew[y], color=lut[cat]["colorlut"][key], label=key, s=size)
-                        ax[i+2].legend(title=key)
+                    ax[i+2].legend(title=cat)
 
 
 
@@ -645,7 +649,11 @@ def clusterplot(df: pd.DataFrame,
             if len(category)!=0:
                 for i, cat in enumerate(category):
                     dfnew[cat]=df[cat]
-                    if barrierfree==True:
+
+                    if dfnew[cat].dtype==float :
+                        ax[i+1].scatter(_dfnew[x], _dfnew[y], color=dfnew[cat], label=key)
+
+                    elif barrierfree==True:
                         
                         for key in lut[cat]["colorlut"].keys():
                             _dfnew=dfnew.loc[dfnew[cat]==key]
