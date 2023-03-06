@@ -145,7 +145,7 @@ def clusterplot(df: pd.DataFrame,
     X, category=_separate_data(df, variables=variables, category=category)
     
     
-    if ztranform:
+    if ztranform==True:
         X=zscore(X, axis=0)
         
     if pcacomponent==None:
@@ -175,17 +175,6 @@ def clusterplot(df: pd.DataFrame,
         normy=1-normy
         normx=np.linspace(0,1, len(K))
         perp=_calc_curveture(normx, normy)
-        # perp=[]
-        # for i, (nx, ny) in enumerate(zip(normx, normy)):
-        #     if i==0:
-        #         perp.append(0)
-        #         continue
-        #     r=(nx**2+ny**2)**0.5
-        #     sina=ny/r
-        #     cosa=nx/r
-        #     sinamb=sina*np.cos(np.pi*0.25)-cosa*np.sin(np.pi*0.25)
-        #     perp.append(r*sinamb)
-        # perp=np.array(perp)
         srtindex=np.argsort(perp)[::-1]
         plt.subplots()
         plt.plot(K, Sum_of_squared_distances, '-', label='Sum of squared distances')
@@ -529,6 +518,8 @@ def clusterplot(df: pd.DataFrame,
                         
         lut={}
         for i, cat in enumerate(category):
+            if df[cat].dtype==float :
+                continue 
             _clut, _mlut=_create_color_markerlut(df, cat,palette[1],markers)
             lut[cat]={"colorlut":_clut, "markerlut":_mlut}
  
@@ -594,18 +585,20 @@ def clusterplot(df: pd.DataFrame,
                 for i, cat in enumerate(category):
                     dfnew[cat]=df[cat]
                     #sns.scatterplot(data=dfnew,x=x,y=y,hue=cat, ax=ax[i+2], palette=palette[1], s=size,**kwargs)
-                    if barrierfree==True:
+                    if dfnew[cat].dtype==float :
+                        sc=ax[i+1].scatter(dfnew[x], dfnew[y], c=dfnew[cat], s=size)
+                        plt.colorbar(sc,ax=ax[i+1], label=cat, shrink=0.3,aspect=5,orientation="vertical")
+                    elif barrierfree==True:
                         
                         for key in lut[cat]["colorlut"].keys():
                             _dfnew=dfnew.loc[dfnew[cat]==key]
                             ax[i+2].scatter(_dfnew[x], _dfnew[y], color=lut[cat]["colorlut"][key], marker=lut[cat]["markerlut"][key], label=key)
-                        ax[i+2].legend(title=key)
-                        
+                        ax[i+2].legend(title=cat)
                     else:
                         for key in lut[cat]["colorlut"].keys():
                             _dfnew=dfnew.loc[dfnew[cat]==key]
                             ax[i+2].scatter(_dfnew[x], _dfnew[y], color=lut[cat]["colorlut"][key], label=key, s=size)
-                        ax[i+2].legend(title=key)
+                        ax[i+2].legend(title=cat)
 
 
 
@@ -631,7 +624,7 @@ def clusterplot(df: pd.DataFrame,
                 for key in _clut.keys():
                     _dfnew=dfnew.loc[dfnew[hue]==key]
                     ax[0].scatter(_dfnew[x], _dfnew[y], color=_clut[key], marker=_mlut[key], label=key)
-                ax[0].legend(title=key)
+                
             else:
                 
                 _clut, _mlut=_create_color_markerlut(dfnew, hue,palette[0],markers)
@@ -640,23 +633,27 @@ def clusterplot(df: pd.DataFrame,
                     _dfnew=dfnew.loc[dfnew[hue]==key]
                     ax[0].scatter(_dfnew[x], _dfnew[y], color=_clut[key], label=key, s=size)
                     
-                ax[0].legend(title=key)
+            ax[0].legend(title=hue)
             ax[0].set_title(method+" Cluster number="+str(K))
             if len(category)!=0:
                 for i, cat in enumerate(category):
                     dfnew[cat]=df[cat]
-                    if barrierfree==True:
+
+                    if dfnew[cat].dtype==float :
+                        sc=ax[i+1].scatter(dfnew[x], dfnew[y], c=dfnew[cat], label=key, s=size)
+                        plt.colorbar(sc,ax=ax[i+1], label=cat, shrink=0.3,aspect=5,orientation="vertical")
+                    elif barrierfree==True:
                         
                         for key in lut[cat]["colorlut"].keys():
                             _dfnew=dfnew.loc[dfnew[cat]==key]
                             ax[i+1].scatter(_dfnew[x], _dfnew[y], color=lut[cat]["colorlut"][key], marker=lut[cat]["markerlut"][key], label=key)
-                        ax[i+1].legend(title=key)
+                        ax[i+1].legend(title=cat)
                         
                     else:
                         for key in lut[cat]["colorlut"].keys():
                             _dfnew=dfnew.loc[dfnew[cat]==key]
                             ax[i+1].scatter(_dfnew[x], _dfnew[y], color=lut[cat]["colorlut"][key], label=key, s=size)
-                        ax[i+1].legend(title=key)
+                        ax[i+1].legend(title=cat)
                         
             _dfnews[K]=dfnew
     _save(save, method+"_scatter")
@@ -846,6 +843,22 @@ def pie_scatter(df: pd.DataFrame,
     return {"axes":ax}
 
 
+def _scatter(_df, x,y, cat, ax, lut, barrierfree, size):
+    if _df[cat].dtype==float :
+        sc=ax.scatter(_df[x], _df[y], c=_df[cat], s=size)
+        plt.colorbar(sc,ax=ax, label=cat, shrink=0.3,aspect=5,orientation="vertical")
+    elif barrierfree==True:
+        
+        for key in lut[cat]["colorlut"].keys():
+            _dfnew=_df.loc[_df[cat]==key]
+            ax.scatter(_dfnew[x], _dfnew[y], color=lut[cat]["colorlut"][key], marker=lut[cat]["markerlut"][key], label=key)
+        ax.legend(title=cat)
+    else:
+        for key in lut[cat]["colorlut"].keys():
+            _dfnew=_df.loc[_df[cat]==key]
+            ax.scatter(_dfnew[x], _dfnew[y], color=lut[cat]["colorlut"][key], label=key, s=size)
+        ax.legend(title=cat)
+
 
 def decomplot(df: pd.DataFrame,
               variables: List=[],
@@ -866,7 +879,8 @@ def decomplot(df: pd.DataFrame,
               markers: bool=False,
               saveparam: dict={},
               ax: Optional[plt.Axes]=None,
-              palette: str="tab20b") -> Dict:
+              palette: str="tab20b",
+              size: int=10) -> Dict:
     
     """
     Decomposing data and drawing a scatter plot and some plots for explained variables. 
@@ -914,6 +928,16 @@ def decomplot(df: pd.DataFrame,
     # else:    
     #     x = df.values
     #     assert x.dtype==float, "data must contain only float values."
+    barrierfree=False
+    if type(markers)==bool:
+            
+        if markers==True:
+            barrierfree=True
+            markers=maker_list 
+        else: 
+            markers=[]
+
+
     original_index=df.index
     if len(variables)!=0:
         features=variables
@@ -926,18 +950,9 @@ def decomplot(df: pd.DataFrame,
 
                     
     if len(category)!=0:
-        barrierfree=False
-        if type(markers)==bool:
-            
-            if markers==True:
-                barrierfree=True
-                markers=maker_list 
-            else: 
-                markers=[]
-                        
         lut={}
         for i, cat in enumerate(category):
-            _clut, _mlut=_create_color_markerlut(df, cat,palette[1],markers)
+            _clut, _mlut=_create_color_markerlut(df, cat,palette,markers)
             lut[cat]={"colorlut":_clut, "markerlut":_mlut}
 
 
@@ -989,18 +1004,19 @@ def decomplot(df: pd.DataFrame,
             if len(category)!=0:
                 for cat in category:
                     dfpc[cat]=df[cat]
+                    
+                    _scatter(dfpc, xlabel,ylabel, cat, figures[cat]["axes"][axi], lut, barrierfree, size)
+
+                    # sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=cat, ax=figures[cat]["axes"][axi],palette=palette)
+                    # sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=cat, ax=figures[cat]["axes"][axi],legend=False,palette=palette)
                     if combnum==1:
-                        sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=cat, ax=figures[cat]["axes"][axi],palette=palette)
                         figures[cat]["axes"][axi].legend(bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0)
-                    else:
-                        sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=cat, ax=figures[cat]["axes"][axi],
-                                        legend=False,palette=palette)
                     for k, feature in enumerate(_features):
                         figures[cat]["axes"][axi].arrow(0, 0, _loadings[k, 0],_loadings[k, 1],color=arrow_color,width=0.005,head_width=0.1)
                         figures[cat]["axes"][axi].text(_loadings[k, 0],_loadings[k, 1],feature,color=arrow_text_color)
             else:
                 sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, ax=figures["nocat"][axi],palette=palette)
-            
+                _scatter(dfpc, xlabel,ylabel, cat, figures["nocat"][axi], lut, barrierfree, size)
                 for k, feature in enumerate(_features):
                     #ax.plot([0,_loadings[k, 0] ], [0,_loadings[k, 1] ],color=arrow_color)
                     figures["nocat"][axi].arrow(0, 0, _loadings[k, 0],_loadings[k, 1],color=arrow_color,width=0.005,head_width=0.1)
@@ -1054,14 +1070,16 @@ def decomplot(df: pd.DataFrame,
             if len(category)!=0:
                 for cat in category:
                     dfpc[cat]=df[cat]
+                    
+                    # sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=cat, ax=figures[cat]["axes"][axi],palette=palette)
+                    _scatter(dfpc, xlabel,ylabel, cat, figures[cat]["axes"][axi], lut, barrierfree, size)
+                    # sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=cat, ax=figures[cat]["axes"][axi],legend=False,palette=palette)
                     if combnum==1:
-                        sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=cat, ax=figures[cat]["axes"][axi],palette=palette)
                         figures[cat]["axes"][axi].legend(bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0,palette=palette)
-                    else:
-                        sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=cat, ax=figures[cat]["axes"][axi],
-                                        legend=False,palette=palette)
+
             else:
-                sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=category, ax=figures["nocat"][axi],palette=palette)
+                # sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=category, ax=figures["nocat"][axi],palette=palette)
+                _scatter(dfpc, xlabel,ylabel, cat, figures["nocat"][axi], lut, barrierfree, size)
             dfpc_list.append(dfpc)
             combnum+=1
         if len(category)!=0:
