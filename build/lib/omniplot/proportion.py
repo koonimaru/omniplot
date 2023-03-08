@@ -247,9 +247,9 @@ def _float2hist(val, bin_num=10):
     binsize=round(n,-round(np.log10(n)))
     _n=np.abs(np.amin(val))
     minval=round(_n,-round(np.log10(n)))
-    if np.amin(_val)<0:
+    if np.amin(val)<0:
         minval-=binsize
-    _n=np.abs(np.amax(_val))
+    _n=np.abs(np.amax(val))
     maxval=round(_n,-round(np.log10(n)))
     bins=np.linspace(minval, maxval, bin_num+1)
     counts, _=np.histogram(val, bins=bins)
@@ -333,7 +333,8 @@ def stacked_barplot(df: pd.DataFrame,
                     rotation: int=90,
                     ax: Optional[plt.Axes]=None,
                     show_legend:bool=True,
-                    bin_num: Union[dict, int]=10)-> Dict:
+                    bin_num: Union[dict, int]=10,
+                    ylim: Optional[int]=None)-> Dict:
     
     """
     Drawing a stacked barplot with or without the fisher's exact test 
@@ -398,7 +399,8 @@ def stacked_barplot(df: pd.DataFrame,
     Examples
     --------
     """
-    
+    if type(df)==Dict:
+        df=pd.DataFrame(df)
     if type(x)==str:
         x=[x]
         if order!=None:
@@ -578,7 +580,11 @@ def stacked_barplot(df: pd.DataFrame,
                 
                 pos[_x][_hue][h]={key: [he, bo] for key, he, bo in zip(keys, heights, bottom)}
                 bottom+=heights
-            ax.set_xticks(ax.get_xticks(), labels=keys, rotation=rotation)
+            if len(keys)==1:
+                ax.set_xticks(ax.get_xticks(), labels=keys, rotation=rotation)
+                ax.margins(x=1)
+            else:
+                ax.set_xticks(ax.get_xticks(), labels=keys, rotation=rotation)
             #ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
             if show_legend==True:
                 ax.legend(title=_hue,loc=[1.01,0])
@@ -630,6 +636,9 @@ def stacked_barplot(df: pd.DataFrame,
                             else:
                                 pval_str="ns"
                             _line_annotate( "mlp="+pval_str, line, (idx1+idx2)/2, color="magenta")
+            if scale=="absolute" and ylim !=None:
+                ax.set_ylim(0, ylim)
+
     if len(x)==1 and len(hue)==1:
         plt.subplots_adjust(top=0.93,left=0.1,right=0.7, bottom=0.17)                            
     else:
@@ -647,13 +656,23 @@ def nice_piechart(df: pd.DataFrame,
                   palette: str="tab20c",
                   ncols: int=2,
                   ignore: float=0.05,
-                  show_values: bool=True,title: str="",) ->Dict:
+                  show_values: bool=True,
+                  title: str="",
+                  hatch: bool=False,
+                  show_legend:bool=False) ->Dict:
     
     if type(category)==str:
         category=[category]
     nrows=len(category)//ncols+int(len(category)%ncols!=0)
-    fig, axes=plt.subplots(nrows=nrows, ncols=ncols, figsize=[ncols*2,
+    if show_legend==True or hatch==True:
+        fig, axes=plt.subplots(nrows=nrows, ncols=ncols, figsize=[ncols*6,
                                                         nrows*2])
+    else:
+        fig, axes=plt.subplots(nrows=nrows, ncols=ncols, figsize=[ncols*2,
+                                                        nrows*2])
+    if title !="":
+        fig.suptitle(title)
+
     axes=axes.flatten()
     for cat, ax in zip(category, axes):
         u, c=np.unique(df[cat], return_counts=True)
@@ -674,19 +693,34 @@ def nice_piechart(df: pd.DataFrame,
                 continue
             if show_values==True:
                 u[j]=u[j]+"\n("+str(100*np.round(_c[j],1))+"%)"
-        
-        ax.pie(c, labels=u, 
-               counterclock=False,
-               startangle=90, 
-               colors=colors,
-               labeldistance=0.6,
-               radius=1.25)
+        if hatch==True:
+            ax.pie(c, labels=u, 
+                counterclock=False,
+                startangle=90, 
+                colors=colors,
+                radius=1.25,hatch=hatch_list[:c.shape[0]],labeldistance=None)
+            ax.legend(bbox_to_anchor=[1,1])
+        else:
+            if show_legend==True:
+                ax.pie(c, labels=u, 
+                    counterclock=False,
+                    startangle=90, 
+                    colors=colors,
+                    radius=1.25,labeldistance=None)
+                ax.legend()
+            else:
+                ax.pie(c, labels=u, 
+                    counterclock=False,
+                    startangle=90, 
+                    colors=colors,
+                    labeldistance=0.6,
+                    radius=1.25)
         ax.set_title(cat,backgroundcolor='lavender',pad=10)
     if len(category)%ncols!=0:
         for i in range(len(category)%ncols-2):
             fig.delaxes(axes[-(i+1)])
-    plt.tight_layout(h_pad=1)
-    plt.subplots_adjust(top=0.9)
+    # plt.tight_layout(h_pad=1)
+    plt.subplots_adjust(top=0.9,wspace=1)
     return {"axes":ax}
 
 
@@ -907,3 +941,4 @@ def stackedlines(df: pd.DataFrame,
         ax.text(1, 0, "({})".format(xunit), transform=ax.transAxes, ha="left",va="top")
     if inverse==True:
         ax.invert_yaxis()
+    return {"axes":ax}
