@@ -23,18 +23,18 @@ def nb_regression(x, y):
 def main():
     import matplotlib.pyplot as plt
     import sys
-    beta_0 = 2
+    beta_0 =1
     beta_1 = 0.05
     
     N = 2000
-    x = np.random.randint(0, 50, N)
+    x = np.random.randint(0, 100, N)
     
     true_mu = np.exp(beta_0 + beta_1 * x)
-    true_r = 0.3
+    true_r = 0.9
     p =1- true_mu / (float(true_r) + true_mu)
     
     y = np.random.negative_binomial(n = true_r, p = p, size = N)
-    _x=np.arange(50)
+    _x=np.arange(100)
     
     
     

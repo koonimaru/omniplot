@@ -486,7 +486,7 @@ def complex_clustermap(df: pd.DataFrame,
         The same as the "variables" option. Will be deprecated.
     Returns
     -------
-        dict: {"row_clusters":pd.DataFrame,"col_clusters":pd.DataFrame, "grid":g}
+        {"row_clusters":pd.DataFrame,"col_clusters":pd.DataFrame, "grid":g}: dict
     Raises
     ------
     Notes
@@ -607,7 +607,7 @@ def complex_clustermap(df: pd.DataFrame,
                              row_colors=_row_colors,
                              method=method,xticklabels=xticklabels, yticklabels=yticklabels,
                              figsize=figsize,dendrogram_ratio=0.1,
-                             cbar_kws=dict(ticks=[0, 0.50, 1],cmap=heatmap_palette, orientation='horizontal'),
+                             cbar_kws=dict(cmap=heatmap_palette, orientation='horizontal'),
                              **kwargs)
             
             g.ax_col_colors.invert_yaxis()
@@ -620,7 +620,7 @@ def complex_clustermap(df: pd.DataFrame,
                              xticklabels=xticklabels, 
                              yticklabels=yticklabels,
                              dendrogram_ratio=0.1,
-                             cbar_kws=dict(ticks=[0, 0.50, 1],cmap=heatmap_palette, orientation='horizontal'),
+                             cbar_kws=dict(cmap=heatmap_palette, orientation='horizontal'),
                              figsize=figsize,**kwargs)
             g.ax_col_colors.invert_yaxis()
         elif len(_row_colors) >0:
@@ -635,7 +635,7 @@ def complex_clustermap(df: pd.DataFrame,
                              cbar_kws=dict(orientation='horizontal'),
                              **kwargs)
             g.ax_row_colors.invert_xaxis()
-
+        
         
         #for spine in g.ax_cbar.spines:
         #    g.ax_cbar.spines[spine].set_linewidth(2)
@@ -837,7 +837,6 @@ def complex_clustermap(df: pd.DataFrame,
             legendhandles=[]
             for label, color in colorlut.items():
                 legendhandles.append(Line2D([0], [0], color=color,linewidth=5, label=label))
-
             legend1=g.ax_heatmap.legend(handles=legendhandles, loc=[1.15,0.8-0.2*legend_num], title=_title)
             g.ax_heatmap.add_artist(legend1)
             legend_num+=1
@@ -851,27 +850,17 @@ def complex_clustermap(df: pd.DataFrame,
             legend_num+=1
         
     else:
-        g=sns.clustermap(df,method=method,cbar_kws={"label":ctitle},**kwargs)
+        g=sns.clustermap(df,method=method,cbar_kws=dict(orientation='horizontal'),**kwargs)
     if color_var>0:
-        cmap = cm.nipy_spectral(np.linspace(0, 1, color_var))
+        cmap = cm.tab20c(np.linspace(0, 1, color_var))
     else:
-        cmap = cm.nipy_spectral(np.linspace(0, 1, approx_clusternum+5))
+        cmap = cm.tab20c(np.linspace(0, 1, approx_clusternum+5))
     hierarchy.set_link_color_palette([mpl.colors.rgb2hex(rgb[:3]) for rgb in cmap])
     
     """coloring the row dendrogram based on branch numbers crossed with the threshold"""
     if g.dendrogram_row != None:
         t=_dendrogram_threshold(g.dendrogram_row.dendrogram,approx_clusternum)
-        # lbranches=np.array(g.dendrogram_row.dendrogram["dcoord"])[:,:2]
-        # rbranches=np.array(g.dendrogram_row.dendrogram["dcoord"])[:,2:]
-        # thre=np.linspace(0, np.amax(g.dendrogram_row.dendrogram["dcoord"]), 100)[::-1]
-        # for t in thre:
-        #     #print(np.sum(lbranches[:,1]>t),np.sum(rbranches[:,0]>t),np.sum(lbranches[:,0]>t),np.sum(rbranches[:,1]>t))
-        #     crossbranches=np.sum(lbranches[:,1]>t)+np.sum(rbranches[:,0]>t)-np.sum(lbranches[:,0]>t)-np.sum(rbranches[:,1]>t)
-        #     #print(crossbranches)
-        #
-        #     if crossbranches>approx_clusternum:
-        #         break
-        
+               
         den=hierarchy.dendrogram(g.dendrogram_row.linkage,
                                                  labels = g.data.index,
                                                  color_threshold=t,ax=g.ax_row_dendrogram,
@@ -932,7 +921,8 @@ def complex_clustermap(df: pd.DataFrame,
     
     g.ax_cbar.set_title(ctitle)
     #g.ax_cbar.tick_params(axis='x', length=5)
-    g.ax_cbar.set_position(pos=[0.80, 0.3, 0.1, 0.02], which="both")
+    g.ax_cbar.set_position(pos=[0.80, 0.3, 0.1, 0.02], 
+                           which="both")
     if title !="":
         g.fig.suptitle(title, va="bottom")
     plt.setp(g.ax_heatmap.xaxis.get_majorticklabels(), rotation=90)

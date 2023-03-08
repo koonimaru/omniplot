@@ -536,19 +536,6 @@ def correlation(df: pd.DataFrame,
     
     original_index=list(df.index)
     X, category=_separate_data(df, variables=variables, category=category)
-    #
-    # if len(category) !=0:
-    #
-    #     if type(category)==str:
-    #         category=[category]
-    #     #df=df.drop(category, axis=1)
-    #     valnames=list(set(df.columns) -set(category)) 
-    #     X = df[valnames].values
-    #     assert X.dtype==float, f"data must contain only float values except {category} columns."
-    #
-    # else:    
-    #     X = df.values
-    #     assert X.dtype==float, "data must contain only float values."
     if ztransform==True:
         X=zscore(X, axis=0)
     if method=="pearson":

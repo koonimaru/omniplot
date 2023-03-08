@@ -43,6 +43,21 @@ plt.rcParams['svg.fonttype'] = 'none'
 sns.set_theme(font="Arial")
 
 __all__=["clusterplot", "decomplot", "pie_scatter","manifoldplot", "regression_single"]
+def _scatter(_df, x,y, cat, ax, lut, barrierfree, size):
+    if _df[cat].dtype==float :
+        sc=ax.scatter(_df[x], _df[y], c=_df[cat], s=size)
+        plt.colorbar(sc,ax=ax, label=cat, shrink=0.3,aspect=5,orientation="vertical")
+    elif barrierfree==True:
+        
+        for key in lut[cat]["colorlut"].keys():
+            _dfnew=_df.loc[_df[cat]==key]
+            ax.scatter(_dfnew[x], _dfnew[y], color=lut[cat]["colorlut"][key], marker=lut[cat]["markerlut"][key], label=key)
+        ax.legend(title=cat)
+    else:
+        for key in lut[cat]["colorlut"].keys():
+            _dfnew=_df.loc[_df[cat]==key]
+            ax.scatter(_dfnew[x], _dfnew[y], color=lut[cat]["colorlut"][key], label=key, s=size)
+        ax.legend(title=cat)
 
 def clusterplot(df: pd.DataFrame,
                 variables: List=[],
@@ -843,21 +858,6 @@ def pie_scatter(df: pd.DataFrame,
     return {"axes":ax}
 
 
-def _scatter(_df, x,y, cat, ax, lut, barrierfree, size):
-    if _df[cat].dtype==float :
-        sc=ax.scatter(_df[x], _df[y], c=_df[cat], s=size)
-        plt.colorbar(sc,ax=ax, label=cat, shrink=0.3,aspect=5,orientation="vertical")
-    elif barrierfree==True:
-        
-        for key in lut[cat]["colorlut"].keys():
-            _dfnew=_df.loc[_df[cat]==key]
-            ax.scatter(_dfnew[x], _dfnew[y], color=lut[cat]["colorlut"][key], marker=lut[cat]["markerlut"][key], label=key)
-        ax.legend(title=cat)
-    else:
-        for key in lut[cat]["colorlut"].keys():
-            _dfnew=_df.loc[_df[cat]==key]
-            ax.scatter(_dfnew[x], _dfnew[y], color=lut[cat]["colorlut"][key], label=key, s=size)
-        ax.legend(title=cat)
 
 
 def decomplot(df: pd.DataFrame,
