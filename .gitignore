@@ -10,3 +10,4 @@ docs/modules.rst
 docs/omniplot.scripts.rst
 docs/omniplot.rst
 docs/omniplot.cython_utils.rst
+tests/test_network.py

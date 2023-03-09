@@ -232,11 +232,12 @@ def correlation(df: pd.DataFrame,
     if ztransform==True:
         X=zscore(X, axis=0)
     if method=="pearson":
-        dmat=Parallel(n_jobs=-1)(delayed(_calc_pearson)(ind, X) for ind in list(it.combinations(range(X.shape[0]), 2)))
-        dmat=np.array(dmat)
-        dmat=squareform(dmat)
-        print(dmat)
-        dmat+=np.identity(dmat.shape[0])
+        # dmat=Parallel(n_jobs=-1)(delayed(_calc_pearson)(ind, X) for ind in list(it.combinations(range(X.shape[0]), 2)))
+        # dmat=np.array(dmat)
+        # dmat=squareform(dmat)
+        # print(dmat)
+        # dmat+=np.identity(dmat.shape[0])
+        dmat=np.corrcoef(X)
     else:
         dmat=squareform(pdist(X, method))
     if method=="pearson":
