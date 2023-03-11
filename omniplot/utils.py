@@ -23,7 +23,7 @@ import os
 __all__=["_create_color_markerlut", 
          "_separate_data", "_line_annotate", "_dendrogram_threshold", "_radialtree2",
          "_get_cluster_classes","_calc_curveture", "_draw_ci_pi","_calc_r2",
-         "_ci_pi", "_save", "_baumkuchen_xy", "_get_embedding"]
+         "_ci_pi", "_save","_baumkuchen", "_baumkuchen_xy", "_get_embedding"]
 
 
 class LineAnnotation(Annotation):
@@ -139,18 +139,20 @@ def _line_annotate(text, line, x, *args, **kwargs):
     ax.add_artist(a)
     return a
 
-def _baumkuchen(ax, start, theta, rin, rout,res, _color):
+def _baumkuchen(ax, start, theta, rin, rout,res, _color,edgecolor="", linewidth=2,hatch=None):
     move=np.linspace(0, theta,res)
     xf=np.concatenate([rin*np.cos(start+move),[rin*np.cos(start+theta),rout*np.cos(start+theta)],rout*np.cos(start+move)[::-1],[rin*np.cos(start),rout*np.cos(start)][::-1]])
     yf=np.concatenate([rin*np.sin(start+move),[rin*np.sin(start+theta),rout*np.sin(start+theta)],rout*np.sin(start+move)[::-1],[rin*np.sin(start),rout*np.sin(start)][::-1]])
-    ax.fill(xf, yf, color=_color)
+    if edgecolor!="":
+        ax.plot(xf, yf, zorder=2, color=edgecolor)
+    ax.fill(xf, yf, color=_color,edgecolor=edgecolor, linewidth=linewidth,hatch=hatch)
 
-def _baumkuchen_xy(ax, x,y, start, theta, rin, rout,res, _color, edge_color=""):
+def _baumkuchen_xy(ax, x,y, start, theta, rin, rout,res, _color, edgecolor=""):
     move=np.linspace(0, theta,res)
     xf=np.concatenate([rin*np.cos(start+move),[rin*np.cos(start+theta),rout*np.cos(start+theta)],rout*np.cos(start+move)[::-1],[rin*np.cos(start),rout*np.cos(start)][::-1]])
     yf=np.concatenate([rin*np.sin(start+move),[rin*np.sin(start+theta),rout*np.sin(start+theta)],rout*np.sin(start+move)[::-1],[rin*np.sin(start),rout*np.sin(start)][::-1]])
-    if edge_color!="":
-        ax.plot(xf+x, yf+y, zorder=2, color=edge_color)
+    if edgecolor!="":
+        ax.plot(xf+x, yf+y, zorder=2, color=edgecolor)
     ax.fill(xf+x, yf+y, color=_color, zorder=2)
 
 def _calc_curveture(normx, normy):

@@ -14,7 +14,7 @@ from natsort import natsort_keygen
 from matplotlib.patches import Rectangle
 import scipy.cluster.hierarchy as sch
 import fastcluster as fcl
-
+from matplotlib.patches import Patch
 import sys 
 import matplotlib as mpl
 from sklearn.cluster import KMeans, DBSCAN
@@ -42,7 +42,7 @@ plt.rcParams['font.sans-serif'] = ['Arial']
 plt.rcParams['svg.fonttype'] = 'none'
 sns.set_theme(font="Arial")
 
-__all__=["stacked_barplot","nice_piechart","nice_piechart_num","stackedlines"]
+__all__=["stacked_barplot","nice_piechart","nice_piechart_num","stackedlines","nested_piechart"]
 
 def _stacked_barplot(df: pd.DataFrame,
                     x: Union[str, list],
@@ -654,22 +654,78 @@ def stacked_barplot(df: pd.DataFrame,
 def nice_piechart(df: pd.DataFrame, 
                   category: Union[str, List[str]],
                   palette: str="tab20c",
+                  order: str="largest",
                   ncols: int=2,
                   ignore: float=0.05,
                   show_values: bool=True,
                   title: str="",
                   hatch: bool=False,
-                  show_legend:bool=False) ->Dict:
+                  figsize: list=[],
+                  show_legend:bool=False,bbox_to_anchor: list=[1.1, 1],
+                  right: float=0.7,bottom=0.1) ->Dict:
+    """
+    Drawing a nice pichart by counting the occurrence of values from pandas dataframe. if you want to draw a pie chart from numerical values, try nice_piechart_num.
     
+    Parameters
+    ----------
+    df : pandas DataFrame
+
+    category: str or list
+        The column names for counting values.
+
+    order: str, optional (default: "largest") ["largest", "smallest"]
+        How to sort values in the chart
+    ncols: int, optional (default: 2)
+        The column number of the figure.
+    ignore : float, optional (default: 0.05)
+        Remove annotations of which the fraction is smaller than this value. 
+    palette : str or dict, optional (default: "tab20c")
+        A matplotlib colormap name or dictionary in which keys are values of the hue category and values are RGB array.
+        e.g.) palette={""}
+    show_values: bool, optional
+        Wheter to exhibit the values of fractions/counts/percentages.
+    
+    show : bool, optional
+        Whether or not to show the figure.
+    
+    figsize : List[int], optional
+        The figure size, e.g., [4, 6].
+    title: str optional, (default:"")
+        The title of the figure.
+    hatch: bool, optional (default: False)
+        Adding hatches to the bars
+    show_legend: bool, optional (default: False)
+        Whether to show legends.
+    bin_num: dict, int, optional (default: 10)
+        A histogram bin number when columns with float values are selected. 
+        You can specify the bin number of each column by using dictionary (e.g., bin_num={"A":10,"B",5}).
+
+    Returns
+    -------
+    {"axes":ax}: dict
+    
+    Raises
+    ------
+    Notes
+    -----
+    References
+    ----------
+    See Also
+    --------
+    Examples
+    --------
+    """
     if type(category)==str:
         category=[category]
     nrows=len(category)//ncols+int(len(category)%ncols!=0)
     if show_legend==True or hatch==True:
-        fig, axes=plt.subplots(nrows=nrows, ncols=ncols, figsize=[ncols*6,
-                                                        nrows*2])
+        if len(figsize)==0:
+            figsize=[ncols*4,nrows*3]
+        fig, axes=plt.subplots(nrows=nrows, ncols=ncols, figsize=figsize)
     else:
-        fig, axes=plt.subplots(nrows=nrows, ncols=ncols, figsize=[ncols*2,
-                                                        nrows*2])
+        if len(figsize)==0:
+            figsize=[ncols*3,nrows*3]
+        fig, axes=plt.subplots(nrows=nrows, ncols=ncols, figsize=figsize)
     if title !="":
         fig.suptitle(title)
 
@@ -698,7 +754,9 @@ def nice_piechart(df: pd.DataFrame,
                 counterclock=False,
                 startangle=90, 
                 colors=colors,
-                radius=1.25,hatch=hatch_list[:c.shape[0]],labeldistance=None)
+                radius=1.25,
+                hatch=hatch_list[:c.shape[0]],
+                labeldistance=None)
             ax.legend(bbox_to_anchor=[1,1])
         else:
             if show_legend==True:
@@ -706,8 +764,9 @@ def nice_piechart(df: pd.DataFrame,
                     counterclock=False,
                     startangle=90, 
                     colors=colors,
-                    radius=1.25,labeldistance=None)
-                ax.legend()
+                    radius=1.25,
+                    labeldistance=None)
+                ax.legend(bbox_to_anchor=[1,1])
             else:
                 ax.pie(c, labels=u, 
                     counterclock=False,
@@ -720,11 +779,14 @@ def nice_piechart(df: pd.DataFrame,
         for i in range(len(category)%ncols-2):
             fig.delaxes(axes[-(i+1)])
     # plt.tight_layout(h_pad=1)
-    plt.subplots_adjust(top=0.9,wspace=1)
+    plt.subplots_adjust(top=0.9,wspace=0.5)
+    if title !="":
+        fig.suptitle(title)
     return {"axes":ax}
 
 
-def nice_piechart_num(df: pd.DataFrame,hue: List[str],
+def nice_piechart_num(df: pd.DataFrame,
+                      variables: List[str]=[],
                       category: str="" ,
                   
                   palette: str="tab20c",
@@ -733,24 +795,73 @@ def nice_piechart_num(df: pd.DataFrame,hue: List[str],
                   show_values: bool=True,
                   title: str="",
                   figsize=[]) ->Dict:
+    """
+    Drawing a nice pichart by taking numerical values.
     
+    Parameters
+    ----------
+    df : pandas DataFrame
+        It must be a wide-form data. Each pie chart will be drawn from each row, and by default, index values are used for pie chart titles. 
+        
+    variables: list, optional
+        The column names to calculate fractions. If not given, all columns will be used for calculation (in this case, all columns must contain only numerical values).
+    
+    order: str, optional (default: "largest") ["largest", "smallest"]
+        How to sort values in the chart
+    ncols: int, optional (default: 2)
+        The column number of the figure.
+    ignore : float, optional (default: 0.05)
+        Remove annotations of which the fraction is smaller than this value. 
+    palette : str or dict, optional (default: "tab20c")
+        A matplotlib colormap name or dictionary in which keys are values of the hue category and values are RGB array.
+        e.g.) palette={""}
+    show_values: bool, optional
+        Wheter to exhibit the values of fractions/counts/percentages.
+    
+    show : bool, optional
+        Whether or not to show the figure.
+    
+    figsize : List[int], optional
+        The figure size, e.g., [4, 6].
+    title: str optional, (default:"")
+        The title of the figure.
+    hatch: bool, optional (default: False)
+        Adding hatches to the bars
+    show_legend: bool, optional (default: True)
+        Whether to show legends.
+ 
+    Returns
+    -------
+    dict {"axes":ax}
+    
+    Raises
+    ------
+    Notes
+    -----
+    References
+    ----------
+    See Also
+    --------
+    Examples
+    --------
+    """
     if category=="":
         category=list(df.index)
     else:
         df=df.set_index(category)
         category=list(df.index)
-        
-    df=df[hue]
+    if len(variables)!=0:
+        df=df[variables]
     srt=np.argsort(df.sum(axis=0))[::-1]
     df=df[df.columns[srt]]
-    hue=list(df.columns)
+    variables=list(df.columns)
     nrows=len(category)//ncols+int(len(category)%ncols!=0)
     if len(figsize)==0:
         figsize=[ncols*2,nrows*2]
     fig, axes=plt.subplots(nrows=nrows, ncols=ncols, figsize=figsize)
     axes=axes.flatten()
-    _cmap=plt.get_cmap(palette, len(hue))
-    colors=[_cmap(i) for i in range(len(hue))]
+    _cmap=plt.get_cmap(palette, len(variables))
+    colors=[_cmap(i) for i in range(len(variables))]
     for cat, ax in zip(category, axes):
         c=df.loc[cat]
         _c=c/np.sum(c)
@@ -768,12 +879,160 @@ def nice_piechart_num(df: pd.DataFrame,hue: List[str],
     plt.subplots_adjust(top=0.95, right=0.81)
     
     legend_elements = [Line2D([0], [0], marker='o', color='lavender', label=huelabel,markerfacecolor=color, markersize=10)
-                      for color, huelabel in zip(colors, hue)]
+                      for color, huelabel in zip(colors, variables)]
     
     fig.legend(handles=legend_elements,bbox_to_anchor=(1, 1))
+    if title!="":
+        plt.title(title)
     return {"axes":ax}
 
+def nested_piechart(df: pd.DataFrame, 
+                  category: List[str],
+                  palette: str="tab20c",
+                  figsize=[],
+                  ncols: int=2,
+                  ignore: float=0.05,
+                  show_values: bool=True,
+                  ax: Optional[plt.Axes]=None,
+                  title: str="",
+                  hatch: bool=False,
+                  show_legend:bool=False,
+                  bbox_to_anchor: list=[1.1, 1],
+                  right: float=0.7,bottom=0.1) ->Dict:
+    """
+    Drawing a nested pichart by counting the occurrence of string (or integer/boolian) values from pandas dataframe. If you want to draw a pie chart from numerical values, try nice_piechart_num.
+    
+    
+    Parameters
+    ----------
+    df : pandas DataFrame
 
+    category: str or list
+        The column names for counting values. The order of names will correspond to the hierarchical order of the pie chart.
+
+    order: str, optional (default: "largest") ["largest", "smallest"]
+        How to sort values in the chart
+    
+    ignore : float, optional (default: 0.05)
+        Remove annotations of which the fraction is smaller than this value. 
+    palette : str or dict, optional (default: "tab20c")
+        A matplotlib colormap name or dictionary in which keys are values of the hue category and values are RGB array.
+        e.g.) palette={""}
+    show_values: bool, optional
+        Wheter to exhibit the values of fractions/counts/percentages.
+    
+    show : bool, optional
+        Whether or not to show the figure.
+    
+    figsize : List[int], optional
+        The figure size, e.g., [4, 6].
+    title: str optional, (default:"")
+        The title of the figure.
+    hatch: bool, optional (default: False)
+        Adding hatches to the bars
+    show_legend: bool, optional (default: False)
+        Whether to show legends.
+   
+
+    Returns
+    -------
+    {"axes":ax}: dict
+    
+    Raises
+    ------
+    Notes
+    -----
+    References
+    ----------
+    See Also
+    --------
+    Examples
+    --------
+    """
+    #df=df.fillna("NA")
+    alllabels={}
+    alllabel_sets=set()
+    for i, cat in enumerate(category):
+        alllabels[i]=[]
+        for u in df[cat].unique():
+            alllabels[i].append(u)
+            alllabel_sets.add(u)
+    alllabel_sets=sorted(list(alllabel_sets))
+    _cmap=plt.get_cmap(palette, len(alllabel_sets))
+    
+    color_lut={u: _cmap(i) for i, u in enumerate(alllabel_sets)}
+    marker_lut={u: hatch_list[i] for i, u in enumerate(alllabel_sets)}
+
+    data={}
+    for i in range(len(category)):
+        data[i]={"labels":[],"counts":[]}
+        for p in it.product(*[alllabels[j] for j in range(i+1)]):
+            tmp=df
+            for k, _p in enumerate(p):
+                
+                tmp=tmp.loc[tmp[category[k]]==_p]
+            #print(p, len(tmp))
+            
+            data[i]["counts"].append(len(tmp))
+            data[i]["labels"].append(p)
+    if ax==None:
+        if len(figsize)==0:
+            if show_legend==True or hatch==True:
+                figsize=[8,6]
+            else:
+                figsize=[6,6]
+        fig, ax = plt.subplots(figsize =figsize)
+    else:
+        fig=None
+    height=1
+    _bottom=0
+    for i, d in data.items():
+        x=np.array(d["counts"])
+        y=np.ones(x.shape)*height
+        percent=np.round(100*x/np.sum(x),2)
+        x=x/np.sum(x)*2*np.pi
+        s=np.pi/2
+        label=d["labels"]
+        for i, (_x,_label) in enumerate(zip(x,label)):
+            if hatch==True:
+                _baumkuchen(ax,s, -_x, _bottom, _bottom+height, int(100*_x/np.sum(x)), color_lut[_label[-1]],edgecolor="white", linewidth =1,hatch=marker_lut[_label[-1]])
+            else:
+                _baumkuchen(ax,s, -_x, _bottom, _bottom+height, int(100*_x/np.sum(x)), color_lut[_label[-1]],edgecolor="white", linewidth =1)
+            if _x/(2*np.pi)>=ignore and show_legend==False and hatch==False:
+                txt= _label[-1]
+                if show_values==True:
+                    txt=txt+"\n({}%)".format(percent[i])
+                ax.text(np.cos(s-_x/2)*(_bottom+height/2), np.sin(s-_x/2)*(_bottom+height/2),txt, ha="center",
+                        bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="y", lw=1, alpha=0.8))
+            elif _x/(2*np.pi)>=ignore and show_values==True:
+                txt="({}%)".format(percent[i])
+                ax.text(np.cos(s-_x/2)*(_bottom+height/2), np.sin(s-_x/2)*(_bottom+height/2),txt, ha="center",
+                        bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="y", lw=1, alpha=0.8))
+                
+
+            s-=_x
+            
+        _bottom+=height
+        height=height*0.6
+    if show_legend==True or hatch==True:
+        for i, cat in enumerate(category):
+            if hatch==True:
+                handles = [
+                    Patch(facecolor=color_lut[label], label=label, hatch=marker_lut[label]) 
+                    for label in alllabels[i]]
+            else:
+                handles = [
+                    Patch(facecolor=color_lut[label], label=label) 
+                    for label in alllabels[i]]
+            legend=ax.legend(handles=handles,bbox_to_anchor=bbox_to_anchor, title=cat)
+            bbox_to_anchor[1]-=0.3
+            ax.add_artist(legend)
+        plt.subplots_adjust(right=right, bottom=bottom)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    if title!="":
+        plt.title(title)
+    return ax
 def stackedlines(df: pd.DataFrame, 
                 x: str,
                 y: list,
