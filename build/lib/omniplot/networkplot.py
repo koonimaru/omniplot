@@ -18,10 +18,37 @@ from joblib import Parallel, delayed
 from scipy.spatial.distance import pdist, squareform
 import itertools as it
 from datashader.bundling import hammer_bundle
+import time
 plt.rcParams['font.family']= 'sans-serif'
 plt.rcParams['font.sans-serif'] = ['Arial']
 plt.rcParams['svg.fonttype'] = 'none'
 sns.set_theme(font="Arial")
+colormap_list: list=["nipy_spectral", "terrain","tab20b","tab20c","gist_rainbow","hsv","CMRmap","coolwarm","gnuplot","gist_stern","brg","rainbow","jet"]
+hatch_list: list = ['//', '\\\\', '||', '--', '++', 'xx', 'oo', 'OO', '..', '**',
+                    '/o', '\\|', '|*', '-\\', '+o', 'x*', 'o-', 'O|', 'O.', '*-',
+                    'o\\','*\\','+\\','.\\','x\\',
+                    '*/','./','x/','-/','+/']
+maker_list: list=['.', '_' , '+','|', 'x', 'v', '^', '<', '>', 's', 'p', '*', 'h', 'D', 'd', 'P', 'X','o', '1', '2', '3', '4','|', '_']
+linestyles = [
+     ('solid', 'solid'),      # Same as (0, ()) or '-'
+     ('dotted', 'dotted'),    # Same as (0, (1, 1)) or ':'
+     ('dashed', 'dashed'),    # Same as '--'
+     ('dashdot', 'dashdot'),  # Same as '-.'
+    ('loosely dotted',        (0, (1, 10))),
+     ('dotted',                (0, (1, 1))),
+     ('densely dotted',        (0, (1, 1))),
+     ('long dash with offset', (5, (10, 3))),
+     ('loosely dashed',        (0, (5, 10))),
+     ('dashed',                (0, (5, 5))),
+     ('densely dashed',        (0, (5, 1))),
+
+     ('loosely dashdotted',    (0, (3, 10, 1, 10))),
+     ('dashdotted',            (0, (3, 5, 1, 5))),
+     ('densely dashdotted',    (0, (3, 1, 1, 1))),
+
+     ('dashdotdotted',         (0, (3, 5, 1, 5, 1, 5))),
+     ('loosely dashdotdotted', (0, (3, 10, 1, 10, 1, 10))),
+     ('densely dashdotdotted', (0, (3, 1, 1, 1, 1, 1)))]
 
 
 def sankey_category(df, 
@@ -31,7 +58,8 @@ def sankey_category(df,
                     altcat: str="",
                     show_percentage=False,
                     show_percentage_target=False,
-                    fontsize: int=12) -> plt.Axes:
+                    fontsize: int=12,
+                    hatch: bool=False) -> plt.Axes:
     #plt.rcParams.update({'font.size': 12})
     """
     Drawing a sankey plot to compare multiple categories in a data. The usage example may be 
@@ -43,9 +71,9 @@ def sankey_category(df,
         it has to contain categorical columns specified by the 'category' option.
     category: list
         List of column names to compare.
-    palette: str, optional
+    palette: str, optional default("tab20c")
         Colormap name. Default: tab20c
-    colormode: str ['shared', 'independent', 'alternative', 'trace'], optional
+    colormode: str ['shared', 'independent', 'alternative', 'trace'], optional default("independent")
         The way to color categories. 'independent' will give each category a distinct (unrelated) colorset. 
         'shared' will give a shared color if categories share the same names of labels. 'alternative' will
         color bars based on additional category specified by altcat. 'trace' will color all bars according
@@ -108,41 +136,63 @@ def sankey_category(df,
         unique_cat=sorted(list(unique_cat))
         _tmp=plt.get_cmap(palette, len(unique_cat))
         _cmap={unique_cat[i]: _tmp(i) for i in range(len(unique_cat))}
+        _hatchmap={unique_cat[i]: hatch_list[i] for i in range(len(unique_cat))}
         cmap={}
-        for cat in category:
+        hatchmap={}
+        for i, cat in enumerate(category):
             cmap[cat]=_cmap
+            hatchmap[cat]=_hatchmap
     elif colormode=="independent":
         cmap={}
-        for cat, v in heights.items():
+        hatchmap={}
+        for i, (cat, v) in enumerate(heights.items()):
             _tmp=plt.get_cmap(palette, v[0].shape[0])
             cmap[cat]={v[0][i]: _tmp(i) for i in range(v[0].shape[0])}
+            hatchmap[cat]={v[0][i]: hatch_list[i] for i in range(v[0].shape[0])}
+
     elif colormode=="trace":
         altcat=category[0]
         altcat_list=list(df[altcat])
         altcat_unique=list(np.unique(altcat_list))
         _tmp=plt.get_cmap(palette, len(altcat_unique))
+
         altcat_dict={}
-        for a in altcat_unique:
+
+        hatchmap={}
+        for i, a in enumerate(altcat_unique):
             altcat_dict[a]=_tmp(altcat_unique.index(a))
+            hatchmap[a]=linestyles[i][1]
+
         altcat_colors=[]
+        hatches=[]
         for a in altcat_list:
-            altcat_colors.append(_tmp(altcat_unique.index(a)))
+            altcat_colors.append(altcat_dict[a])
+            hatches.append(hatchmap[a])
+
+
     elif colormode=="alternative":
         if altcat=="":
             raise Exception("If colormode is 'alternative', altcat must be specified")
         altcat_list=list(df[altcat])
         altcat_unique=list(np.unique(altcat_list))
         _tmp=plt.get_cmap(palette, len(altcat_unique))
+
         altcat_dict={}
-        for a in altcat_unique:
+        hatchmap={}
+        for i, a in enumerate(altcat_unique):
             altcat_dict[a]=_tmp(altcat_unique.index(a))
+            hatchmap[a]=linestyles[i][1]
+            
         altcat_colors=[]
+        hatches=[]
         for a in altcat_list:
-            altcat_colors.append(_tmp(altcat_unique.index(a)))
+            altcat_colors.append(altcat_dict[a])
+            hatches.append(hatchmap[a])
     
     fig, ax=plt.subplots(figsize=[2+len(category),7])
     blocks=[]
     facecolors=[]
+    facehatches=[]
     hs=[]
     for i,(cat, (u, ac)) in enumerate(heights.items()):
         xyh[cat]={}
@@ -151,9 +201,11 @@ def sankey_category(df,
         for _u, _c, _ac in zip(u,c,ac):
             blocks.append(Rectangle([i*xinterval, h],blockwidth,_c))
             if colormode=="alternative" or colormode=="trace":
-                facecolors.append([1,1,1,1])
+                facecolors.append([1,1,1,0])
             else:
                 facecolors.append(cmap[cat][_u])
+                if hatch==True:
+                    facehatches.append(hatchmap[cat][_u])
             h+=_c+space
             xyh[cat][str(_u)]=[i*xinterval, h, _c,_ac]
             ax.text(i*xinterval+blockwidth/2,h-space-_c/2, _u,
@@ -168,10 +220,22 @@ def sankey_category(df,
                 _df=df.loc[dfcat==_u]
                 _df=_df.sort_values(altcat)                
                 x, h, _c, _ac=xyh[cat][_u]
-                for l, label in enumerate(_df[altcat]):
-                    plt.plot([x,x+blockwidth],[h-_c-space+_c*l/_ac,h-_c-space+_c*l/_ac], color=altcat_dict[label])
-                    k+=1
-        plt.legend([Line2D([0], [0], color=altcat_dict[label]) for label in altcat_dict.keys()],
+                if hatch==True:
+                    for l, label in enumerate(_df[altcat]):
+                        plt.plot([x,x+blockwidth],[h-_c-space+_c*l/_ac,h-_c-space+_c*l/_ac], 
+                                 color=altcat_dict[label],
+                                linestyle=hatchmap[label])
+                        k+=1
+                else:
+                    for l, label in enumerate(_df[altcat]):
+                        plt.plot([x,x+blockwidth],[h-_c-space+_c*l/_ac,h-_c-space+_c*l/_ac], color=altcat_dict[label])
+                        k+=1
+        if hatch==True:
+            plt.legend([Line2D([0], [0], color=altcat_dict[label],linewidth=2,
+                                linestyle=hatchmap[label]) for label in altcat_dict.keys()],
+                   altcat_dict.keys(),loc=[1.01,0.9], fontsize=fontsize)
+        else:
+            plt.legend([Line2D([0], [0], color=altcat_dict[label]) for label in altcat_dict.keys()],
                    altcat_dict.keys(),loc=[1.01,0.9], fontsize=fontsize)
         plt.subplots_adjust(right=0.7)
         
@@ -234,13 +298,16 @@ def sankey_category(df,
             sbottom[s]+=_scl
             tbottom[t]+=_tcl
             
-    # Create patch collection with specified colour/alpha
 
-    pc = PatchCollection(blocks,facecolor=facecolors,edgecolor="black",linewidth=2)
+    if hatch==True:
+        for b, c, h in zip(blocks, facecolors, facehatches):
+            pc = PatchCollection([b],facecolor=[c],edgecolor="black",linewidth=2, hatch=h)
+            ax.add_collection(pc)
+    else:
+        pc = PatchCollection(blocks,facecolor=facecolors,edgecolor="black",linewidth=2)
+        ax.add_collection(pc)
+
     
-
-    # Add collection to axes
-    ax.add_collection(pc)
     
     
     
@@ -539,11 +606,15 @@ def correlation(df: pd.DataFrame,
     if ztransform==True:
         X=zscore(X, axis=0)
     if method=="pearson":
-        dmat=Parallel(n_jobs=n_jobs)(delayed(_calc_pearson)(ind, X) for ind in list(it.combinations(range(X.shape[0]), 2)))
-        dmat=np.array(dmat)
-        dmat=squareform(dmat)
-        #print(dmat)
-        dmat+=np.identity(dmat.shape[0])
+        starttime=time.time()
+        # dmat=Parallel(n_jobs=n_jobs)(delayed(_calc_pearson)(ind, X) for ind in list(it.combinations(range(X.shape[0]), 2)))
+        # dmat=np.array(dmat)
+        # dmat=squareform(dmat)
+        # #print(dmat)
+        # dmat+=np.identity(dmat.shape[0])
+        
+        dmat=np.corrcoef(X)
+        print("correlation calc: ", time.time()-starttime)
     else:
         dmat=squareform(pdist(X, method))
         dmat=(dmat-np.mean(dmat))/np.std(dmat)

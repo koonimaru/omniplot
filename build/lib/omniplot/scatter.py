@@ -14,7 +14,7 @@ from natsort import natsort_keygen
 from matplotlib.patches import Rectangle
 import scipy.cluster.hierarchy as sch
 import fastcluster as fcl
-
+from matplotlib.patches import Patch
 import sys 
 import matplotlib as mpl
 from sklearn.cluster import KMeans, DBSCAN
@@ -809,15 +809,15 @@ def pie_scatter(df: pd.DataFrame,
         for fr, co in zip(_frac, _colors):
             if type(piesizes)==str:
                 if piesizes=="sum_of_each":
-                    _baumkuchen_xy(ax, _x, _y, angle, fr, 0, sums.loc[_ind],20, co, edge_color=edge_color)
+                    _baumkuchen_xy(ax, _x, _y, angle, fr, 0, sums.loc[_ind],20, co, edgecolor=edge_color)
                 elif piesizes=="":
-                    _baumkuchen_xy(ax, _x, _y, angle, fr, 0, piesize_scale,20, co, edge_color=edge_color)
+                    _baumkuchen_xy(ax, _x, _y, angle, fr, 0, piesize_scale,20, co, edgecolor=edge_color)
                 else:
                     pass
             elif type(piesizes)==list and len(piesizes) !=0:
-                _baumkuchen_xy(ax, _x, _y, angle, fr, 0, piesize_scale*piesizes[i],20, co, edge_color=edge_color)
+                _baumkuchen_xy(ax, _x, _y, angle, fr, 0, piesize_scale*piesizes[i],20, co, edgecolor=edge_color)
             else:
-                _baumkuchen_xy(ax, _x, _y, angle, fr, 0, piesize_scale,20, co, edge_color=edge_color)
+                _baumkuchen_xy(ax, _x, _y, angle, fr, 0, piesize_scale,20, co, edgecolor=edge_color)
             angle+=fr
         
         if type(label)==str:
@@ -1290,7 +1290,21 @@ def regression_single(df: pd.DataFrame,
         figure size
     show : bool
         Whether or not to show the figure.
-    
+    robust_param: dict, optional
+        Hyper parameters for robust regression. Please see https://www.statsmodels.org/dev/generated/statsmodels.robust.robust_linear_model.RLM.html
+    xunit: str, optional
+        X axis unit
+    yunit: str, optional
+        Y axis unit
+    title: str, optional
+        Figure title
+
+    random_state: int, optional (default=42)
+        random state for RANSAC regression
+    ax: plt.Axes, optional,
+        pyplot axis
+    save: str, optional
+        The prefix of file names to save.
     Returns
     -------
     dict: dict {"axes":ax, "coefficient":coef,"intercept":intercept,"coefficient_pval":coef_p, "r2":r2, "fitted_model":fitted_model}
@@ -1320,10 +1334,8 @@ def regression_single(df: pd.DataFrame,
     fig.suptitle(title)
     plt.subplots_adjust(left=0.15)
     if method=="ransac":
+        _title="RANSAC regression, r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x, coefficient p-value: {:.2E}"
         from sklearn.linear_model import RANSACRegressor
-        
-        
-        
         fit_df=pd.DataFrame()
         fitted_model = RANSACRegressor(random_state=random_state,**ransac_param).fit(_X,Y)
         fit_df["ransac_regression"] = fitted_model.predict(plotline_X)
@@ -1355,29 +1367,31 @@ def regression_single(df: pd.DataFrame,
         plt.xlabel(x)
         plt.ylabel(y)
         #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
-        plt.title("RANSAC regression, r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x, coefficient p-value: {:.2E}".format(
+        plt.title(_title.format(
             r2, MSE,coef,intercept,coef_p
             )
         )
         plt.plot(plotline_X.flatten(),fit_df["ransac_regression"])
         
-        _save(save, "ransac")
+        _save(save, method)
         if len(category)!=0:
-            fig, ax=plt.subplots(figsize=figsize)
+            fig, ax1=plt.subplots(figsize=figsize)
             plt.subplots_adjust(left=0.15)
-            _draw_ci_pi(ax, ci, pi,x_line, y_line)
-            sns.scatterplot(data=df,x=x, y=y, hue=category)
+            _draw_ci_pi(ax1, ci, pi,x_line, y_line)
+            sns.scatterplot(data=df,x=x, y=y, hue=category, ax=ax1)
             
             plt.xlabel(x)
             plt.ylabel(y)
             #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
-            plt.title("RANSAC regression, r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x, coefficient p-value: {:.2E}".format(
+            plt.title(_title.format(
                 r2, MSE,coef,intercept,coef_p
                 )
             )
             plt.plot(plotline_X.flatten(),fit_df["ransac_regression"])
-            _save(save, "ransac_"+category)
+            _save(save, method+"_"+category)
     elif method=="robust":
+        _title="Robust linear regression, r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x , p-values: coefficient {:.2f}, \
+        intercept {:.2f}"
         import statsmodels.api as sm
         rlm_model = sm.RLM(Y, sm.add_constant(X),
         M=sm.robust.norms.HuberT(),**robust_param)
@@ -1398,27 +1412,26 @@ def regression_single(df: pd.DataFrame,
         _draw_ci_pi(ax, ci, pi,x_line, y_line)
         sns.scatterplot(data=df,x=x, y=y, color="blue")
         #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
-        plt.title("Robust linear regression, r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x , p-values: coefficient {:.2f}, \
-        intercept {:.2f}".format(
+        plt.title(_title.format(
             r2, MSE,coef,intercept,coef_p,intercept_p
             )
         )
         plt.plot(plotline_X.flatten(),y_line)
-        _save(save, "robust")
+        _save(save, method)
         if len(category)!=0:
-            fig, ax=plt.subplots(figsize=figsize)
+            fig, ax1=plt.subplots(figsize=figsize)
             plt.subplots_adjust(left=0.15)
-            _draw_ci_pi(ax, ci, pi,x_line, y_line)
-            sns.scatterplot(data=df,x=x, y=y, hue=category)
+            _draw_ci_pi(ax1, ci, pi,x_line, y_line)
+            sns.scatterplot(data=df,x=x, y=y, hue=category, ax=ax1)
             #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
-            plt.title("Robust linear regression, r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x , p-values: coefficient {:.2f}, \
-            intercept {:.2f}".format(
+            plt.title(_title.format(
                 r2, MSE,coef,intercept,coef_p,intercept_p
                 )
             )
             plt.plot(plotline_X.flatten(),y_line)
-            _save(save, "robust_"+category)
+            _save(save, method+"_"+category)
     elif method=="lasso" or method=="elastic_net" or method=="ols":
+        _title="OLS ({}), r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x, coefficient p-value: {:.2E}"
         if method=="lasso":
             method="sqrt_lasso"
         import statsmodels.api as sm
@@ -1443,22 +1456,29 @@ def regression_single(df: pd.DataFrame,
         _draw_ci_pi(ax, ci, pi,x_line, y_line)   
         sns.scatterplot(data=df,x=x, y=y, color="blue")
         #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
-        plt.title("OLS ({}), r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x, coefficient p-value: {:.2E}".format(method,
+        plt.title(_title.format(method,
             r2, MSE,coef,intercept,coef_p
             )
         )
         plt.plot(plotline_X.flatten(),y_line)
         _save(save, method)
         if len(category)!=0:
-            fig, ax=plt.subplots(figsize=figsize)
+            fig, ax1=plt.subplots(figsize=figsize)
             plt.subplots_adjust(left=0.15)
-            _draw_ci_pi(ax, ci, pi,x_line, y_line)
+            _draw_ci_pi(ax1, ci, pi,x_line, y_line)
             sns.scatterplot(data=df,x=x, y=y, color="blue",hue=category)
             #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
-            plt.title("OLS ({}), r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x, coefficient p-value: {:.2E}".format(method,
+            plt.title(_title.format(method,
                 r2, MSE,coef,intercept,coef_p
                 )
             )
             plt.plot(plotline_X.flatten(),y_line)
             _save(save, method+"_"+category)
+    if yunit!="":
+        ax.text(0, 1, "({})".format(yunit), transform=ax.transAxes, ha="right")
+        ax1.text(0, 1, "({})".format(yunit), transform=ax.transAxes, ha="right")
+    if xunit!="":
+        ax.text(1, 0, "({})".format(xunit), transform=ax.transAxes, ha="left",va="top")
+        ax1.text(1, 0, "({})".format(xunit), transform=ax.transAxes, ha="left",va="top")
+    
     return {"axes":ax, "coefficient":coef,"intercept":intercept,"coefficient_pval":coef_p, "r2":r2, "fitted_model":fitted_model}
