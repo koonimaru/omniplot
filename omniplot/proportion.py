@@ -775,8 +775,11 @@ def nice_piechart(df: pd.DataFrame,
                     labeldistance=0.6,
                     radius=1.25)
         ax.set_title(cat,backgroundcolor='lavender',pad=10)
-    if len(category)%ncols!=0:
-        for i in range(len(category)%ncols-2):
+    
+
+
+    if len(category)!=ncols*nrows:
+        for i in range(ncols*nrows-len(category)):
             fig.delaxes(axes[-(i+1)])
     # plt.tight_layout(h_pad=1)
     plt.subplots_adjust(top=0.9,wspace=0.5)

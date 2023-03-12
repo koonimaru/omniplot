@@ -4,7 +4,7 @@
 
 omniplot is a python module to draw a scientific plot with hassle free. It mainly focuses on bioinfomatics data.
 
-<img src="images/example13.png" width="350"/> <img src="images/example2.png" width="200"/> <img src="images/example3.png" width="280"/> <br>
+<img src="images/example13.png" width="340"/> <img src="images/example2.png" width="190"/> <img src="images/example3.png" width="270"/> <br>
 <img src="images/example12.png" width="200"/> <img src="images/example10.png" width="300"/> <img src="images/example14.png" width="300"/><br>
 <img src="images/example5.png" width="400"/> <img src="images/example6.png" width="260"/> <br>
  <img src="images/example11.png" width="600"/> <br>
