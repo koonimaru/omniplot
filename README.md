@@ -5,8 +5,9 @@
 omniplot is a python module to draw a scientific plot with hassle free. It mainly focuses on bioinfomatics data.
 
 <img src="images/example13.png" width="350"/> <img src="images/example2.png" width="200"/> <img src="images/example3.png" width="280"/> <br>
-<img src="images/example7.png" width="200"/> <img src="images/example10.png" width="300"/> <img src="images/example9.png" width="300"/><br>
-<img src="images/example5.png" width="400"/> <img src="images/example6.png" width="280"/> <br>
+<img src="images/example12.png" width="200"/> <img src="images/example10.png" width="300"/> <img src="images/example14.png" width="300"/><br>
+<img src="images/example5.png" width="400"/> <img src="images/example6.png" width="260"/> <br>
+ <img src="images/example11.png" width="600"/> <br>
 ## Motivation
 Although there exist many good python data visualization libraries, such as 
 [matplotlib](https://matplotlib.org/), 
@@ -58,17 +59,15 @@ And you may want to visit an auto-generated [API](https://koonimaru.github.io/om
 ## Example usage
 ```python
 import pandas as pd
-from omniplot import networkplot as netp
+from omniplot import plot as op
 import seaborn as  sns
 import matplotlib.pyplot as plt
-df=sns.load_dataset("penguins")
-df=df.dropna(axis=0)
-df=df.reset_index()
-res=netp.correlation(df, category=["species", "island","sex"], 
-            method="pearson", 
-            ztransform=True,
-            clustering ="louvain",show_edges=True, bundle=False)
+
+df=sns.load_dataset("titanic")
+df=df[["class","embark_town","sex"]].fillna("NA")
+op.nested_piechart(df, category=["class","embark_town","sex"], title="Titanic", ignore=0.01, show_legend=True,show_values=False,hatch=True,ncols=3)
 plt.show()
+
 ```
 ## Example usage
 ```python
