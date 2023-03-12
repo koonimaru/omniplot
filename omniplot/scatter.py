@@ -43,7 +43,7 @@ plt.rcParams['svg.fonttype'] = 'none'
 sns.set_theme(font="Arial")
 
 __all__=["clusterplot", "decomplot", "pie_scatter","manifoldplot", "regression_single"]
-def _scatter(_df, x,y, cat, ax, lut, barrierfree, size):
+def _scatter(_df, x,y, cat, ax, lut, barrierfree, size, legend=True):
     if _df[cat].dtype==float :
         sc=ax.scatter(_df[x], _df[y], c=_df[cat], s=size)
         plt.colorbar(sc,ax=ax, label=cat, shrink=0.3,aspect=5,orientation="vertical")
@@ -52,13 +52,16 @@ def _scatter(_df, x,y, cat, ax, lut, barrierfree, size):
         for key in lut[cat]["colorlut"].keys():
             _dfnew=_df.loc[_df[cat]==key]
             ax.scatter(_dfnew[x], _dfnew[y], color=lut[cat]["colorlut"][key], marker=lut[cat]["markerlut"][key], label=key)
-        ax.legend(title=cat)
+        
     else:
         for key in lut[cat]["colorlut"].keys():
             _dfnew=_df.loc[_df[cat]==key]
             ax.scatter(_dfnew[x], _dfnew[y], color=lut[cat]["colorlut"][key], label=key, s=size)
+        
+    if legend==True:
         ax.legend(title=cat)
-
+    ax.set_xlabel(x)
+    ax.set_ylabel(y)
 def clusterplot(df: pd.DataFrame,
                 variables: List=[],
                 category: Union[List[str], str]="", 
@@ -966,10 +969,13 @@ def decomplot(df: pd.DataFrame,
                 nrows=len(comb)//2+int(len(comb)%2!=0)
                 if len(figsize)==0:
                     figsize=[8,3*nrows]
-                
-                fig, axes=plt.subplots(ncols=2, nrows=nrows, figsize=figsize)
-                plt.subplots_adjust(top=0.9,right=0.8)
+                ncols=2
+                fig, axes=plt.subplots(ncols=ncols, nrows=nrows, figsize=figsize)
+                plt.subplots_adjust(top=0.9,right=0.8, left=0.1)
                 axes=axes.flatten()
+                if len(comb)!=ncols*nrows:
+                    for i in range(ncols*nrows-len(comb)):
+                        fig.delaxes(axes[-(i+1)])
             figures[cat]={"fig": fig, "axes":axes}
     else:
         figures={}
@@ -982,7 +988,7 @@ def decomplot(df: pd.DataFrame,
                 figsize=[8,3*nrows]
             
             fig, axes=plt.subplots(ncols=2, nrows=nrows, figsize=figsize)
-            plt.subplots_adjust(top=0.9,right=0.8)
+            plt.subplots_adjust(top=0.9,right=0.8, left=0.1)
             axes=axes.flatten()
         figures["nocat"]={"fig": fig, "axes":axes}
     if method=="pca":
@@ -1005,7 +1011,7 @@ def decomplot(df: pd.DataFrame,
                 for cat in category:
                     dfpc[cat]=df[cat]
                     
-                    _scatter(dfpc, xlabel,ylabel, cat, figures[cat]["axes"][axi], lut, barrierfree, size)
+                    _scatter(dfpc, xlabel,ylabel, cat, figures[cat]["axes"][axi], lut, barrierfree, size,legend=False)
 
                     # sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=cat, ax=figures[cat]["axes"][axi],palette=palette)
                     # sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=cat, ax=figures[cat]["axes"][axi],legend=False,palette=palette)
@@ -1073,10 +1079,10 @@ def decomplot(df: pd.DataFrame,
                     dfpc[cat]=df[cat]
                     
                     # sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=cat, ax=figures[cat]["axes"][axi],palette=palette)
-                    _scatter(dfpc, xlabel,ylabel, cat, figures[cat]["axes"][axi], lut, barrierfree, size)
+                    _scatter(dfpc, xlabel,ylabel, cat, figures[cat]["axes"][axi], lut, barrierfree, size,legend=False)
                     # sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=cat, ax=figures[cat]["axes"][axi],legend=False,palette=palette)
                     if combnum==1:
-                        figures[cat]["axes"][axi].legend(bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0,palette=palette)
+                        figures[cat]["axes"][axi].legend(bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0)
 
             else:
                 sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=category, ax=figures["nocat"][axi],palette=palette)
