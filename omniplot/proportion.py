@@ -42,7 +42,7 @@ plt.rcParams['font.sans-serif'] = ['Arial']
 plt.rcParams['svg.fonttype'] = 'none'
 sns.set_theme(font="Arial")
 
-__all__=["stacked_barplot","nice_piechart","nice_piechart_num","stackedlines","nested_piechart"]
+__all__=["stacked_barplot","nice_piechart","nice_piechart_num","stackedlines","nested_piechart","_nested_piechart"]
 
 def _stacked_barplot(df: pd.DataFrame,
                     x: Union[str, list],
@@ -891,20 +891,23 @@ def nice_piechart_num(df: pd.DataFrame,
 
 def nested_piechart(df: pd.DataFrame, 
                   category: List[str],
-                  palette: str="tab20c",
+                  variable: str="",
+                  palette: str="tab20b",
                   figsize=[],
-                  ncols: int=2,
                   ignore: float=0.05,
-                  show_values: bool=True,
+                  show_values: bool=False,unit: str="",
+                  show_percentage: bool=False,
+                  colormode: str="independent",
                   ax: Optional[plt.Axes]=None,
                   title: str="",
                   hatch: bool=False,
                   show_legend:bool=False,
                   bbox_to_anchor: list=[1.1, 1],
-                  right: float=0.7,bottom=0.1) ->Dict:
+                  right: float=0.7,bottom=0.1,
+                  skip_na: bool=False,
+                  order: str="smallest",) ->Dict:
     """
-    Drawing a nested pichart by counting the occurrence of string (or integer/boolian) values from pandas dataframe. If you want to draw a pie chart from numerical values, try nice_piechart_num.
-    
+    Drawing a nested pichart by counting the occurrence of string (or integer/boolian) values from pandas dataframe.
     
     Parameters
     ----------
@@ -961,10 +964,16 @@ def nested_piechart(df: pd.DataFrame,
             alllabels[i].append(u)
             alllabel_sets.add(u)
     alllabel_sets=sorted(list(alllabel_sets))
-    _cmap=plt.get_cmap(palette, len(alllabel_sets))
     
-    color_lut={u: _cmap(i) for i, u in enumerate(alllabel_sets)}
-    marker_lut={u: hatch_list[i] for i, u in enumerate(alllabel_sets)}
+    if colormode=="independent":
+        _cmap=plt.get_cmap(palette, len(alllabel_sets))
+        color_lut={u: _cmap(i) for i, u in enumerate(alllabel_sets)}
+        marker_lut={u: hatch_list[i] for i, u in enumerate(alllabel_sets)}
+    elif colormode=="hierarchical" or colormode=="top":
+        _cmap=plt.get_cmap(palette, len(alllabels[0]))
+        color_lut={u: _cmap(i) for i, u in enumerate(alllabels[0])}
+    
+
 
     data={}
     for i in range(len(category)):
@@ -975,12 +984,14 @@ def nested_piechart(df: pd.DataFrame,
                 
                 tmp=tmp.loc[tmp[category[k]]==_p]
             #print(p, len(tmp))
-            
-            data[i]["counts"].append(len(tmp))
+            if variable !="":
+                data[i]["counts"].append(tmp[variable].sum())
+            else:
+                data[i]["counts"].append(len(tmp))
             data[i]["labels"].append(p)
     if ax==None:
         if len(figsize)==0:
-            if show_legend==True or hatch==True:
+            if (show_legend==True or hatch==True) and colormode=="independent":
                 figsize=[8,6]
             else:
                 figsize=[6,6]
@@ -993,22 +1004,59 @@ def nested_piechart(df: pd.DataFrame,
         x=np.array(d["counts"])
         y=np.ones(x.shape)*height
         percent=np.round(100*x/np.sum(x),2)
-        x=x/np.sum(x)*2*np.pi
+        xpi=x/np.sum(x)*2*np.pi
         s=np.pi/2
         label=d["labels"]
-        for i, (_x,_label) in enumerate(zip(x,label)):
+        #print(label, x)
+        for i, (_x,_label) in enumerate(zip(xpi,label)):
+            if skip_na==True and _label[-1]=="NA":
+                s-=_x
+                continue
+            if colormode=="independent":
+                _color=color_lut[_label[-1]]
+                edgecolor="white"
+            elif colormode=="top":
+                _color=color_lut[_label[0]]
+                edgecolor="white"
+            elif colormode=="hierarchical":
+                _color=np.array(color_lut[_label[0]])
+                grad=(1-np.amin(_color))/(len(category)-1)
+                _color=_color+grad*(len(_label)-1)/len(category)
+                _color=np.where(_color>1,1.0,_color)
+                edgecolor="darkgray"
+            
             if hatch==True:
-                _baumkuchen(ax,s, -_x, _bottom, _bottom+height, int(100*_x/np.sum(x)), color_lut[_label[-1]],edgecolor="white", linewidth =1,hatch=marker_lut[_label[-1]])
+                _baumkuchen(ax,s, -_x, _bottom, _bottom+height, int(100*_x/np.sum(xpi)), _color,edgecolor=edgecolor, linewidth =1,hatch=marker_lut[_label[-1]])
             else:
-                _baumkuchen(ax,s, -_x, _bottom, _bottom+height, int(100*_x/np.sum(x)), color_lut[_label[-1]],edgecolor="white", linewidth =1)
-            if _x/(2*np.pi)>=ignore and show_legend==False and hatch==False:
+                _baumkuchen(ax,s, -_x, _bottom, _bottom+height, int(100*_x/np.sum(xpi)), _color,edgecolor=edgecolor, linewidth =1)
+
+
+            txt=""
+            if show_legend==False or colormode!="independent":
                 txt= _label[-1]
-                if show_values==True:
-                    txt=txt+"\n({}%)".format(percent[i])
+            
+            if show_values==True:
+                if x[i]>10000 or x[i] < 0.0001:
+                    txt=txt+"\n{:.3E} {}".format(x[i], unit)
+                else:
+                    
+                    txt=txt+"\n{:.3f} {}".format(x[i], unit)
+            if show_percentage==True:
+                txt=txt+"\n({}%)".format(percent[i])
+            txt=txt.strip("\n")
+            showlabel=False
+            if show_legend==False:
+                showlabel=True
+            elif hatch==False:
+                showlabel=True
+            elif colormode!="independent":
+                showlabel=True
+            
+            if _x/(2*np.pi)>=ignore and showlabel:
                 ax.text(np.cos(s-_x/2)*(_bottom+height/2), np.sin(s-_x/2)*(_bottom+height/2),txt, ha="center",
                         bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="y", lw=1, alpha=0.8))
-            elif _x/(2*np.pi)>=ignore and show_values==True:
-                txt="({}%)".format(percent[i])
+            elif _x/(2*np.pi)>=ignore and (show_values==True or show_percentage==True):
+                
                 ax.text(np.cos(s-_x/2)*(_bottom+height/2), np.sin(s-_x/2)*(_bottom+height/2),txt, ha="center",
                         bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="y", lw=1, alpha=0.8))
                 
@@ -1018,24 +1066,287 @@ def nested_piechart(df: pd.DataFrame,
         _bottom+=height
         height=height*0.6
     if show_legend==True or hatch==True:
-        for i, cat in enumerate(category):
-            if hatch==True:
-                handles = [
-                    Patch(facecolor=color_lut[label], label=label, hatch=marker_lut[label]) 
-                    for label in alllabels[i]]
-            else:
-                handles = [
-                    Patch(facecolor=color_lut[label], label=label) 
-                    for label in alllabels[i]]
-            legend=ax.legend(handles=handles,bbox_to_anchor=bbox_to_anchor, title=cat)
-            bbox_to_anchor[1]-=0.3
-            ax.add_artist(legend)
-        plt.subplots_adjust(right=right, bottom=bottom)
+        if colormode=="independent":
+            for i, cat in enumerate(category):
+                
+                if hatch==True:
+                    handles = [
+                        Patch(facecolor=color_lut[label], label=label, hatch=marker_lut[label]) 
+                        for label in alllabels[i]]
+                else:
+                    handles = [
+                        Patch(facecolor=color_lut[label], label=label) 
+                        for label in alllabels[i]]
+                legend=ax.legend(handles=handles,bbox_to_anchor=[bbox_to_anchor[0], bbox_to_anchor[0]-i*0.3], title=cat, loc="center left")
+                #legend=fig.legend(handles=handles,loc="outside right upper", title=cat)
+                #bbox_to_anchor[1]-=0.3
+                ax.add_artist(legend)
+            plt.subplots_adjust(right=right, bottom=bottom)
     ax.set_xticks([])
     ax.set_yticks([])
+    ax.set_facecolor("white")
     if title!="":
         plt.title(title)
     return ax
+
+
+
+def _nested_piechart(df: pd.DataFrame, 
+                  category: List[str],
+                  variable: str="",
+                  palette: str="tab20b",
+                  figsize=[],
+                  ignore: float=0.05,
+                  show_values: bool=False,unit: str="",
+                  show_percentage: bool=False,
+                  colormode: str="independent",
+                  ax: Optional[plt.Axes]=None,
+                  title: str="",
+                  hatch: bool=False,
+                  show_legend:bool=False,
+                  bbox_to_anchor: list=[1.1, 1],
+                  right: float=0.7,bottom=0.1,
+                  skip_na: bool=False,
+                  order: str="largest",) ->Dict:
+    """
+    Drawing a nested pichart by counting the occurrence of string (or integer/boolian) values from pandas dataframe.
+    
+    Parameters
+    ----------
+    df : pandas DataFrame
+
+    category: str or list
+        The column names for counting values. The order of names will correspond to the hierarchical order of the pie chart.
+
+    order: str, optional (default: "largest") ["largest", "smallest", "intact"]
+        How to sort values in the chart
+    
+    ignore : float, optional (default: 0.05)
+        Remove annotations of which the fraction is smaller than this value. 
+    palette : str or dict, optional (default: "tab20c")
+        A matplotlib colormap name or dictionary in which keys are values of the hue category and values are RGB array.
+        e.g.) palette={""}
+    show_values: bool, optional
+        Wheter to exhibit the values of fractions/counts/percentages.
+    
+    show : bool, optional
+        Whether or not to show the figure.
+    
+    figsize : List[int], optional
+        The figure size, e.g., [4, 6].
+    title: str optional, (default:"")
+        The title of the figure.
+    hatch: bool, optional (default: False)
+        Adding hatches to the bars
+    show_legend: bool, optional (default: False)
+        Whether to show legends.
+   
+
+    Returns
+    -------
+    {"axes":ax}: dict
+    
+    Raises
+    ------
+    Notes
+    -----
+    References
+    ----------
+    See Also
+    --------
+    Examples
+    --------
+    """
+    #df=df.fillna("NA")
+    alllabels={}
+    alllabel_sets=set()
+    for i, cat in enumerate(category):
+        alllabels[i]=[]
+        for u in df[cat].unique():
+            alllabels[i].append(u)
+            alllabel_sets.add(u)
+    alllabel_sets=sorted(list(alllabel_sets))
+    
+    if colormode=="independent":
+        _cmap=plt.get_cmap(palette, len(alllabel_sets))
+        color_lut={u: _cmap(i) for i, u in enumerate(alllabel_sets)}
+        marker_lut={u: hatch_list[i] for i, u in enumerate(alllabel_sets)}
+    elif colormode=="hierarchical" or colormode=="top":
+        _cmap=plt.get_cmap(palette, len(alllabels[0]))
+        color_lut={u: _cmap(i) for i, u in enumerate(alllabels[0])}
+    
+
+
+    data={}
+    for i in range(len(category)):
+        data[i]={"labels":[],"counts":[]}
+        for p in it.product(*[alllabels[j] for j in range(i+1)]):
+            tmp=df
+            for k, _p in enumerate(p):
+                
+                tmp=tmp.loc[tmp[category[k]]==_p]
+            #print(p, len(tmp))
+            if variable !="":
+                data[i]["counts"].append(tmp[variable].sum())
+            else:
+                data[i]["counts"].append(len(tmp))
+            data[i]["labels"].append(p)
+    if ax==None:
+        if len(figsize)==0:
+            if (show_legend==True or hatch==True) and colormode=="independent":
+                figsize=[8,6]
+            else:
+                figsize=[6,6]
+        fig, ax = plt.subplots(figsize =figsize)
+    else:
+        fig=None
+    
+
+    _data2=[]
+    lastk=np.amax(list(data.keys()))
+    print(lastk)
+    for k, v in data.items():
+        v["counts"]=np.array(v["counts"])
+        v["labels"]=np.array(v["labels"])
+        if order=="largest":
+            srt=np.argsort(v["counts"])[::-1]
+            v["counts"]=v["counts"][srt]
+            v["labels"]=v["labels"][srt]
+        elif order=="smallest":
+            srt=np.argsort(v["counts"])
+            v["counts"]=v["counts"][srt]
+            v["labels"]=v["labels"][srt]
+        elif order=="intact":
+            pass
+        else:
+            raise Exception("Unknown order type.") 
+
+        tmp=[]
+        latmp=[]
+        for l in v["labels"]:
+            _l="_".join(l)
+            latmp.append(_l)
+            tmp.append({_l:{"labels":[],"counts":[]}})
+        if len(_data2)!=0:
+            for la, co in zip(latmp, v["counts"]):
+
+                parent=la.rsplit("_",1)[0]
+                for parentd in _data2[-1]:
+                    if parent in parentd:
+                        #parentd[parent].append([la, co])
+                        parentd[parent]["labels"].append(la)
+                        parentd[parent]["counts"].append(co)
+        else:
+            parent="top"
+            parentd={"top":{"labels":[],"counts":[]}}
+            for la, co in zip(latmp, v["counts"]):
+                parentd[parent]["labels"].append(la)
+                parentd[parent]["counts"].append(co)
+            _data2.append([parentd])
+        if lastk==k:
+            break
+        _data2.append(tmp)
+
+    height=1
+    _bottom=0
+    for h, ds in enumerate(_data2):
+        s=np.pi/2
+
+        for h2, dg in enumerate(ds):
+            for h3, d in dg.items():
+                x=np.array(d["counts"])
+                if h==0:
+                    total=np.sum(x)
+                y=np.ones(x.shape)*height
+                percent=np.round(100*x/total,2)
+                xpi=x/total*2*np.pi
+                
+                label=d["labels"]
+                #print(label, x)
+                for i, (_x,_label) in enumerate(zip(xpi,label)):
+                    _label=_label.split("_")
+                    if skip_na==True and _label[-1]=="NA":
+                        s-=_x
+                        continue
+                    if colormode=="independent":
+                        _color=color_lut[_label[-1]]
+                        edgecolor="white"
+                    elif colormode=="top":
+                        _color=color_lut[_label[0]]
+                        edgecolor="white"
+                    elif colormode=="hierarchical":
+                        _color=np.array(color_lut[_label[0]])
+                        grad=(1-np.amin(_color))/(len(category)-1)
+                        _color=_color+grad*(len(_label)-1)/len(category)
+                        _color=np.where(_color>1,1.0,_color)
+                        edgecolor="darkgray"
+                    
+                    if hatch==True:
+                        _baumkuchen(ax,s, -_x, _bottom, _bottom+height, int(100*_x/np.sum(xpi)), _color,edgecolor=edgecolor, linewidth =1,hatch=marker_lut[_label[-1]])
+                    else:
+                        _baumkuchen(ax,s, -_x, _bottom, _bottom+height, int(100*_x/np.sum(xpi)), _color,edgecolor=edgecolor, linewidth =1)
+
+
+                    txt=""
+                    if show_legend==False or colormode!="independent":
+                        txt= _label[-1]
+                    
+                    if show_values==True:
+                        if x[i]>10000 or x[i] < 0.0001:
+                            txt=txt+"\n{:.3E} {}".format(x[i], unit)
+                        else:
+                            
+                            txt=txt+"\n{:.3f} {}".format(x[i], unit)
+                    if show_percentage==True:
+                        txt=txt+"\n({}%)".format(percent[i])
+                    txt=txt.strip("\n")
+                    showlabel=False
+                    if show_legend==False:
+                        showlabel=True
+                    elif hatch==False:
+                        showlabel=True
+                    elif colormode!="independent":
+                        showlabel=True
+                    
+                    if _x/(2*np.pi)>=ignore and showlabel:
+                        ax.text(np.cos(s-_x/2)*(_bottom+height/2), np.sin(s-_x/2)*(_bottom+height/2),txt, ha="center",
+                                bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="y", lw=1, alpha=0.8))
+                    elif _x/(2*np.pi)>=ignore and (show_values==True or show_percentage==True):
+                        
+                        ax.text(np.cos(s-_x/2)*(_bottom+height/2), np.sin(s-_x/2)*(_bottom+height/2),txt, ha="center",
+                                bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="y", lw=1, alpha=0.8))
+                        
+
+                    s-=_x
+            
+        _bottom+=height
+        height=height*0.6
+    if show_legend==True or hatch==True:
+        if colormode=="independent":
+            for i, cat in enumerate(category):
+                
+                if hatch==True:
+                    handles = [
+                        Patch(facecolor=color_lut[label], label=label, hatch=marker_lut[label]) 
+                        for label in alllabels[i]]
+                else:
+                    handles = [
+                        Patch(facecolor=color_lut[label], label=label) 
+                        for label in alllabels[i]]
+                legend=ax.legend(handles=handles,bbox_to_anchor=[bbox_to_anchor[0], bbox_to_anchor[0]-i*0.3], title=cat, loc="center left")
+                #legend=fig.legend(handles=handles,loc="outside right upper", title=cat)
+                #bbox_to_anchor[1]-=0.3
+                ax.add_artist(legend)
+            plt.subplots_adjust(right=right, bottom=bottom)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_facecolor("white")
+    if title!="":
+        plt.title(title)
+    return ax
+
+
+
 def stackedlines(df: pd.DataFrame, 
                 x: str,
                 y: list,

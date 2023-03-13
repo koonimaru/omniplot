@@ -181,7 +181,14 @@ def clusterplot(df: pd.DataFrame,
         import umap
         u=umap.UMAP(random_state=42, min_dist=min_dist,n_neighbors=n_neighbors)
         X=u.fit_transform(xpca)
-    
+        x="UMAP1"
+        y="UMAP2"
+    elif reduce_dimension=="tsne":
+        tsne=_get_embedding("tsne")
+        #u=umap.UMAP(random_state=42, min_dist=min_dist,n_neighbors=n_neighbors)
+        X=tsne.fit_transform(xpca)
+        x="TSNE1"
+        y="TSNE2"
     if n_clusters=="auto" and method=="kmeans":
         Sum_of_squared_distances = []
         K = list(range(*testrange))
@@ -395,9 +402,7 @@ def clusterplot(df: pd.DataFrame,
         n_clusters=[n_clusters]
     if method=="kmeans":
         dfnews=[]
-        if reduce_dimension=="umap":
-            x="UMAP1"
-            y="UMAP2"
+
         for nc in n_clusters:
             kmean = KMeans(n_clusters=nc, random_state=0,n_init=10)
             kmX=kmean.fit(X)
@@ -414,9 +419,7 @@ def clusterplot(df: pd.DataFrame,
         D=ssd.squareform(ssd.pdist(xpca))
         Y = sch.linkage(D, method='ward')
         Z = sch.dendrogram(Y,labels=labels,no_plot=True)
-        if reduce_dimension=="umap":
-            x="UMAP1"
-            y="UMAP2"
+        
         dfnews=[]
         for nc in n_clusters:
             t=_dendrogram_threshold(Z, nc)
@@ -437,9 +440,7 @@ def clusterplot(df: pd.DataFrame,
         hue="hierarchical"
     elif method=="dbscan":
         dfnews=[]
-        if reduce_dimension=="umap":
-            x="UMAP1"
-            y="UMAP2"
+
         if type(eps)==float:
             eps=[eps]
         n_clusters=[]
@@ -461,10 +462,7 @@ def clusterplot(df: pd.DataFrame,
         hue="dbscan"
     elif method=="hdbscan":
         dfnews=[]
-        if reduce_dimension=="umap":
-            x="UMAP1"
-            y="UMAP2"
-        
+
         try:
             import hdbscan
         except ImportError:
@@ -509,9 +507,7 @@ def clusterplot(df: pd.DataFrame,
         
         dfnews=[]
         fuzzylabels=[]
-        if reduce_dimension=="umap":
-            x="UMAP1"
-            y="UMAP2"
+
         _X=X.T
         for nc in n_clusters:
             
@@ -576,6 +572,8 @@ def clusterplot(df: pd.DataFrame,
             entropy_srt=np.argsort(color_entropy)
             colors=np.array(colors)[entropy_srt]
             ax[0].scatter(dfnew[x].values[entropy_srt], dfnew[y].values[entropy_srt], c=colors, s=size)
+            ax[0].set_xlabel(x)
+            ax[0].set_ylabel(y)
             #sns.scatterplot(data=dfnew,x=x,y=y,hue=hue, ax=ax[0], palette=palette[0],**kwargs)
             if method=="fuzzy":
                 _title="Fuzzy c-means. Cluster num="+str(K)
@@ -653,6 +651,8 @@ def clusterplot(df: pd.DataFrame,
                     
             ax[0].legend(title=hue)
             ax[0].set_title(method+" Cluster number="+str(K))
+            ax[0].set_xlabel(x)
+            ax[0].set_ylabel(y)
             if len(category)!=0:
                 for i, cat in enumerate(category):
                     dfnew[cat]=df[cat]
