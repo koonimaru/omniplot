@@ -11,3 +11,5 @@ docs/omniplot.scripts.rst
 docs/omniplot.rst
 docs/omniplot.cython_utils.rst
 tests/test_network.py
+data/countries.csv
+tests/test.ipynb

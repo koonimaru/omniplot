@@ -506,7 +506,7 @@ def complex_clustermap(df: pd.DataFrame,
         variables=heatmap_col
     cnum=len(variables)
     if len(figsize)==0:
-        xsize=np.amin([2*cnum, 20])
+        xsize=np.amin([cnum//3, 20])
         figsize=[xsize,10]
     scatterpointsize=5
     sns.set(font_scale=1)
@@ -851,7 +851,14 @@ def complex_clustermap(df: pd.DataFrame,
             legend_num+=1
         
     else:
-        g=sns.clustermap(df,method=method,cbar_kws=dict(orientation='horizontal'),**kwargs)
+        g=sns.clustermap(df,method=method,
+                         cbar_kws=dict(orientation='horizontal'),
+                             xticklabels=xticklabels,
+                             cmap=heatmap_palette, 
+                             yticklabels=yticklabels,
+                             dendrogram_ratio=0.1,
+                             figsize=figsize,
+                             **kwargs)
     if color_var>0:
         cmap = cm.tab20c(np.linspace(0, 1, color_var))
     else:
