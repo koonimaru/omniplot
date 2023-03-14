@@ -10,7 +10,7 @@ from scipy.cluster.hierarchy import leaves_list
 from scipy.cluster import hierarchy
 from collections import defaultdict
 import matplotlib.colors
-from natsort import natsort_keygen
+from natsort import natsort_keygen, natsorted
 from matplotlib.patches import Rectangle
 import scipy.cluster.hierarchy as sch
 import fastcluster as fcl
@@ -553,7 +553,7 @@ def complex_clustermap(df: pd.DataFrame,
         if len(row_colors)>0:
             for k in row_colors:
                 
-                u=np.unique(df[k])
+                u=np.array(natsorted(np.unique(df[k])))
                 _cmap=plt.get_cmap(colormap_list[colormap_index],u.shape[0])
                 lut={}
                 for _i, _u in enumerate(u):
@@ -565,7 +565,7 @@ def complex_clustermap(df: pd.DataFrame,
                 
         if len(col_colors)>0:
             for k in col_colors:
-                u=np.unique(dfcol[k])
+                u=np.array(natsorted(np.unique(dfcol[k])))
                 _cmap=plt.get_cmap(colormap_list[colormap_index],u.shape[0])
                 lut={}
                 for _i, _u in enumerate(u):
@@ -838,7 +838,10 @@ def complex_clustermap(df: pd.DataFrame,
             legendhandles=[]
             for label, color in colorlut.items():
                 legendhandles.append(Line2D([0], [0], color=color,linewidth=5, label=label))
-            legend1=g.ax_heatmap.legend(handles=legendhandles, loc=[1.15,0.8-0.2*legend_num], title=_title)
+            legend1=g.ax_heatmap.legend(handles=legendhandles, 
+                                        loc="upper left", 
+                                        title=_title,
+                                        bbox_to_anchor=(1.15, 1-0.2*legend_num))
             g.ax_heatmap.add_artist(legend1)
             legend_num+=1
         for _title, colorlut in _col_color_legend.items():
@@ -846,7 +849,10 @@ def complex_clustermap(df: pd.DataFrame,
             for label, color in colorlut.items():
                 legendhandles.append(Line2D([0], [0], color=color,linewidth=5, label=label))
 
-            legend1=g.ax_heatmap.legend(handles=legendhandles, loc=[1.15,0.8-0.2*legend_num], title=_title)
+            legend1=g.ax_heatmap.legend(handles=legendhandles, 
+                                        loc="upper left", 
+                                        title=_title,
+                                        bbox_to_anchor=(1.15, 1-0.2*legend_num))
             g.ax_heatmap.add_artist(legend1)
             legend_num+=1
         
@@ -929,7 +935,7 @@ def complex_clustermap(df: pd.DataFrame,
     
     g.ax_cbar.set_title(ctitle)
     #g.ax_cbar.tick_params(axis='x', length=5)
-    g.ax_cbar.set_position(pos=[0.80, 0.3, 0.1, 0.02], 
+    g.ax_cbar.set_position(pos=[0.80, 0.1, 0.1, 0.02], 
                            which="both")
     if title !="":
         g.fig.suptitle(title, va="bottom")

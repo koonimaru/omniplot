@@ -1356,13 +1356,17 @@ def nested_piechart(df: pd.DataFrame,
             for i, cat in enumerate(category):
                 
                 if hatch==True:
-                    handles = [
-                        Patch(facecolor=color_lut[label], label=label, hatch=marker_lut[label]) 
-                        for label in alllabels[i]]
+                    handles = []
+                    for label in alllabels[i]:
+                        if skip_na==True and label=="NA":
+                            continue
+                        handles.append(Patch(facecolor=color_lut[label], label=label, hatch=marker_lut[label]))
                 else:
-                    handles = [
-                        Patch(facecolor=color_lut[label], label=label) 
-                        for label in alllabels[i]]
+                    handles = []
+                    for label in alllabels[i]:
+                        if skip_na==True and label=="NA":
+                            continue
+                        handles.append(Patch(facecolor=color_lut[label], label=label) ) 
                 legend=ax.legend(handles=handles,bbox_to_anchor=[bbox_to_anchor[0], bbox_to_anchor[0]-i*0.3], title=cat, loc="center left")
                 #legend=fig.legend(handles=handles,loc="outside right upper", title=cat)
                 #bbox_to_anchor[1]-=0.3
