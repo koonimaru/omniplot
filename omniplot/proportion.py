@@ -889,7 +889,7 @@ def nice_piechart_num(df: pd.DataFrame,
         plt.title(title)
     return {"axes":ax}
 
-def nested_piechart(df: pd.DataFrame, 
+def _nested_piechart(df: pd.DataFrame, 
                   category: List[str],
                   variable: str="",
                   palette: str="tab20b",
@@ -1091,7 +1091,7 @@ def nested_piechart(df: pd.DataFrame,
 
 
 
-def _nested_piechart(df: pd.DataFrame, 
+def nested_piechart(df: pd.DataFrame, 
                   category: List[str],
                   variable: str="",
                   palette: str="tab20b",
@@ -1107,7 +1107,7 @@ def _nested_piechart(df: pd.DataFrame,
                   bbox_to_anchor: list=[1.1, 1],
                   right: float=0.7,bottom=0.1,
                   skip_na: bool=False,
-                  order: str="largest",) ->Dict:
+                  order: str="intact",) ->Dict:
     """
     Drawing a nested pichart by counting the occurrence of string (or integer/boolian) values from pandas dataframe.
     
@@ -1176,6 +1176,20 @@ def _nested_piechart(df: pd.DataFrame,
         color_lut={u: _cmap(i) for i, u in enumerate(alllabels[0])}
     
 
+    # counting data in each level of categories.
+    # {0: {'labels': [('Adelie',), ('Chinstrap',), ('Gentoo',)],
+    #   'counts': [152, 68, 124]},
+    #  1: {'labels': [('Adelie', 'Male'),
+    #    ('Adelie', 'Female'),
+    #    ('Adelie', 'NA'),
+    #    ('Chinstrap', 'Male'),
+    #    ('Chinstrap', 'Female'),
+    #    ('Chinstrap', 'NA'),
+    #    ('Gentoo', 'Male'),
+    #    ('Gentoo', 'Female'),
+    #    ('Gentoo', 'NA')],
+    #   'counts': [73, 73, 6, 34, 34, 0, 61, 58, 5]}}
+
 
     data={}
     for i in range(len(category)):
@@ -1201,7 +1215,8 @@ def _nested_piechart(df: pd.DataFrame,
     else:
         fig=None
     
-
+    # Reorganizing data in order to sort the counts
+    # 
     _data2=[]
     lastk=np.amax(list(data.keys()))
     print(lastk)
@@ -1223,14 +1238,25 @@ def _nested_piechart(df: pd.DataFrame,
 
         tmp=[]
         latmp=[]
-        for l in v["labels"]:
-            _l="_".join(l)
-            latmp.append(_l)
-            tmp.append({_l:{"labels":[],"counts":[]}})
+        cotmp=[]
+        if len(_data2)==0:
+            for l in v["labels"]:
+                _l="|:|".join(l)
+                latmp.append(_l)
+                tmp.append({_l:{"labels":[],"counts":[]}})
+        else:
+            for parentd in _data2[-1]:                             #a brutal way to resort data according to the parent category order
+                key=list(parentd.keys())[0]
+                for l, c in zip(v["labels"], v["counts"]):
+                    _l="|:|".join(l)
+                    if _l.startswith(key):
+                        latmp.append(_l)
+                        tmp.append({_l:{"labels":[],"counts":[]}}) 
+                        cotmp.append(c)
         if len(_data2)!=0:
-            for la, co in zip(latmp, v["counts"]):
+            for la, co in zip(latmp, cotmp):
 
-                parent=la.rsplit("_",1)[0]
+                parent=la.rsplit("|:|",1)[0]
                 for parentd in _data2[-1]:
                     if parent in parentd:
                         #parentd[parent].append([la, co])
@@ -1246,7 +1272,7 @@ def _nested_piechart(df: pd.DataFrame,
         if lastk==k:
             break
         _data2.append(tmp)
-
+    #print(data)
     height=1
     _bottom=0
     for h, ds in enumerate(_data2):
@@ -1254,7 +1280,10 @@ def _nested_piechart(df: pd.DataFrame,
 
         for h2, dg in enumerate(ds):
             for h3, d in dg.items():
+                #print(h, h2,h3,d)
                 x=np.array(d["counts"])
+                if np.sum(x)==0:
+                    continue
                 if h==0:
                     total=np.sum(x)
                 y=np.ones(x.shape)*height
@@ -1262,9 +1291,10 @@ def _nested_piechart(df: pd.DataFrame,
                 xpi=x/total*2*np.pi
                 
                 label=d["labels"]
+                
                 #print(label, x)
                 for i, (_x,_label) in enumerate(zip(xpi,label)):
-                    _label=_label.split("_")
+                    _label=_label.split("|:|")
                     if skip_na==True and _label[-1]=="NA":
                         s-=_x
                         continue

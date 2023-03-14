@@ -17,7 +17,7 @@ from itertools import combinations
 import os
 script_dir = os.path.dirname( __file__ )
 sys.path.append( script_dir )
-from utils import _dendrogram_threshold, _radialtree2,_get_cluster_classes,_calc_curveture, _draw_ci_pi,_calc_r2,_ci_pi
+from utils import *
 import scipy.stats as stats
 
 colormap_list=["nipy_spectral", "terrain","tab20b","gist_rainbow","CMRmap","coolwarm","gnuplot","gist_stern","brg","rainbow"]
