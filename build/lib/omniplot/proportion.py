@@ -1245,7 +1245,7 @@ def nested_piechart(df: pd.DataFrame,
                 latmp.append(_l)
                 tmp.append({_l:{"labels":[],"counts":[]}})
         else:
-            for parentd in _data2[-1]:
+            for parentd in _data2[-1]:                             #a brutal way to resort data according to the parent category order
                 key=list(parentd.keys())[0]
                 for l, c in zip(v["labels"], v["counts"]):
                     _l="|:|".join(l)
@@ -1272,7 +1272,7 @@ def nested_piechart(df: pd.DataFrame,
         if lastk==k:
             break
         _data2.append(tmp)
-    print(data)
+    #print(data)
     height=1
     _bottom=0
     for h, ds in enumerate(_data2):
@@ -1280,7 +1280,7 @@ def nested_piechart(df: pd.DataFrame,
 
         for h2, dg in enumerate(ds):
             for h3, d in dg.items():
-                print(h, h2,h3,d)
+                #print(h, h2,h3,d)
                 x=np.array(d["counts"])
                 if np.sum(x)==0:
                     continue
