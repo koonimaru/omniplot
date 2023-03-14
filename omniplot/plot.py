@@ -506,7 +506,8 @@ def complex_clustermap(df: pd.DataFrame,
         variables=heatmap_col
     cnum=len(variables)
     if len(figsize)==0:
-        xsize=np.amin([cnum//3, 20])
+        xsize=np.amin([cnum, 20])
+        xsize=np.amax([xsize, 5])
         figsize=[xsize,10]
     scatterpointsize=5
     sns.set(font_scale=1)

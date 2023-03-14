@@ -145,7 +145,7 @@ def _baumkuchen(ax, start, theta, rin, rout,res, _color,edgecolor="", linewidth=
     yf=np.concatenate([rin*np.sin(start+move),[rin*np.sin(start+theta),rout*np.sin(start+theta)],rout*np.sin(start+move)[::-1],[rin*np.sin(start),rout*np.sin(start)][::-1]])
     if edgecolor!="":
         ax.plot(xf, yf, zorder=2, color=edgecolor)
-    ax.fill(xf, yf, color=_color,edgecolor=edgecolor, linewidth=linewidth,hatch=hatch)
+    ax.fill(xf, yf, color=_color, linewidth=linewidth,hatch=hatch)
 
 def _baumkuchen_xy(ax, x,y, start, theta, rin, rout,res, _color, edgecolor=""):
     move=np.linspace(0, theta,res)
