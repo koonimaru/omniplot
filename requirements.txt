@@ -16,3 +16,4 @@ networkx
 datashader
 python-louvain
 scikit-fuzzy
+scikit-image
