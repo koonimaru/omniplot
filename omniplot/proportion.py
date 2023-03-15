@@ -207,18 +207,18 @@ def _stacked_barplot(df: pd.DataFrame,
                     r1=np.array([idx1, he1/2+bot1])
                     r2=np.array([idx2, he2/2+bot2])
                     r=r2-r1
-                    print(ax.get_xlim(),ax.get_ylim())
+                    #print(ax.get_xlim(),ax.get_ylim())
                     r=np.array([1,3])*r/np.array([ax.get_xlim()[1]-ax.get_xlim()[0],ax.get_ylim()[1]-ax.get_ylim()[0]])
                     #r=ax.transData.transform(r)
                     if idx2<idx1:
                         r=-r
-                    print(r)
+                    #print(r)
                     r=r*(r @ r)**(-0.5)
-                    print(h,r)
+                    #print(h,r)
                     angle=np.arccos(r[0])
                     if r[1]<0:
                         angle= -angle
-                    print(angle)
+                    #print(angle)
                     _line_annotate( "mlp="+str(np.round(-np.log10(pval), decimals=1)), line, (idx1+idx2)/2, color="magenta")
                     # plt.text((idx1+idx2)/2, 0.5*(he1/2+bot1+he2/2+bot2), "mlp="+str(np.round(-np.log10(pval), decimals=1)), 
                     #          color="magenta", va="center",ha="center", rotation=360*angle/(2*np.pi),)
@@ -1219,7 +1219,7 @@ def nested_piechart(df: pd.DataFrame,
     # 
     _data2=[]
     lastk=np.amax(list(data.keys()))
-    print(lastk)
+    #print(lastk)
     for k, v in data.items():
         v["counts"]=np.array(v["counts"])
         v["labels"]=np.array(v["labels"])
