@@ -855,6 +855,7 @@ def nice_piechart_num(df: pd.DataFrame,
         category=list(df.index)
     if len(variables)!=0:
         df=df[variables]
+        
     srt=np.argsort(df.sum(axis=0))[::-1]
     df=df[df.columns[srt]]
     variables=list(df.columns)
@@ -1095,7 +1096,7 @@ def nested_piechart(df: pd.DataFrame,
                   category: List[str],
                   variable: str="",
                   palette: str="tab20b",
-                  figsize=[],
+                  figsize: list=[],
                   ignore: float=0.05,
                   show_values: bool=False,unit: str="",
                   show_percentage: bool=False,
@@ -1105,7 +1106,8 @@ def nested_piechart(df: pd.DataFrame,
                   hatch: bool=False,
                   show_legend:bool=False,
                   bbox_to_anchor: list=[1.1, 1],
-                  right: float=0.7,bottom=0.1,
+                  right: float=0.7,
+                  bottom: float=0.1,
                   skip_na: bool=False,
                   order: str="intact",) ->Dict:
     """
@@ -1123,11 +1125,16 @@ def nested_piechart(df: pd.DataFrame,
     
     ignore : float, optional (default: 0.05)
         Remove annotations of which the fraction is smaller than this value. 
-    palette : str or dict, optional (default: "tab20c")
+    
+    palette : str or dict, optional (default: "tab20b")
         A matplotlib colormap name or dictionary in which keys are values of the hue category and values are RGB array.
         e.g.) palette={""}
+    
     show_values: bool, optional
-        Wheter to exhibit the values of fractions/counts/percentages.
+        Wheter to exhibit values/counts.
+
+    show_percentage: bool, optional
+        Wheter to exhibit percentages.
     
     show : bool, optional
         Whether or not to show the figure.
@@ -1140,7 +1147,21 @@ def nested_piechart(df: pd.DataFrame,
         Adding hatches to the bars
     show_legend: bool, optional (default: False)
         Whether to show legends.
-   
+    colormode: str, optional (default: "independent") ["independent", "hierarchical", "top"]
+        Choosing the ways to color labels. "independent" will give each label a different color (from a single color palette).
+        "top" will give different colors to only labels in the top, and other labels follow the same color with the top category they belong to.
+        "hierarchical" is similar to "top", but give fainter colors to labels in the lower hierarchical categories.
+    
+    bbox_to_anchor: list, optional (default:[1.1, 1])
+        the location of legends to appear
+    right: float, optional (default: 0.7)
+        In the case that legends are truncated by the frame of the figure, decrease this value.
+
+    bottom: float, optional (default: 0.1)
+
+    skip_na: bool, optional (default: False)
+        Whether to skip drawing samples labeled "NA". If True, there will be empty spaces for samples with "NA".
+
 
     Returns
     -------
@@ -1175,6 +1196,7 @@ def nested_piechart(df: pd.DataFrame,
         _cmap=plt.get_cmap(palette, len(alllabels[0]))
         color_lut={u: _cmap(i) for i, u in enumerate(alllabels[0])}
     
+
 
     # counting data in each level of categories.
     # {0: {'labels': [('Adelie',), ('Chinstrap',), ('Gentoo',)],
@@ -1245,7 +1267,9 @@ def nested_piechart(df: pd.DataFrame,
                 latmp.append(_l)
                 tmp.append({_l:{"labels":[],"counts":[]}})
         else:
-            for parentd in _data2[-1]:                             #a brutal way to resort data according to the parent category order
+            # a brutal way to resort data according to the parent category order
+            # this will not work for a large dataset
+            for parentd in _data2[-1]:                             
                 key=list(parentd.keys())[0]
                 for l, c in zip(v["labels"], v["counts"]):
                     _l="|:|".join(l)
@@ -1273,6 +1297,33 @@ def nested_piechart(df: pd.DataFrame,
             break
         _data2.append(tmp)
     #print(data)
+    print(_data2)
+    # Drawing the pie chart. 
+    # _data2 looks like the bellow. A nested list ordered from the top to bottom hierarchical categories (in the below, (species, sex, island)).
+    # The element of the list is also a list consists of dictionaries (if sorted, ordered according to the parent category) of which keys are from
+    # the parent category. And the values are dictionaries containing labels and counts. These labels are combination of those in the parent and 
+    # present categories. 
+    #  
+    #  
+    # [
+    # [{'top': {'labels': ['Adelie', 'Gentoo', 'Chinstrap'], 'counts': [152, 124, 68]}}], 
+    # 
+    # [{'Adelie': {'labels': ['Adelie|:|Female', 'Adelie|:|Male', 'Adelie|:|NA'], 'counts': [73, 73, 6]}}, 
+    #  {'Gentoo': {'labels': ['Gentoo|:|Male', 'Gentoo|:|Female', 'Gentoo|:|NA'], 'counts': [61, 58, 5]}}, 
+    #  {'Chinstrap': {'labels': ['Chinstrap|:|Female', 'Chinstrap|:|Male', 'Chinstrap|:|NA'], 'counts': [34, 34, 0]}}], 
+    # 
+    # [{'Adelie|:|Female': {'labels': ['Adelie|:|Female|:|Dream', 'Adelie|:|Female|:|Torgersen', 'Adelie|:|Female|:|Biscoe'], 'counts': [27, 24, 22]}}, 
+    #  {'Adelie|:|Male': {'labels': ['Adelie|:|Male|:|Dream', 'Adelie|:|Male|:|Torgersen', 'Adelie|:|Male|:|Biscoe'], 'counts': [28, 23, 22]}}, 
+    #  {'Adelie|:|NA': {'labels': ['Adelie|:|NA|:|Torgersen', 'Adelie|:|NA|:|Dream', 'Adelie|:|NA|:|Biscoe'], 'counts': [5, 1, 0]}}, 
+    #  {'Gentoo|:|Male': {'labels': ['Gentoo|:|Male|:|Biscoe', 'Gentoo|:|Male|:|Torgersen', 'Gentoo|:|Male|:|Dream'], 'counts': [61, 0, 0]}}, 
+    #  {'Gentoo|:|Female': {'labels': ['Gentoo|:|Female|:|Biscoe', 'Gentoo|:|Female|:|Torgersen', 'Gentoo|:|Female|:|Dream'], 'counts': [58, 0, 0]}}, 
+    #  {'Gentoo|:|NA': {'labels': ['Gentoo|:|NA|:|Biscoe', 'Gentoo|:|NA|:|Dream', 'Gentoo|:|NA|:|Torgersen'], 'counts': [5, 0, 0]}}, 
+    #  {'Chinstrap|:|Female': {'labels': ['Chinstrap|:|Female|:|Dream', 'Chinstrap|:|Female|:|Torgersen', 'Chinstrap|:|Female|:|Biscoe'], 'counts': [34, 0, 0]}}, 
+    #  {'Chinstrap|:|Male': {'labels': ['Chinstrap|:|Male|:|Dream', 'Chinstrap|:|Male|:|Biscoe', 'Chinstrap|:|Male|:|Torgersen'], 'counts': [34, 0, 0]}}, 
+    #  {'Chinstrap|:|NA': {'labels': ['Chinstrap|:|NA|:|Torgersen', 'Chinstrap|:|NA|:|Biscoe', 'Chinstrap|:|NA|:|Dream'], 'counts': [0, 0, 0]}}]
+    # ]
+    #
+    #
     height=1
     _bottom=0
     for h, ds in enumerate(_data2):
@@ -1351,6 +1402,10 @@ def nested_piechart(df: pd.DataFrame,
             
         _bottom+=height
         height=height*0.6
+    
+
+    # Drawing legend. if hatch is True, because it will be too messy to add texts to the pie chart, it will automatically draw legends.
+
     if show_legend==True or hatch==True:
         if colormode=="independent":
             for i, cat in enumerate(category):
@@ -1408,8 +1463,7 @@ def stackedlines(df: pd.DataFrame,
     Parameters
     ----------
     df : pandas DataFrame
-        A wide form dataframe. Index names are used to label points. It accepts negative values, but not recommended as 
-        it does not make sense.
+        A wide form dataframe. It accepts negative values.
         e.g.) 
               year    biofuel_consumption    coal_consumption    gas_consumption    hydro_consumption    nuclear_consumption    oil_consumption
         90    1990                 16.733            5337.998           5170.609              864.271               1723.004           9306.913
@@ -1438,7 +1492,22 @@ def stackedlines(df: pd.DataFrame,
         y axis label
     ax: Optional[plt.Axes] optional, (default: None)
         pyplot ax to add this scatter plot
-
+    alpha: float, optional (default: 0.75)
+        alpha of the stacked lines (areas).
+    bbox_to_anchor: list, optional (default: [1.7, 1])
+        The legend location
+    right: float=0.7,
+    bottom: float=0.120,
+    show_legend: bool=True,
+    
+    yunit: str="", optional (default: "")
+        The y axis unit. it will appear at the top of the y axis.
+    xunit: str="", optional (default: "")
+        The X axis unit. it will appear at the top of the x axis.
+    title: str="", optional (default: "")
+        The figure title.
+    hatch: bool, optional (default: False)
+        Whether to add hatches to the plots.
 
     Returns
     -------
