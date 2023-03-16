@@ -475,7 +475,8 @@ def _radialtree2(Z2,fontsize: int=8,
                show: bool=False,
                sample_classes: Optional[dict]=None,
                colorlabels: Optional[dict]=None,
-         colorlabels_legend: Optional[dict]=None
+         colorlabels_legend: Optional[dict]=None,
+         xticks=set(),
          ) -> plt.Axes:
     """
     Drawing a radial dendrogram from a scipy dendrogram output.
@@ -520,6 +521,7 @@ def _radialtree2(Z2,fontsize: int=8,
     Examples
     --------
     """
+    xticks=set(xticks)
     if figsize==None and colorlabels != None:
         figsize=[7,6]
     elif figsize==None and sample_classes != None:
@@ -602,12 +604,26 @@ def _radialtree2(Z2,fontsize: int=8,
             plt.plot(np.linspace(_r, _xr2, lineres), link, c=_color,linewidth=linewidth, rasterized=True)
         
         #Calculating the x, y coordinates and rotation angles of labels
-        
-        if y[0]==0:
+
+        _append=False
+        if len(xticks)==0:
+            _append=y[0]==0
+        else:
+            _append=x[0] in xticks and y[0]==0
+
+        if _append==True:
             label_coords.append([(1.05+offset)*_xr0, (1.05+offset)*_yr0,360*x[0]/xmax])
             #plt.text(1.05*_xr0, 1.05*_yr0, Z2['ivl'][i],{'va': 'center'},rotation_mode='anchor', rotation=360*x[0]/xmax)
             i+=1
-        if y[3]==0:
+
+        _append=False
+        if len(xticks)==0:
+            _append=y[3]==0
+        else:
+            _append=x[3] in xticks and y[3]==0
+
+        if _append==True:
+        #if y[3]==0 and x[2] in xticks:
             label_coords.append([(1.05+offset)*_xr3, (1.05+offset)*_yr3,360*x[2]/xmax])
             #plt.text(1.05*_xr3, 1.05*_yr3, Z2['ivl'][i],{'va': 'center'},rotation_mode='anchor', rotation=360*x[2]/xmax)
             i+=1

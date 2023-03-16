@@ -3,7 +3,7 @@ import sys
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 
-def nb_regression(x, y):
+def _nb_regression(x, y):
     _x=np.stack([np.ones(x.shape[0]),x],axis=-1)
     poisson_training_results = sm.GLM(y, _x, family=sm.families.Poisson()).fit()
     print(poisson_training_results.summary())
@@ -20,7 +20,7 @@ def nb_regression(x, y):
     print(nb2_training_results.params)
     return {"dispersion": aux_olsr_results.params[0], "beta": nb2_training_results.params}
 
-def main():
+def _main():
     import matplotlib.pyplot as plt
     import sys
     beta_0 =2
@@ -38,7 +38,7 @@ def main():
     
     
     
-    res=nb_regression(x, y)
+    res=_nb_regression(x, y)
     print(res)
     _y=res["beta"][0] + res["beta"][1] * _x
     sde=(_y+res["dispersion"]*_y**2)**0.5
@@ -49,4 +49,4 @@ def main():
     plt.ylabel('y')
     plt.show()
 if __name__ == '__main__':
-    main()
+    _main()
