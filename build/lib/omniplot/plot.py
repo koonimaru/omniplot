@@ -147,11 +147,14 @@ def radialtree(df: pd.DataFrame,
     
     Z = sch.dendrogram(Y,labels=_labels,no_plot=True)
     t=_dendrogram_threshold(Z, n_clusters)
+    _fig, _ax =plt.subplots()
     Z=sch.dendrogram(Y,
                         labels = _labels,
-                        color_threshold=t,no_plot=True)
+                        color_threshold=t, ax=_ax)
+    xticks=set(_ax.get_xticks())
+    plt.close(_fig)
     sample_classes={k: list(category_df[k]) for k in category_df.columns}
-    ax=_radialtree2(Z, sample_classes=sample_classes,addlabels=False, **kwargs)
+    ax=_radialtree2(Z, sample_classes=sample_classes,addlabels=False, xticks=xticks, **kwargs)
     if title !="":
         ax.set_title(title)
     _save(save, "radialtree")
@@ -259,10 +262,9 @@ def correlation(df: pd.DataFrame,
                                yticklabels=yticklabels,
                                figsize=figsize,
                                ctitle=ctitle )
-        return res
     else:
         
-        g=sns.clustermap(data=dmat,
+        res=complex_clustermap(data=dmat,
                          xticklabels=xticklabels,
                          yticklabels=yticklabels,
                    method="ward", 
@@ -270,15 +272,15 @@ def correlation(df: pd.DataFrame,
                    col_cluster=True,
                    row_cluster=True,
                    figsize=figsize,
-                   rasterized=True,
+                   #rasterized=True,
                     #cbar_kws={"label":"Pearson correlation"}, 
-                   annot=show_values,
+                   #annot=show_values,
                    **clustermap_param)
-        
-        g.cax.set_ylabel(ctitle, rotation=-90,va="bottom")
-        plt.setp(g.ax_heatmap.get_yticklabels(), rotation=0)  # For y axis
-        plt.setp(g.ax_heatmap.get_xticklabels(), rotation=90) # For x axis
-        return {"grid":g}
+    return res
+        # g.cax.set_ylabel(ctitle, rotation=-90,va="bottom")
+        # plt.setp(g.ax_heatmap.get_yticklabels(), rotation=0)  # For y axis
+        # plt.setp(g.ax_heatmap.get_xticklabels(), rotation=90) # For x axis
+        # return {"grid":g}
 
 def triangle_heatmap(df, 
                      grid_pos: list=[],
