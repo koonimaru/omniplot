@@ -35,33 +35,365 @@ import itertools as it
 
 colormap_list: list=["nipy_spectral", "terrain","tab20b","tab20c","gist_rainbow","hsv","CMRmap","coolwarm","gnuplot","gist_stern","brg","rainbow","jet"]
 hatch_list: list = ['//', '\\\\', '||', '--', '++', 'xx', 'oo', 'OO', '..', '**','/o', '\\|', '|*', '-\\', '+o', 'x*', 'o-', 'O|', 'O.', '*-']
-maker_list: list=['.', '_' , '+','|', 'x', 'v', '^', '<', '>', 's', 'p', '*', 'h', 'D', 'd', 'P', 'X','o', '1', '2', '3', '4','|', '_']
+marker_list: list=[ "o",'_' , '+','|', 'x', 'v', '^', '<', '>', 's', 'p', '*', 'h', 'D', 'd', 'P', 'X','.', '1', '2', '3', '4','|', '_']
 
 plt.rcParams['font.family']= 'sans-serif'
 plt.rcParams['font.sans-serif'] = ['Arial']
 plt.rcParams['svg.fonttype'] = 'none'
 sns.set_theme(font="Arial")
 
-__all__=["clusterplot", "decomplot", "pie_scatter","manifoldplot", "regression_single"]
-def _scatter(_df, x,y, cat, ax, lut, barrierfree, size, legend=True):
+__all__=["clusterplot", "decomplot", "pie_scatter","manifoldplot", "regression_single","scatterplot"]
+def _scatter(_df, x,y, cat, ax, lut, barrierfree, size, legend=True, axlabel=True, alpha=1, edgecolors="w",linewidths=1.0,outside=False):
+
     if _df[cat].dtype==float :
-        sc=ax.scatter(_df[x], _df[y], c=_df[cat], s=size)
+        sc=ax.scatter(_df[x], _df[y], c=_df[cat], s=size,edgecolors=edgecolors)
         plt.colorbar(sc,ax=ax, label=cat, shrink=0.3,aspect=5,orientation="vertical")
     elif barrierfree==True:
         
         for key in lut[cat]["colorlut"].keys():
             _dfnew=_df.loc[_df[cat]==key]
-            ax.scatter(_dfnew[x], _dfnew[y], color=lut[cat]["colorlut"][key], marker=lut[cat]["markerlut"][key], label=key)
+            if type(size) !=float:
+                _size=size[_df[cat]==key]
+                sc=ax.scatter(_dfnew[x], _dfnew[y], 
+                        c=lut[cat]["colorlut"][key], 
+                        marker=lut[cat]["markerlut"][key], 
+                        label=key, s=_size,alpha=alpha,
+                        edgecolors=edgecolors,
+                        linewidths=linewidths)
+
+            else:
+                sc=ax.scatter(_dfnew[x], _dfnew[y], 
+                        c=lut[cat]["colorlut"][key], 
+                        marker=lut[cat]["markerlut"][key], 
+                        label=key, 
+                        s=size,
+                        alpha=alpha,
+                        edgecolors=edgecolors,
+                        linewidths=linewidths)
         
     else:
         for key in lut[cat]["colorlut"].keys():
             _dfnew=_df.loc[_df[cat]==key]
-            ax.scatter(_dfnew[x], _dfnew[y], color=lut[cat]["colorlut"][key], label=key, s=size)
-        
+            if type(size) ==float or type(size) ==int:
+                sc=ax.scatter(_dfnew[x], _dfnew[y], c=lut[cat]["colorlut"][key], label=key, s=size,alpha=alpha,edgecolors=edgecolors,linewidths=linewidths)
+
+            else:
+                _size=size[_df[cat]==key]
+                sc=ax.scatter(_dfnew[x], _dfnew[y], c=lut[cat]["colorlut"][key], label=key, s=_size,alpha=alpha,edgecolors=edgecolors,linewidths=linewidths)
+                
+
     if legend==True:
-        ax.legend(title=cat)
-    ax.set_xlabel(x)
-    ax.set_ylabel(y)
+        if barrierfree==True:
+            legend_elements = [Line2D([0], [0], marker=lut[cat]["markerlut"][k], linewidth=0, markeredgecolor=v,
+                                      label=k,
+                                      markerfacecolor=v, 
+                                      markersize=10) for k, v in lut[cat]["colorlut"].items()]
+        else:
+            legend_elements = [Line2D([0], [0], marker='o', linewidth=0, markeredgecolor=edgecolors,
+                                      label=k,
+                                      markerfacecolor=v, 
+                                      markersize=10) for k, v in lut[cat]["colorlut"].items()]
+        if outside==True:
+            ax.add_artist(ax.legend(handles=legend_elements, title=cat,bbox_to_anchor=(1.01,1)))
+        else:
+            ax.add_artist(ax.legend(handles=legend_elements, title=cat))
+
+    if axlabel==True:
+        ax.set_xlabel(x)
+        ax.set_ylabel(y)
+    return sc
+
+def _add_labels(ax,df, x, y, val, topn):
+    if topn>0:
+        srtindex=np.argsort(df[val])[::-1][:topn]
+        _labels=np.array(df.index)
+        for _label, _x, _y, _val in zip(_labels[srtindex], df[x].values[srtindex],df[y].values[srtindex],df[val].values[srtindex]):
+            ax.text(_x, _y, _label)
+
+    else:
+        for _label, _x, _y in zip(df.index, df[x],df[y]):
+            ax.text(_x, _y, _label)
+
+def scatterplot(df: pd.DataFrame,
+                x: str,
+                y: str,
+                colors: Union[str, list]="",
+                category: Union[str, list]="",
+                sizes: str="",
+                palette: str="",
+                palette_cat: str="tab20c",
+                palette_val: str="coolwarm",
+                show_labels: dict={},
+                save: str="",
+                title: str="",
+                markers: bool=False,
+                rows_cols: list=[],
+                size: float=30.0,
+                xunit: str="",
+                yunit:str="", 
+                size_unit: str="",
+                color: str="b",axlabel: str="single",
+                logscalex: bool=False,
+                logscaley: bool=False,
+                figsize: list=[],
+                alpha: float=1,
+                size_scale: float=60,
+                edgecolors: str="w"
+                ,linewidths: float=1):
+    """
+    Simple scatter plot. almost same function with seaborn.scatterplot.  
+    
+    Parameters
+    ----------
+    df : pandas DataFrame
+    x, y: str, optional
+        The column names to be the x and y axes of scatter plots. If reduce_dimension=True, these options will be
+        ignored.
+    colors: Union[str, list]="", optional
+        The names of columns (containing numerial values) to appear as a gradient of point colors. 
+
+    category: Union[str, list]="", optional
+        The names of columns (containing categorical values) to appear as color labels 
+
+    sizes: str="", optional
+        The names of columns (containing numerial values) to appear as point sizes.
+
+    palette: str="",
+
+    palette_cat: str="tab20c",
+        The color palette for categorical labels
+    palette_val: str="coolwarm",
+        The color palette for the color gradient specified by the "colors" option.
+    show_labels: dict, optional
+        A dictionary to specify the condition to add labels to the points. dataframe index will be labeld to points. 
+        It may contain "val" and "topn" keys. if you want all points to labeled, pass {"topn":0} to the option.
+        To add labels to the only top n points of specific values, pass a dictionary like {"val": "body_mass_g", "topn":5}.
+        "val" specify the column name to rank points and "topn" specify the number of points to be labeled.
+
+    save: str="", optional
+        Prefix to save the figure 
+    title: str="", optional
+        The title for the figure.
+    markers: bool=False, optional
+        Whether to use markers to different categorical labels
+    rows_cols: list=[],
+        The number of rows and columns for subplots
+    size: float=10, optional
+        point size. This will be ignored when "sizes" option is set.
+    xunit: str="",
+        The x axis unit.
+    yunit:str="",
+        The y axis unit.
+    size_unit: str="",
+        The unit of point sizes when "sizes" option is set.
+    color: str="",
+    axlabel: str="single", ["single", "each"]
+        How to show the labels of the axes. "each" will add the labels to each axis of subplots. "single" will add single axis labels to the figure.
+    logscalex: bool=False,
+        Whether to transform the x axis to the log scale.
+    logscaley: bool=False,
+        Whether to transform the y axis to the log scale.
+    figsize: list=[], optional
+        figure size. if not set, it automatically calculate a reasonable figure size.
+    alpha: float=1,
+        Alpha of points.    
+    size_scale: float=60,
+        The scale of the point sizes, only effective when "sizes" option is set. If the sizes of points are too small or too large, adjust the sizes with this option.
+    edgecolors: str="w", optional
+        The point edge color.
+    linewidths: float=1, optional
+        The point edge width. 
+    """
+    def _scale_size(x, size_scale, smin, smax):
+        return size_scale*(0.01+(x-smin)/(smax-smin))
+    def _reverse_size(x, size_scale, smin, smax):
+        
+        
+        return (x/size_scale-0.01)*(smax-smin)+smin
+    
+
+    
+    if palette !="":
+        palette_cat=palette 
+        palette_val=palette
+    if sizes !="":
+        size=df[sizes]
+        size=np.nan_to_num(size)
+        smin=np.amin(size)
+        smax=np.amax(size)
+        #size=size_scale*(0.01+(size-smin)/(smax-smin))
+        size=_scale_size(size, size_scale, smin, smax)
+        #print(size[:10])
+    original_index=df.index
+    
+    X, category=_separate_data(df, variables=[x, y], category=category)
+    if len(colors)!=0:
+        if type(colors)==str:
+            colors=[colors]
+    
+    # determining the figure size and the number of rows and columns. 
+    if len(rows_cols)==0:
+        totalnum=len(category)+len(colors)
+        if totalnum==0:
+            totalnum=1
+            if len(figsize)==0:
+                figsize=[5,5]
+            fig, ax=plt.subplots(figsize=figsize)
+            axes=[ax]
+        else:
+            
+            if len(figsize)==0:
+                figsize=[10,4*totalnum//2+int(totalnum%2!=0)]
+            fig, axes=plt.subplots(nrows=totalnum//2+int(totalnum%2!=0),
+                                 ncols=2,figsize=figsize,gridspec_kw={"wspace":0.75})
+            axes=axes.flatten()
+    else:
+        if len(figsize)==0:
+            figsize=[10,4*totalnum//2+int(totalnum%2!=0)]
+        fig, axes=plt.subplots(nrows=rows_cols[0],
+                                 ncols=rows_cols[1],figsize=figsize,gridspec_kw={"wspace":0.75})
+        axes=axes.flatten()
+    plt.subplots_adjust(right=0.8)
+    
+    if len(axes)==1:
+        axlabel="each"
+    
+    if axlabel=="single":
+        _axlabeleach=False
+    elif axlabel=="each":
+        _axlabeleach=True
+
+    i=0
+    if len(category) !=0:
+        lut={}
+        for cat in category:
+            ax=axes[i]
+            i+=1
+            _clut, _mlut=_create_color_markerlut(df, cat,palette_cat,marker_list)
+            lut[cat]={"colorlut":_clut, "markerlut":_mlut}
+            sc=_scatter(df, x, y, cat, ax, lut, markers, size,
+                        axlabel=_axlabeleach,
+                        alpha=alpha,
+                        edgecolors=edgecolors,
+                        linewidths=linewidths,
+                        outside=True)
+            if yunit!="":
+                ax.text(0, 1, "({})".format(yunit), transform=ax.transAxes, ha="right")
+            if xunit!="":
+                ax.text(1, 0, "({})".format(xunit), transform=ax.transAxes, ha="left",va="top")
+            if logscalex==True:
+                ax.set_xscale("log")
+            if logscaley==True:
+                ax.set_yscale("log")
+            if sizes !="":
+                q25, q50, q75, qmax=np.quantile(size, 0.25),np.quantile(size, 0.5),np.quantile(size, 0.75),np.max(size)
+                legend_elements=[]
+                for s in [q25, q50, q75, qmax]:
+                    _s=_reverse_size(s, size_scale, smin, smax)
+                    legend_elements.append(Line2D([0], [0], marker='o', linewidth=0, markeredgecolor="white",markersize=s**(0.5),
+                                      label="{:.2f}".format(_s),
+                                      markerfacecolor="black"))
+                # _new_labels=[]
+                # for _l in _labels:
+                #     _x=float(_l.split("{")[1].split("}")[0])
+                #     _x=_reverse_size(_x, size_scale, smin, smax)
+                #     _new_labels.append("{:.2f}".format(_x))
+                if size_unit!="":
+                    sizes=sizes+"("+size_unit+")"
+                ax.add_artist(ax.legend(handles=legend_elements, title=sizes,bbox_to_anchor=(1.01,0.5)))
+            if len(show_labels)!=0:
+                _add_labels(ax, df, x, y, show_labels["val"], show_labels["topn"])
+    if len(colors) !=0:
+        for _c in colors:
+            ax=axes[i]
+            i+=1
+            _df=df.sort_values(by=[_c], ascending=True)
+            if type(size)==float or type(size)==int:
+                _size=size
+            else:
+                _size=size[np.argsort(df[_c])]
+            sc=ax.scatter(_df[x], _df[y], c=_df[_c], cmap=palette_val,s=_size,alpha=alpha,edgecolors=edgecolors,linewidths=linewidths)
+            plt.colorbar(sc,ax=ax, label=_c, shrink=0.3,aspect=5,orientation="vertical",anchor=(0,0))
+            #ax.set_title(_c)
+            if _axlabeleach==True:
+                ax.set_xlabel(x)
+                ax.set_ylabel(y)
+            if yunit!="":
+                ax.text(0, 1, "({})".format(yunit), transform=ax.transAxes, ha="right")
+            if xunit!="":
+                ax.text(1, 0, "({})".format(xunit), transform=ax.transAxes, ha="left",va="top")
+            if logscalex==True:
+                ax.set_xscale("log")
+            if logscaley==True:
+                ax.set_yscale("log")
+
+            if sizes !="":
+                q25, q50, q75, qmax=np.quantile(size, 0.25),np.quantile(size, 0.5),np.quantile(size, 0.75),np.max(size)
+                legend_elements=[]
+                for s in [q25, q50, q75, qmax]:
+                    _s=_reverse_size(s, size_scale, smin, smax)
+                    legend_elements.append(Line2D([0], [0], marker='o', linewidth=0, markeredgecolor="white",markersize=s**(0.5),
+                                      label="{:.2f}".format(_s),
+                                      markerfacecolor="black"))
+                # _new_labels=[]
+                # for _l in _labels:
+                #     _x=float(_l.split("{")[1].split("}")[0])
+                #     _x=_reverse_size(_x, size_scale, smin, smax)
+                #     _new_labels.append("{:.2f}".format(_x))
+                if size_unit!="":
+                    sizes=sizes+"("+size_unit+")"
+                ax.add_artist(ax.legend(handles=legend_elements, title=sizes,bbox_to_anchor=(1.01,1)))
+            if len(show_labels)!=0:
+                _add_labels(ax, df, x, y, show_labels["val"], show_labels["topn"])
+    if len(category)+len(colors)==0:
+        ax=axes[i]
+        sc=ax.scatter(df[x], df[y], c=color,s=size,alpha=alpha,edgecolors=edgecolors,linewidths=linewidths)
+        if axlabel=="each":
+            ax.set_xlabel(x)
+            ax.set_ylabel(y)
+        if yunit!="":
+            ax.text(0, 1, "({})".format(yunit), transform=ax.transAxes, ha="right")
+        if xunit!="":
+            ax.text(1, 0, "({})".format(xunit), transform=ax.transAxes, ha="left",va="top")
+        if logscalex==True:
+                ax.set_xscale("log")
+        if logscaley==True:
+            ax.set_yscale("log")
+        if sizes !="":
+            # _markers, _labels=sc.legend_elements("sizes", num=4)
+            # _new_labels=[]
+            # for _l in _labels:
+            #     _x=float(_l.split("{")[1].split("}")[0])
+            #     _x=_reverse_size(_x, size_scale, smin, smax)
+            #     _new_labels.append("{:.2f}".format(_x))
+            # if size_unit!="":
+            #     sizes=sizes+"("+size_unit+")"
+            # ax.add_artist(ax.legend(_markers, _new_labels, title=sizes))
+            q25, q50, q75, qmax=np.quantile(size, 0.25),np.quantile(size, 0.5),np.quantile(size, 0.75),np.max(size)
+            legend_elements=[]
+            for s in [q25, q50, q75, qmax]:
+                _s=_reverse_size(s, size_scale, smin, smax)
+                legend_elements.append(Line2D([0], [0], marker='o', linewidth=0, markeredgecolor="white",markersize=s**(0.5),
+                                    label="{:.2f}".format(_s),
+                                    markerfacecolor="black"))
+            if size_unit!="":
+                sizes=sizes+"("+size_unit+")"
+            ax.add_artist(ax.legend(handles=legend_elements, title=sizes,bbox_to_anchor=(1.01,1)))
+    if title!="":
+        fig.suptitle(title)
+    if axlabel=="single":
+        bbox=axes[0].get_position()
+        fig.text(0.5, 0.01, x, ha='center')
+        fig.text(bbox.bounds[0]*0.5, 0.5, y, va='center', rotation='vertical')
+    if len(axes) != totalnum:
+        for i in range(len(axes)-totalnum):
+            axes[-(i+1)].set_axis_off()
+    
+    _save(save, "scatter")
+    plt.tight_layout()
+
+    return {"axes":axes}
+
 def clusterplot(df: pd.DataFrame,
                 variables: List=[],
                 category: Union[List[str], str]="", 
@@ -523,7 +855,7 @@ def clusterplot(df: pd.DataFrame,
             
         if markers==True:
             barrierfree=True
-            markers=maker_list 
+            markers=marker_list 
         else: 
             markers=[]
     if len(category)!=0:
@@ -936,7 +1268,7 @@ def decomplot(df: pd.DataFrame,
             
         if markers==True:
             barrierfree=True
-            markers=maker_list 
+            markers=marker_list 
         else: 
             markers=[]
 
@@ -1223,7 +1555,7 @@ def manifoldplot(df: pd.DataFrame,
             
         if markers==True:
             barrierfree=True
-            markers=maker_list 
+            markers=marker_list 
         else: 
             markers=[]
     if len(category)!=0:

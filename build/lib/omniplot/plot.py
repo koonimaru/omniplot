@@ -34,7 +34,19 @@ from omniplot.chipseq_utils import _calc_pearson
 import itertools as it
 from omniplot.scatter import *
 from omniplot.proportion import *
-colormap_list: list=["nipy_spectral", "terrain","tab20b","tab20c","gist_rainbow","hsv","CMRmap","coolwarm","gnuplot","gist_stern","brg","rainbow","jet"]
+colormap_list: list=["nipy_spectral", 
+                     "terrain",
+                     "tab20b",
+                     "tab20c",
+                     "gist_rainbow",
+                     "hsv",
+                     "CMRmap",
+                     "coolwarm",
+                     "gnuplot",
+                     "gist_stern",
+                     "brg",
+                     "rainbow",
+                     "jet"]
 hatch_list: list = ['//', '\\\\', '||', '--', '++', 'xx', 'oo', 'OO', '..', '**','/o', '\\|', '|*', '-\\', '+o', 'x*', 'o-', 'O|', 'O.', '*-']
 maker_list: list=['.', '_' , '+','|', 'x', 'v', '^', '<', '>', 's', 'p', '*', 'h', 'D', 'd', 'P', 'X','o', '1', '2', '3', '4','|', '_']
 
@@ -56,7 +68,7 @@ def radialtree(df: pd.DataFrame,
                distance_method="euclidean",
                tree_method="ward",
                title: str="",
-               y: list=[],
+               y: list=[],linewidth: float=1,figsize: Optional[list]=None,
                **kwargs) -> Dict:
     """
     Drawing a radial dendrogram with color labels.
@@ -151,10 +163,14 @@ def radialtree(df: pd.DataFrame,
     Z=sch.dendrogram(Y,
                         labels = _labels,
                         color_threshold=t, ax=_ax)
-    xticks=set(_ax.get_xticks())
+    #xticks=set(_ax.get_xticks())
     plt.close(_fig)
     sample_classes={k: list(category_df[k]) for k in category_df.columns}
-    ax=_radialtree2(Z, sample_classes=sample_classes,addlabels=False, xticks=xticks, **kwargs)
+    ax=_radialtree2(Z, 
+                    sample_classes=sample_classes,
+                    addlabels=False,
+                    linewidth=linewidth,
+                    figsize=figsize, **kwargs)
     if title !="":
         ax.set_title(title)
     _save(save, "radialtree")

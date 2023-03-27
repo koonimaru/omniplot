@@ -11,7 +11,7 @@ from scipy.cluster.hierarchy import leaves_list
 from matplotlib import cm
 from scipy.cluster import hierarchy
 import scipy.stats as stats
-colormap_list=["nipy_spectral", "terrain","tab20b","gist_rainbow","CMRmap","coolwarm","gnuplot","gist_stern","brg","rainbow"]
+colormap_list=["nipy_spectral", "terrain","tab20b","gist_rainbow","tab20c","CMRmap","coolwarm","gnuplot","gist_stern","brg","rainbow"]
 plt.rcParams['font.family']= 'sans-serif'
 plt.rcParams['font.sans-serif'] = ['Arial']
 plt.rcParams['svg.fonttype'] = 'none'
@@ -476,7 +476,8 @@ def _radialtree2(Z2,fontsize: int=8,
                sample_classes: Optional[dict]=None,
                colorlabels: Optional[dict]=None,
          colorlabels_legend: Optional[dict]=None,
-         xticks=set(),
+         xticks=set(),ax: Optional[plt.Axes]=None,
+         linewidth: float=1,
          ) -> plt.Axes:
     """
     Drawing a radial dendrogram from a scipy dendrogram output.
@@ -528,7 +529,7 @@ def _radialtree2(Z2,fontsize: int=8,
         figsize=[7,6]
     elif figsize==None :
         figsize=[5,5]
-    linewidth=0.5
+    linewidth=linewidth
     R=1
     width=R*0.1
     space=R*0.05
@@ -542,6 +543,7 @@ def _radialtree2(Z2,fontsize: int=8,
         offset=0
     
     xmax=np.amax(Z2['icoord'])
+    xmin = np.amin(Z2["icoord"])
     ymax=np.amax(Z2['dcoord'])
     
     ucolors=sorted(set(Z2["color_list"]))
@@ -552,7 +554,8 @@ def _radialtree2(Z2,fontsize: int=8,
         cmap = cmp(np.linspace(0, 1, len(ucolors)))
     else:
         cmap=cmp.colors
-    fig, ax=plt.subplots(figsize=figsize)
+    if ax ==None:
+        fig, ax=plt.subplots(figsize=figsize)
     i=0
     label_coords=[]
     _lineres=1000
@@ -565,6 +568,7 @@ def _radialtree2(Z2,fontsize: int=8,
         # transforming original x coordinates into relative circumference positions and y into radius
         # the rightmost leaf is going to [1, 0]
         xinterval=np.array([x[0],x[2]])/xmax
+        
         r=R*(1-np.array(y)/ymax)
         _x=np.cos(2*np.pi*xinterval) # transforming original x coordinates into x circumference positions
         _xr0=_x[0]*r[0]
@@ -582,70 +586,87 @@ def _radialtree2(Z2,fontsize: int=8,
         #if y[0]>0 and y[3]>0:
             #_color="black"
         #plotting radial lines
-        plt.plot([_xr0, _xr1], [_yr0, _yr1], c=_color,linewidth=linewidth, rasterized=True)
-        plt.plot([_xr2, _xr3], [_yr2,_yr3], c=_color,linewidth=linewidth, rasterized=True)
+        ax.plot([_xr0, _xr1], [_yr0, _yr1], c=_color,linewidth=linewidth, rasterized=True)
+        ax.plot([_xr2, _xr3], [_yr2,_yr3], c=_color,linewidth=linewidth, rasterized=True)
         
         #plotting circular links between nodes
         lineres=np.amax([int(np.abs(xinterval[0]-xinterval[1])*_lineres),10])
         if _yr1> 0 and _yr2>0:
             link=np.sqrt(r[1]**2-np.linspace(_xr1, _xr2, lineres)**2)
-            plt.plot(np.linspace(_xr1, _xr2, lineres), link, c=_color,linewidth=linewidth, rasterized=True)
+            ax.plot(np.linspace(_xr1, _xr2, lineres), link, c=_color,linewidth=linewidth, rasterized=True)
         elif _yr1 <0 and _yr2 <0:
             link=-np.sqrt(r[1]**2-np.linspace(_xr1, _xr2, lineres)**2)
             
-            plt.plot(np.linspace(_xr1, _xr2, lineres), link, c=_color,linewidth=linewidth, rasterized=True)
+            ax.plot(np.linspace(_xr1, _xr2, lineres), link, c=_color,linewidth=linewidth, rasterized=True)
         elif _yr1> 0 and _yr2 < 0:
             _r=r[1]
             if _xr1 <0 or _xr2 <0:
                 _r=-_r
             link=np.sqrt(r[1]**2-np.linspace(_xr1, _r, lineres)**2)
-            plt.plot(np.linspace(_xr1, _r, lineres), link, c=_color,linewidth=linewidth, rasterized=True)
+            ax.plot(np.linspace(_xr1, _r, lineres), link, c=_color,linewidth=linewidth, rasterized=True)
             link=-np.sqrt(r[1]**2-np.linspace(_r, _xr2, lineres)**2)
-            plt.plot(np.linspace(_r, _xr2, lineres), link, c=_color,linewidth=linewidth, rasterized=True)
+            ax.plot(np.linspace(_r, _xr2, lineres), link, c=_color,linewidth=linewidth, rasterized=True)
         
         #Calculating the x, y coordinates and rotation angles of labels
 
-        _append=False
-        if len(xticks)==0:
-            _append=y[0]==0
-        else:
-            _append=x[0] in xticks and y[0]==0
+        # _append=False
+        # if len(xticks)==0:
+        #     _append=y[0]==0
+        # else:
+        #     _append=x[0] in xticks and y[0]==0
 
-        if _append==True:
-            label_coords.append([(1.05+offset)*_xr0, (1.05+offset)*_yr0,360*x[0]/xmax])
-            #plt.text(1.05*_xr0, 1.05*_yr0, Z2['ivl'][i],{'va': 'center'},rotation_mode='anchor', rotation=360*x[0]/xmax)
-            i+=1
+        # if _append==True:
+        #     label_coords.append([(1.05+offset)*_xr0, (1.05+offset)*_yr0,360*x[0]/xmax])
+        #     #plt.text(1.05*_xr0, 1.05*_yr0, Z2['ivl'][i],{'va': 'center'},rotation_mode='anchor', rotation=360*x[0]/xmax)
+        #     i+=1
 
-        _append=False
-        if len(xticks)==0:
-            _append=y[3]==0
-        else:
-            _append=x[3] in xticks and y[3]==0
+        # _append=False
+        # if len(xticks)==0:
+        #     _append=y[3]==0
+        # else:
+        #     _append=x[3] in xticks and y[3]==0
 
-        if _append==True:
-        #if y[3]==0 and x[2] in xticks:
-            label_coords.append([(1.05+offset)*_xr3, (1.05+offset)*_yr3,360*x[2]/xmax])
-            #plt.text(1.05*_xr3, 1.05*_yr3, Z2['ivl'][i],{'va': 'center'},rotation_mode='anchor', rotation=360*x[2]/xmax)
-            i+=1
-    
+        # if _append==True:
+        # #if y[3]==0 and x[2] in xticks:
+        #     label_coords.append([(1.05+offset)*_xr3, (1.05+offset)*_yr3,360*x[2]/xmax])
+        #     #plt.text(1.05*_xr3, 1.05*_yr3, Z2['ivl'][i],{'va': 'center'},rotation_mode='anchor', rotation=360*x[2]/xmax)
+        #     i+=1
+    label_coords = []
+    # determine the coordiante of the labels and their rotation:
+    for i, label in enumerate(Z2["ivl"]):
+        # scipy (1.x.x) places the leaves in x = 5+i*10 , and we can use this
+        # to calulate where to put the labels
+        place = (5.0 + i * 10.0) / xmax * 2
+        label_coords.append(
+            [
+                np.cos(place * np.pi) * (1.05 + offset),  # _x
+                np.sin(place * np.pi) * (1.05 + offset),  # _y
+                place * 180,  # _rot
+            ]
+        )    
 
     if addlabels==True:
         assert len(Z2['ivl'])==len(label_coords), "Internal error, label numbers "+str(len(Z2['ivl'])) +" and "+str(len(label_coords))+" must be equal!" 
         
         #Adding labels
         for (_x, _y,_rot), label in zip(label_coords, Z2['ivl']):
-            plt.text(_x, _y, label,{'va': 'center'},rotation_mode='anchor', rotation=_rot,fontsize=fontsize)
+            ax.text(_x, 
+                    _y, 
+                    label,
+                    {'va': 'center'},
+                    rotation_mode='anchor', 
+                    rotation=_rot,
+                    fontsize=fontsize)
     
     
     
     if sample_classes!=None:
-        assert len(Z2['ivl'])==len(label_coords), "Internal error, label numbers "+str(len(Z2['ivl'])) +" and "+str(len(label_coords))+" must be equal!" 
+        assert len(Z2['ivl'])==len(label_coords), \
+            "Internal error, label numbers "+str(len(Z2['ivl'])) +\
+                " and "+str(len(label_coords))+" must be equal!" 
         
-        j=0
+        classcounter=0
         outerrad=R*1.05+width*len(sample_classes)+space*(len(sample_classes)-1)
-        #print(outerrad)
-        #sort_index=np.argsort(Z2['icoord'])
-        #print(sort_index)
         intervals=[]
 
         labelnames=[]
@@ -653,10 +674,12 @@ def _radialtree2(Z2,fontsize: int=8,
         for labelname, colorlist in sample_classes.items():
             ucolors=sorted(list(np.unique(colorlist)))
             type_num=len(ucolors)
-            _cmp=plt.get_cmap(colormap_list[j])
+            _cmp=plt.get_cmap(colormap_list[classcounter], len(colorlist))
             _colorlist=[_cmp(ucolors.index(c)/(type_num-1)) for c in colorlist]
+            #_colorlist=_cmp.colors
+            print(len(_colorlist), len(colorlist))
             _colorlist=np.array(_colorlist)[Z2['leaves']]
-            if j!=0:
+            if classcounter!=0:
                 outerrad=outerrad-width-space
             innerrad=outerrad-width
             #print(outerrad, innerrad,_colorlist[:10])
@@ -676,7 +699,7 @@ def _radialtree2(Z2,fontsize: int=8,
                 theta=(2*np.pi/360)*((_rotr*0.5+_rot*0.5)-(_rotl*0.5+_rot*0.5))
                 #print(start, theta,_rotl, _rotr)
                 #print(start, theta, innerrad, outerrad,10, _colorlist[i])
-                _baumkuchen(ax, start, theta, innerrad, outerrad,10, _colorlist[i])
+                _baumkuchen(ax, start, theta, innerrad, outerrad,10, _colorlist[i] ) #,edgecolor = "gray",linewidth=0.5)
                 
             # patches, texts =plt.pie(colorpos, colors=_colorlist,
             #         radius=outerrad,
@@ -688,7 +711,7 @@ def _radialtree2(Z2,fontsize: int=8,
             colorlabels_legend[labelname]={}
             colorlabels_legend[labelname]["colors"]=_cmp(np.linspace(0, 1, type_num))
             colorlabels_legend[labelname]["labels"]=ucolors
-            j+=1
+            classcounter+=1
         
         if colorlabels_legend!=None:
             for i, labelname in enumerate(labelnames):
@@ -707,17 +730,17 @@ def _radialtree2(Z2,fontsize: int=8,
     ax.spines.left.set_visible(False)
     ax.spines.bottom.set_visible(False)
     #ax.set_rasterization_zorder(None)
-    plt.xticks([])
-    plt.yticks([])
+    ax.set_xticks([])
+    ax.set_yticks([])
     
     if colorlabels!=None:
-        maxr=R*1.05+width*len(colorlabels)+space*(len(colorlabels)-1)
+        maxr=R*1.1+width*len(colorlabels)+space*(len(colorlabels)-1)
     elif sample_classes !=None:
-        maxr=R*1.05+width*len(sample_classes)+space*(len(sample_classes)-1)
+        maxr=R*1.1+width*len(sample_classes)+space*(len(sample_classes)-1)
     else:
-        maxr=R*1.05
-    plt.xlim(-maxr,maxr)
-    plt.ylim(-maxr,maxr)
+        maxr=R*1.1
+    ax.set_xlim(-maxr,maxr)
+    ax.set_ylim(-maxr,maxr)
     plt.subplots_adjust(left=0.05, right=0.75)
     if show==True:
         plt.show()
