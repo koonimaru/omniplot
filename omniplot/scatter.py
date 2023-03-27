@@ -125,7 +125,7 @@ def scatterplot(df: pd.DataFrame,
                 xunit: str="",
                 yunit:str="", 
                 size_unit: str="",
-                color: str="",axlabel: str="single",
+                color: str="b",axlabel: str="single",
                 logscalex: bool=False,
                 logscaley: bool=False,
                 figsize: list=[],
@@ -158,8 +158,8 @@ def scatterplot(df: pd.DataFrame,
     palette_val: str="coolwarm",
         The color palette for the color gradient specified by the "colors" option.
     show_labels: dict, optional
-        A dictionary to specify the condition to add labels to the points. It may contain "val" and "topn" keys.
-        if you want all points to labeled, pass {"topn":0} to the option.
+        A dictionary to specify the condition to add labels to the points. dataframe index will be labeld to points. 
+        It may contain "val" and "topn" keys. if you want all points to labeled, pass {"topn":0} to the option.
         To add labels to the only top n points of specific values, pass a dictionary like {"val": "body_mass_g", "topn":5}.
         "val" specify the column name to rank points and "topn" specify the number of points to be labeled.
 
@@ -205,10 +205,7 @@ def scatterplot(df: pd.DataFrame,
         return (x/size_scale-0.01)*(smax-smin)+smin
     
 
-    if axlabel=="single":
-        _axlabeleach=False
-    elif axlabel=="each":
-        _axlabeleach=True
+    
     if palette !="":
         palette_cat=palette 
         palette_val=palette
@@ -219,7 +216,7 @@ def scatterplot(df: pd.DataFrame,
         smax=np.amax(size)
         #size=size_scale*(0.01+(size-smin)/(smax-smin))
         size=_scale_size(size, size_scale, smin, smax)
-        print(size[:10])
+        #print(size[:10])
     original_index=df.index
     
     X, category=_separate_data(df, variables=[x, y], category=category)
@@ -248,6 +245,14 @@ def scatterplot(df: pd.DataFrame,
         fig, axes=plt.subplots(nrows=rows_cols[0],
                                  ncols=rows_cols[1],figsize=figsize,gridspec_kw={"wspace":0.75})
         axes=axes.flatten()
+    if len(axes)==1:
+        axlabel="each"
+    
+    if axlabel=="single":
+        _axlabeleach=False
+    elif axlabel=="each":
+        _axlabeleach=True
+
     i=0
     if len(category) !=0:
         lut={}
@@ -328,9 +333,10 @@ def scatterplot(df: pd.DataFrame,
                 _add_labels(ax, df, x, y, show_labels["val"], show_labels["topn"])
     if len(category)+len(colors)==0:
         ax=axes[i]
-        sc=ax.scatter(_df[x], _df[y], color=color,s=size,alpha=alpha,edgecolors=edgecolors,linewidths=linewidths)
-        ax.set_xlabel(x)
-        ax.set_ylabel(y)
+        sc=ax.scatter(df[x], df[y], c=color,s=size,alpha=alpha,edgecolors=edgecolors,linewidths=linewidths)
+        if axlabel=="each":
+            ax.set_xlabel(x)
+            ax.set_ylabel(y)
         if yunit!="":
             ax.text(0, 1, "({})".format(yunit), transform=ax.transAxes, ha="right")
         if xunit!="":

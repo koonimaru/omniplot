@@ -1053,7 +1053,7 @@ def _nested_piechart(df: pd.DataFrame,
             elif colormode!="independent":
                 showlabel=True
             
-            if _x/(2*np.pi)>=ignore and showlabel:
+            if _x/(2*np.pi)>=ignore and showlabel==True:
                 ax.text(np.cos(s-_x/2)*(_bottom+height/2), np.sin(s-_x/2)*(_bottom+height/2),txt, ha="center",
                         bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="y", lw=1, alpha=0.8))
             elif _x/(2*np.pi)>=ignore and (show_values==True or show_percentage==True):
