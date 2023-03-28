@@ -234,10 +234,10 @@ def scatterplot(df: pd.DataFrame,
     # determining the figure size and the number of rows and columns. 
     if len(rows_cols)==0:
         totalnum=len(category)+len(colors)
-        if totalnum==0:
+        if totalnum<=1:
             totalnum=1
             if len(figsize)==0:
-                figsize=[5,5]
+                figsize=[7,5]
             fig, ax=plt.subplots(figsize=figsize)
             axes=[ax]
         else:
@@ -253,7 +253,11 @@ def scatterplot(df: pd.DataFrame,
         fig, axes=plt.subplots(nrows=rows_cols[0],
                                  ncols=rows_cols[1],figsize=figsize,gridspec_kw={"wspace":0.75})
         axes=axes.flatten()
-    plt.subplots_adjust(right=0.8)
+    if len(category)+len(colors)==0:
+        plt.subplots_adjust(right=0.67)
+    
+    else:
+        plt.subplots_adjust(right=0.85)
     
     if len(axes)==1:
         axlabel="each"
@@ -262,6 +266,15 @@ def scatterplot(df: pd.DataFrame,
         _axlabeleach=False
     elif axlabel=="each":
         _axlabeleach=True
+
+    if sizes !="":
+        q25, q50, q75, qmax=np.quantile(size, 0.25),np.quantile(size, 0.5),np.quantile(size, 0.75),np.max(size)
+        size_legend_elements=[]
+        for s in [q25, q50, q75, qmax]:
+            _s=_reverse_size(s, size_scale, smin, smax)
+            size_legend_elements.append(Line2D([0], [0], marker='o', linewidth=0, markeredgecolor="white",markersize=s**(0.5),
+                                label="{:.2f}".format(_s),
+                                markerfacecolor="black"))
 
     i=0
     if len(category) !=0:
@@ -286,21 +299,10 @@ def scatterplot(df: pd.DataFrame,
             if logscaley==True:
                 ax.set_yscale("log")
             if sizes !="":
-                q25, q50, q75, qmax=np.quantile(size, 0.25),np.quantile(size, 0.5),np.quantile(size, 0.75),np.max(size)
-                legend_elements=[]
-                for s in [q25, q50, q75, qmax]:
-                    _s=_reverse_size(s, size_scale, smin, smax)
-                    legend_elements.append(Line2D([0], [0], marker='o', linewidth=0, markeredgecolor="white",markersize=s**(0.5),
-                                      label="{:.2f}".format(_s),
-                                      markerfacecolor="black"))
-                # _new_labels=[]
-                # for _l in _labels:
-                #     _x=float(_l.split("{")[1].split("}")[0])
-                #     _x=_reverse_size(_x, size_scale, smin, smax)
-                #     _new_labels.append("{:.2f}".format(_x))
+
                 if size_unit!="":
                     sizes=sizes+"("+size_unit+")"
-                ax.add_artist(ax.legend(handles=legend_elements, title=sizes,bbox_to_anchor=(1.01,0.5)))
+                ax.add_artist(ax.legend(handles=size_legend_elements, title=sizes,bbox_to_anchor=(1.01,0.5)))
             if len(show_labels)!=0:
                 _add_labels(ax, df, x, y, show_labels["val"], show_labels["topn"])
     if len(colors) !=0:
@@ -328,21 +330,10 @@ def scatterplot(df: pd.DataFrame,
                 ax.set_yscale("log")
 
             if sizes !="":
-                q25, q50, q75, qmax=np.quantile(size, 0.25),np.quantile(size, 0.5),np.quantile(size, 0.75),np.max(size)
-                legend_elements=[]
-                for s in [q25, q50, q75, qmax]:
-                    _s=_reverse_size(s, size_scale, smin, smax)
-                    legend_elements.append(Line2D([0], [0], marker='o', linewidth=0, markeredgecolor="white",markersize=s**(0.5),
-                                      label="{:.2f}".format(_s),
-                                      markerfacecolor="black"))
-                # _new_labels=[]
-                # for _l in _labels:
-                #     _x=float(_l.split("{")[1].split("}")[0])
-                #     _x=_reverse_size(_x, size_scale, smin, smax)
-                #     _new_labels.append("{:.2f}".format(_x))
+
                 if size_unit!="":
                     sizes=sizes+"("+size_unit+")"
-                ax.add_artist(ax.legend(handles=legend_elements, title=sizes,bbox_to_anchor=(1.01,1)))
+                ax.add_artist(ax.legend(handles=size_legend_elements, title=sizes,bbox_to_anchor=(1.01,1)))
             if len(show_labels)!=0:
                 _add_labels(ax, df, x, y, show_labels["val"], show_labels["topn"])
     if len(category)+len(colors)==0:
@@ -369,16 +360,12 @@ def scatterplot(df: pd.DataFrame,
             # if size_unit!="":
             #     sizes=sizes+"("+size_unit+")"
             # ax.add_artist(ax.legend(_markers, _new_labels, title=sizes))
-            q25, q50, q75, qmax=np.quantile(size, 0.25),np.quantile(size, 0.5),np.quantile(size, 0.75),np.max(size)
-            legend_elements=[]
-            for s in [q25, q50, q75, qmax]:
-                _s=_reverse_size(s, size_scale, smin, smax)
-                legend_elements.append(Line2D([0], [0], marker='o', linewidth=0, markeredgecolor="white",markersize=s**(0.5),
-                                    label="{:.2f}".format(_s),
-                                    markerfacecolor="black"))
+
             if size_unit!="":
                 sizes=sizes+"("+size_unit+")"
-            ax.add_artist(ax.legend(handles=legend_elements, title=sizes,bbox_to_anchor=(1.01,1)))
+            ax.add_artist(ax.legend(handles=size_legend_elements, 
+                                    title=sizes,
+                                    bbox_to_anchor=(1.01,1)))
     if title!="":
         fig.suptitle(title)
     if axlabel=="single":
@@ -390,7 +377,7 @@ def scatterplot(df: pd.DataFrame,
             axes[-(i+1)].set_axis_off()
     
     _save(save, "scatter")
-    plt.tight_layout()
+    #  plt.tight_layout()
 
     return {"axes":axes}
 
