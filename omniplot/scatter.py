@@ -234,7 +234,7 @@ def scatterplot(df: pd.DataFrame,
     # determining the figure size and the number of rows and columns. 
     if len(rows_cols)==0:
         totalnum=len(category)+len(colors)
-        if totalnum==0:
+        if totalnum<=1:
             totalnum=1
             if len(figsize)==0:
                 figsize=[7,5]

@@ -37,11 +37,11 @@ else:
 cmdclass = { }
 ext_modules = []#cythonize("omniplot/cython/chipseq_utils.pyx")
 
-#print(find_version("deepgmap", "version.py"))
+VERSION=find_version("omniplot", "_version.py")
 setup(
     name='omniplot',
-    #version=VERSION,
-    version="0.2.2",
+    version=VERSION,
+    #version="0.2.3",
     description='To draw scientific plots easily',
     author='Koh Onimaru',
     author_email='koh.onimaru@gmail.com',

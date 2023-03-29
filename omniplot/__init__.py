@@ -11,3 +11,4 @@
        /  /|        |\ \
            |        |
 """
+from omniplot._version import __version__

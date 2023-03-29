@@ -1035,11 +1035,15 @@ def _separate_data(df, variables=[],
 def _create_color_markerlut(df, cat, palette, markers=[]):
     color_lut={}
     marker_lut={}
-
+    if df[cat].isnull().values.any():
+        df[cat]=df[cat].fillna("NA")
     uniq_labels=sorted(list(set(df[cat])))
     _cmap=plt.get_cmap(palette, len(uniq_labels))
     
     color_lut={u: _cmap(i) for i, u in enumerate(uniq_labels)}
+    if len(markers) < len(uniq_labels):
+        while len(markers) < len(uniq_labels):
+            markers.extend(markers)
     if len(markers)!=0:
         marker_lut={u: markers[i] for i, u in enumerate(uniq_labels)}
 
