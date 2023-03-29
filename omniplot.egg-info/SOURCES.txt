@@ -2,6 +2,7 @@ LICENSE
 README.md
 setup.py
 omniplot/__init__.py
+omniplot/_version.py
 omniplot/chipseq.py
 omniplot/chipseq_utils.py
 omniplot/data.py
