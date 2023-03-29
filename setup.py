@@ -3,7 +3,7 @@ from distutils.extension import Extension
 import re
 import os
 import codecs
-from Cython.Build import cythonize
+# from Cython.Build import cythonize
 
 here = os.path.abspath(os.path.dirname(__file__))
 
@@ -27,12 +27,17 @@ def find_version(*file_paths):
 
     raise RuntimeError("Unable to find version string.")
 
-try:
-    from Cython.Distutils import build_ext
-except ImportError:
-    use_cython = False
-else:
-    use_cython = True
+# try:
+#     from Cython.Distutils import build_ext
+# except ImportError:
+#     use_cython = False
+# else:
+#     use_cython = True
+
+long_description="""
+omniplot is a python module to draw a scientific plot with hassle free. It mainly focuses on bioinfomatics data.
+It is intended to be used in jupyter lab environment. 
+"""
 
 cmdclass = { }
 ext_modules = []#cythonize("omniplot/cython/chipseq_utils.pyx")
@@ -45,19 +50,23 @@ setup(
     description='To draw scientific plots easily',
     author='Koh Onimaru',
     author_email='koh.onimaru@gmail.com',
-    url='',
+    url='https://github.com/koonimaru/omniplot',
+    python_requires='>=3.8',
     packages=find_packages(),
     cmdclass = cmdclass,
     ext_modules=ext_modules,
     classifiers=[
-        'Development Status :: 0 - Alpha',
+        'Development Status :: 2 - Pre-Alpha',
         'Environment :: Console',
-        'Intended Audience :: Developers',
+        'Intended Audience :: Science/Research',
+        'Intended Audience :: Education',
         'Programming Language :: Python :: 3.8',
-        'License :: OSI Approved :: Apache Software License ',
+        'Programming Language :: Python :: 3.10',
+        'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
         'Operating System :: POSIX :: Linux',
+        'Operating System :: MacOS',
         'Topic :: Scientific/Engineering :: Bio-Informatics',
-        'Topic :: Scientific/Engineering :: Artificial Intelligence',
+        'Topic :: Scientific/Engineering :: Visualization',
         
     
     ],
@@ -74,5 +83,5 @@ setup(
                       "ray",
                       "intervaltree","networkx","datashader","python-louvain", "scikit-fuzzy","scikit-image",
                       ],
-    long_description=open('README.md').read(),
+    long_description=long_description,
 )
