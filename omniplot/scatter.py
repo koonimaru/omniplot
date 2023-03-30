@@ -75,11 +75,11 @@ def _scatter(_df, x,y, cat, ax, lut, barrierfree, size, legend=True, axlabel=Tru
         for key in lut[cat]["colorlut"].keys():
             _dfnew=_df.loc[_df[cat]==key]
             if type(size) ==float or type(size) ==int:
-                sc=ax.scatter(_dfnew[x], _dfnew[y], c=lut[cat]["colorlut"][key], label=key, s=size,alpha=alpha,edgecolors=edgecolors,linewidths=linewidths)
+                sc=ax.scatter(_dfnew[x], _dfnew[y], color=lut[cat]["colorlut"][key], label=key, s=size,alpha=alpha,edgecolors=edgecolors,linewidths=linewidths)
 
             else:
                 _size=size[_df[cat]==key]
-                sc=ax.scatter(_dfnew[x], _dfnew[y], c=lut[cat]["colorlut"][key], label=key, s=_size,alpha=alpha,edgecolors=edgecolors,linewidths=linewidths)
+                sc=ax.scatter(_dfnew[x], _dfnew[y], color=lut[cat]["colorlut"][key], label=key, s=_size,alpha=alpha,edgecolors=edgecolors,linewidths=linewidths)
                 
 
     if legend==True:
@@ -139,7 +139,11 @@ def scatterplot(df: pd.DataFrame,
                 alpha: float=1,
                 size_scale: float=60,
                 edgecolors: str="w"
-                ,linewidths: float=1):
+                ,linewidths: float=1,
+                cbar_format: str="{:.2f}",
+                size_format: str="{:.2f}",
+                xformat: str="{:.2f}",
+                yformat: str="{:.2f}"):
     """
     Simple scatter plot. almost same function with seaborn.scatterplot.  
     
@@ -207,8 +211,6 @@ def scatterplot(df: pd.DataFrame,
     def _scale_size(x, size_scale, smin, smax):
         return size_scale*(0.01+(x-smin)/(smax-smin))
     def _reverse_size(x, size_scale, smin, smax):
-        
-        
         return (x/size_scale-0.01)*(smax-smin)+smin
     
 
@@ -251,7 +253,9 @@ def scatterplot(df: pd.DataFrame,
         if len(figsize)==0:
             figsize=[10,4*totalnum//2+int(totalnum%2!=0)]
         fig, axes=plt.subplots(nrows=rows_cols[0],
-                                 ncols=rows_cols[1],figsize=figsize,gridspec_kw={"wspace":0.75})
+                                 ncols=rows_cols[1],
+                                 figsize=figsize,
+                                 gridspec_kw={"wspace":0.75})
         axes=axes.flatten()
     if len(category)+len(colors)==0:
         plt.subplots_adjust(right=0.67)
@@ -314,8 +318,18 @@ def scatterplot(df: pd.DataFrame,
                 _size=size
             else:
                 _size=size[np.argsort(df[_c])]
-            sc=ax.scatter(_df[x], _df[y], c=_df[_c], cmap=palette_val,s=_size,alpha=alpha,edgecolors=edgecolors,linewidths=linewidths)
-            plt.colorbar(sc,ax=ax, label=_c, shrink=0.3,aspect=5,orientation="vertical",anchor=(0,0))
+            sc=ax.scatter(_df[x], _df[y], c=_df[_c], 
+                          cmap=palette_val,
+                          s=_size,
+                          alpha=alpha,
+                          edgecolors=edgecolors,
+                          linewidths=linewidths)
+            # cax = plt.axes([0.86, 0.1, 0.075, 0.5])
+            # plt.colorbar(cax=cax)
+            bb=ax.get_position()
+            axx , axy, axw, axh=bb.bounds
+            cax = plt.axes([axx+axw*1.005, axy, 0.02, 0.1])
+            plt.colorbar(sc,cax=cax, label=_c, shrink=0.3,aspect=5,orientation="vertical",anchor=(0.2,0))
             #ax.set_title(_c)
             if _axlabeleach==True:
                 ax.set_xlabel(x)
@@ -890,7 +904,7 @@ def clusterplot(df: pd.DataFrame,
                 
             entropy_srt=np.argsort(color_entropy)
             colors=np.array(colors)[entropy_srt]
-            ax[0].scatter(dfnew[x].values[entropy_srt], dfnew[y].values[entropy_srt], c=colors, s=size)
+            ax[0].scatter(dfnew[x].values[entropy_srt], dfnew[y].values[entropy_srt], color=colors, s=size)
             ax[0].set_xlabel(x)
             ax[0].set_ylabel(y)
             #sns.scatterplot(data=dfnew,x=x,y=y,hue=hue, ax=ax[0], palette=palette[0],**kwargs)

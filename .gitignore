@@ -13,3 +13,7 @@ docs/omniplot.cython_utils.rst
 tests/test_network.py
 data/countries.csv
 tests/test.ipynb
+dist/omniplot-0.2.3-py3-none-any.whl
+dist/omniplot-0.2.3.tar.gz
+build/lib/omniplot/__init__.py
+.gitignore

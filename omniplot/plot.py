@@ -540,7 +540,7 @@ def complex_clustermap(df: pd.DataFrame,
     if len(col_plot)!=0 or len(col_scatter)!=0 or len(col_bar)!=0:
         if dfcol==None:
             raise Exception("if you want to plot along the x axis, you need provide dfcol option containing values to plot.")
-    
+    cdata={"Cluster":[],"Index":[],"RGB":[]}
     totalrowplot=0
     if merginalsum==True:
         totalrowplot+=1
@@ -894,6 +894,7 @@ def complex_clustermap(df: pd.DataFrame,
     hierarchy.set_link_color_palette([mpl.colors.rgb2hex(rgb[:3]) for rgb in cmap])
     
     """coloring the row dendrogram based on branch numbers crossed with the threshold"""
+    
     if g.dendrogram_row != None:
         t=_dendrogram_threshold(g.dendrogram_row.dendrogram,approx_clusternum)
                
@@ -903,7 +904,7 @@ def complex_clustermap(df: pd.DataFrame,
                             orientation="left")  
         g.ax_row_dendrogram.invert_yaxis()
         clusters = _get_cluster_classes(den)
-        cdata={"Cluster":[],"Index":[],"RGB":[]}
+        
         keys=list(clusters.keys())
         ckeys={}
         i=1
@@ -923,7 +924,7 @@ def complex_clustermap(df: pd.DataFrame,
     
     
     """coloring the col dendrogram based on branch numbers crossed with the threshold"""
-    col_cdata=None
+    col_cdata={"Cluster":[],"Index":[],"RGB":[]}
     if g.dendrogram_col != None:
         t=_dendrogram_threshold(g.dendrogram_col.dendrogram,approx_clusternum_col)
         den=hierarchy.dendrogram(g.dendrogram_col.linkage,
