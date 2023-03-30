@@ -1,10 +1,16 @@
-Metadata-Version: 2.1
+Metadata-Version: 1.2
 Name: omniplot
 Version: 0.2.3
 Summary: To draw scientific plots easily
 Home-page: https://github.com/koonimaru/omniplot
 Author: Koh Onimaru
 Author-email: koh.onimaru@gmail.com
+License: UNKNOWN
+Description: 
+        omniplot is a python module to draw a scientific plot with hassle free. It mainly focuses on bioinfomatics data.
+        It is intended to be used in jupyter lab environment. 
+        
+Platform: UNKNOWN
 Classifier: Development Status :: 2 - Pre-Alpha
 Classifier: Environment :: Console
 Classifier: Intended Audience :: Science/Research
@@ -17,4 +23,3 @@ Classifier: Operating System :: MacOS
 Classifier: Topic :: Scientific/Engineering :: Bio-Informatics
 Classifier: Topic :: Scientific/Engineering :: Visualization
 Requires-Python: >=3.8
-License-File: LICENSE
