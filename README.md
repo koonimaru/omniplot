@@ -1,3 +1,5 @@
+![Downloads](https://img.shields.io/pypi/dm/omniplot)
+[![PyPI Version](https://img.shields.io/pypi/v/omniplot)](https://pypi.org/project/omniplot/)
 ![omniplot logo][logo-image]
 
 ## What is omniplot
