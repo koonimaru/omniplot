@@ -32,10 +32,14 @@ import scipy.stats as stats
 from joblib import Parallel, delayed
 from omniplot.chipseq_utils import _calc_pearson
 import itertools as it
+from matplotlib.ticker import StrMethodFormatter
+
 
 colormap_list: list=["nipy_spectral", "terrain","tab20b","tab20c","gist_rainbow","hsv","CMRmap","coolwarm","gnuplot","gist_stern","brg","rainbow","jet"]
 hatch_list: list = ['//', '\\\\', '||', '--', '++', 'xx', 'oo', 'OO', '..', '**','/o', '\\|', '|*', '-\\', '+o', 'x*', 'o-', 'O|', 'O.', '*-']
 marker_list: list=[ "o",'_' , '+','|', 'x', 'v', '^', '<', '>', 's', 'p', '*', 'h', 'D', 'd', 'P', 'X','.', '1', '2', '3', '4','|', '_']
+
+
 
 plt.rcParams['font.family']= 'sans-serif'
 plt.rcParams['font.sans-serif'] = ['Arial']
@@ -120,36 +124,44 @@ def scatterplot(df: pd.DataFrame,
                 colors: Union[str, list]="",
                 category: Union[str, list]="",
                 sizes: str="",
+                size_scale: float=100,
                 palette: str="",
                 palette_cat: str="tab20c",
                 palette_val: str="coolwarm",
-                show_labels: dict={},
-                save: str="",
-                title: str="",
+                size_legend_num: int=4,
                 markers: bool=False,
-                rows_cols: list=[],
                 size: float=30.0,
+                show_labels: dict={},
+                alpha: float=1,
+                edgecolors: str="w",
+                linewidths: float=1,
+
+                cbar_format: str="",
+                size_format: str="",
+                xformat: str="",
+                yformat: str="",
                 xunit: str="",
-                yunit:str="", 
+                yunit:str="",
                 size_unit: str="",
-                color: str="b",axlabel: str="single",
+                color_unit: str="",
+                color: str="b",
+                axlabel: str="single",
+                title: str="",
+                
                 logscalex: bool=False,
                 logscaley: bool=False,
                 figsize: list=[],
-                alpha: float=1,
-                size_scale: float=60,
-                edgecolors: str="w"
-                ,linewidths: float=1,
-                cbar_format: str="{:.2f}",
-                size_format: str="{:.2f}",
-                xformat: str="{:.2f}",
-                yformat: str="{:.2f}"):
+                rows_cols: list=[],
+                save: str="",
+                ):
     """
     Simple scatter plot. almost same function with seaborn.scatterplot.  
     
     Parameters
     ----------
     df : pandas DataFrame
+
+
     x, y: str, optional
         The column names to be the x and y axes of scatter plots. If reduce_dimension=True, these options will be
         ignored.
@@ -169,7 +181,7 @@ def scatterplot(df: pd.DataFrame,
     palette_val: str="coolwarm",
         The color palette for the color gradient specified by the "colors" option.
     show_labels: dict, optional
-        A dictionary to specify the condition to add labels to the points. dataframe index will be labeld to points. 
+        A dictionary to specify the condition to add labels to the points. dataframe index will be labeled to points. 
         It may contain "val" and "topn" keys. if you want all points to labeled, pass {"topn":0} to the option.
         To add labels to the only top n points of specific values, pass a dictionary like {"val": "body_mass_g", "topn":5}.
         "val" specify the column name to rank points and "topn" specify the number of points to be labeled.
@@ -206,7 +218,10 @@ def scatterplot(df: pd.DataFrame,
     edgecolors: str="w", optional
         The point edge color.
     linewidths: float=1, optional
-        The point edge width. 
+        The point edge width.
+    cbar_format, size_format, xformat, yformat: str 
+        e.g., "{x:.2f}", '{x:.3E}'
+
     """
     def _scale_size(x, size_scale, smin, smax):
         return size_scale*(0.01+(x-smin)/(smax-smin))
@@ -272,12 +287,17 @@ def scatterplot(df: pd.DataFrame,
         _axlabeleach=True
 
     if sizes !="":
-        q25, q50, q75, qmax=np.quantile(size, 0.25),np.quantile(size, 0.5),np.quantile(size, 0.75),np.max(size)
+        # q25, q50, q75, qmax=np.quantile(size, 0.25),np.quantile(size, 0.5),np.quantile(size, 0.75),np.max(size)
+        vmin, vmax=np.min(size), np.max(size)
+        vinterval=(vmax-vmin)/(size_legend_num-1)
         size_legend_elements=[]
-        for s in [q25, q50, q75, qmax]:
+        if size_format=="":
+            size_format="{x}"
+        for _i in range(size_legend_num):
+            s=vmin+_i*vinterval
             _s=_reverse_size(s, size_scale, smin, smax)
             size_legend_elements.append(Line2D([0], [0], marker='o', linewidth=0, markeredgecolor="white",markersize=s**(0.5),
-                                label="{:.2f}".format(_s),
+                                label=size_format.format(x=_s),
                                 markerfacecolor="black"))
 
     i=0
@@ -294,6 +314,11 @@ def scatterplot(df: pd.DataFrame,
                         edgecolors=edgecolors,
                         linewidths=linewidths,
                         outside=True)
+            if xformat!="":
+        
+                ax.xaxis.set_major_formatter(StrMethodFormatter(xformat))
+            if yformat !="":
+                ax.yaxis.set_major_formatter(StrMethodFormatter(yformat))
             if yunit!="":
                 ax.text(0, 1, "({})".format(yunit), transform=ax.transAxes, ha="right")
             if xunit!="":
@@ -302,6 +327,8 @@ def scatterplot(df: pd.DataFrame,
                 ax.set_xscale("log")
             if logscaley==True:
                 ax.set_yscale("log")
+            
+
             if sizes !="":
 
                 if size_unit!="":
@@ -310,7 +337,10 @@ def scatterplot(df: pd.DataFrame,
             if len(show_labels)!=0:
                 _add_labels(ax, df, x, y, show_labels["val"], show_labels["topn"])
     if len(colors) !=0:
-        for _c in colors:
+        if type(color_unit)==str:
+            color_unit=[color_unit]
+
+        for _c, _unit in zip(colors, color_unit):
             ax=axes[i]
             i+=1
             _df=df.sort_values(by=[_c], ascending=True)
@@ -329,11 +359,20 @@ def scatterplot(df: pd.DataFrame,
             bb=ax.get_position()
             axx , axy, axw, axh=bb.bounds
             cax = plt.axes([axx+axw*1.005, axy, 0.02, 0.1])
+            if _unit!="":
+                _c=_c+"({})".format(_unit)
             plt.colorbar(sc,cax=cax, label=_c, shrink=0.3,aspect=5,orientation="vertical",anchor=(0.2,0))
+            if cbar_format!="":
+                ax.xaxis.set_major_formatter(StrMethodFormatter(cbar_format))
+
             #ax.set_title(_c)
             if _axlabeleach==True:
                 ax.set_xlabel(x)
                 ax.set_ylabel(y)
+            if xformat!="":
+                ax.xaxis.set_major_formatter(StrMethodFormatter(xformat))
+            if yformat !="":
+                ax.yaxis.set_major_formatter(StrMethodFormatter(yformat))
             if yunit!="":
                 ax.text(0, 1, "({})".format(yunit), transform=ax.transAxes, ha="right")
             if xunit!="":
