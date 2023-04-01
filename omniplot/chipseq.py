@@ -1395,11 +1395,12 @@ def plot_bed_correlation(files:dict,
     mat = mat[:, np.any(mat, axis=0)]
     print(mat[:100,:100])
     if method=="pearson":
-        dmat=Parallel(n_jobs=-1)(delayed(_calc_pearson)(ind, mat) for ind in list(it.combinations(range(mat.shape[0]), 2)))
+        #dmat=Parallel(n_jobs=-1)(delayed(_calc_pearson)(ind, mat) for ind in list(it.combinations(range(mat.shape[0]), 2)))
+        dmat=np.corrcoef(mat)
         dmat=np.array(dmat)
-        dmat=squareform(dmat)
+        #dmat=squareform(dmat)
         print(dmat)
-        dmat+=np.identity(dmat.shape[0])
+        #dmat+=np.identity(dmat.shape[0])
     else:
         dmat=squareform(pdist(mat, method))
     
