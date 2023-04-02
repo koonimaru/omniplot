@@ -47,7 +47,21 @@ plt.rcParams['svg.fonttype'] = 'none'
 sns.set_theme(font="Arial")
 
 __all__=["clusterplot", "decomplot", "pie_scatter","manifoldplot", "regression_single","scatterplot"]
-def _scatter(_df, x,y, cat, ax, lut, barrierfree, size, legend=True, axlabel=True, alpha=1, edgecolors="w",linewidths=1.0,outside=False):
+def _scatter(_df, 
+             x,
+             y, 
+             cat, 
+             ax, 
+             lut, 
+             barrierfree, 
+             size, 
+             legend=True, 
+             axlabel=True, 
+             alpha=1, 
+             edgecolors="w",
+             linewidths=1.0,
+             outside=False,
+             legendx=1.01, legendy=1):
 
     if _df[cat].dtype==float :
         sc=ax.scatter(_df[x], _df[y], c=_df[cat], s=size,edgecolors=edgecolors)
@@ -98,7 +112,7 @@ def _scatter(_df, x,y, cat, ax, lut, barrierfree, size, legend=True, axlabel=Tru
                                       markerfacecolor=v, 
                                       markersize=10) for k, v in lut[cat]["colorlut"].items()]
         if outside==True:
-            ax.add_artist(ax.legend(handles=legend_elements, title=cat,bbox_to_anchor=(1.01,1)))
+            ax.add_artist(ax.legend(handles=legend_elements, title=cat,bbox_to_anchor=(legendx,legendy)))
         else:
             ax.add_artist(ax.legend(handles=legend_elements, title=cat))
 
@@ -117,13 +131,79 @@ def _add_labels(ax,df, x, y, val, topn):
     else:
         for _label, _x, _y in zip(df.index, df[x],df[y]):
             ax.text(_x, _y, _label)
+def _set_axis_format(ax, xformat, yformat, xunit, yunit, logscalex,logscaley):
+    if xformat!="":
+        
+        ax.xaxis.set_major_formatter(StrMethodFormatter(xformat))
+    if yformat !="":
+        ax.yaxis.set_major_formatter(StrMethodFormatter(yformat))
+    if yunit!="":
+        ax.text(0, 1, "({})".format(yunit), transform=ax.transAxes, ha="right")
+    if xunit!="":
+        ax.text(1, 0, "({})".format(xunit), transform=ax.transAxes, ha="left",va="top")
+    if logscalex==True:
+        ax.set_xscale("log")
+    if logscaley==True:
+        ax.set_yscale("log")
+
+def _marginal_plot(fig, ax,df, x,y, cat, lut,_xrange,_yrange , marginal_proportion):
+    bb=ax.get_position()
+    _x, _y, _w, _h=bb.bounds
+    _ws, _hs=_w*marginal_proportion, _h*marginal_proportion
+    ax.set_position([_x, _y, _ws, _hs])
+    _ax=fig.add_axes([_x,_y+_hs, _ws, _h*(1-marginal_proportion)])
+    _ax.set_zorder(0)
+
+    if cat !="":
+        for key in lut[cat]["colorlut"].keys():
+            _catx=df[x][df[cat]==key].values
+            kernel=stats.gaussian_kde(_catx)
+            _ax.fill(np.concatenate([ [_xrange[0]],_xrange, [_xrange[-1]]]),
+                        np.concatenate([[0], kernel(_xrange),[0]]),
+                        color=lut[cat]["colorlut"][key], 
+                        alpha=0.5)
+
+    else:
+        _catx=df[x].values
+        kernel=stats.gaussian_kde(_catx)
+        _ax.fill(np.concatenate([ [_xrange[0]],_xrange, [_xrange[-1]]]),
+                    np.concatenate([[0], kernel(_xrange),[0]]),
+                    color="b", 
+                    alpha=0.5)
+
+    _ax.set_xticks([])
+    _ax=fig.add_axes([_x+_ws,_y, _w*(1-marginal_proportion), _hs])
+    _ax.set_zorder(0)
+    if cat !="":
+        for key in lut[cat]["colorlut"].keys():
+            _catx=df[y][df[cat]==key].values
+            kernel=stats.gaussian_kde(_catx)
+            _ax.fill(np.concatenate([[0], kernel(_yrange),[0]]),
+                        np.concatenate([[_yrange[0]],_yrange, [_yrange[-1]]]), 
+                        color=lut[cat]["colorlut"][key], 
+                        alpha=0.5)
+    else:
+        _catx=df[y].values
+        kernel=stats.gaussian_kde(_catx)
+        _ax.fill(np.concatenate([[0], kernel(_yrange),[0]]),
+                    np.concatenate([[_yrange[0]],_yrange, [_yrange[-1]]]), 
+                    color="b", 
+                    alpha=0.5)
+    _ax.set_yticks([])
+
 
 def scatterplot(df: pd.DataFrame,
                 x: str,
                 y: str,
+
+                ax: Optional[plt.Axes]= None,
+                fig : Optional[mpl.figure.Figure] =None,
+
                 colors: Union[str, list]="",
                 category: Union[str, list]="",
                 sizes: str="",
+                marginal_dist: bool=False,
+
                 size_scale: float=100,
                 palette: str="",
                 palette_cat: str="tab20c",
@@ -248,8 +328,15 @@ def scatterplot(df: pd.DataFrame,
         if type(colors)==str:
             colors=[colors]
     
-    # determining the figure size and the number of rows and columns. 
-    if len(rows_cols)==0:
+    # determining the figure size and the number of rows and columns.
+
+    if ax !=None:
+        axes=[ax]
+        totalnum=1
+        if marginal_dist==True and fig==None:
+            raise Exception("if you pass an axis opject and want to draw marginal distribution, you also need to give a figure object")
+
+    elif len(rows_cols)==0:
         totalnum=len(category)+len(colors)
         if totalnum<=1:
             totalnum=1
@@ -292,7 +379,10 @@ def scatterplot(df: pd.DataFrame,
         vinterval=(vmax-vmin)/(size_legend_num-1)
         size_legend_elements=[]
         if size_format=="":
-            size_format="{x}"
+            if 1<np.abs(vmax)<=1000:
+                size_format="{x:.2f}"
+            elif 0<np.abs(vmax)<=1 or 1000<np.abs(vmax):
+                size_format="{x:.3E}"
         for _i in range(size_legend_num):
             s=vmin+_i*vinterval
             _s=_reverse_size(s, size_scale, smin, smax)
@@ -300,12 +390,31 @@ def scatterplot(df: pd.DataFrame,
                                 label=size_format.format(x=_s),
                                 markerfacecolor="black"))
 
+    
+    legendx=1.01
+    legendy=1
+    margins=0.1
+    if marginal_dist==True:
+
+        _xmin, _xmax=np.amin(df[x]), np.amax(df[x])
+        _xmargin=margins*(_xmax-_xmin)
+        _ymin, _ymax=np.amin(df[y]), np.amax(df[y])
+        _ymargin=margins*(_ymax-_ymin)
+        _xrange=np.linspace(_xmin-_xmargin, _xmax+_xmargin, 1000)
+        _yrange=np.linspace(_ymin-_ymargin, _ymax+_ymargin, 1000)
+        marginal_proportion=0.8
+        legendx=legendx/marginal_proportion
+    
     i=0
+
     if len(category) !=0:
         lut={}
         for cat in category:
             ax=axes[i]
+            ax.margins(margins)
+            ax.set_zorder(1)
             i+=1
+
             _clut, _mlut=_create_color_markerlut(df, cat,palette_cat,marker_list)
             lut[cat]={"colorlut":_clut, "markerlut":_mlut}
             sc=_scatter(df, x, y, cat, ax, lut, markers, size,
@@ -313,27 +422,48 @@ def scatterplot(df: pd.DataFrame,
                         alpha=alpha,
                         edgecolors=edgecolors,
                         linewidths=linewidths,
-                        outside=True)
-            if xformat!="":
-        
-                ax.xaxis.set_major_formatter(StrMethodFormatter(xformat))
-            if yformat !="":
-                ax.yaxis.set_major_formatter(StrMethodFormatter(yformat))
-            if yunit!="":
-                ax.text(0, 1, "({})".format(yunit), transform=ax.transAxes, ha="right")
-            if xunit!="":
-                ax.text(1, 0, "({})".format(xunit), transform=ax.transAxes, ha="left",va="top")
-            if logscalex==True:
-                ax.set_xscale("log")
-            if logscaley==True:
-                ax.set_yscale("log")
+                        outside=True,legendx=legendx, legendy=legendy)
             
+            if marginal_dist==True:
+                _marginal_plot(fig, ax,df, x,y, cat, lut,_xrange,_yrange , marginal_proportion)
+                # bb=ax.get_position()
+                # _x, _y, _w, _h=bb.bounds
+                # _ws, _hs=_w*marginal_proportion, _h*marginal_proportion
+                # ax.set_position([_x, _y, _ws, _hs])
+                # _ax=fig.add_axes([_x,_y+_hs, _ws, _h*(1-marginal_proportion)])
+                # _ax.set_zorder(0)
+                # for key in lut[cat]["colorlut"].keys():
+                #     _catx=df[x][df[cat]==key].values
+                #     kernel=stats.gaussian_kde(_catx)
+                #     _ax.fill(np.concatenate([ [_xrange[0]],_xrange, [_xrange[-1]]]),
+                #              np.concatenate([[0], kernel(_xrange),[0]]),
+                #              color=lut[cat]["colorlut"][key], 
+                #              alpha=0.5)
+
+
+
+                # _ax.set_xticks([])
+                # _ax=fig.add_axes([_x+_ws,_y, _w*(1-marginal_proportion), _hs])
+                # _ax.set_zorder(0)
+                # for key in lut[cat]["colorlut"].keys():
+                #     _catx=df[y][df[cat]==key].values
+                #     kernel=stats.gaussian_kde(_catx)
+                #     _ax.fill(np.concatenate([[0], kernel(_yrange),[0]]),
+                #              np.concatenate([[_yrange[0]],_yrange, [_yrange[-1]]]), 
+                #              color=lut[cat]["colorlut"][key], 
+                #              alpha=0.5)
+
+                # _ax.set_yticks([])
+
+            
+            _set_axis_format(ax, xformat, yformat, xunit, yunit, logscalex,logscaley)
+           
 
             if sizes !="":
 
                 if size_unit!="":
                     sizes=sizes+"("+size_unit+")"
-                ax.add_artist(ax.legend(handles=size_legend_elements, title=sizes,bbox_to_anchor=(1.01,0.5)))
+                ax.add_artist(ax.legend(handles=size_legend_elements, title=sizes,bbox_to_anchor=(legendx,0.5)))
             if len(show_labels)!=0:
                 _add_labels(ax, df, x, y, show_labels["val"], show_labels["topn"])
     if len(colors) !=0:
@@ -342,6 +472,8 @@ def scatterplot(df: pd.DataFrame,
 
         for _c, _unit in zip(colors, color_unit):
             ax=axes[i]
+            ax.margins(margins)
+            ax.set_zorder(1)
             i+=1
             _df=df.sort_values(by=[_c], ascending=True)
             if type(size)==float or type(size)==int:
@@ -356,9 +488,16 @@ def scatterplot(df: pd.DataFrame,
                           linewidths=linewidths)
             # cax = plt.axes([0.86, 0.1, 0.075, 0.5])
             # plt.colorbar(cax=cax)
+            if marginal_dist==True:
+                _marginal_plot(fig, ax,df, x,y, "", lut,_xrange,_yrange , marginal_proportion)
+
+
             bb=ax.get_position()
             axx , axy, axw, axh=bb.bounds
-            cax = plt.axes([axx+axw*1.005, axy, 0.02, 0.1])
+            _xcax=axx+axw*1.005
+            if marginal_dist==True:
+                _xcax=axx+axw*1.005/marginal_proportion
+            cax = plt.axes([_xcax, axy, 0.02, 0.1])
             if _unit!="":
                 _c=_c+"({})".format(_unit)
             plt.colorbar(sc,cax=cax, label=_c, shrink=0.3,aspect=5,orientation="vertical",anchor=(0.2,0))
@@ -369,24 +508,13 @@ def scatterplot(df: pd.DataFrame,
             if _axlabeleach==True:
                 ax.set_xlabel(x)
                 ax.set_ylabel(y)
-            if xformat!="":
-                ax.xaxis.set_major_formatter(StrMethodFormatter(xformat))
-            if yformat !="":
-                ax.yaxis.set_major_formatter(StrMethodFormatter(yformat))
-            if yunit!="":
-                ax.text(0, 1, "({})".format(yunit), transform=ax.transAxes, ha="right")
-            if xunit!="":
-                ax.text(1, 0, "({})".format(xunit), transform=ax.transAxes, ha="left",va="top")
-            if logscalex==True:
-                ax.set_xscale("log")
-            if logscaley==True:
-                ax.set_yscale("log")
+            _set_axis_format(ax, xformat, yformat, xunit, yunit, logscalex,logscaley)
 
             if sizes !="":
 
                 if size_unit!="":
                     sizes=sizes+"("+size_unit+")"
-                ax.add_artist(ax.legend(handles=size_legend_elements, title=sizes,bbox_to_anchor=(1.01,1)))
+                ax.add_artist(ax.legend(handles=size_legend_elements, title=sizes,bbox_to_anchor=(legendx,1)))
             if len(show_labels)!=0:
                 _add_labels(ax, df, x, y, show_labels["val"], show_labels["topn"])
     if len(category)+len(colors)==0:
@@ -395,14 +523,8 @@ def scatterplot(df: pd.DataFrame,
         if axlabel=="each":
             ax.set_xlabel(x)
             ax.set_ylabel(y)
-        if yunit!="":
-            ax.text(0, 1, "({})".format(yunit), transform=ax.transAxes, ha="right")
-        if xunit!="":
-            ax.text(1, 0, "({})".format(xunit), transform=ax.transAxes, ha="left",va="top")
-        if logscalex==True:
-                ax.set_xscale("log")
-        if logscaley==True:
-            ax.set_yscale("log")
+        
+        _set_axis_format(ax, xformat, yformat, xunit, yunit, logscalex,logscaley)
         if sizes !="":
             # _markers, _labels=sc.legend_elements("sizes", num=4)
             # _new_labels=[]
@@ -420,8 +542,11 @@ def scatterplot(df: pd.DataFrame,
                                     title=sizes,
                                     bbox_to_anchor=(1.01,1)))
     if title!="":
-        fig.suptitle(title)
-    if axlabel=="single":
+        if fig !=None:
+            fig.suptitle(title)
+        else:
+            plt.title(title)
+    if axlabel=="single" and fig !=None:
         bbox=axes[0].get_position()
         fig.text(0.5, 0.01, x, ha='center')
         fig.text(bbox.bounds[0]*0.5, 0.5, y, va='center', rotation='vertical')
@@ -432,7 +557,7 @@ def scatterplot(df: pd.DataFrame,
     _save(save, "scatter")
     #  plt.tight_layout()
 
-    return {"axes":axes}
+    return {"axes":axes, "fig":fig}
 
 def clusterplot(df: pd.DataFrame,
                 variables: List=[],
@@ -1054,9 +1179,6 @@ def pie_scatter(df: pd.DataFrame,
                 x: str, 
                 y: str, 
                 category: list, 
-                
-                logscalex: bool=False,
-                logscaley: bool=False,
                 pie_palette: str="tab20c",
                 label: Union[List, str]="all",
                 topn: int=10,
@@ -1072,7 +1194,8 @@ def pie_scatter(df: pd.DataFrame,
                 xlabel: str="",
                 ylabel: str="", 
                 title: str="",
-                
+                logscalex: bool=False,
+                logscaley: bool=False,
                 bbox_to_anchor: Union[List, str]=[0.95, 1],
                 piesize_scale: float=0.01) -> dict:
     """
