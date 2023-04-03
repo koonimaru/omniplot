@@ -205,8 +205,14 @@ def scatterplot(df: pd.DataFrame,
                 category: Union[str, List[str]]="",
                 sizes: str="",
                 marginal_dist: bool=False,
+                kde: bool=False,
+                kmeans: bool=False,
+                n_clusters: int=3,
+                cluster_center: bool=True,
+                kmeans_kw: dict={},
 
                 c: Union[List, np.ndarray] =[],
+                cname: str="",
                 size_scale: float=100,
                 palette: str="",
                 palette_cat: str="tab20c",
@@ -235,7 +241,7 @@ def scatterplot(df: pd.DataFrame,
                 logscaley: bool=False,
                 figsize: list=[],
                 rows_cols: list=[],
-                save: str="",
+                save: str="",kde_kw: dict={}
                 )-> Dict:
     """
     Simple scatter plot. almost same function with seaborn.scatterplot.  
@@ -250,18 +256,34 @@ def scatterplot(df: pd.DataFrame,
         ignored.
     colors: Union[str, list]="", optional
         The names of columns (containing numerial values) to appear as a gradient of point colors. 
-
     category: Union[str, list]="", optional
         The names of columns (containing categorical values) to appear as color labels 
-
     sizes: str="", optional
         The names of columns (containing numerial values) to appear as point sizes.
+    marginal_dist: bool, optional (default: False)
+        Whether to draw marginal distributions
+    kde: bool, optional (default: False)
+        Whether to overlay KDE plot.
+    kde_kw: dict, optional
+        KDE plot keyword arguements. See https://seaborn.pydata.org/generated/seaborn.kdeplot.html for details.
+    
+    kmeans: bool, optional (default: False)
+        Whether to calculate and draw kmean clusters
+    n_clusters: int, optional (default: 3)
+        K-means cluster number.
+    cluster_center: bool, optional (default: True)
+        Whether to draw lines from the k-means centers.https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html for details
+    kmeans_kw: dict,
+        KMeans keyword arguments. See 
+    c: Union[List, np.ndarray], optional
+        1 dimensional array containing values shown as point facecolors or 2 dimensional array consists of RGB(A) 
+    cname: str, optional
+        Label for the color value specified by "c" option
+    palette: str="", optional
 
-    palette: str="",
-
-    palette_cat: str="tab20c",
+    palette_cat: str, optional (default: "tab20c")
         The color palette for categorical labels
-    palette_val: str="coolwarm",
+    palette_val: str, optional (default: "coolwarm")
         The color palette for the color gradient specified by the "colors" option.
     show_labels: dict, optional
         A dictionary to specify the condition to add labels to the points. dataframe index will be labeled to points. 
@@ -269,24 +291,24 @@ def scatterplot(df: pd.DataFrame,
         To add labels to the only top n points of specific values, pass a dictionary like {"val": "body_mass_g", "topn":5}.
         "val" specify the column name to rank points and "topn" specify the number of points to be labeled.
 
-    save: str="", optional
+    save: str, optional
         Prefix to save the figure 
-    title: str="", optional
+    title: str, optional
         The title for the figure.
-    markers: bool=False, optional
+    markers: bool, optional (default: False)
         Whether to use markers to different categorical labels
-    rows_cols: list=[],
+    rows_cols: list, optional
         The number of rows and columns for subplots
-    size: float=10, optional
+    size: float, optional (default: 10)
         point size. This will be ignored when "sizes" option is set.
-    xunit: str="",
+    xunit: str, optional
         The x axis unit.
-    yunit:str="",
+    yunit:str, optional
         The y axis unit.
-    size_unit: str="",
+    size_unit: str, optional
         The unit of point sizes when "sizes" option is set.
-    color: str="",
-    axlabel: str="single", ["single", "each", "non"]
+    color: str, optional
+    axlabel: str, optional (default:"single"), ["single", "each", "non"]
         How to show the labels of the axes. "each" will add the labels to each axis of subplots. "single" will add single axis labels to the figure.
     logscalex: bool=False,
         Whether to transform the x axis to the log scale.
@@ -315,19 +337,13 @@ def scatterplot(df: pd.DataFrame,
     def _reverse_size(x, size_scale, smin, smax):
         return (x/size_scale-0.01)*(smax-smin)+smin
     
-
+    if len(kde_kw)==0:
+        kde_kw=dict(alpha=0.5, levels=4)
     
     if palette !="":
         palette_cat=palette 
         palette_val=palette
-    if sizes !="":
-        size=df[sizes]
-        size=np.nan_to_num(size)
-        smin=np.amin(size)
-        smax=np.amax(size)
-        #size=size_scale*(0.01+(size-smin)/(smax-smin))
-        size=_scale_size(size, size_scale, smin, smax)
-        #print(size[:10])
+    
     original_index=df.index
     
     X, category=_separate_data(df, variables=[x, y], category=category)
@@ -338,10 +354,11 @@ def scatterplot(df: pd.DataFrame,
         colors=[]
     c=np.array(c)
     if len(c) !=0:
-        
+        if cname =="":
+            cname="c"
         if len(c.shape)==1:
-            df["c"]=c
-            colors.append("c")
+            df[cname]=c
+            colors.append(cname)
 
 
     # determining the figure size and the number of rows and columns.
@@ -353,7 +370,7 @@ def scatterplot(df: pd.DataFrame,
             raise Exception("if you pass an axis opject and want to draw marginal distribution, you also need to give a figure object")
 
     elif len(rows_cols)==0:
-        totalnum=len(category)+len(colors)+int(len(c.shape)==2)
+        totalnum=len(category)+len(colors)+int(len(c.shape)==2)+int(kmeans)
         if totalnum<=1:
             totalnum=1
             if len(figsize)==0:
@@ -361,7 +378,6 @@ def scatterplot(df: pd.DataFrame,
             fig, ax=plt.subplots(figsize=figsize)
             axes=[ax]
         else:
-            
             if len(figsize)==0:
                 figsize=[10,4*totalnum//2+int(totalnum%2!=0)]
             fig, axes=plt.subplots(nrows=totalnum//2+int(totalnum%2!=0),
@@ -381,9 +397,7 @@ def scatterplot(df: pd.DataFrame,
     else:
         plt.subplots_adjust(right=0.85)
     
-    # if len(axes)==1:
-    #     axlabel="each"
-    
+
     if axlabel=="single":
         _axlabeleach=False
     elif axlabel=="non":
@@ -391,8 +405,22 @@ def scatterplot(df: pd.DataFrame,
     elif axlabel=="each":
         _axlabeleach=True
 
+    if kmeans==True:
+        _kmeans = KMeans(n_clusters=n_clusters, random_state=0, n_init="auto").fit(df[[x, y]].values, *kmeans_kw)
+        df["kmeans"]=_kmeans.labels_
+        _kmeanlabels=np.unique(_kmeans.labels_)
+        category.append("kmeans")
+    # Creating point size array protional to values in the column specified by "sizes" option. 
+    # Point sizes are scaled maximum to be size_scale (in order to avoid too small/large points). 
+    # And creating a size legend of which size labels correspond to the original values 
     if sizes !="":
-        # q25, q50, q75, qmax=np.quantile(size, 0.25),np.quantile(size, 0.5),np.quantile(size, 0.75),np.max(size)
+
+        size=df[sizes]
+        size=np.nan_to_num(size)
+        smin=np.amin(size)
+        smax=np.amax(size)
+        size=_scale_size(size, size_scale, smin, smax)
+
         vmin, vmax=np.min(size), np.max(size)
         vinterval=(vmax-vmin)/(size_legend_num-1)
         size_legend_elements=[]
@@ -409,8 +437,11 @@ def scatterplot(df: pd.DataFrame,
                                 markerfacecolor="black"))
 
     
+
     legendx=1.01
     legendy=1
+    
+    # Preparing x and y ranges for marginal distribution.
     margins=0.1
     if marginal_dist==True:
 
@@ -423,7 +454,9 @@ def scatterplot(df: pd.DataFrame,
         marginal_proportion=0.8
         legendx=legendx/marginal_proportion
     
+    
     i=0
+    # Drawing scatter plots 
     lut={}
     if len(category) !=0:
         
@@ -434,7 +467,18 @@ def scatterplot(df: pd.DataFrame,
             i+=1
 
             _clut, _mlut=_create_color_markerlut(df, cat,palette_cat,marker_list)
+            
+            
+            
             lut[cat]={"colorlut":_clut, "markerlut":_mlut}
+
+
+            if cat=="kmeans" and cluster_center==True:
+                for ul, center in zip(_kmeanlabels, _kmeans.cluster_centers_):
+                    _df=df.loc[df["kmeans"]==ul]
+                    for _x, _y in zip(_df[x], _df[y]):
+                        ax.plot([center[0], _x], [center[1], _y], color=_clut[ul], alpha=0.5)
+
             sc=_scatter(df, x, y, cat, ax, lut, markers, size,
                         axlabel=_axlabeleach,
                         alpha=alpha,
@@ -442,6 +486,10 @@ def scatterplot(df: pd.DataFrame,
                         linewidths=linewidths,
                         outside=True,legendx=legendx, legendy=legendy, legend=show_legend)
             
+            
+
+            if kde==True:
+                sns.kdeplot(data=df, x=x, y=y,hue=cat, ax=ax, palette=_clut, **kde_kw)
             if marginal_dist==True:
                 _marginal_plot(fig, ax,df, x,y, cat, lut,_xrange,_yrange , marginal_proportion)
 
@@ -475,7 +523,9 @@ def scatterplot(df: pd.DataFrame,
                           s=_size,
                           alpha=alpha,
                           edgecolors=edgecolors,
-                          linewidths=linewidths, legend=show_legend)
+                          linewidths=linewidths)
+            if kde==True:
+                sns.kdeplot(data=df, x=x, y=y, ax=ax, color=color, **kde_kw)
             # cax = plt.axes([0.86, 0.1, 0.075, 0.5])
             # plt.colorbar(cax=cax)
             if marginal_dist==True:
@@ -521,6 +571,9 @@ def scatterplot(df: pd.DataFrame,
                         s=size,
                         edgecolors=edgecolors,
                         linewidths=linewidths)
+        if kde==True:
+            sns.kdeplot(data=df, x=x, y=y, ax=ax, color=color, **kde_kw)
+        ax.text(0.1,0.8, cname, bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", lw=1, alpha=0.8))
         if marginal_dist==True:
             _marginal_plot(fig, ax,df, x,y, "", lut,_xrange,_yrange , marginal_proportion)
         
@@ -539,7 +592,9 @@ def scatterplot(df: pd.DataFrame,
     
     if len(category)+len(colors)==0 and int(len(c.shape)!=2):
         ax=axes[i]
-        sc=ax.scatter(df[x], df[y], c=color,s=size,alpha=alpha,edgecolors=edgecolors,linewidths=linewidths,legend=show_legend)
+        sc=ax.scatter(df[x], df[y], c=color,s=size,alpha=alpha,edgecolors=edgecolors,linewidths=linewidths)
+        if kde==True:
+            sns.kdeplot(data=df, x=x, y=y, ax=ax, color=color, **kde_kw)
         if axlabel=="each":
             ax.set_xlabel(x)
             ax.set_ylabel(y)
@@ -594,7 +649,6 @@ def clusterplot(df: pd.DataFrame,
                 ax: Optional[plt.Axes]=None,
                 piesize_scale: float=0.02,
                 min_cluster_size: int=10,
-                sp_kw={},
                 **kwargs)->Dict:
     """
     Clustering data and draw them as a scatter plot optionally with dimensionality reduction.  
