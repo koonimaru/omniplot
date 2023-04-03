@@ -1005,21 +1005,22 @@ def _get_embedding(method="umap",param={}):
 def _separate_data(df, variables=[], 
                    category=""):
     if len(variables) !=0:
-        x = df[variables].values
+        x = np.array(df[variables].values)
         if len(category) !=0:
             if type(category)==str:
                 category=[category]
             #category_val=df[category].values
         
-        if x.dtype!=float: 
-            raise TypeError(f"variables must contain only float values.")
+        #if x.dtype!=np.number: 
+        if np.issubdtype(x.dtype, np.number)==False:
+            raise TypeError(f"variables must contain only float values. {x.dtype} was given")
     elif len(category) !=0:
         if type(category)==str:
             category=[category]
         #category_val=df[category].values
         df=df.drop(category, axis=1)
-        x = df.values
-        if x.dtype!=float: 
+        x = np.array(df.values)
+        if x.dtype!=np.number: 
             raise TypeError(f"data must contain only float values except {category} column. \
         or you can specify the numeric variables with the option 'variables'.")
         
@@ -1041,10 +1042,11 @@ def _create_color_markerlut(df, cat, palette, markers=[]):
     _cmap=plt.get_cmap(palette, len(uniq_labels))
     
     color_lut={u: _cmap(i) for i, u in enumerate(uniq_labels)}
-    if len(markers) < len(uniq_labels):
-        while len(markers) < len(uniq_labels):
-            markers.extend(markers)
+    
     if len(markers)!=0:
+        if len(markers) < len(uniq_labels):
+            while len(markers) < len(uniq_labels):
+                markers.extend(markers)
         marker_lut={u: markers[i] for i, u in enumerate(uniq_labels)}
 
     return color_lut, marker_lut

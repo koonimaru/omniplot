@@ -1,5 +1,6 @@
 ![Downloads](https://img.shields.io/pypi/dm/omniplot)
 [![PyPI Version](https://img.shields.io/pypi/v/omniplot)](https://pypi.org/project/omniplot/)
+![License](https://img.shields.io/pypi/l/omniplot)
 ![omniplot logo][logo-image]
 
 ## What is omniplot
@@ -9,7 +10,7 @@ omniplot is a python module to draw a scientific plot with hassle free. It mainl
 <img src="images/example13.png" width="340"/> <img src="images/example2.png" width="190"/> <img src="images/example3.png" width="270"/> <br>
 <img src="images/example12.png" width="200"/> <img src="images/example10.png" width="300"/> <img src="images/example15.png" width="210"/><br>
 <img src="images/example5.png" width="400"/> <img src="images/example6.png" width="260"/> <br>
- <img src="images/example11.png" width="600"/> <br>
+<img src="images/example11.png" width="600"/> <br>
 ## Motivation
 Although there exist many good python data visualization libraries, such as 
 [matplotlib](https://matplotlib.org/), 

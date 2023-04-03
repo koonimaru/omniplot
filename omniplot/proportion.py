@@ -32,6 +32,7 @@ import scipy.stats as stats
 from joblib import Parallel, delayed
 from omniplot.chipseq_utils import _calc_pearson
 import itertools as it
+from matplotlib.ticker import StrMethodFormatter
 from omniplot.scatter import *
 colormap_list: list=["nipy_spectral", "terrain","tab20b","tab20c","gist_rainbow","hsv","CMRmap","coolwarm","gnuplot","gist_stern","brg","rainbow","jet"]
 hatch_list: list = ['//', '\\\\', '||', '--', '++', 'xx', 'oo', 'OO', '..', '**','/o', '\\|', '|*', '-\\', '+o', 'x*', 'o-', 'O|', 'O.', '*-']
@@ -1455,6 +1456,10 @@ def stackedlines(df: pd.DataFrame,
                 ylabel: str="",
                 yunit: str="",
                 xunit: str="",
+                xformat: str="",
+                yformat: str="",
+                logscalex: bool=False,
+                logscaley: bool=False,
                 title: str="",
                 hatch: bool=False):
     """
@@ -1597,6 +1602,9 @@ def stackedlines(df: pd.DataFrame,
         last_vals.append(vals[-1,1]-vals[-1,0])
         last_pos.append(vals[-1,1]/2+vals[-1,0]/2)
         i+=1
+
+    
+
     if show_values==True:
         last_vals=100*np.array(last_vals)/np.sum(last_vals)
         for val, pos in zip(last_vals, last_pos):
@@ -1615,6 +1623,15 @@ def stackedlines(df: pd.DataFrame,
         ax.text(0, 1, "({})".format(yunit), transform=ax.transAxes, ha="right")
     if xunit!="":
         ax.text(1, 0, "({})".format(xunit), transform=ax.transAxes, ha="left",va="top")
+    if xformat!="":
+        
+        ax.xaxis.set_major_formatter(StrMethodFormatter(xformat))
+    if yformat !="":
+        ax.yaxis.set_major_formatter(StrMethodFormatter(yformat))
+    if logscalex==True:
+        ax.set_xscale("log")
+    if logscaley==True:
+        ax.set_yscale("log")
     if inverse==True:
         ax.invert_yaxis()
     return {"axes":ax}
