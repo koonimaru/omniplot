@@ -490,6 +490,8 @@ def scatterplot(df: pd.DataFrame,
 
             if kde==True:
                 sns.kdeplot(data=df, x=x, y=y,hue=cat, ax=ax, palette=_clut, **kde_kw)
+                ax.set(xlabel=None)
+                ax.set(ylabel=None)
             if marginal_dist==True:
                 _marginal_plot(fig, ax,df, x,y, cat, lut,_xrange,_yrange , marginal_proportion)
 
@@ -526,6 +528,8 @@ def scatterplot(df: pd.DataFrame,
                           linewidths=linewidths)
             if kde==True:
                 sns.kdeplot(data=df, x=x, y=y, ax=ax, color=color, **kde_kw)
+                ax.set(xlabel=None)
+                ax.set(ylabel=None)
             # cax = plt.axes([0.86, 0.1, 0.075, 0.5])
             # plt.colorbar(cax=cax)
             if marginal_dist==True:
@@ -573,6 +577,8 @@ def scatterplot(df: pd.DataFrame,
                         linewidths=linewidths)
         if kde==True:
             sns.kdeplot(data=df, x=x, y=y, ax=ax, color=color, **kde_kw)
+            ax.set(xlabel=None)
+            ax.set(ylabel=None)
         ax.text(0.1,0.8, cname, bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", lw=1, alpha=0.8))
         if marginal_dist==True:
             _marginal_plot(fig, ax,df, x,y, "", lut,_xrange,_yrange , marginal_proportion)
@@ -595,6 +601,8 @@ def scatterplot(df: pd.DataFrame,
         sc=ax.scatter(df[x], df[y], c=color,s=size,alpha=alpha,edgecolors=edgecolors,linewidths=linewidths)
         if kde==True:
             sns.kdeplot(data=df, x=x, y=y, ax=ax, color=color, **kde_kw)
+            ax.set(xlabel=None)
+            ax.set(ylabel=None)
         if axlabel=="each":
             ax.set_xlabel(x)
             ax.set_ylabel(y)
@@ -614,7 +622,7 @@ def scatterplot(df: pd.DataFrame,
             plt.title(title)
     if axlabel=="single" and fig !=None:
         bbox=axes[0].get_position()
-        fig.text(0.5, 0.01, x, ha='center')
+        fig.text(0.5, 0.05, x, ha='center')
         fig.text(bbox.bounds[0]*0.5, 0.5, y, va='center', rotation='vertical')
     if len(axes) != totalnum:
         for i in range(len(axes)-totalnum):
