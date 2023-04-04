@@ -341,7 +341,9 @@ def scatterplot(df: pd.DataFrame,
 
     Return
     ------
-    {"axes":axes, "fig":fig} : dict
+    {"axes":axes, "fig":fig, 
+    "regression_models":regression_models, "regression_results":regression_results, 
+    "kmeans_result":_kmeans, "df":df} : dict
 
     """
     def _scale_size(x, size_scale, smin, smax):
@@ -358,7 +360,9 @@ def scatterplot(df: pd.DataFrame,
     
     original_index=df.index
     
-    X, category=_separate_data(df, variables=[x, y], category=category)
+    X, category=_separate_data(df, 
+                               variables=[x, y], 
+                               category=category)
     if len(colors)!=0:
         if type(colors)==str:
             colors=[colors]
@@ -371,11 +375,15 @@ def scatterplot(df: pd.DataFrame,
         if len(c.shape)==1:
             df[cname]=c
             colors.append(cname)
+
+    # Calculating clusters and add cluster labels to dataframe
+    _kmeans=None
     if kmeans==True:
         _kmeans = KMeans(n_clusters=n_clusters, random_state=0, n_init="auto").fit(df[[x, y]].values, *kmeans_kw)
         df["kmeans"]=_kmeans.labels_
         _kmeanlabels=np.unique(_kmeans.labels_)
         category.append("kmeans")
+
 
     totalnum=len(category)+len(colors)+int(len(c.shape)==2)
     if totalnum<=1:
@@ -439,17 +447,6 @@ def scatterplot(df: pd.DataFrame,
                                  gridspec_kw=gridspec_kw)
         axes=axes.flatten()
 
-    # if len(adjust_kw) !=0:
-    #     plt.subplots_adjust(**adjust_kw)
-    # else:
-    #     if len(category)+len(colors)==0:
-    #         plt.subplots_adjust(right=0.67)
-        
-    #     else:
-    #         if regression==True:
-    #             plt.subplots_adjust(right=0.85, bottom=0.2, top=0.95)
-    #         else:
-    #             plt.subplots_adjust(right=0.85, top=0.95)
 
     if axlabel=="single":
         _axlabeleach=False
@@ -457,10 +454,6 @@ def scatterplot(df: pd.DataFrame,
         _axlabeleach=False
     elif axlabel=="each":
         _axlabeleach=True
-
-    
-
-    
 
 
     # Creating point size array protional to values in the column specified by "sizes" option. 
@@ -489,7 +482,6 @@ def scatterplot(df: pd.DataFrame,
                                 label=size_format.format(x=_s),
                                 markerfacecolor="black"))
 
-    
 
     legendx=1.01
     legendy=1
@@ -511,6 +503,8 @@ def scatterplot(df: pd.DataFrame,
     i=0
     # Drawing scatter plots 
     lut={}
+    regression_models={}
+    regression_results={}
     if len(category) !=0:
         
         for cat in category:
@@ -533,24 +527,27 @@ def scatterplot(df: pd.DataFrame,
                         ax.plot([center[0], _x], [center[1], _y], color=_clut[ul], alpha=0.25)
 
             if regression==True:
-                reg_legend_elements=[]
-                for key in _clut.keys():
-                    key_filt=df[cat]==key
-                    rdf=df.loc[key_filt]
-                    rX, rY=rdf[x], rdf[y]
-                    plotline_X = np.arange(rX.min(), rX.max()).reshape(-1, 1)
-                    fitted_model, summary, coef, coef_p, intercept, intercept_p, r2, x_line, y_line, ci, pi,std_error, MSE=_robust_regression(rX, rY, plotline_X, robust_param)
-                    _tmpcolor=np.array(_clut[key])
-                    _draw_ci_pi(ax, ci, pi,x_line, y_line, pi_color=_tmpcolor, ci_color=_tmpcolor+(1-_tmpcolor)*0.5, alpha=0.5)
-                    #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
-                    ax.plot(x_line, y_line, c=_tmpcolor)   
-                    reg_legend_elements.append(Line2D([0], [0], marker="", linewidth=3,color=_tmpcolor,
-                                        label="b1: {x:.2f}\np: {p:.1E}\nr2: {y:.2f}".format(x=coef,y=r2, p=coef_p),
-                                        ))
+                fitted_models, reg_results=_regression(df, x, y, ax, cat=cat, _clut=_clut, robust_param=robust_param)
+                regression_models.update(fitted_models)
+                regression_results.update(reg_results)
+                # reg_legend_elements=[]
+                # for key in _clut.keys():
+                #     key_filt=df[cat]==key
+                #     rdf=df.loc[key_filt]
+                #     rX, rY=rdf[x], rdf[y]
+                #     plotline_X = np.arange(rX.min(), rX.max()).reshape(-1, 1)
+                #     fitted_model, summary, coef, coef_p, intercept, intercept_p, r2, x_line, y_line, ci, pi,std_error, MSE=_robust_regression(rX, rY, plotline_X, robust_param)
+                #     _tmpcolor=np.array(_clut[key])
+                #     _draw_ci_pi(ax, ci, pi,x_line, y_line, pi_color=_tmpcolor, ci_color=_tmpcolor+(1-_tmpcolor)*0.5, alpha=0.5)
+                #     #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
+                #     ax.plot(x_line, y_line, c=_tmpcolor)   
+                #     reg_legend_elements.append(Line2D([0], [0], marker="", linewidth=3,color=_tmpcolor,
+                #                         label="\u03B21: {x:.2f}\np: {p:.1E}\nr2: {y:.2f}".format(x=coef,y=r2, p=coef_p),
+                #                         ))
 
-                ax.add_artist(ax.legend(handles=reg_legend_elements, 
-                                        title="Regression",
-                                        loc="upper left", bbox_to_anchor=(0.0, -0.1), ncol=3))
+                # ax.add_artist(ax.legend(handles=reg_legend_elements, 
+                #                         title="Regression",
+                #                         loc="upper left", bbox_to_anchor=(0.0, -0.1), ncol=3))
             sc=_scatter(df, x, y, cat, ax, lut, markers, size,
                         axlabel=_axlabeleach,
                         alpha=alpha,
@@ -561,7 +558,7 @@ def scatterplot(df: pd.DataFrame,
             
 
             if kde==True:
-                sns.kdeplot(data=df, x=x, y=y,hue=cat, ax=ax, palette=_clut, **kde_kw)
+                sns.kdeplot(data=df, x=x, y=y,hue=cat, ax=ax, palette=_clut, legend=False, **kde_kw)
                 ax.set(xlabel=None)
                 ax.set(ylabel=None)
 
@@ -598,21 +595,24 @@ def scatterplot(df: pd.DataFrame,
                 _size=size[np.argsort(df[_c])]
 
             if regression==True:
-                reg_legend_elements=[]
-                rX, rY=df[x], df[y]
-                plotline_X = np.arange(rX.min(), rX.max()).reshape(-1, 1)
-                fitted_model, summary, coef, coef_p, intercept, intercept_p, r2, x_line, y_line, ci, pi,std_error, MSE=_robust_regression(rX, rY, plotline_X, robust_param)
-                _tmpcolor=np.array([0,0.75,0])
-                _draw_ci_pi(ax, ci, pi,x_line, y_line, pi_color=_tmpcolor, ci_color=_tmpcolor+(1-_tmpcolor)*0.5, alpha=0.5)
-                #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
-                ax.plot(x_line, y_line, c=_tmpcolor)   
-                reg_legend_elements.append(Line2D([0], [0], marker="", linewidth=3,color=_tmpcolor,
-                                    label="b1: {x:.2f}\np: {p:.1E}\nr2: {y:.2f}".format(x=coef,y=r2, p=coef_p),
-                                    ))
+                fitted_models, reg_results=_regression(df, x, y, ax, robust_param=robust_param, newkey="total")
+                regression_models.update(fitted_models)
+                regression_results.update(reg_results)
+                # reg_legend_elements=[]
+                # rX, rY=df[x], df[y]
+                # plotline_X = np.arange(rX.min(), rX.max()).reshape(-1, 1)
+                # fitted_model, summary, coef, coef_p, intercept, intercept_p, r2, x_line, y_line, ci, pi,std_error, MSE=_robust_regression(rX, rY, plotline_X, robust_param)
+                # _tmpcolor=np.array([0,0.75,0])
+                # _draw_ci_pi(ax, ci, pi,x_line, y_line, pi_color=_tmpcolor, ci_color=_tmpcolor+(1-_tmpcolor)*0.5, alpha=0.5)
+                # #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
+                # ax.plot(x_line, y_line, c=_tmpcolor)   
+                # reg_legend_elements.append(Line2D([0], [0], marker="", linewidth=3,color=_tmpcolor,
+                #                     label="\u03B21: {x:.2f}\np: {p:.1E}\nr2: {y:.2f}".format(x=coef,y=r2, p=coef_p),
+                #                     ))
 
-                ax.add_artist(ax.legend(handles=reg_legend_elements, 
-                                        title="Regression",
-                                        loc="upper left", bbox_to_anchor=(0.0, -0.1), ncol=3))
+                # ax.add_artist(ax.legend(handles=reg_legend_elements, 
+                #                         title="Regression",
+                #                         loc="upper left", bbox_to_anchor=(0.0, -0.1), ncol=3))
             
 
             sc=ax.scatter(_df[x], _df[y], c=_df[_c], 
@@ -622,7 +622,7 @@ def scatterplot(df: pd.DataFrame,
                           edgecolors=edgecolors,
                           linewidths=linewidths)
             if kde==True:
-                sns.kdeplot(data=df, x=x, y=y, ax=ax, color=color, **kde_kw)
+                sns.kdeplot(data=df, x=x, y=y, ax=ax, color=color, legend=False, **kde_kw)
                 ax.set(xlabel=None)
                 ax.set(ylabel=None)
             # cax = plt.axes([0.86, 0.1, 0.075, 0.5])
@@ -668,28 +668,31 @@ def scatterplot(df: pd.DataFrame,
         ax.set_zorder(1)
 
         if regression==True:
-            reg_legend_elements=[]
-            rX, rY=df[x], df[y]
-            plotline_X = np.arange(rX.min(), rX.max()).reshape(-1, 1)
-            fitted_model, summary, coef, coef_p, intercept, intercept_p, r2, x_line, y_line, ci, pi,std_error, MSE=_robust_regression(rX, rY, plotline_X, robust_param)
-            _tmpcolor=np.array([0,0.75,0])
-            _draw_ci_pi(ax, ci, pi,x_line, y_line, pi_color=_tmpcolor, ci_color=_tmpcolor+(1-_tmpcolor)*0.5, alpha=0.5)
-            #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
-            ax.plot(x_line, y_line, c=_tmpcolor)   
-            reg_legend_elements.append(Line2D([0], [0], marker="", linewidth=3,color=_tmpcolor,
-                                label="b1: {x:.2f}\np: {p:.1E}\nr2: {y:.2f}".format(x=coef,y=r2, p=coef_p),
-                                ))
+            fitted_models, reg_results=_regression(df, x, y, ax, robust_param=robust_param, newkey="total")
+            regression_models.update(fitted_models)
+            regression_results.update(reg_results)
+            # reg_legend_elements=[]
+            # rX, rY=df[x], df[y]
+            # plotline_X = np.arange(rX.min(), rX.max()).reshape(-1, 1)
+            # fitted_model, summary, coef, coef_p, intercept, intercept_p, r2, x_line, y_line, ci, pi,std_error, MSE=_robust_regression(rX, rY, plotline_X, robust_param)
+            # _tmpcolor=np.array([0,0.75,0])
+            # _draw_ci_pi(ax, ci, pi,x_line, y_line, pi_color=_tmpcolor, ci_color=_tmpcolor+(1-_tmpcolor)*0.5, alpha=0.5)
+            # #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
+            # ax.plot(x_line, y_line, c=_tmpcolor)   
+            # reg_legend_elements.append(Line2D([0], [0], marker="", linewidth=3,color=_tmpcolor,
+            #                     label="\u03B21: {x:.2f}\np: {p:.1E}\nr2: {y:.2f}".format(x=coef,y=r2, p=coef_p),
+            #                     ))
 
-            ax.add_artist(ax.legend(handles=reg_legend_elements, 
-                                    title="Regression",
-                                    loc="upper left", bbox_to_anchor=(0.0, -0.1), ncol=3))
+            # ax.add_artist(ax.legend(handles=reg_legend_elements, 
+            #                         title="Regression",
+            #                         loc="upper left", bbox_to_anchor=(0.0, -0.1), ncol=3))
 
         sc=ax.scatter(df[x], df[y], c=c, 
                         s=size,
                         edgecolors=edgecolors,
                         linewidths=linewidths)
         if kde==True:
-            sns.kdeplot(data=df, x=x, y=y, ax=ax, color=color, **kde_kw)
+            sns.kdeplot(data=df, x=x, y=y, ax=ax, color=color, legend=False, **kde_kw)
             ax.set(xlabel=None)
             ax.set(ylabel=None)
         ax.text(0.1,0.8, cname, bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", lw=1, alpha=0.8))
@@ -713,21 +716,24 @@ def scatterplot(df: pd.DataFrame,
         ax=axes[i]
 
         if regression==True:
-            reg_legend_elements=[]
-            rX, rY=df[x], df[y]
-            plotline_X = np.arange(rX.min(), rX.max()).reshape(-1, 1)
-            fitted_model, summary, coef, coef_p, intercept, intercept_p, r2, x_line, y_line, ci, pi,std_error, MSE=_robust_regression(rX, rY, plotline_X, robust_param)
-            _tmpcolor=np.array([0,0.75,0])
-            _draw_ci_pi(ax, ci, pi,x_line, y_line, pi_color=_tmpcolor, ci_color=_tmpcolor+(1-_tmpcolor)*0.5, alpha=0.5)
-            #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
-            ax.plot(x_line, y_line, c=_tmpcolor)   
-            reg_legend_elements.append(Line2D([0], [0], marker="", linewidth=3,color=_tmpcolor,
-                                label="b1: {x:.2f}\np: {p:.1E}\nr2: {y:.2f}".format(x=coef,y=r2, p=coef_p),
-                                ))
+            fitted_models, reg_results=_regression(df, x, y, ax, robust_param=robust_param, newkey="total")
+            regression_models.update(fitted_models)
+            regression_results.update(reg_results)
+            # reg_legend_elements=[]
+            # rX, rY=df[x], df[y]
+            # plotline_X = np.arange(rX.min(), rX.max()).reshape(-1, 1)
+            # fitted_model, summary, coef, coef_p, intercept, intercept_p, r2, x_line, y_line, ci, pi,std_error, MSE=_robust_regression(rX, rY, plotline_X, robust_param)
+            # _tmpcolor=np.array([0,0.75,0])
+            # _draw_ci_pi(ax, ci, pi,x_line, y_line, pi_color=_tmpcolor, ci_color=_tmpcolor+(1-_tmpcolor)*0.5, alpha=0.5)
+            # #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
+            # ax.plot(x_line, y_line, c=_tmpcolor)   
+            # reg_legend_elements.append(Line2D([0], [0], marker="", linewidth=3,color=_tmpcolor,
+            #                     label="\u03B21: {x:.2f}\np: {p:.1E}\nr2: {y:.2f}".format(x=coef,y=r2, p=coef_p),
+            #                     ))
 
-            ax.add_artist(ax.legend(handles=reg_legend_elements, 
-                                    title="Regression",
-                                    loc="upper left", bbox_to_anchor=(0.0, -0.1), ncol=3))
+            # ax.add_artist(ax.legend(handles=reg_legend_elements, 
+            #                         title="Regression",
+            #                         loc="upper left", bbox_to_anchor=(0.0, -0.1), ncol=3))
 
         sc=ax.scatter(df[x], df[y], c=color,s=size,alpha=alpha,edgecolors=edgecolors,linewidths=linewidths)
         if kde==True:
@@ -761,7 +767,9 @@ def scatterplot(df: pd.DataFrame,
     _save(save, "scatter")
     #  plt.tight_layout()
 
-    return {"axes":axes, "fig":fig}
+    return {"axes":axes, "fig":fig, 
+            "regression_models":regression_models, "regression_results":regression_results, 
+            "kmeans_result":_kmeans, "df":df}
 
 def clusterplot(df: pd.DataFrame,
                 variables: List=[],
@@ -3155,3 +3163,57 @@ def _ransac(X,Y,plotline_X,random_state, ransac_param):
     coef_p=stats.t.sf(abs(fitted_model.estimator_.coef_[0]/sigma), df=X.shape[0]-2)
 
     return fitted_model, coef, coef_p, intercept, r2, x_line, y_line, ci, pi,std_error, MSE, inlier_mask, outlier_mask
+
+
+def _regression(df, x, y, ax, cat="", _clut={}, robust_param={}, newkey=""):
+    reg_legend_elements=[]
+    fitted_models={}
+    reg_res={}
+    if cat !="":
+        
+        for key in _clut.keys():
+            key_filt=df[cat]==key
+            rdf=df.loc[key_filt]
+            rX, rY=rdf[x], rdf[y]
+            plotline_X = np.arange(rX.min(), rX.max()).reshape(-1, 1)
+            fitted_model, summary, coef, coef_p, intercept, intercept_p, r2, x_line, y_line, ci, pi,std_error, MSE=_robust_regression(rX, rY, plotline_X, robust_param)
+            _tmpcolor=np.array(_clut[key])
+            _draw_ci_pi(ax, ci, pi,x_line, y_line, pi_color=_tmpcolor, ci_color=_tmpcolor+(1-_tmpcolor)*0.5, alpha=0.75)
+            ax.plot(x_line, y_line, c=_tmpcolor)   
+            reg_legend_elements.append(Line2D([0], [0], marker="", linewidth=3,color=_tmpcolor,
+                                label="\u03B21: {x:.2f}\np: {p:.1E}\nr2: {y:.2f}".format(x=coef,y=r2, p=coef_p),
+                                ))
+            fitted_models[cat+"_"+key]=fitted_model
+            reg_res[cat+"_"+key]={"coefficient":coef,
+                                  "coefficient_pvalue":coef_p,
+                                  "intercept":intercept,
+                                  "intercept_pvalue":intercept_p,
+                                  "r2": r2,
+                                  "mse":MSE}
+    else:
+
+        rX, rY=df[x], df[y]
+        plotline_X = np.arange(rX.min(), rX.max()).reshape(-1, 1)
+        (fitted_model, summary, coef, coef_p, 
+         intercept, intercept_p, r2, 
+         x_line, y_line, ci, pi,std_error, MSE)=_robust_regression(rX, rY, plotline_X, robust_param)
+        
+        _tmpcolor=np.array([0,0.75,0])
+        _draw_ci_pi(ax, ci, pi,x_line, y_line, pi_color=_tmpcolor, ci_color=_tmpcolor+(1-_tmpcolor)*0.5, alpha=0.75)
+        ax.plot(x_line, y_line, c=_tmpcolor)   
+        reg_legend_elements.append(Line2D([0], [0], marker="", linewidth=3,color=_tmpcolor,
+                            label="\u03B21: {x:.2f}\np: {p:.1E}\nr2: {y:.2f}".format(x=coef,y=r2, p=coef_p),
+                            ))
+        if newkey=="":
+            newkey="regression"
+        fitted_models[newkey]=fitted_model
+        reg_res[newkey]={"coefficient":coef,
+                                "coefficient_pvalue":coef_p,
+                                "intercept":intercept,
+                                "intercept_pvalue":intercept_p,
+                                "r2": r2,
+                                "mse":MSE}
+    ax.add_artist(ax.legend(handles=reg_legend_elements, 
+                            title="Regression",
+                            loc="upper left", bbox_to_anchor=(0.0, -0.1), ncol=3))
+    return fitted_models,reg_res
