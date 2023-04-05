@@ -436,9 +436,9 @@ def scatterplot(df: pd.DataFrame,
         else:
             if len(figsize)==0:
                 if regression==True:
-                    figsize=[10,5*totalnum//2+int(totalnum%2!=0)]
+                    figsize=[9,5*totalnum//2+int(totalnum%2!=0)]
                 else:
-                    figsize=[10,4*totalnum//2+int(totalnum%2!=0)]
+                    figsize=[9,4*totalnum//2+int(totalnum%2!=0)]
             
             fig, axes=plt.subplots(nrows=totalnum//2+int(totalnum%2!=0),
                                     ncols=2,figsize=figsize,gridspec_kw=gridspec_kw)
