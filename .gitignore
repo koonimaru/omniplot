@@ -17,3 +17,5 @@ dist/omniplot-0.2.3-py3-none-any.whl
 dist/omniplot-0.2.3.tar.gz
 build/lib/omniplot/__init__.py
 .gitignore
+tests/scatter_test.ipynb
+tests/scatter1_scatter.png

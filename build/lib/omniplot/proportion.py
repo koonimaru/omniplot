@@ -43,7 +43,7 @@ plt.rcParams['font.sans-serif'] = ['Arial']
 plt.rcParams['svg.fonttype'] = 'none'
 sns.set_theme(font="Arial")
 
-__all__=["stacked_barplot","nice_piechart","nice_piechart_num","stackedlines","nested_piechart","_nested_piechart"]
+__all__=["stacked_barplot","nice_piechart","nice_piechart_num","stackedlines","nested_piechart","_nested_piechart","stacked_barplot_num"]
 
 def _stacked_barplot(df: pd.DataFrame,
                     x: Union[str, list],
@@ -325,6 +325,7 @@ def stacked_barplot(df: pd.DataFrame,
                     test_pairs: List[List[str]]=[],
                     palette: Union[str,dict]="tab20c",
                     show_values: bool=True,
+                    show_values_intact: bool=False,
                     show: bool=False,
                     figsize: List[int]=[],
                     xunit: str="",
@@ -338,7 +339,7 @@ def stacked_barplot(df: pd.DataFrame,
                     ylim: Optional[int]=None)-> Dict:
     
     """
-    Drawing a stacked barplot with or without the fisher's exact test 
+    Drawing a stacked barplot by counting observations with or without the fisher's exact test. 
     
     Parameters
     ----------
@@ -365,7 +366,10 @@ def stacked_barplot(df: pd.DataFrame,
         e.g.) palette={""}
     show_values: bool, optional
         Wheter to exhibit the values of fractions/counts/percentages.
-    
+
+    show_values_intact: bool, optional
+        Wheter to exhibit non-scaled counts.
+
     show : bool, optional
         Whether or not to show the figure.
     
@@ -387,7 +391,7 @@ def stacked_barplot(df: pd.DataFrame,
 
     Returns
     -------
-    dict {"pval":pvals,"axes":ax}
+    {"pval":pvals,"axes":ax,"data":data} : dict
     
     Raises
     ------
@@ -649,8 +653,326 @@ def stacked_barplot(df: pd.DataFrame,
         fig.suptitle(title)
     if show:
         plt.show()
-    return {"pval":pvals,"axes":ax}
+    return {"pval":pvals,"axes":ax,"data":data}
 
+def stacked_barplot_num(df: pd.DataFrame,
+                    x: str="",
+                    scale: str="fraction",
+                    test_pairs: List[List[str]]=[],
+                    palette: Union[str,dict]="tab20c",
+                    show_values: bool=True,
+                    show_values_intact: bool=False,
+                    show: bool=False,
+                    figsize: List[int]=[],
+                    xlabel: str="",
+                    ylabel: str="",
+                    unit: Union[str, List, Dict]="",
+                    title: str="",
+                    hatch: bool=False,
+                    rotation: Optional[int]=None,
+                    ax: Optional[plt.Axes]=None,
+                    show_legend:bool=True,
+                    ylim: Optional[int]=None,
+                    horizontal: bool=False,
+                    margins: dict={},
+                    gridspec_kw: dict={},
+                    legend_row_num: int=2,
+                    bar_width: float=0.75
+                    )-> Dict:
+    
+    """
+    Drawing a stacked barplot by taking values as an input with or without the fisher's exact test. 
+    
+    Parameters
+    ----------
+    df : pandas DataFrame
+        A wide-form data format.
+        e.g., 
+                  Bournemouth    Brighton
+        Possession         36          64
+        Shots              14          16
+        Shots on Target     3           6
+        Corners             5           5
+        Fouls              11           5
+    
+    x: str
+        The category to place in x axis. If not set, it will use the index of the input dataframe.
+    scale: str, optional
+        Scaling method. Available options are: fraction, percentage, absolute
+    test_pairs : list, optional
+        pairs of categorical values related to x. It will calculate -log10 (p value) (mlp) of the fisher exact test.
+        Examples: [["Adelie","Chinstrap" ],
+                    ["Gentoo","Chinstrap" ],
+                    ["Adelie","Gentoo" ]]
+    palette : str or dict, optional (default: "tab20c")
+        A matplotlib colormap name or dictionary in which keys are values of the hue category and values are RGB array.
+        e.g.) palette={""}
+    show_values: bool, optional
+        Wheter to exhibit the values of fractions/counts/percentages.
+
+    show_values_intact: bool, optional
+        Wheter to exhibit non-scaled values.
+
+    show : bool, optional
+        Whether or not to show the figure.
+    
+    figsize : List[int], optional
+        The figure size, e.g., [4, 6].
+    title: str optional, (default:"")
+        The title of the figure.
+    hatch: bool, optional (default: False)
+        Adding hatches to the bars
+    rotation: int, optional (default:90)
+        The orientation of the x axis labels.
+    ax: plt.Axes, optional (default: None)
+        The ax object to be plotted.
+    show_legend: bool, optional (default: True)
+        Whether to show legends.
+    bin_num: dict, int, optional (default: 10)
+        A histogram bin number when columns with float values are selected. 
+        You can specify the bin number of each column by using dictionary (e.g., bin_num={"A":10,"B",5}).
+
+    Returns
+    -------
+    {"pval":pvals,"axes":ax,"data":data} : dict
+    
+    Raises
+    ------
+    Notes
+    -----
+    References
+    ----------
+    See Also
+    --------
+    Examples
+    --------
+    """
+    if type(df)==Dict:
+        df=pd.DataFrame(df)
+   
+    pvals={}
+    # if len(test_pairs) >0:
+    #     print("mlp stands for -log10(p value)")
+    #     for _hue in hue:
+            
+    #         for i, h in enumerate(huekeys[_hue]):
+                
+    #     for p1,p2 in test_pairs:
+    #         yes_total=np.sum(data[_x][_hue][keys[idx1]])
+    #         no_total=np.sum(data[_x][_hue][keys[idx2]])
+    #         yes_and_hue=data[_x][_hue][keys[idx1]][i]
+    #         no_and_hue=data[_x][_hue][keys[idx2]][i]
+    #         table=[[yes_and_hue, no_and_hue],
+    #                 [yes_total-yes_and_hue, no_total-no_and_hue]]
+
+    #         odd, pval=fisher_exact(table)
+    #         pvals[_x][_hue][h].append([idx1, idx2, pval])
+    
+    
+    if len(gridspec_kw)==0:
+        if horizontal==True:
+            gridspec_kw=dict(top=0.75,left=0.25,right=0.9, bottom=0.17)
+        else:
+            gridspec_kw=dict(top=0.93,left=0.1,right=0.7, bottom=0.17)
+
+    if len(margins)==0:
+        if horizontal==True and scale!="absolute":
+            margins=dict(x=0)
+        else:
+            margins=dict(x=0.1)
+
+
+    if len(figsize)==0:
+        if horizontal==True:
+            figsize=[6, len(df.index)/2]
+        else:
+            figsize=[len(df.columns)+1, 6]
+    if ax!=None:
+        fig=None
+    else:
+        fig, ax=plt.subplots(figsize=figsize,gridspec_kw=gridspec_kw)
+        plt.margins(**margins)
+    if unit=="":
+        if scale=="absolute":
+            unit=""
+        elif scale=="fraction":
+            unit=""
+        elif scale=="percentage":
+            unit="%"
+
+    pos={}
+    if x=="":
+        keys=list(df.index)
+        _df=df
+    else:
+        keys=list(df[x])
+        _df=df.drop(columns=[x])
+
+    if scale=="fraction":
+        _df=_df.div(_df.sum(axis=1),axis = 'rows',)
+    elif scale=="percentage":
+        _df=100*_df.div(_df.sum(axis=1),axis = 'rows',)
+
+
+    if type(palette)==str:
+        cmap=plt.get_cmap(palette, len(_df.columns)) 
+    pos={}
+    bottom=np.zeros([len(keys)])
+    
+    for i, col in enumerate(_df.columns):
+        # print(col)
+        heights=_df[col].values
+        # print(heights,bottom)
+        originalval=df[col].values
+        if horizontal==True:
+            if type(palette)==dict:
+                if hatch==True:
+                    ax.barh(keys, width=heights,height=bar_width, left=bottom, color=palette[col], label=col, hatch=hatch_list[i])
+                else:
+                    ax.barh(keys, width=heights,height=bar_width, left=bottom, color=palette[col], label=col)
+            else:
+                if hatch==True:
+                    ax.barh(keys, width=heights,height=bar_width, left=bottom, color=cmap(i), label=col, hatch=hatch_list[i])
+                else:
+                    ax.barh(keys, width=heights,height=bar_width, left=bottom, color=cmap(i), label=col)
+
+        else:
+            if type(palette)==dict:
+                if hatch==True:
+                    ax.bar(keys, heights,width=bar_width, bottom=bottom, color=palette[col], label=col, hatch=hatch_list[i])
+                else:
+                    ax.bar(keys, heights,width=bar_width, bottom=bottom, color=palette[col], label=col)
+            else:
+                if hatch==True:
+                    ax.bar(keys, heights,width=bar_width, bottom=bottom, color=cmap(i), label=col, hatch=hatch_list[i])
+                else:
+                    ax.bar(keys, heights,width=bar_width, bottom=bottom, color=cmap(i), label=col)
+        if show_values==True:
+            
+            for j, k in enumerate(keys):
+                
+                if type(unit)==dict:
+                    if k in unit:
+                        u=unit[k]
+                    else:
+                        u=""
+                elif type(unit)==list:
+                    u=unit[j]
+                else:
+                    u=unit
+                if horizontal==True:
+                    if show_values_intact==True:
+                        ax.text(bottom[j]+heights[j]/2, j,"{}{}".format(originalval[j],u), va="center",ha="center",
+                                bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="y", lw=1, alpha=0.8))
+                    else:
+                        ax.text(bottom[j]+heights[j]/2,j,"{:.2f}{}".format(heights[j],u), va="center",ha="center",
+                                bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="y", lw=1, alpha=0.8))
+                else:
+                    if show_values_intact==True:
+                        ax.text(j,bottom[j]+heights[j]/2,"{}{}".format(originalval[j],u), ha="center",
+                                bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="y", lw=1, alpha=0.8))
+                    else:
+                        ax.text(j,bottom[j]+heights[j]/2,"{:.2f}{}".format(heights[j],u), ha="center",
+                                bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="y", lw=1, alpha=0.8))
+                    
+            
+        pos[col]={key: [he, bo] for key, he, bo in zip(keys, heights, bottom)}
+        bottom+=heights
+    
+    #ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
+    if show_legend==True:
+        if horizontal==True:
+            ax.legend(loc=[0,1.01], ncols=len(_df.columns)//legend_row_num+int(len(_df.columns)%legend_row_num!=0))
+        else:
+            ax.legend(loc=[1.01,0])
+    if horizontal==True:
+        if rotation==None:
+            rotation=0
+
+        if len(keys)==1:
+            ax.set_yticks(ax.get_yticks(), labels=keys, rotation=rotation)
+            ax.margins(x=1)
+        else:
+            ax.set_yticks(ax.get_yticks(), labels=keys, rotation=rotation)
+        ax.set_ylabel(ylabel)
+        if xlabel =="":
+            if show_values_intact==False:
+                if scale=="absolute":
+                    xlabel="Counts"
+                elif scale=="fraction":
+                    xlabel="Fraction"
+                elif scale=="percentage":
+                    xlabel="Percentage"
+        
+        ax.set_xlabel(xlabel)
+    else:
+        if rotation==None:
+            rotation=90
+        if len(keys)==1:
+            ax.set_xticks(ax.get_xticks(), labels=keys, rotation=rotation)
+            ax.margins(x=1)
+        else:
+            ax.set_xticks(ax.get_xticks(), labels=keys, rotation=rotation)
+        ax.set_xlabel(xlabel)
+        if ylabel =="":
+            if show_values_intact==False:
+                if scale=="absolute":
+                    ylabel="Counts"
+                elif scale=="fraction":
+                    ylabel="Fraction"
+                elif scale=="percentage":
+                    ylabel="Percentage"
+        ax.set_ylabel(ylabel)
+
+    # if len(pvals)>0:
+        
+    #     for _hue in hue:
+    #         if _x==_hue:
+    #             continue
+    #         if not _hue in pos[_x]:
+    #             continue
+    #         hues=huekeys[_hue]
+    #         for i, h in enumerate(hues):
+    #             #print(pos)
+    #             #print(pos[_x])
+    #             _pos=pos[_x][_hue][h]
+    #             for idx1, idx2, pval in pvals[_x][_hue][h]:
+                    
+    #                 he1, bot1=_pos[keys[idx1]]
+    #                 he2, bot2=_pos[keys[idx2]]
+    #                 line, =ax.plot([idx1,idx2],[he1/2+bot1,he2/2+bot2],color="gray")
+    #                 # r1=ax.transData.transform([idx1, he1/2+bot1])
+    #                 # r2=ax.transData.transform([idx2, he2/2+bot2])
+    #                 r1=np.array([idx1, he1/2+bot1])
+    #                 r2=np.array([idx2, he2/2+bot2])
+    #                 r=r2-r1
+    #                 #print(ax.get_xlim(),ax.get_ylim())
+    #                 r=np.array([1,3])*r/np.array([ax.get_xlim()[1]-ax.get_xlim()[0],ax.get_ylim()[1]-ax.get_ylim()[0]])
+    #                 #r=ax.transData.transform(r)
+    #                 if idx2<idx1:
+    #                     r=-r
+    #                 #print(r)
+    #                 r=r*(r @ r)**(-0.5)
+    #                 #print(h,r)
+    #                 angle=np.arccos(r[0])
+    #                 if r[1]<0:
+    #                     angle= -angle
+    #                 #print(angle)
+    #                 if pval < 0.05:
+    #                     pval_str=str(np.round(-np.log10(pval), decimals=1))
+    #                 else:
+    #                     pval_str="ns"
+    #                 _line_annotate( "mlp="+pval_str, line, (idx1+idx2)/2, color="magenta")
+    if scale=="absolute" and ylim !=None:
+        ax.set_ylim(0, ylim)
+    if horizontal==True:
+        ax.invert_yaxis()
+
+    if title !="" and fig !=None:
+        fig.suptitle(title)
+    if show:
+        plt.show()
+    return {"pval":pvals,"axes":ax}
 
 def nice_piechart(df: pd.DataFrame, 
                   category: Union[str, List[str]],
@@ -662,7 +984,8 @@ def nice_piechart(df: pd.DataFrame,
                   title: str="",
                   hatch: bool=False,
                   figsize: list=[],
-                  show_legend:bool=False,bbox_to_anchor: list=[1.1, 1],
+                  show_legend:bool=False,
+                  bbox_to_anchor: list=[1.1, 1],
                   right: float=0.7,bottom=0.1) ->Dict:
     """
     Drawing a nice pichart by counting the occurrence of values from pandas dataframe. if you want to draw a pie chart from numerical values, try nice_piechart_num.
