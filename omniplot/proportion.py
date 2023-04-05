@@ -675,7 +675,9 @@ def stacked_barplot_num(df: pd.DataFrame,
                     ylim: Optional[int]=None,
                     horizontal: bool=False,
                     margins: dict={},
-                    gridspec_kw: dict={}
+                    gridspec_kw: dict={},
+                    legend_row_num: int=2,
+                    bar_width: float=0.75
                     )-> Dict:
     
     """
@@ -765,14 +767,11 @@ def stacked_barplot_num(df: pd.DataFrame,
 
     #         odd, pval=fisher_exact(table)
     #         pvals[_x][_hue][h].append([idx1, idx2, pval])
-    if scale=="fraction":
-        _df=df.div(df.sum(axis=1),axis = 'rows',)
-    elif scale=="percentage":
-        _df=100*df.div(df.sum(axis=1),axis = 'rows',)
+    
     
     if len(gridspec_kw)==0:
         if horizontal==True:
-            gridspec_kw=dict(top=0.85,left=0.25,right=0.9, bottom=0.17)
+            gridspec_kw=dict(top=0.75,left=0.25,right=0.9, bottom=0.17)
         else:
             gridspec_kw=dict(top=0.93,left=0.1,right=0.7, bottom=0.17)
 
@@ -785,7 +784,7 @@ def stacked_barplot_num(df: pd.DataFrame,
 
     if len(figsize)==0:
         if horizontal==True:
-            figsize=[6, len(df.index)]
+            figsize=[6, len(df.index)/2]
         else:
             figsize=[len(df.columns)+1, 6]
     if ax!=None:
@@ -803,10 +802,17 @@ def stacked_barplot_num(df: pd.DataFrame,
 
     pos={}
     if x=="":
-        keys=list(_df.index)
+        keys=list(df.index)
+        _df=df
     else:
-        keys=list(_df[x])
-        _df=_df.drop(columns=[x])
+        keys=list(df[x])
+        _df=df.drop(columns=[x])
+
+    if scale=="fraction":
+        _df=_df.div(_df.sum(axis=1),axis = 'rows',)
+    elif scale=="percentage":
+        _df=100*_df.div(_df.sum(axis=1),axis = 'rows',)
+
 
     if type(palette)==str:
         cmap=plt.get_cmap(palette, len(_df.columns)) 
@@ -814,30 +820,33 @@ def stacked_barplot_num(df: pd.DataFrame,
     bottom=np.zeros([len(keys)])
     
     for i, col in enumerate(_df.columns):
+        # print(col)
         heights=_df[col].values
+        # print(heights,bottom)
+        originalval=df[col].values
         if horizontal==True:
             if type(palette)==dict:
                 if hatch==True:
-                    ax.barh(keys, width=heights,height=0.5, left=bottom, color=palette[col], label=col, hatch=hatch_list[i])
+                    ax.barh(keys, width=heights,height=bar_width, left=bottom, color=palette[col], label=col, hatch=hatch_list[i])
                 else:
-                    ax.barh(keys, width=heights,height=0.5, left=bottom, color=palette[col], label=col)
+                    ax.barh(keys, width=heights,height=bar_width, left=bottom, color=palette[col], label=col)
             else:
                 if hatch==True:
-                    ax.barh(keys, width=heights,height=0.5, left=bottom, color=cmap(i), label=col, hatch=hatch_list[i])
+                    ax.barh(keys, width=heights,height=bar_width, left=bottom, color=cmap(i), label=col, hatch=hatch_list[i])
                 else:
-                    ax.barh(keys, width=heights,height=0.5, left=bottom, color=cmap(i), label=col)
+                    ax.barh(keys, width=heights,height=bar_width, left=bottom, color=cmap(i), label=col)
 
         else:
             if type(palette)==dict:
                 if hatch==True:
-                    ax.bar(keys, heights,width=0.5, bottom=bottom, color=palette[col], label=col, hatch=hatch_list[i])
+                    ax.bar(keys, heights,width=bar_width, bottom=bottom, color=palette[col], label=col, hatch=hatch_list[i])
                 else:
-                    ax.bar(keys, heights,width=0.5, bottom=bottom, color=palette[col], label=col)
+                    ax.bar(keys, heights,width=bar_width, bottom=bottom, color=palette[col], label=col)
             else:
                 if hatch==True:
-                    ax.bar(keys, heights,width=0.5, bottom=bottom, color=cmap(i), label=col, hatch=hatch_list[i])
+                    ax.bar(keys, heights,width=bar_width, bottom=bottom, color=cmap(i), label=col, hatch=hatch_list[i])
                 else:
-                    ax.bar(keys, heights,width=0.5, bottom=bottom, color=cmap(i), label=col)
+                    ax.bar(keys, heights,width=bar_width, bottom=bottom, color=cmap(i), label=col)
         if show_values==True:
             
             for j, k in enumerate(keys):
@@ -853,27 +862,27 @@ def stacked_barplot_num(df: pd.DataFrame,
                     u=unit
                 if horizontal==True:
                     if show_values_intact==True:
-                        ax.text(bottom[j]+heights[j]/2, j,"{}{}".format(df[col][j],u), va="center",
+                        ax.text(bottom[j]+heights[j]/2, j,"{}{}".format(originalval[j],u), va="center",ha="center",
                                 bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="y", lw=1, alpha=0.8))
                     else:
-                        ax.text(bottom[j]+heights[j]/2,j,"{:.2f}{}".format(heights[j],u), va="center",
+                        ax.text(bottom[j]+heights[j]/2,j,"{:.2f}{}".format(heights[j],u), va="center",ha="center",
                                 bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="y", lw=1, alpha=0.8))
                 else:
                     if show_values_intact==True:
-                        ax.text(j,bottom[j]+heights[j]/2,"{}{}".format(df[col][j],u), 
+                        ax.text(j,bottom[j]+heights[j]/2,"{}{}".format(originalval[j],u), ha="center",
                                 bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="y", lw=1, alpha=0.8))
                     else:
-                        ax.text(j,bottom[j]+heights[j]/2,"{:.2f}{}".format(heights[j],u), 
+                        ax.text(j,bottom[j]+heights[j]/2,"{:.2f}{}".format(heights[j],u), ha="center",
                                 bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="y", lw=1, alpha=0.8))
                     
             
-            pos[col]={key: [he, bo] for key, he, bo in zip(keys, heights, bottom)}
-            bottom+=heights
+        pos[col]={key: [he, bo] for key, he, bo in zip(keys, heights, bottom)}
+        bottom+=heights
     
     #ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
     if show_legend==True:
         if horizontal==True:
-            ax.legend(loc=[0,1.01], ncols=len(_df.columns)//2+int(len(_df.columns)%2!=0))
+            ax.legend(loc=[0,1.01], ncols=len(_df.columns)//legend_row_num+int(len(_df.columns)%legend_row_num!=0))
         else:
             ax.legend(loc=[1.01,0])
     if horizontal==True:
@@ -885,16 +894,16 @@ def stacked_barplot_num(df: pd.DataFrame,
             ax.margins(x=1)
         else:
             ax.set_yticks(ax.get_yticks(), labels=keys, rotation=rotation)
-        ax.set_ylabel(xlabel)
-        if show_values_intact==False:
-            if scale=="absolute":
-                xlabel="Counts"
-            elif scale=="fraction":
-                xlabel="Fraction"
-            elif scale=="percentage":
-                xlabel="Percentage"
-        else:
-            xlabel=xlabel
+        ax.set_ylabel(ylabel)
+        if xlabel =="":
+            if show_values_intact==False:
+                if scale=="absolute":
+                    xlabel="Counts"
+                elif scale=="fraction":
+                    xlabel="Fraction"
+                elif scale=="percentage":
+                    xlabel="Percentage"
+        
         ax.set_xlabel(xlabel)
     else:
         if rotation==None:
@@ -905,15 +914,14 @@ def stacked_barplot_num(df: pd.DataFrame,
         else:
             ax.set_xticks(ax.get_xticks(), labels=keys, rotation=rotation)
         ax.set_xlabel(xlabel)
-        if show_values_intact==False:
-            if scale=="absolute":
-                ylabel="Counts"
-            elif scale=="fraction":
-                ylabel="Fraction"
-            elif scale=="percentage":
-                ylabel="Percentage"
-        else:
-            ylabel=ylabel
+        if ylabel =="":
+            if show_values_intact==False:
+                if scale=="absolute":
+                    ylabel="Counts"
+                elif scale=="fraction":
+                    ylabel="Fraction"
+                elif scale=="percentage":
+                    ylabel="Percentage"
         ax.set_ylabel(ylabel)
 
     # if len(pvals)>0:
