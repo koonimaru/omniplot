@@ -200,7 +200,6 @@ def _marginal_plot(fig, ax,df, x,y, cat, lut,_xrange,_yrange , marginal_proporti
 def scatterplot(df: pd.DataFrame,
                 x: str,
                 y: str,
-
                 ax: Optional[plt.Axes]= None,
                 fig : Optional[mpl.figure.Figure] =None,
 
@@ -400,8 +399,8 @@ def scatterplot(df: pd.DataFrame,
             if regression==True:
                 gridspec_kw={"right":0.67, "bottom":0.3}
             else:
-                gridspec_kw={"right":0.67}
-        if totalnum==2:
+                gridspec_kw={"right":0.67, "bottom":0.15}
+        elif totalnum==2:
             if regression==True:
                 gridspec_kw={"wspace":0.75,"hspace":0.5,"right":0.85, "bottom":0.35, "top":0.95}
             else:
@@ -431,7 +430,7 @@ def scatterplot(df: pd.DataFrame,
         
         if totalnum<=1:
             if len(figsize)==0:
-                figsize=[7,5]
+                figsize=[6,4]
             fig, ax=plt.subplots(figsize=figsize,gridspec_kw=gridspec_kw)
             axes=[ax]
         else:
