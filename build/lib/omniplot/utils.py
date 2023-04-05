@@ -853,16 +853,16 @@ def _draw_ci_pi(ax: plt.Axes,
     """
     Drawing a confidence interval and a prediction interval 
     """
-    
+    ax.fill_between(x_line, y_line + ci, 
+                    y_line - ci, color = ci_color, 
+                    label = '95% confidence interval',
+                    alpha=alpha)
     
     ax.fill_between(x_line, y_line + pi, y_line - pi, 
                 color = pi_color, 
                 label = '95% prediction interval',
                 alpha=alpha*0.5)
-    ax.fill_between(x_line, y_line + ci, 
-                    y_line - ci, color = ci_color, 
-                    label = '95% confidence interval',
-                    alpha=alpha)
+    
     
 from sklearn.cluster import KMeans
 def _optimal_kmeans(X: Union[np.ndarray, list], testrange: list, topn: int=2)-> List[int]:

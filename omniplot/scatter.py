@@ -252,7 +252,7 @@ def scatterplot(df: pd.DataFrame,
                 rows_cols: list=[],
                 save: str="",
                 gridspec_kw: dict={},
-                adjust_kw: dict={}
+
                 )-> Dict:
     """
     Simple scatter plot. almost same function with seaborn.scatterplot.  
@@ -393,14 +393,15 @@ def scatterplot(df: pd.DataFrame,
     totalnum=len(category)+len(colors)+int(len(c.shape)==2)
     if totalnum<=1:
         totalnum=1
+        axlabel="each"
     # determining the figure size and the number of rows and columns.
     if len(gridspec_kw)==0:
         if totalnum==1:
             if regression==True:
                 gridspec_kw={"right":0.67, "bottom":0.3}
             else:
-                gridspec_kw={"right":0.67}
-        if totalnum==2:
+                gridspec_kw={"right":0.67, "bottom":0.15}
+        elif totalnum==2:
             if regression==True:
                 gridspec_kw={"wspace":0.75,"hspace":0.5,"right":0.85, "bottom":0.35, "top":0.95}
             else:
@@ -430,7 +431,7 @@ def scatterplot(df: pd.DataFrame,
         
         if totalnum<=1:
             if len(figsize)==0:
-                figsize=[7,5]
+                figsize=[6,4]
             fig, ax=plt.subplots(figsize=figsize,gridspec_kw=gridspec_kw)
             axes=[ax]
         else:
