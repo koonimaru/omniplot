@@ -200,7 +200,6 @@ def _marginal_plot(fig, ax,df, x,y, cat, lut,_xrange,_yrange , marginal_proporti
 def scatterplot(df: pd.DataFrame,
                 x: str,
                 y: str,
-
                 ax: Optional[plt.Axes]= None,
                 fig : Optional[mpl.figure.Figure] =None,
 
