@@ -350,6 +350,7 @@ def scatterplot(df: pd.DataFrame,
     "kmeans_result":_kmeans, "df":df} : dict
 
     """
+    # functions to scale and rescale the size of each point
     def _scale_size(x, size_scale, smin, smax):
         return size_scale*(0.01+(x-smin)/(smax-smin))
     def _reverse_size(x, size_scale, smin, smax):
@@ -383,7 +384,7 @@ def scatterplot(df: pd.DataFrame,
     # Calculating clusters and add cluster labels to dataframe
     _kmeans=None
     if kmeans==True:
-        _kmeans = KMeans(n_clusters=n_clusters, random_state=0, n_init="auto").fit(df[[x, y]].values, *kmeans_kw)
+        _kmeans = KMeans(n_clusters=n_clusters, random_state=0, n_init="auto").fit(X, *kmeans_kw)
         df["kmeans"]=_kmeans.labels_
         _kmeanlabels=np.unique(_kmeans.labels_)
         category.append("kmeans")
@@ -711,7 +712,7 @@ def scatterplot(df: pd.DataFrame,
         bbox=axes[0].get_position()
         fig.text(0.5, 0.05, x, ha='center',fontsize="large")
         fig.text(bbox.bounds[0]*0.5, 0.5, y, va='center', rotation='vertical',fontsize="large")
-        
+
     if len(axes) != totalnum:
         for i in range(len(axes)-totalnum):
             axes[-(i+1)].set_axis_off()
