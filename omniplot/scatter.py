@@ -36,8 +36,8 @@ from matplotlib.ticker import StrMethodFormatter
 import statsmodels.api as sm
 from sklearn.linear_model import RANSACRegressor
 from matplotlib import colors
-
-
+from omniplot._adjustText import adjust_text
+import copy
 colormap_list: list=["nipy_spectral", "terrain","tab20b","tab20c","gist_rainbow","hsv","CMRmap","coolwarm","gnuplot","gist_stern","brg","rainbow","jet"]
 hatch_list: list = ['//', '\\\\', '||', '--', '++', 'xx', 'oo', 'OO', '..', '**','/o', '\\|', '|*', '-\\', '+o', 'x*', 'o-', 'O|', 'O.', '*-']
 marker_list: list=[ "o",'_' , '+','|', 'x', 'v', '^', '<', '>', 's', 'p', '*', 'h', 'D', 'd', 'P', 'X','.', '1', '2', '3', '4','|', '_']
@@ -49,7 +49,7 @@ plt.rcParams['font.sans-serif'] = ['Arial']
 plt.rcParams['svg.fonttype'] = 'none'
 sns.set_theme(font="Arial")
 
-__all__=["clusterplot", "decomplot", "pie_scatter","manifoldplot", "regression_single","scatterplot"]
+__all__=["clusterplot", "decomplot", "pie_scatter","manifoldplot", "regression_single","scatterplot","volcanoplot"]
 def _scatter(_df, 
              x,
              y, 
@@ -223,7 +223,7 @@ def scatterplot(df: pd.DataFrame,
                 cname: str="",
                 size_scale: float=100,
                 palette: str="",
-                palette_cat: str="tab20c",
+                palette_cat: Union[str, Dict]="tab20c",
                 palette_val: str="coolwarm",
                 size_legend_num: int=4,
                 markers: bool=False,
@@ -395,11 +395,14 @@ def scatterplot(df: pd.DataFrame,
         axlabel="each"
     # determining the figure size and the number of rows and columns.
     if len(gridspec_kw)==0:
+        _right=0
+        if show_legend==False:
+            _right+=0.16
         if totalnum==1:
             if regression==True:
-                gridspec_kw={"right":0.67, "bottom":0.3}
+                gridspec_kw={"right":0.67+_right, "bottom":0.3}
             else:
-                gridspec_kw={"right":0.67, "bottom":0.15}
+                gridspec_kw={"right":0.67+_right, "bottom":0.15}
         elif totalnum==2:
             if regression==True:
                 gridspec_kw={"wspace":0.75,"hspace":0.5,"right":0.85, "bottom":0.35, "top":0.95}
@@ -411,7 +414,7 @@ def scatterplot(df: pd.DataFrame,
             else:
                 gridspec_kw={"wspace":0.75,"right":0.85, "top":0.95}
     if ax !=None:
-        if totalnum==1 and ax==plt.Axes:
+        if totalnum==1 and type(ax)==plt.Axes:
 
             axes=[ax]
         elif totalnum>1 and type(ax)==np.ndarray:
@@ -3172,3 +3175,201 @@ def _regression(df, x, y, ax, cat="", _clut={}, robust_param={}, newkey="", colo
                             title="Regression",
                             loc="upper left", bbox_to_anchor=(0.0, -0.1), ncol=3))
     return fitted_models,reg_res
+
+def volcanoplot(df: pd.DataFrame,
+                x: str,
+                y: str,
+                label: str="",
+                logscalex: bool=False,
+                logscaley: bool=True,
+                sizes: str="",
+                xthreshold: float=1,
+                ythreshold: float=0.05,
+                
+                topn_labels: int=5,
+                rankby: str="both",
+                topn_labels_left: int=0,
+                topn_labels_right: int=0,
+
+                base_color: str="gray",
+                highlight_color: str="red",
+                
+                save: str="",
+                write_csv: Union[bool, str]=False,
+
+                ax: Optional[plt.Axes]= None,
+                fig : Optional[mpl.figure.Figure] =None,
+                
+                markers: bool=False,
+                size: float=5.0,
+                size_scale: float=100,
+                plotline: bool=True,
+                linestyle="-",
+                linecolor="darkcyan",
+                alpha: float=1,
+                edgecolors: str="w",
+                size_format: str="",
+                xformat: str="",
+                yformat: str="",
+                xunit: str="",
+                yunit:str="",
+                size_unit: str="",
+                title: str="",
+                figsize: list=[],
+                
+                gridspec_kw: dict={},):
+    
+    if topn_labels_left==0 and topn_labels_right==0:
+        topn_labels_left=topn_labels
+        topn_labels_right=topn_labels
+
+    df=copy.deepcopy(df)
+    if len(figsize)==0:
+        figsize=[5,5]
+    if ax==None:
+        
+
+        fig, ax=plt.subplots(figsize=figsize)
+    
+    if np.amax(df[y]) <=1:
+
+        if logscaley!=False:
+            print("Transforming {} to -log10 values. if you do not want it, set 'logscaley=False'.".format(y))
+            df[y]=-np.log10(df[y])
+    elif logscaley==True:
+        df[y]=-np.log10(df[y])
+    if logscalex==True:
+        df[x]=np.log2(df[x])
+    if ythreshold <1:
+        ythreshold=-np.log10(ythreshold)
+    updown=[]
+    for _x, _y in zip(list(df[x]), list(df[y])):
+        if (_y <=ythreshold) or (np.abs(_x)<xthreshold):
+            updown.append("ns")
+        elif _y>ythreshold and _x>=xthreshold:
+            updown.append("up")
+        elif _y>ythreshold and _x<=-xthreshold:
+            updown.append("down")
+    df["updown"]=updown
+    
+    sig=df.loc[df["updown"]=="up"]
+    sig=sig.reset_index()
+    sigm=df.loc[df["updown"]=="down"]
+    sigm=sigm.reset_index()
+    palette={"ns": colors.to_rgb(base_color),
+             "up": colors.to_rgb(highlight_color),
+             "down": colors.to_rgb(highlight_color)}
+    
+    if sizes!="":
+        
+        scatterplot(df=df, x=x, y=y, category="updown", ax=ax,sizes=sizes, color=base_color, alpha=alpha, edgecolors=None, show_legend=False)
+        #ax.scatter(nonsig[x], nonsig[y], c=base_color, s=nonsig[sizes], alpha=alpha,)
+        # scatterplot(df=sig, x=x, y=y, ax=ax,sizes=sizes, color=highlight_color, alpha=alpha, edgecolors=None, show_legend=False)
+        # scatterplot(df=sigm, x=x, y=y, ax=ax,sizes=sizes, color=highlight_color, alpha=alpha, edgecolors=None, show_legend=False, xunit=xunit, yunit=yunit, title=title)
+        # # ax.scatter(sig[x], sig[y], c=highlight_color, s=sig[sizes])
+        # ax.scatter(sigm[x], sigm[y], c=highlight_color, s=sigm[sizes])
+    else:
+        scatterplot(df=df, x=x, y=y, category="updown",palette=palette, ax=ax,size=size, color=base_color, alpha=alpha, edgecolors=None, show_legend=False)
+        # scatterplot(df=nonsig, x=x, y=y, ax=ax,size=size, color=base_color, alpha=alpha, edgecolors=None, show_legend=False)
+        # scatterplot(df=sig, x=x, y=y, ax=ax,size=size, color=highlight_color, alpha=alpha, edgecolors=None, show_legend=False)
+        # scatterplot(df=sigm, x=x, y=y, ax=ax,size=size, color=highlight_color, alpha=alpha, edgecolors=None, show_legend=False, xunit=xunit, yunit=yunit, title=title)
+        # ax.scatter(nonsig[x], nonsig[y], c=base_color, s=size)
+        # ax.scatter(sig[x], sig[y], c=highlight_color, s=size)
+        # ax.scatter(sigm[x], sigm[y], c=highlight_color, s=size)
+    
+    # ax.set_xlabel(x)
+    # ax.set_xlabel(y)
+
+    xsrt=np.argsort(sig[x])[::-1]
+    xrank=np.argsort(xsrt)
+    xsrtm=np.argsort(np.abs(sigm[x]))[::-1]
+    xrankm=np.argsort(xsrtm)
+
+    ysrt=np.argsort(sig[y])[::-1]
+    yrank=np.argsort(ysrt)
+    ysrtm=np.argsort(sigm[y])[::-1]
+    yrankm=np.argsort(ysrtm)
+    if rankby=="both":
+        rank=(xrank+yrank)/2
+        rankm=(xrankm+yrankm)/2
+    elif rankby=="x" or rankby==x:
+        rank=xrank
+        rankm=xrankm
+    elif rankby=="y" or rankby==y:
+        rank=yrank
+        rankm=yrankm
+    labeled_genes=[]
+    texts=[]
+    for _rank, _sig, _topn_labels in zip([rank, rankm], [sig, sigm], [topn_labels_right, topn_labels_left]):
+        if len(_rank)!=0:
+            top_index=np.argsort(_rank)[:_topn_labels]
+            topsig=_sig.iloc[top_index]
+            if label=="":
+                labels=topsig.index
+            else:
+                labels=topsig[label]
+            
+            for _x, _y, _l in zip(topsig[x],topsig[y], labels):
+                #ax.text(_x, _y, _l)
+                texts.append( ax.text(_x, _y, _l, va="bottom"))
+
+            labeled_genes.append(topsig)
+    adjust_text(texts,
+            arrowprops=dict(arrowstyle="-", color='black', lw=0.5),force_text=(0.2,0.4))
+    ymin, ymax=np.amin(df[y]),np.amax(df[y])
+    xmin, xmax=np.amin(df[x]),np.amax(df[x])
+
+    if plotline==True:
+        ax.plot([xthreshold,xthreshold], [ythreshold, ymax],linestyle, color=linecolor, alpha=0.5)
+        ax.plot([-xthreshold,-xthreshold], [ythreshold, ymax],linestyle, color=linecolor, alpha=0.5)
+        ax.plot([xthreshold, xmax], [ythreshold, ythreshold],linestyle, color=linecolor, alpha=0.5)
+        ax.plot([xmin, -xthreshold], [ythreshold, ythreshold],linestyle, color=linecolor, alpha=0.5)
+        # ax.plot([xmin, xmax], [ythreshold, ythreshold],linestyle)
+    _save(save, "volcano")
+    res={"upgenes":sig, "downgenes":sigm,"labeledgenes":pd.concat(labeled_genes)}
+    if type(write_csv)==bool and write_csv==True:
+        for k, v in res.items():
+            v.to_csv(k+".csv")
+    elif type(write_csv)==str and write_csv!="":
+        for k, v in res.items():
+            v.to_csv(write_csv+"_"+k+".csv")
+    return  res
+    
+def manhattanplot(df: pd.DataFrame,
+                  x: str="BP",
+                  p: str="P",
+                  chrom: str="CHR",
+                  snp: str="SNP",
+                  zscore: str="",
+                  effectsize: str="",
+                  gene: str="",
+                  distance: str="",
+                  logtransform: bool=True,
+                  threshold: float=4,
+                  thresholdcolor: str="red"
+                  ):
+    df=df.reset_index()
+    gb = df.groupby(chrom)
+    if logtransform==True:
+
+        df[p]=-np.log10(df[p])
+    if threshold <1:
+        threshold=-np.log10(threshold)
+    colors=["gray", "black"]
+
+    fig, ax=plt.subplots()
+
+    for i, x in enumerate(gb.groups):
+
+        _df=gb.get_group(x)
+        ax.scatter(_df.index, _df[p], c=colors[i%2], s=5)
+        ax.text((np.max(_df.index)+np.min(_df.index))/2, -0.5, x)
+    _df=df.loc[df[p]>threshold]
+    ax.scatter(_df.index, _df[p], c=thresholdcolor, s=4)
+    maxindex=np.argmax(df[p])
+    ax.text(df.index[maxindex],df[p][maxindex], df[snp][maxindex]) #+"\n"+str(df[chrom][maxindex])+":"+str(df[x][maxindex]))
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+    #ax.spines['left'].set_visible(False)
+    ax.set_xticks([])
