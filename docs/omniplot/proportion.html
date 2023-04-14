@@ -42,7 +42,7 @@ from natsort import natsort_keygen
 from matplotlib.patches import Rectangle
 import scipy.cluster.hierarchy as sch
 import fastcluster as fcl
-
+from matplotlib.patches import Patch
 import sys 
 import matplotlib as mpl
 from sklearn.cluster import KMeans, DBSCAN
@@ -60,6 +60,7 @@ import scipy.stats as stats
 from joblib import Parallel, delayed
 from omniplot.chipseq_utils import _calc_pearson
 import itertools as it
+from matplotlib.ticker import StrMethodFormatter
 from omniplot.scatter import *
 colormap_list: list=[&#34;nipy_spectral&#34;, &#34;terrain&#34;,&#34;tab20b&#34;,&#34;tab20c&#34;,&#34;gist_rainbow&#34;,&#34;hsv&#34;,&#34;CMRmap&#34;,&#34;coolwarm&#34;,&#34;gnuplot&#34;,&#34;gist_stern&#34;,&#34;brg&#34;,&#34;rainbow&#34;,&#34;jet&#34;]
 hatch_list: list = [&#39;//&#39;, &#39;\\\\&#39;, &#39;||&#39;, &#39;--&#39;, &#39;++&#39;, &#39;xx&#39;, &#39;oo&#39;, &#39;OO&#39;, &#39;..&#39;, &#39;**&#39;,&#39;/o&#39;, &#39;\\|&#39;, &#39;|*&#39;, &#39;-\\&#39;, &#39;+o&#39;, &#39;x*&#39;, &#39;o-&#39;, &#39;O|&#39;, &#39;O.&#39;, &#39;*-&#39;]
@@ -70,7 +71,7 @@ plt.rcParams[&#39;font.sans-serif&#39;] = [&#39;Arial&#39;]
 plt.rcParams[&#39;svg.fonttype&#39;] = &#39;none&#39;
 sns.set_theme(font=&#34;Arial&#34;)
 
-__all__=[&#34;stacked_barplot&#34;,&#34;nice_piechart&#34;,&#34;nice_piechart_num&#34;,&#34;stackedlines&#34;]
+__all__=[&#34;stacked_barplot&#34;,&#34;nice_piechart&#34;,&#34;nice_piechart_num&#34;,&#34;stackedlines&#34;,&#34;nested_piechart&#34;,&#34;_nested_piechart&#34;,&#34;stacked_barplot_num&#34;]
 
 def _stacked_barplot(df: pd.DataFrame,
                     x: Union[str, list],
@@ -235,18 +236,18 @@ def _stacked_barplot(df: pd.DataFrame,
                     r1=np.array([idx1, he1/2+bot1])
                     r2=np.array([idx2, he2/2+bot2])
                     r=r2-r1
-                    print(ax.get_xlim(),ax.get_ylim())
+                    #print(ax.get_xlim(),ax.get_ylim())
                     r=np.array([1,3])*r/np.array([ax.get_xlim()[1]-ax.get_xlim()[0],ax.get_ylim()[1]-ax.get_ylim()[0]])
                     #r=ax.transData.transform(r)
                     if idx2&lt;idx1:
                         r=-r
-                    print(r)
+                    #print(r)
                     r=r*(r @ r)**(-0.5)
-                    print(h,r)
+                    #print(h,r)
                     angle=np.arccos(r[0])
                     if r[1]&lt;0:
                         angle= -angle
-                    print(angle)
+                    #print(angle)
                     _line_annotate( &#34;mlp=&#34;+str(np.round(-np.log10(pval), decimals=1)), line, (idx1+idx2)/2, color=&#34;magenta&#34;)
                     # plt.text((idx1+idx2)/2, 0.5*(he1/2+bot1+he2/2+bot2), &#34;mlp=&#34;+str(np.round(-np.log10(pval), decimals=1)), 
                     #          color=&#34;magenta&#34;, va=&#34;center&#34;,ha=&#34;center&#34;, rotation=360*angle/(2*np.pi),)
@@ -260,6 +261,89 @@ def _stacked_barplot(df: pd.DataFrame,
     return {&#34;pval&#34;:pvals,&#34;axes&#34;:ax}
 
 
+def _float2hist(val, bin_num=10):
+    nans=np.isnan(val)
+    ranges=[]
+    allcounts=[]
+
+    if np.sum(nans)&gt;0:
+        val=val[~nans]
+        nancount=np.sum(nans)
+        ranges.append(&#34;NA&#34;)
+        allcounts.append(nancount)
+
+    n=(np.amax(val)-np.amin(val))/bin_num
+    binsize=round(n,-round(np.log10(n)))
+    _n=np.abs(np.amin(val))
+    minval=round(_n,-round(np.log10(n)))
+    if np.amin(val)&lt;0:
+        minval-=binsize
+    _n=np.abs(np.amax(val))
+    maxval=round(_n,-round(np.log10(n)))
+    bins=np.linspace(minval, maxval, bin_num+1)
+    counts, _=np.histogram(val, bins=bins)
+    for i in range(counts.shape[0]):
+        if np.abs(bins[i])&lt;0.001 or np.abs(bins[i])&gt;=10**3:
+            num1=&#34;{:.2E}&#34;.format(bins[i])
+            num2=&#34;{:.2E}&#34;.format(bins[i+1])
+        else:
+            num1=str(bins[i])
+            num2=str(bins[i+1])
+        ranges.append(num1+&#34;-&#34;+num2)
+        allcounts.append(counts[i])
+    return ranges, allcounts
+
+
+def _float2cat(val, bin_num=10):
+    nans=np.isnan(val)
+    if np.sum(nans)&gt;0:
+        _val=val[~nans]
+    else:
+        _val=val
+    n=(np.amax(_val)-np.amin(_val))/bin_num
+    binsize=round(n,-round(np.log10(n)))
+    _n=np.abs(np.amin(_val))
+    minval=round(_n,-round(np.log10(n)))
+    if np.amin(_val)&lt;minval:
+        
+
+        minval-=binsize
+        if np.amin(_val) &gt;0 and minval &lt;0:
+            minval=0
+    _n=np.abs(np.amax(_val))
+    maxval=round(_n,-round(np.log10(n)))
+    if maxval&lt;np.amax(_val):
+        maxval+=binsize
+    bins=[ minval+i*binsize for i in range(bin_num) if minval+i*binsize&lt;=maxval]
+    bindict={}
+    for b in bins[:-1]:
+        if binsize&lt;0.001 or binsize&gt;=10**3:
+            num1=&#34;{:.2E}&#34;.format(b)
+            num2=&#34;{:.2E}&#34;.format(b+binsize)
+        else:
+            num1=str(b)
+            num2=str(b+binsize)
+        bindict[b]=num1+&#34;-&#34;+num2
+    val_string=[]
+
+    for v in val:
+        if np.isnan(v)==True:
+            val_string.append(&#34;NA&#34;)
+        else:
+            label=&#34;&#34;
+            for i in range(len(bins)-1):
+                if bins[i] &lt;=v&lt; bins[i]+binsize:
+                    label=bindict[bins[i]]
+                    break
+            if label==&#34;&#34;:
+                if v==maxval:
+                    label=bindict[bins[i]]
+            val_string.append(label)
+
+    return val_string
+
+
+
 def stacked_barplot(df: pd.DataFrame,
                     x: Union[str, list],
                     hue: Union[str, list],
@@ -269,6 +353,7 @@ def stacked_barplot(df: pd.DataFrame,
                     test_pairs: List[List[str]]=[],
                     palette: Union[str,dict]=&#34;tab20c&#34;,
                     show_values: bool=True,
+                    show_values_intact: bool=False,
                     show: bool=False,
                     figsize: List[int]=[],
                     xunit: str=&#34;&#34;,
@@ -277,17 +362,20 @@ def stacked_barplot(df: pd.DataFrame,
                     hatch: bool=False,
                     rotation: int=90,
                     ax: Optional[plt.Axes]=None,
-                    show_legend:bool=True)-&gt; Dict:
+                    show_legend:bool=True,
+                    bin_num: Union[dict, int]=10,
+                    ylim: Optional[int]=None)-&gt; Dict:
     
     &#34;&#34;&#34;
-    Drawing a stacked barplot with or without the fisher&#39;s exact test 
+    Drawing a stacked barplot by counting observations with or without the fisher&#39;s exact test. 
     
     Parameters
     ----------
     df : pandas DataFrame
     
     x: str or list
-        The category to place in x axis. Multiple categories can be passed by a list.
+        The category to place in x axis. Multiple categories can be passed by a list. 
+        It mainly works with categorical values, including strings boolians and integers, but also can take float values by automatically creating a histogram.
     hue: str or list
         Counting samples by the hue category. Multiple categories can be passed by a list.
     order: list, optional
@@ -306,16 +394,32 @@ def stacked_barplot(df: pd.DataFrame,
         e.g.) palette={&#34;&#34;}
     show_values: bool, optional
         Wheter to exhibit the values of fractions/counts/percentages.
-    
+
+    show_values_intact: bool, optional
+        Wheter to exhibit non-scaled counts.
+
     show : bool, optional
         Whether or not to show the figure.
     
     figsize : List[int], optional
         The figure size, e.g., [4, 6].
-     
+    title: str optional, (default:&#34;&#34;)
+        The title of the figure.
+    hatch: bool, optional (default: False)
+        Adding hatches to the bars
+    rotation: int, optional (default:90)
+        The orientation of the x axis labels.
+    ax: plt.Axes, optional (default: None)
+        The ax object to be plotted.
+    show_legend: bool, optional (default: True)
+        Whether to show legends.
+    bin_num: dict, int, optional (default: 10)
+        A histogram bin number when columns with float values are selected. 
+        You can specify the bin number of each column by using dictionary (e.g., bin_num={&#34;A&#34;:10,&#34;B&#34;,5}).
+
     Returns
     -------
-    dict {&#34;pval&#34;:pvals,&#34;axes&#34;:ax}
+    {&#34;pval&#34;:pvals,&#34;axes&#34;:ax,&#34;data&#34;:data} : dict
     
     Raises
     ------
@@ -328,7 +432,8 @@ def stacked_barplot(df: pd.DataFrame,
     Examples
     --------
     &#34;&#34;&#34;
-    
+    if type(df)==Dict:
+        df=pd.DataFrame(df)
     if type(x)==str:
         x=[x]
         if order!=None:
@@ -337,17 +442,31 @@ def stacked_barplot(df: pd.DataFrame,
         hue=[hue]
         if hue_order!=None:
             hue_order=[hue_order]
+    
     for _x in x:
-        if df[_x].isnull().values.any():
+
+        if df[_x].dtype==float:
+            if type(bin_num)==dict:
+                df[_x]=_float2cat(df[_x].values,bin_num=bin_num[_x])
+            else:
+                df[_x]=_float2cat(df[_x].values,bin_num=bin_num)
+
+        elif df[_x].isnull().values.any():
             df[_x]=df[_x].replace(np.nan, &#34;NA&#34;)
     for _hue in hue:
-        if df[_hue].isnull().values.any():
-            df[_hue]=df[_hue].replace(np.nan, &#34;NA&#34;)
+        if df[_hue].dtype==float:
+            if type(bin_num)==dict:
+                df[_hue]=_float2cat(df[_hue].values,bin_num=bin_num[_x])
+            else:
+                df[_hue]=_float2cat(df[_hue].values,bin_num=bin_num)
 
-    xkeys={}
-    keysx={}
+        elif df[_hue].isnull().values.any():
+            df[_hue]=df[_hue].replace(np.nan, &#34;NA&#34;)
+    data: dict={}
+    xkeys: dict={}
+    keysx: dict={}
     meankey_len=0
-    for i, _x in enumerate(x):
+    for i, _x in enumerate(x):              
         if order==None:
             u=np.unique(df[_x])
             keys=sorted(list(u))
@@ -368,7 +487,7 @@ def stacked_barplot(df: pd.DataFrame,
             hues=hue_order[i]
         huekeys[_hue]=hues
     
-    data={}
+    
     for _x, keys in xkeys.items():
         data[_x]={}
         for key in keys:
@@ -494,10 +613,14 @@ def stacked_barplot(df: pd.DataFrame,
                 
                 pos[_x][_hue][h]={key: [he, bo] for key, he, bo in zip(keys, heights, bottom)}
                 bottom+=heights
-            ax.set_xticks(ax.get_xticks(), labels=keys, rotation=rotation)
+            if len(keys)==1:
+                ax.set_xticks(ax.get_xticks(), labels=keys, rotation=rotation)
+                ax.margins(x=1)
+            else:
+                ax.set_xticks(ax.get_xticks(), labels=keys, rotation=rotation)
             #ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
             if show_legend==True:
-                ax.legend(loc=[1.01,0])
+                ax.legend(title=_hue,loc=[1.01,0])
             ax.set_xlabel(_x)
             if scale==&#34;absolute&#34;:
                 ylabel=&#34;Counts&#34;
@@ -546,6 +669,9 @@ def stacked_barplot(df: pd.DataFrame,
                             else:
                                 pval_str=&#34;ns&#34;
                             _line_annotate( &#34;mlp=&#34;+pval_str, line, (idx1+idx2)/2, color=&#34;magenta&#34;)
+            if scale==&#34;absolute&#34; and ylim !=None:
+                ax.set_ylim(0, ylim)
+
     if len(x)==1 and len(hue)==1:
         plt.subplots_adjust(top=0.93,left=0.1,right=0.7, bottom=0.17)                            
     else:
@@ -555,21 +681,406 @@ def stacked_barplot(df: pd.DataFrame,
         fig.suptitle(title)
     if show:
         plt.show()
-    return {&#34;pval&#34;:pvals,&#34;axes&#34;:ax}
+    return {&#34;pval&#34;:pvals,&#34;axes&#34;:ax,&#34;data&#34;:data}
 
+def stacked_barplot_num(df: pd.DataFrame,
+                    x: str=&#34;&#34;,
+                    scale: str=&#34;fraction&#34;,
+                    test_pairs: List[List[str]]=[],
+                    palette: Union[str,dict]=&#34;tab20c&#34;,
+                    show_values: bool=True,
+                    show_values_intact: bool=False,
+                    show: bool=False,
+                    figsize: List[int]=[],
+                    xlabel: str=&#34;&#34;,
+                    ylabel: str=&#34;&#34;,
+                    unit: Union[str, List, Dict]=&#34;&#34;,
+                    title: str=&#34;&#34;,
+                    hatch: bool=False,
+                    rotation: Optional[int]=None,
+                    ax: Optional[plt.Axes]=None,
+                    show_legend:bool=True,
+                    ylim: Optional[int]=None,
+                    horizontal: bool=False,
+                    margins: dict={},
+                    gridspec_kw: dict={},
+                    legend_row_num: int=2,
+                    bar_width: float=0.75
+                    )-&gt; Dict:
+    
+    &#34;&#34;&#34;
+    Drawing a stacked barplot by taking values as an input with or without the fisher&#39;s exact test. 
+    
+    Parameters
+    ----------
+    df : pandas DataFrame
+        A wide-form data format.
+        e.g., 
+                  Bournemouth    Brighton
+        Possession         36          64
+        Shots              14          16
+        Shots on Target     3           6
+        Corners             5           5
+        Fouls              11           5
+    
+    x: str
+        The category to place in x axis. If not set, it will use the index of the input dataframe.
+    scale: str, optional
+        Scaling method. Available options are: fraction, percentage, absolute
+    test_pairs : list, optional
+        pairs of categorical values related to x. It will calculate -log10 (p value) (mlp) of the fisher exact test.
+        Examples: [[&#34;Adelie&#34;,&#34;Chinstrap&#34; ],
+                    [&#34;Gentoo&#34;,&#34;Chinstrap&#34; ],
+                    [&#34;Adelie&#34;,&#34;Gentoo&#34; ]]
+    palette : str or dict, optional (default: &#34;tab20c&#34;)
+        A matplotlib colormap name or dictionary in which keys are values of the hue category and values are RGB array.
+        e.g.) palette={&#34;&#34;}
+    show_values: bool, optional
+        Wheter to exhibit the values of fractions/counts/percentages.
+
+    show_values_intact: bool, optional
+        Wheter to exhibit non-scaled values.
+
+    show : bool, optional
+        Whether or not to show the figure.
+    
+    figsize : List[int], optional
+        The figure size, e.g., [4, 6].
+    title: str optional, (default:&#34;&#34;)
+        The title of the figure.
+    hatch: bool, optional (default: False)
+        Adding hatches to the bars
+    rotation: int, optional (default:90)
+        The orientation of the x axis labels.
+    ax: plt.Axes, optional (default: None)
+        The ax object to be plotted.
+    show_legend: bool, optional (default: True)
+        Whether to show legends.
+    bin_num: dict, int, optional (default: 10)
+        A histogram bin number when columns with float values are selected. 
+        You can specify the bin number of each column by using dictionary (e.g., bin_num={&#34;A&#34;:10,&#34;B&#34;,5}).
+
+    Returns
+    -------
+    {&#34;pval&#34;:pvals,&#34;axes&#34;:ax,&#34;data&#34;:data}: dict
+    
+    Raises
+    ------
+    Notes
+    -----
+    References
+    ----------
+    See Also
+    --------
+    Examples
+    --------
+    &#34;&#34;&#34;
+    if type(df)==Dict:
+        df=pd.DataFrame(df)
+   
+    pvals={}
+    # if len(test_pairs) &gt;0:
+    #     print(&#34;mlp stands for -log10(p value)&#34;)
+    #     for _hue in hue:
+            
+    #         for i, h in enumerate(huekeys[_hue]):
+                
+    #     for p1,p2 in test_pairs:
+    #         yes_total=np.sum(data[_x][_hue][keys[idx1]])
+    #         no_total=np.sum(data[_x][_hue][keys[idx2]])
+    #         yes_and_hue=data[_x][_hue][keys[idx1]][i]
+    #         no_and_hue=data[_x][_hue][keys[idx2]][i]
+    #         table=[[yes_and_hue, no_and_hue],
+    #                 [yes_total-yes_and_hue, no_total-no_and_hue]]
+
+    #         odd, pval=fisher_exact(table)
+    #         pvals[_x][_hue][h].append([idx1, idx2, pval])
+    
+    
+    if len(gridspec_kw)==0:
+        if horizontal==True:
+            gridspec_kw=dict(top=0.75,left=0.25,right=0.9, bottom=0.17)
+        else:
+            gridspec_kw=dict(top=0.93,left=0.1,right=0.7, bottom=0.17)
+
+    if len(margins)==0:
+        if horizontal==True and scale!=&#34;absolute&#34;:
+            margins=dict(x=0)
+        else:
+            margins=dict(x=0.1)
+
+
+    if len(figsize)==0:
+        if horizontal==True:
+            figsize=[6, len(df.index)/2]
+        else:
+            figsize=[len(df.columns)+1, 6]
+    if ax!=None:
+        fig=None
+    else:
+        fig, ax=plt.subplots(figsize=figsize,gridspec_kw=gridspec_kw)
+        plt.margins(**margins)
+    if unit==&#34;&#34;:
+        if scale==&#34;absolute&#34;:
+            unit=&#34;&#34;
+        elif scale==&#34;fraction&#34;:
+            unit=&#34;&#34;
+        elif scale==&#34;percentage&#34;:
+            unit=&#34;%&#34;
+
+    pos={}
+    if x==&#34;&#34;:
+        keys=list(df.index)
+        _df=df
+    else:
+        keys=list(df[x])
+        _df=df.drop(columns=[x])
+
+    if scale==&#34;fraction&#34;:
+        _df=_df.div(_df.sum(axis=1),axis = &#39;rows&#39;,)
+    elif scale==&#34;percentage&#34;:
+        _df=100*_df.div(_df.sum(axis=1),axis = &#39;rows&#39;,)
+
+
+    if type(palette)==str:
+        cmap=plt.get_cmap(palette, len(_df.columns)) 
+    pos={}
+    bottom=np.zeros([len(keys)])
+    
+    for i, col in enumerate(_df.columns):
+        # print(col)
+        heights=_df[col].values
+        # print(heights,bottom)
+        originalval=df[col].values
+        if horizontal==True:
+            if type(palette)==dict:
+                if hatch==True:
+                    ax.barh(keys, width=heights,height=bar_width, left=bottom, color=palette[col], label=col, hatch=hatch_list[i])
+                else:
+                    ax.barh(keys, width=heights,height=bar_width, left=bottom, color=palette[col], label=col)
+            else:
+                if hatch==True:
+                    ax.barh(keys, width=heights,height=bar_width, left=bottom, color=cmap(i), label=col, hatch=hatch_list[i])
+                else:
+                    ax.barh(keys, width=heights,height=bar_width, left=bottom, color=cmap(i), label=col)
+
+        else:
+            if type(palette)==dict:
+                if hatch==True:
+                    ax.bar(keys, heights,width=bar_width, bottom=bottom, color=palette[col], label=col, hatch=hatch_list[i])
+                else:
+                    ax.bar(keys, heights,width=bar_width, bottom=bottom, color=palette[col], label=col)
+            else:
+                if hatch==True:
+                    ax.bar(keys, heights,width=bar_width, bottom=bottom, color=cmap(i), label=col, hatch=hatch_list[i])
+                else:
+                    ax.bar(keys, heights,width=bar_width, bottom=bottom, color=cmap(i), label=col)
+        if show_values==True:
+            
+            for j, k in enumerate(keys):
+                
+                if type(unit)==dict:
+                    if k in unit:
+                        u=unit[k]
+                    else:
+                        u=&#34;&#34;
+                elif type(unit)==list:
+                    u=unit[j]
+                else:
+                    u=unit
+                if horizontal==True:
+                    if show_values_intact==True:
+                        ax.text(bottom[j]+heights[j]/2, j,&#34;{}{}&#34;.format(originalval[j],u), va=&#34;center&#34;,ha=&#34;center&#34;,
+                                bbox=dict(boxstyle=&#34;round,pad=0.3&#34;, fc=&#34;white&#34;, ec=&#34;y&#34;, lw=1, alpha=0.8))
+                    else:
+                        ax.text(bottom[j]+heights[j]/2,j,&#34;{:.2f}{}&#34;.format(heights[j],u), va=&#34;center&#34;,ha=&#34;center&#34;,
+                                bbox=dict(boxstyle=&#34;round,pad=0.3&#34;, fc=&#34;white&#34;, ec=&#34;y&#34;, lw=1, alpha=0.8))
+                else:
+                    if show_values_intact==True:
+                        ax.text(j,bottom[j]+heights[j]/2,&#34;{}{}&#34;.format(originalval[j],u), ha=&#34;center&#34;,
+                                bbox=dict(boxstyle=&#34;round,pad=0.3&#34;, fc=&#34;white&#34;, ec=&#34;y&#34;, lw=1, alpha=0.8))
+                    else:
+                        ax.text(j,bottom[j]+heights[j]/2,&#34;{:.2f}{}&#34;.format(heights[j],u), ha=&#34;center&#34;,
+                                bbox=dict(boxstyle=&#34;round,pad=0.3&#34;, fc=&#34;white&#34;, ec=&#34;y&#34;, lw=1, alpha=0.8))
+                    
+            
+        pos[col]={key: [he, bo] for key, he, bo in zip(keys, heights, bottom)}
+        bottom+=heights
+    
+    #ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
+    if show_legend==True:
+        if horizontal==True:
+            ax.legend(loc=[0,1.01], ncols=len(_df.columns)//legend_row_num+int(len(_df.columns)%legend_row_num!=0))
+        else:
+            ax.legend(loc=[1.01,0])
+    if horizontal==True:
+        if rotation==None:
+            rotation=0
+
+        if len(keys)==1:
+            ax.set_yticks(ax.get_yticks(), labels=keys, rotation=rotation)
+            ax.margins(x=1)
+        else:
+            ax.set_yticks(ax.get_yticks(), labels=keys, rotation=rotation)
+        ax.set_ylabel(ylabel)
+        if xlabel ==&#34;&#34;:
+            if show_values_intact==False:
+                if scale==&#34;absolute&#34;:
+                    xlabel=&#34;Counts&#34;
+                elif scale==&#34;fraction&#34;:
+                    xlabel=&#34;Fraction&#34;
+                elif scale==&#34;percentage&#34;:
+                    xlabel=&#34;Percentage&#34;
+        
+        ax.set_xlabel(xlabel)
+    else:
+        if rotation==None:
+            rotation=90
+        if len(keys)==1:
+            ax.set_xticks(ax.get_xticks(), labels=keys, rotation=rotation)
+            ax.margins(x=1)
+        else:
+            ax.set_xticks(ax.get_xticks(), labels=keys, rotation=rotation)
+        ax.set_xlabel(xlabel)
+        if ylabel ==&#34;&#34;:
+            if show_values_intact==False:
+                if scale==&#34;absolute&#34;:
+                    ylabel=&#34;Counts&#34;
+                elif scale==&#34;fraction&#34;:
+                    ylabel=&#34;Fraction&#34;
+                elif scale==&#34;percentage&#34;:
+                    ylabel=&#34;Percentage&#34;
+        ax.set_ylabel(ylabel)
+
+    # if len(pvals)&gt;0:
+        
+    #     for _hue in hue:
+    #         if _x==_hue:
+    #             continue
+    #         if not _hue in pos[_x]:
+    #             continue
+    #         hues=huekeys[_hue]
+    #         for i, h in enumerate(hues):
+    #             #print(pos)
+    #             #print(pos[_x])
+    #             _pos=pos[_x][_hue][h]
+    #             for idx1, idx2, pval in pvals[_x][_hue][h]:
+                    
+    #                 he1, bot1=_pos[keys[idx1]]
+    #                 he2, bot2=_pos[keys[idx2]]
+    #                 line, =ax.plot([idx1,idx2],[he1/2+bot1,he2/2+bot2],color=&#34;gray&#34;)
+    #                 # r1=ax.transData.transform([idx1, he1/2+bot1])
+    #                 # r2=ax.transData.transform([idx2, he2/2+bot2])
+    #                 r1=np.array([idx1, he1/2+bot1])
+    #                 r2=np.array([idx2, he2/2+bot2])
+    #                 r=r2-r1
+    #                 #print(ax.get_xlim(),ax.get_ylim())
+    #                 r=np.array([1,3])*r/np.array([ax.get_xlim()[1]-ax.get_xlim()[0],ax.get_ylim()[1]-ax.get_ylim()[0]])
+    #                 #r=ax.transData.transform(r)
+    #                 if idx2&lt;idx1:
+    #                     r=-r
+    #                 #print(r)
+    #                 r=r*(r @ r)**(-0.5)
+    #                 #print(h,r)
+    #                 angle=np.arccos(r[0])
+    #                 if r[1]&lt;0:
+    #                     angle= -angle
+    #                 #print(angle)
+    #                 if pval &lt; 0.05:
+    #                     pval_str=str(np.round(-np.log10(pval), decimals=1))
+    #                 else:
+    #                     pval_str=&#34;ns&#34;
+    #                 _line_annotate( &#34;mlp=&#34;+pval_str, line, (idx1+idx2)/2, color=&#34;magenta&#34;)
+    if scale==&#34;absolute&#34; and ylim !=None:
+        ax.set_ylim(0, ylim)
+    if horizontal==True:
+        ax.invert_yaxis()
+
+    if title !=&#34;&#34; and fig !=None:
+        fig.suptitle(title)
+    if show:
+        plt.show()
+    return {&#34;pval&#34;:pvals,&#34;axes&#34;:ax}
 
 def nice_piechart(df: pd.DataFrame, 
                   category: Union[str, List[str]],
                   palette: str=&#34;tab20c&#34;,
+                  order: str=&#34;largest&#34;,
                   ncols: int=2,
                   ignore: float=0.05,
-                  show_values: bool=True,title: str=&#34;&#34;,) -&gt;Dict:
+                  show_values: bool=True,
+                  title: str=&#34;&#34;,
+                  hatch: bool=False,
+                  figsize: list=[],
+                  show_legend:bool=False,
+                  bbox_to_anchor: list=[1.1, 1],
+                  right: float=0.7,bottom=0.1) -&gt;Dict:
+    &#34;&#34;&#34;
+    Drawing a nice pichart by counting the occurrence of values from pandas dataframe. if you want to draw a pie chart from numerical values, try nice_piechart_num.
     
+    Parameters
+    ----------
+    df : pandas DataFrame
+
+    category: str or list
+        The column names for counting values.
+
+    order: str, optional (default: &#34;largest&#34;) [&#34;largest&#34;, &#34;smallest&#34;]
+        How to sort values in the chart
+    ncols: int, optional (default: 2)
+        The column number of the figure.
+    ignore : float, optional (default: 0.05)
+        Remove annotations of which the fraction is smaller than this value. 
+    palette : str or dict, optional (default: &#34;tab20c&#34;)
+        A matplotlib colormap name or dictionary in which keys are values of the hue category and values are RGB array.
+        e.g.) palette={&#34;&#34;}
+    show_values: bool, optional
+        Wheter to exhibit the values of fractions/counts/percentages.
+    
+    show : bool, optional
+        Whether or not to show the figure.
+    
+    figsize : List[int], optional
+        The figure size, e.g., [4, 6].
+    title: str optional, (default:&#34;&#34;)
+        The title of the figure.
+    hatch: bool, optional (default: False)
+        Adding hatches to the bars
+    show_legend: bool, optional (default: False)
+        Whether to show legends.
+    bin_num: dict, int, optional (default: 10)
+        A histogram bin number when columns with float values are selected. 
+        You can specify the bin number of each column by using dictionary (e.g., bin_num={&#34;A&#34;:10,&#34;B&#34;,5}).
+
+    Returns
+    -------
+    {&#34;axes&#34;:ax}: dict
+    
+    Raises
+    ------
+    Notes
+    -----
+    References
+    ----------
+    See Also
+    --------
+    Examples
+    --------
+    &#34;&#34;&#34;
     if type(category)==str:
         category=[category]
     nrows=len(category)//ncols+int(len(category)%ncols!=0)
-    fig, axes=plt.subplots(nrows=nrows, ncols=ncols, figsize=[ncols*2,
-                                                        nrows*2])
+    if show_legend==True or hatch==True:
+        if len(figsize)==0:
+            figsize=[ncols*4,nrows*3]
+        fig, axes=plt.subplots(nrows=nrows, ncols=ncols, figsize=figsize)
+    else:
+        if len(figsize)==0:
+            figsize=[ncols*3,nrows*3]
+        fig, axes=plt.subplots(nrows=nrows, ncols=ncols, figsize=figsize)
+    if title !=&#34;&#34;:
+        fig.suptitle(title)
+
     axes=axes.flatten()
     for cat, ax in zip(category, axes):
         u, c=np.unique(df[cat], return_counts=True)
@@ -590,23 +1101,47 @@ def nice_piechart(df: pd.DataFrame,
                 continue
             if show_values==True:
                 u[j]=u[j]+&#34;\n(&#34;+str(100*np.round(_c[j],1))+&#34;%)&#34;
-        
-        ax.pie(c, labels=u, 
-               counterclock=False,
-               startangle=90, 
-               colors=colors,
-               labeldistance=0.6,
-               radius=1.25)
+        if hatch==True:
+            ax.pie(c, labels=u, 
+                counterclock=False,
+                startangle=90, 
+                colors=colors,
+                radius=1.25,
+                hatch=hatch_list[:c.shape[0]],
+                labeldistance=None)
+            ax.legend(bbox_to_anchor=[1,1])
+        else:
+            if show_legend==True:
+                ax.pie(c, labels=u, 
+                    counterclock=False,
+                    startangle=90, 
+                    colors=colors,
+                    radius=1.25,
+                    labeldistance=None)
+                ax.legend(bbox_to_anchor=[1,1])
+            else:
+                ax.pie(c, labels=u, 
+                    counterclock=False,
+                    startangle=90, 
+                    colors=colors,
+                    labeldistance=0.6,
+                    radius=1.25)
         ax.set_title(cat,backgroundcolor=&#39;lavender&#39;,pad=10)
-    if len(category)%ncols!=0:
-        for i in range(len(category)%ncols-2):
+    
+
+
+    if len(category)!=ncols*nrows:
+        for i in range(ncols*nrows-len(category)):
             fig.delaxes(axes[-(i+1)])
-    plt.tight_layout(h_pad=1)
-    plt.subplots_adjust(top=0.9)
+    # plt.tight_layout(h_pad=1)
+    plt.subplots_adjust(top=0.9,wspace=0.5)
+    if title !=&#34;&#34;:
+        fig.suptitle(title)
     return {&#34;axes&#34;:ax}
 
 
-def nice_piechart_num(df: pd.DataFrame,hue: List[str],
+def nice_piechart_num(df: pd.DataFrame,
+                      variables: List[str]=[],
                       category: str=&#34;&#34; ,
                   
                   palette: str=&#34;tab20c&#34;,
@@ -615,24 +1150,74 @@ def nice_piechart_num(df: pd.DataFrame,hue: List[str],
                   show_values: bool=True,
                   title: str=&#34;&#34;,
                   figsize=[]) -&gt;Dict:
+    &#34;&#34;&#34;
+    Drawing a nice pichart by taking numerical values.
     
+    Parameters
+    ----------
+    df : pandas DataFrame
+        It must be a wide-form data. Each pie chart will be drawn from each row, and by default, index values are used for pie chart titles. 
+        
+    variables: list, optional
+        The column names to calculate fractions. If not given, all columns will be used for calculation (in this case, all columns must contain only numerical values).
+    
+    order: str, optional (default: &#34;largest&#34;) [&#34;largest&#34;, &#34;smallest&#34;]
+        How to sort values in the chart
+    ncols: int, optional (default: 2)
+        The column number of the figure.
+    ignore : float, optional (default: 0.05)
+        Remove annotations of which the fraction is smaller than this value. 
+    palette : str or dict, optional (default: &#34;tab20c&#34;)
+        A matplotlib colormap name or dictionary in which keys are values of the hue category and values are RGB array.
+        e.g.) palette={&#34;&#34;}
+    show_values: bool, optional
+        Wheter to exhibit the values of fractions/counts/percentages.
+    
+    show : bool, optional
+        Whether or not to show the figure.
+    
+    figsize : List[int], optional
+        The figure size, e.g., [4, 6].
+    title: str optional, (default:&#34;&#34;)
+        The title of the figure.
+    hatch: bool, optional (default: False)
+        Adding hatches to the bars
+    show_legend: bool, optional (default: True)
+        Whether to show legends.
+ 
+    Returns
+    -------
+    dict {&#34;axes&#34;:ax}
+    
+    Raises
+    ------
+    Notes
+    -----
+    References
+    ----------
+    See Also
+    --------
+    Examples
+    --------
+    &#34;&#34;&#34;
     if category==&#34;&#34;:
         category=list(df.index)
     else:
         df=df.set_index(category)
         category=list(df.index)
+    if len(variables)!=0:
+        df=df[variables]
         
-    df=df[hue]
     srt=np.argsort(df.sum(axis=0))[::-1]
     df=df[df.columns[srt]]
-    hue=list(df.columns)
+    variables=list(df.columns)
     nrows=len(category)//ncols+int(len(category)%ncols!=0)
     if len(figsize)==0:
         figsize=[ncols*2,nrows*2]
     fig, axes=plt.subplots(nrows=nrows, ncols=ncols, figsize=figsize)
     axes=axes.flatten()
-    _cmap=plt.get_cmap(palette, len(hue))
-    colors=[_cmap(i) for i in range(len(hue))]
+    _cmap=plt.get_cmap(palette, len(variables))
+    colors=[_cmap(i) for i in range(len(variables))]
     for cat, ax in zip(category, axes):
         c=df.loc[cat]
         _c=c/np.sum(c)
@@ -650,10 +1235,557 @@ def nice_piechart_num(df: pd.DataFrame,hue: List[str],
     plt.subplots_adjust(top=0.95, right=0.81)
     
     legend_elements = [Line2D([0], [0], marker=&#39;o&#39;, color=&#39;lavender&#39;, label=huelabel,markerfacecolor=color, markersize=10)
-                      for color, huelabel in zip(colors, hue)]
+                      for color, huelabel in zip(colors, variables)]
     
     fig.legend(handles=legend_elements,bbox_to_anchor=(1, 1))
+    if title!=&#34;&#34;:
+        plt.title(title)
     return {&#34;axes&#34;:ax}
+
+def _nested_piechart(df: pd.DataFrame, 
+                  category: List[str],
+                  variable: str=&#34;&#34;,
+                  palette: str=&#34;tab20b&#34;,
+                  figsize=[],
+                  ignore: float=0.05,
+                  show_values: bool=False,unit: str=&#34;&#34;,
+                  show_percentage: bool=False,
+                  colormode: str=&#34;independent&#34;,
+                  ax: Optional[plt.Axes]=None,
+                  title: str=&#34;&#34;,
+                  hatch: bool=False,
+                  show_legend:bool=False,
+                  bbox_to_anchor: list=[1.1, 1],
+                  right: float=0.7,bottom=0.1,
+                  skip_na: bool=False,
+                  order: str=&#34;smallest&#34;,) -&gt;Dict:
+    &#34;&#34;&#34;
+    Drawing a nested pichart by counting the occurrence of string (or integer/boolian) values from pandas dataframe.
+    
+    Parameters
+    ----------
+    df : pandas DataFrame
+
+    category: str or list
+        The column names for counting values. The order of names will correspond to the hierarchical order of the pie chart.
+
+    order: str, optional (default: &#34;largest&#34;) [&#34;largest&#34;, &#34;smallest&#34;]
+        How to sort values in the chart
+    
+    ignore : float, optional (default: 0.05)
+        Remove annotations of which the fraction is smaller than this value. 
+    palette : str or dict, optional (default: &#34;tab20c&#34;)
+        A matplotlib colormap name or dictionary in which keys are values of the hue category and values are RGB array.
+        e.g.) palette={&#34;&#34;}
+    show_values: bool, optional
+        Wheter to exhibit the values of fractions/counts/percentages.
+    
+    show : bool, optional
+        Whether or not to show the figure.
+    
+    figsize : List[int], optional
+        The figure size, e.g., [4, 6].
+    title: str optional, (default:&#34;&#34;)
+        The title of the figure.
+    hatch: bool, optional (default: False)
+        Adding hatches to the bars
+    show_legend: bool, optional (default: False)
+        Whether to show legends.
+   
+
+    Returns
+    -------
+    {&#34;axes&#34;:ax}: dict
+    
+    Raises
+    ------
+    Notes
+    -----
+    References
+    ----------
+    See Also
+    --------
+    Examples
+    --------
+    &#34;&#34;&#34;
+    #df=df.fillna(&#34;NA&#34;)
+    alllabels={}
+    alllabel_sets=set()
+    for i, cat in enumerate(category):
+        alllabels[i]=[]
+        for u in df[cat].unique():
+            alllabels[i].append(u)
+            alllabel_sets.add(u)
+    alllabel_sets=sorted(list(alllabel_sets))
+    
+    if colormode==&#34;independent&#34;:
+        _cmap=plt.get_cmap(palette, len(alllabel_sets))
+        color_lut={u: _cmap(i) for i, u in enumerate(alllabel_sets)}
+        marker_lut={u: hatch_list[i] for i, u in enumerate(alllabel_sets)}
+    elif colormode==&#34;hierarchical&#34; or colormode==&#34;top&#34;:
+        _cmap=plt.get_cmap(palette, len(alllabels[0]))
+        color_lut={u: _cmap(i) for i, u in enumerate(alllabels[0])}
+    
+
+
+    data={}
+    for i in range(len(category)):
+        data[i]={&#34;labels&#34;:[],&#34;counts&#34;:[]}
+        for p in it.product(*[alllabels[j] for j in range(i+1)]):
+            tmp=df
+            for k, _p in enumerate(p):
+                
+                tmp=tmp.loc[tmp[category[k]]==_p]
+            #print(p, len(tmp))
+            if variable !=&#34;&#34;:
+                data[i][&#34;counts&#34;].append(tmp[variable].sum())
+            else:
+                data[i][&#34;counts&#34;].append(len(tmp))
+            data[i][&#34;labels&#34;].append(p)
+    if ax==None:
+        if len(figsize)==0:
+            if (show_legend==True or hatch==True) and colormode==&#34;independent&#34;:
+                figsize=[8,6]
+            else:
+                figsize=[6,6]
+        fig, ax = plt.subplots(figsize =figsize)
+    else:
+        fig=None
+    height=1
+    _bottom=0
+    for i, d in data.items():
+        x=np.array(d[&#34;counts&#34;])
+        y=np.ones(x.shape)*height
+        percent=np.round(100*x/np.sum(x),2)
+        xpi=x/np.sum(x)*2*np.pi
+        s=np.pi/2
+        label=d[&#34;labels&#34;]
+        #print(label, x)
+        for i, (_x,_label) in enumerate(zip(xpi,label)):
+            if skip_na==True and _label[-1]==&#34;NA&#34;:
+                s-=_x
+                continue
+            if colormode==&#34;independent&#34;:
+                _color=color_lut[_label[-1]]
+                edgecolor=&#34;white&#34;
+            elif colormode==&#34;top&#34;:
+                _color=color_lut[_label[0]]
+                edgecolor=&#34;white&#34;
+            elif colormode==&#34;hierarchical&#34;:
+                _color=np.array(color_lut[_label[0]])
+                grad=(1-np.amin(_color))/(len(category)-1)
+                _color=_color+grad*(len(_label)-1)/len(category)
+                _color=np.where(_color&gt;1,1.0,_color)
+                edgecolor=&#34;darkgray&#34;
+            
+            if hatch==True:
+                _baumkuchen(ax,s, -_x, _bottom, _bottom+height, int(100*_x/np.sum(xpi)), _color,edgecolor=edgecolor, linewidth =1,hatch=marker_lut[_label[-1]])
+            else:
+                _baumkuchen(ax,s, -_x, _bottom, _bottom+height, int(100*_x/np.sum(xpi)), _color,edgecolor=edgecolor, linewidth =1)
+
+
+            txt=&#34;&#34;
+            if show_legend==False or colormode!=&#34;independent&#34;:
+                txt= _label[-1]
+            
+            if show_values==True:
+                if x[i]&gt;10000 or x[i] &lt; 0.0001:
+                    txt=txt+&#34;\n{:.3E} {}&#34;.format(x[i], unit)
+                else:
+                    
+                    txt=txt+&#34;\n{:.3f} {}&#34;.format(x[i], unit)
+            if show_percentage==True:
+                txt=txt+&#34;\n({}%)&#34;.format(percent[i])
+            txt=txt.strip(&#34;\n&#34;)
+            showlabel=False
+            if show_legend==False:
+                showlabel=True
+            elif hatch==False:
+                showlabel=True
+            elif colormode!=&#34;independent&#34;:
+                showlabel=True
+            
+            if _x/(2*np.pi)&gt;=ignore and showlabel==True:
+                ax.text(np.cos(s-_x/2)*(_bottom+height/2), np.sin(s-_x/2)*(_bottom+height/2),txt, ha=&#34;center&#34;,
+                        bbox=dict(boxstyle=&#34;round,pad=0.3&#34;, fc=&#34;white&#34;, ec=&#34;y&#34;, lw=1, alpha=0.8))
+            elif _x/(2*np.pi)&gt;=ignore and (show_values==True or show_percentage==True):
+                
+                ax.text(np.cos(s-_x/2)*(_bottom+height/2), np.sin(s-_x/2)*(_bottom+height/2),txt, ha=&#34;center&#34;,
+                        bbox=dict(boxstyle=&#34;round,pad=0.3&#34;, fc=&#34;white&#34;, ec=&#34;y&#34;, lw=1, alpha=0.8))
+                
+
+            s-=_x
+            
+        _bottom+=height
+        height=height*0.6
+    if show_legend==True or hatch==True:
+        if colormode==&#34;independent&#34;:
+            for i, cat in enumerate(category):
+                
+                if hatch==True:
+                    handles = [
+                        Patch(facecolor=color_lut[label], label=label, hatch=marker_lut[label]) 
+                        for label in alllabels[i]]
+                else:
+                    handles = [
+                        Patch(facecolor=color_lut[label], label=label) 
+                        for label in alllabels[i]]
+                legend=ax.legend(handles=handles,bbox_to_anchor=[bbox_to_anchor[0], bbox_to_anchor[0]-i*0.3], title=cat, loc=&#34;center left&#34;)
+                #legend=fig.legend(handles=handles,loc=&#34;outside right upper&#34;, title=cat)
+                #bbox_to_anchor[1]-=0.3
+                ax.add_artist(legend)
+            plt.subplots_adjust(right=right, bottom=bottom)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_facecolor(&#34;white&#34;)
+    if title!=&#34;&#34;:
+        plt.title(title)
+    return ax
+
+
+
+def nested_piechart(df: pd.DataFrame, 
+                  category: List[str],
+                  variable: str=&#34;&#34;,
+                  palette: str=&#34;tab20b&#34;,
+                  figsize: list=[],
+                  ignore: float=0.05,
+                  show_values: bool=False,unit: str=&#34;&#34;,
+                  show_percentage: bool=False,
+                  colormode: str=&#34;independent&#34;,
+                  ax: Optional[plt.Axes]=None,
+                  title: str=&#34;&#34;,
+                  hatch: bool=False,
+                  show_legend:bool=False,
+                  bbox_to_anchor: list=[1.1, 1],
+                  right: float=0.7,
+                  bottom: float=0.1,
+                  skip_na: bool=False,
+                  order: str=&#34;intact&#34;,) -&gt;Dict:
+    &#34;&#34;&#34;
+    Drawing a nested pichart by counting the occurrence of string (or integer/boolian) values from pandas dataframe.
+    
+    Parameters
+    ----------
+    df : pandas DataFrame
+
+    category: str or list
+        The column names for counting values. The order of names will correspond to the hierarchical order of the pie chart.
+
+    order: str, optional (default: &#34;largest&#34;) [&#34;largest&#34;, &#34;smallest&#34;, &#34;intact&#34;]
+        How to sort values in the chart
+    
+    ignore : float, optional (default: 0.05)
+        Remove annotations of which the fraction is smaller than this value. 
+    
+    palette : str or dict, optional (default: &#34;tab20b&#34;)
+        A matplotlib colormap name or dictionary in which keys are values of the hue category and values are RGB array.
+        e.g.) palette={&#34;&#34;}
+    
+    show_values: bool, optional
+        Wheter to exhibit values/counts.
+
+    show_percentage: bool, optional
+        Wheter to exhibit percentages.
+    
+    show : bool, optional
+        Whether or not to show the figure.
+    
+    figsize : List[int], optional
+        The figure size, e.g., [4, 6].
+    title: str optional, (default:&#34;&#34;)
+        The title of the figure.
+    hatch: bool, optional (default: False)
+        Adding hatches to the bars
+    show_legend: bool, optional (default: False)
+        Whether to show legends.
+    colormode: str, optional (default: &#34;independent&#34;) [&#34;independent&#34;, &#34;hierarchical&#34;, &#34;top&#34;]
+        Choosing the ways to color labels. &#34;independent&#34; will give each label a different color (from a single color palette).
+        &#34;top&#34; will give different colors to only labels in the top, and other labels follow the same color with the top category they belong to.
+        &#34;hierarchical&#34; is similar to &#34;top&#34;, but give fainter colors to labels in the lower hierarchical categories.
+    
+    bbox_to_anchor: list, optional (default:[1.1, 1])
+        the location of legends to appear
+    right: float, optional (default: 0.7)
+        In the case that legends are truncated by the frame of the figure, decrease this value.
+
+    bottom: float, optional (default: 0.1)
+
+    skip_na: bool, optional (default: False)
+        Whether to skip drawing samples labeled &#34;NA&#34;. If True, there will be empty spaces for samples with &#34;NA&#34;.
+
+
+    Returns
+    -------
+    {&#34;axes&#34;:ax}: dict
+    
+    Raises
+    ------
+    Notes
+    -----
+    References
+    ----------
+    See Also
+    --------
+    Examples
+    --------
+    &#34;&#34;&#34;
+    #df=df.fillna(&#34;NA&#34;)
+    alllabels={}
+    alllabel_sets=set()
+    for i, cat in enumerate(category):
+        alllabels[i]=[]
+        for u in df[cat].unique():
+            alllabels[i].append(u)
+            alllabel_sets.add(u)
+    alllabel_sets=sorted(list(alllabel_sets))
+    
+    if colormode==&#34;independent&#34;:
+        _cmap=plt.get_cmap(palette, len(alllabel_sets))
+        color_lut={u: _cmap(i) for i, u in enumerate(alllabel_sets)}
+        marker_lut={u: hatch_list[i] for i, u in enumerate(alllabel_sets)}
+    elif colormode==&#34;hierarchical&#34; or colormode==&#34;top&#34;:
+        _cmap=plt.get_cmap(palette, len(alllabels[0]))
+        color_lut={u: _cmap(i) for i, u in enumerate(alllabels[0])}
+    
+
+
+    # counting data in each level of categories.
+    # {0: {&#39;labels&#39;: [(&#39;Adelie&#39;,), (&#39;Chinstrap&#39;,), (&#39;Gentoo&#39;,)],
+    #   &#39;counts&#39;: [152, 68, 124]},
+    #  1: {&#39;labels&#39;: [(&#39;Adelie&#39;, &#39;Male&#39;),
+    #    (&#39;Adelie&#39;, &#39;Female&#39;),
+    #    (&#39;Adelie&#39;, &#39;NA&#39;),
+    #    (&#39;Chinstrap&#39;, &#39;Male&#39;),
+    #    (&#39;Chinstrap&#39;, &#39;Female&#39;),
+    #    (&#39;Chinstrap&#39;, &#39;NA&#39;),
+    #    (&#39;Gentoo&#39;, &#39;Male&#39;),
+    #    (&#39;Gentoo&#39;, &#39;Female&#39;),
+    #    (&#39;Gentoo&#39;, &#39;NA&#39;)],
+    #   &#39;counts&#39;: [73, 73, 6, 34, 34, 0, 61, 58, 5]}}
+
+
+    data={}
+    for i in range(len(category)):
+        data[i]={&#34;labels&#34;:[],&#34;counts&#34;:[]}
+        for p in it.product(*[alllabels[j] for j in range(i+1)]):
+            tmp=df
+            for k, _p in enumerate(p):
+                
+                tmp=tmp.loc[tmp[category[k]]==_p]
+            #print(p, len(tmp))
+            if variable !=&#34;&#34;:
+                data[i][&#34;counts&#34;].append(tmp[variable].sum())
+            else:
+                data[i][&#34;counts&#34;].append(len(tmp))
+            data[i][&#34;labels&#34;].append(p)
+    if ax==None:
+        if len(figsize)==0:
+            if (show_legend==True or hatch==True) and colormode==&#34;independent&#34;:
+                figsize=[8,6]
+            else:
+                figsize=[6,6]
+        fig, ax = plt.subplots(figsize =figsize)
+    else:
+        fig=None
+    
+    # Reorganizing data in order to sort the counts
+    # 
+    _data2=[]
+    lastk=np.amax(list(data.keys()))
+    #print(lastk)
+    for k, v in data.items():
+        v[&#34;counts&#34;]=np.array(v[&#34;counts&#34;])
+        v[&#34;labels&#34;]=np.array(v[&#34;labels&#34;])
+        if order==&#34;largest&#34;:
+            srt=np.argsort(v[&#34;counts&#34;])[::-1]
+            v[&#34;counts&#34;]=v[&#34;counts&#34;][srt]
+            v[&#34;labels&#34;]=v[&#34;labels&#34;][srt]
+        elif order==&#34;smallest&#34;:
+            srt=np.argsort(v[&#34;counts&#34;])
+            v[&#34;counts&#34;]=v[&#34;counts&#34;][srt]
+            v[&#34;labels&#34;]=v[&#34;labels&#34;][srt]
+        elif order==&#34;intact&#34;:
+            pass
+        else:
+            raise Exception(&#34;Unknown order type.&#34;) 
+
+        tmp=[]
+        latmp=[]
+        cotmp=[]
+        if len(_data2)==0:
+            for l in v[&#34;labels&#34;]:
+                _l=&#34;|:|&#34;.join(l)
+                latmp.append(_l)
+                tmp.append({_l:{&#34;labels&#34;:[],&#34;counts&#34;:[]}})
+        else:
+            # a brutal way to resort data according to the parent category order
+            # this will not work for a large dataset
+            for parentd in _data2[-1]:                             
+                key=list(parentd.keys())[0]
+                for l, c in zip(v[&#34;labels&#34;], v[&#34;counts&#34;]):
+                    _l=&#34;|:|&#34;.join(l)
+                    if _l.startswith(key):
+                        latmp.append(_l)
+                        tmp.append({_l:{&#34;labels&#34;:[],&#34;counts&#34;:[]}}) 
+                        cotmp.append(c)
+        if len(_data2)!=0:
+            for la, co in zip(latmp, cotmp):
+
+                parent=la.rsplit(&#34;|:|&#34;,1)[0]
+                for parentd in _data2[-1]:
+                    if parent in parentd:
+                        #parentd[parent].append([la, co])
+                        parentd[parent][&#34;labels&#34;].append(la)
+                        parentd[parent][&#34;counts&#34;].append(co)
+        else:
+            parent=&#34;top&#34;
+            parentd={&#34;top&#34;:{&#34;labels&#34;:[],&#34;counts&#34;:[]}}
+            for la, co in zip(latmp, v[&#34;counts&#34;]):
+                parentd[parent][&#34;labels&#34;].append(la)
+                parentd[parent][&#34;counts&#34;].append(co)
+            _data2.append([parentd])
+        if lastk==k:
+            break
+        _data2.append(tmp)
+    #print(data)
+    print(_data2)
+    # Drawing the pie chart. 
+    # _data2 looks like the bellow. A nested list ordered from the top to bottom hierarchical categories (in the below, (species, sex, island)).
+    # The element of the list is also a list consists of dictionaries (if sorted, ordered according to the parent category) of which keys are from
+    # the parent category. And the values are dictionaries containing labels and counts. These labels are combination of those in the parent and 
+    # present categories. 
+    #  
+    #  
+    # [
+    # [{&#39;top&#39;: {&#39;labels&#39;: [&#39;Adelie&#39;, &#39;Gentoo&#39;, &#39;Chinstrap&#39;], &#39;counts&#39;: [152, 124, 68]}}], 
+    # 
+    # [{&#39;Adelie&#39;: {&#39;labels&#39;: [&#39;Adelie|:|Female&#39;, &#39;Adelie|:|Male&#39;, &#39;Adelie|:|NA&#39;], &#39;counts&#39;: [73, 73, 6]}}, 
+    #  {&#39;Gentoo&#39;: {&#39;labels&#39;: [&#39;Gentoo|:|Male&#39;, &#39;Gentoo|:|Female&#39;, &#39;Gentoo|:|NA&#39;], &#39;counts&#39;: [61, 58, 5]}}, 
+    #  {&#39;Chinstrap&#39;: {&#39;labels&#39;: [&#39;Chinstrap|:|Female&#39;, &#39;Chinstrap|:|Male&#39;, &#39;Chinstrap|:|NA&#39;], &#39;counts&#39;: [34, 34, 0]}}], 
+    # 
+    # [{&#39;Adelie|:|Female&#39;: {&#39;labels&#39;: [&#39;Adelie|:|Female|:|Dream&#39;, &#39;Adelie|:|Female|:|Torgersen&#39;, &#39;Adelie|:|Female|:|Biscoe&#39;], &#39;counts&#39;: [27, 24, 22]}}, 
+    #  {&#39;Adelie|:|Male&#39;: {&#39;labels&#39;: [&#39;Adelie|:|Male|:|Dream&#39;, &#39;Adelie|:|Male|:|Torgersen&#39;, &#39;Adelie|:|Male|:|Biscoe&#39;], &#39;counts&#39;: [28, 23, 22]}}, 
+    #  {&#39;Adelie|:|NA&#39;: {&#39;labels&#39;: [&#39;Adelie|:|NA|:|Torgersen&#39;, &#39;Adelie|:|NA|:|Dream&#39;, &#39;Adelie|:|NA|:|Biscoe&#39;], &#39;counts&#39;: [5, 1, 0]}}, 
+    #  {&#39;Gentoo|:|Male&#39;: {&#39;labels&#39;: [&#39;Gentoo|:|Male|:|Biscoe&#39;, &#39;Gentoo|:|Male|:|Torgersen&#39;, &#39;Gentoo|:|Male|:|Dream&#39;], &#39;counts&#39;: [61, 0, 0]}}, 
+    #  {&#39;Gentoo|:|Female&#39;: {&#39;labels&#39;: [&#39;Gentoo|:|Female|:|Biscoe&#39;, &#39;Gentoo|:|Female|:|Torgersen&#39;, &#39;Gentoo|:|Female|:|Dream&#39;], &#39;counts&#39;: [58, 0, 0]}}, 
+    #  {&#39;Gentoo|:|NA&#39;: {&#39;labels&#39;: [&#39;Gentoo|:|NA|:|Biscoe&#39;, &#39;Gentoo|:|NA|:|Dream&#39;, &#39;Gentoo|:|NA|:|Torgersen&#39;], &#39;counts&#39;: [5, 0, 0]}}, 
+    #  {&#39;Chinstrap|:|Female&#39;: {&#39;labels&#39;: [&#39;Chinstrap|:|Female|:|Dream&#39;, &#39;Chinstrap|:|Female|:|Torgersen&#39;, &#39;Chinstrap|:|Female|:|Biscoe&#39;], &#39;counts&#39;: [34, 0, 0]}}, 
+    #  {&#39;Chinstrap|:|Male&#39;: {&#39;labels&#39;: [&#39;Chinstrap|:|Male|:|Dream&#39;, &#39;Chinstrap|:|Male|:|Biscoe&#39;, &#39;Chinstrap|:|Male|:|Torgersen&#39;], &#39;counts&#39;: [34, 0, 0]}}, 
+    #  {&#39;Chinstrap|:|NA&#39;: {&#39;labels&#39;: [&#39;Chinstrap|:|NA|:|Torgersen&#39;, &#39;Chinstrap|:|NA|:|Biscoe&#39;, &#39;Chinstrap|:|NA|:|Dream&#39;], &#39;counts&#39;: [0, 0, 0]}}]
+    # ]
+    #
+    #
+    height=1
+    _bottom=0
+    for h, ds in enumerate(_data2):
+        s=np.pi/2
+
+        for h2, dg in enumerate(ds):
+            for h3, d in dg.items():
+                #print(h, h2,h3,d)
+                x=np.array(d[&#34;counts&#34;])
+                if np.sum(x)==0:
+                    continue
+                if h==0:
+                    total=np.sum(x)
+                y=np.ones(x.shape)*height
+                percent=np.round(100*x/total,2)
+                xpi=x/total*2*np.pi
+                
+                label=d[&#34;labels&#34;]
+                
+                #print(label, x)
+                for i, (_x,_label) in enumerate(zip(xpi,label)):
+                    _label=_label.split(&#34;|:|&#34;)
+                    if skip_na==True and _label[-1]==&#34;NA&#34;:
+                        s-=_x
+                        continue
+                    if colormode==&#34;independent&#34;:
+                        _color=color_lut[_label[-1]]
+                        edgecolor=&#34;white&#34;
+                    elif colormode==&#34;top&#34;:
+                        _color=color_lut[_label[0]]
+                        edgecolor=&#34;white&#34;
+                    elif colormode==&#34;hierarchical&#34;:
+                        _color=np.array(color_lut[_label[0]])
+                        grad=(1-np.amin(_color))/(len(category)-1)
+                        _color=_color+grad*(len(_label)-1)/len(category)
+                        _color=np.where(_color&gt;1,1.0,_color)
+                        edgecolor=&#34;darkgray&#34;
+                    
+                    if hatch==True:
+                        _baumkuchen(ax,s, -_x, _bottom, _bottom+height, int(100*_x/np.sum(xpi)), _color,edgecolor=edgecolor, linewidth =1,hatch=marker_lut[_label[-1]])
+                    else:
+                        _baumkuchen(ax,s, -_x, _bottom, _bottom+height, int(100*_x/np.sum(xpi)), _color,edgecolor=edgecolor, linewidth =1)
+
+
+                    txt=&#34;&#34;
+                    if show_legend==False or colormode!=&#34;independent&#34;:
+                        txt= _label[-1]
+                    
+                    if show_values==True:
+                        if x[i]&gt;10000 or x[i] &lt; 0.0001:
+                            txt=txt+&#34;\n{:.3E} {}&#34;.format(x[i], unit)
+                        else:
+                            
+                            txt=txt+&#34;\n{:.3f} {}&#34;.format(x[i], unit)
+                    if show_percentage==True:
+                        txt=txt+&#34;\n({}%)&#34;.format(percent[i])
+                    txt=txt.strip(&#34;\n&#34;)
+                    showlabel=False
+                    if show_legend==False:
+                        showlabel=True
+                    elif hatch==False:
+                        showlabel=True
+                    elif colormode!=&#34;independent&#34;:
+                        showlabel=True
+                    
+                    if _x/(2*np.pi)&gt;=ignore and showlabel:
+                        ax.text(np.cos(s-_x/2)*(_bottom+height/2), np.sin(s-_x/2)*(_bottom+height/2),txt, ha=&#34;center&#34;,
+                                bbox=dict(boxstyle=&#34;round,pad=0.3&#34;, fc=&#34;white&#34;, ec=&#34;y&#34;, lw=1, alpha=0.8))
+                    elif _x/(2*np.pi)&gt;=ignore and (show_values==True or show_percentage==True):
+                        
+                        ax.text(np.cos(s-_x/2)*(_bottom+height/2), np.sin(s-_x/2)*(_bottom+height/2),txt, ha=&#34;center&#34;,
+                                bbox=dict(boxstyle=&#34;round,pad=0.3&#34;, fc=&#34;white&#34;, ec=&#34;y&#34;, lw=1, alpha=0.8))
+                        
+
+                    s-=_x
+            
+        _bottom+=height
+        height=height*0.6
+    
+
+    # Drawing legend. if hatch is True, because it will be too messy to add texts to the pie chart, it will automatically draw legends.
+
+    if show_legend==True or hatch==True:
+        if colormode==&#34;independent&#34;:
+            for i, cat in enumerate(category):
+                
+                if hatch==True:
+                    handles = []
+                    for label in alllabels[i]:
+                        if skip_na==True and label==&#34;NA&#34;:
+                            continue
+                        handles.append(Patch(facecolor=color_lut[label], label=label, hatch=marker_lut[label]))
+                else:
+                    handles = []
+                    for label in alllabels[i]:
+                        if skip_na==True and label==&#34;NA&#34;:
+                            continue
+                        handles.append(Patch(facecolor=color_lut[label], label=label) ) 
+                legend=ax.legend(handles=handles,bbox_to_anchor=[bbox_to_anchor[0], bbox_to_anchor[0]-i*0.3], title=cat, loc=&#34;center left&#34;)
+                #legend=fig.legend(handles=handles,loc=&#34;outside right upper&#34;, title=cat)
+                #bbox_to_anchor[1]-=0.3
+                ax.add_artist(legend)
+            plt.subplots_adjust(right=right, bottom=bottom)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_facecolor(&#34;white&#34;)
+    if title!=&#34;&#34;:
+        plt.title(title)
+    return ax
+
 
 
 def stackedlines(df: pd.DataFrame, 
@@ -675,6 +1807,10 @@ def stackedlines(df: pd.DataFrame,
                 ylabel: str=&#34;&#34;,
                 yunit: str=&#34;&#34;,
                 xunit: str=&#34;&#34;,
+                xformat: str=&#34;&#34;,
+                yformat: str=&#34;&#34;,
+                logscalex: bool=False,
+                logscaley: bool=False,
                 title: str=&#34;&#34;,
                 hatch: bool=False):
     &#34;&#34;&#34;
@@ -683,8 +1819,7 @@ def stackedlines(df: pd.DataFrame,
     Parameters
     ----------
     df : pandas DataFrame
-        A wide form dataframe. Index names are used to label points. It accepts negative values, but not recommended as 
-        it does not make sense.
+        A wide form dataframe. It accepts negative values.
         e.g.) 
               year    biofuel_consumption    coal_consumption    gas_consumption    hydro_consumption    nuclear_consumption    oil_consumption
         90    1990                 16.733            5337.998           5170.609              864.271               1723.004           9306.913
@@ -713,7 +1848,22 @@ def stackedlines(df: pd.DataFrame,
         y axis label
     ax: Optional[plt.Axes] optional, (default: None)
         pyplot ax to add this scatter plot
-
+    alpha: float, optional (default: 0.75)
+        alpha of the stacked lines (areas).
+    bbox_to_anchor: list, optional (default: [1.7, 1])
+        The legend location
+    right: float=0.7,
+    bottom: float=0.120,
+    show_legend: bool=True,
+    
+    yunit: str=&#34;&#34;, optional (default: &#34;&#34;)
+        The y axis unit. it will appear at the top of the y axis.
+    xunit: str=&#34;&#34;, optional (default: &#34;&#34;)
+        The X axis unit. it will appear at the top of the x axis.
+    title: str=&#34;&#34;, optional (default: &#34;&#34;)
+        The figure title.
+    hatch: bool, optional (default: False)
+        Whether to add hatches to the plots.
 
     Returns
     -------
@@ -803,6 +1953,9 @@ def stackedlines(df: pd.DataFrame,
         last_vals.append(vals[-1,1]-vals[-1,0])
         last_pos.append(vals[-1,1]/2+vals[-1,0]/2)
         i+=1
+
+    
+
     if show_values==True:
         last_vals=100*np.array(last_vals)/np.sum(last_vals)
         for val, pos in zip(last_vals, last_pos):
@@ -821,8 +1974,18 @@ def stackedlines(df: pd.DataFrame,
         ax.text(0, 1, &#34;({})&#34;.format(yunit), transform=ax.transAxes, ha=&#34;right&#34;)
     if xunit!=&#34;&#34;:
         ax.text(1, 0, &#34;({})&#34;.format(xunit), transform=ax.transAxes, ha=&#34;left&#34;,va=&#34;top&#34;)
+    if xformat!=&#34;&#34;:
+        
+        ax.xaxis.set_major_formatter(StrMethodFormatter(xformat))
+    if yformat !=&#34;&#34;:
+        ax.yaxis.set_major_formatter(StrMethodFormatter(yformat))
+    if logscalex==True:
+        ax.set_xscale(&#34;log&#34;)
+    if logscaley==True:
+        ax.set_yscale(&#34;log&#34;)
     if inverse==True:
-        ax.invert_yaxis()</code></pre>
+        ax.invert_yaxis()
+    return {&#34;axes&#34;:ax}</code></pre>
 </details>
 </section>
 <section>
@@ -832,11 +1995,691 @@ def stackedlines(df: pd.DataFrame,
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
-<dt id="omniplot.proportion.nice_piechart"><code class="name flex">
-<span>def <span class="ident">nice_piechart</span></span>(<span>df: pandas.core.frame.DataFrame, category: Union[str, List[str]], palette: str = 'tab20c', ncols: int = 2, ignore: float = 0.05, show_values: bool = True, title: str = '') ‑> Dict[~KT, ~VT]</span>
+<dt id="omniplot.proportion._nested_piechart"><code class="name flex">
+<span>def <span class="ident">_nested_piechart</span></span>(<span>df: pandas.core.frame.DataFrame, category: List[str], variable: str = '', palette: str = 'tab20b', figsize=[], ignore: float = 0.05, show_values: bool = False, unit: str = '', show_percentage: bool = False, colormode: str = 'independent', ax: Optional[matplotlib.axes._axes.Axes] = None, title: str = '', hatch: bool = False, show_legend: bool = False, bbox_to_anchor: list = [1.1, 1], right: float = 0.7, bottom=0.1, skip_na: bool = False, order: str = 'smallest') ‑> Dict[~KT, ~VT]</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Drawing a nested pichart by counting the occurrence of string (or integer/boolian) values from pandas dataframe.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>df</code></strong> :&ensp;<code>pandas DataFrame</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>category</code></strong> :&ensp;<code>str</code> or <code>list</code></dt>
+<dd>The column names for counting values. The order of names will correspond to the hierarchical order of the pie chart.</dd>
+<dt><strong><code>order</code></strong> :&ensp;<code>str</code>, optional <code>(default: "largest") ["largest", "smallest"]</code></dt>
+<dd>How to sort values in the chart</dd>
+<dt><strong><code>ignore</code></strong> :&ensp;<code>float</code>, optional <code>(default: 0.05)</code></dt>
+<dd>Remove annotations of which the fraction is smaller than this value.</dd>
+<dt><strong><code>palette</code></strong> :&ensp;<code>str</code> or <code>dict</code>, optional <code>(default: "tab20c")</code></dt>
+<dd>A matplotlib colormap name or dictionary in which keys are values of the hue category and values are RGB array.
+e.g.) palette={""}</dd>
+<dt><strong><code>show_values</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>Wheter to exhibit the values of fractions/counts/percentages.</dd>
+<dt><strong><code>show</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>Whether or not to show the figure.</dd>
+<dt><strong><code>figsize</code></strong> :&ensp;<code>List[int]</code>, optional</dt>
+<dd>The figure size, e.g., [4, 6].</dd>
+<dt><strong><code>title</code></strong> :&ensp;<code>str optional, (default:"")</code></dt>
+<dd>The title of the figure.</dd>
+<dt><strong><code>hatch</code></strong> :&ensp;<code>bool</code>, optional <code>(default: False)</code></dt>
+<dd>Adding hatches to the bars</dd>
+<dt><strong><code>show_legend</code></strong> :&ensp;<code>bool</code>, optional <code>(default: False)</code></dt>
+<dd>Whether to show legends.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>{"axes":ax}: dict</p>
+<h2 id="raises">Raises</h2>
+<h2 id="notes">Notes</h2>
+<h2 id="references">References</h2>
+<h2 id="see-also">See Also</h2>
+<h2 id="examples">Examples</h2></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def _nested_piechart(df: pd.DataFrame, 
+                  category: List[str],
+                  variable: str=&#34;&#34;,
+                  palette: str=&#34;tab20b&#34;,
+                  figsize=[],
+                  ignore: float=0.05,
+                  show_values: bool=False,unit: str=&#34;&#34;,
+                  show_percentage: bool=False,
+                  colormode: str=&#34;independent&#34;,
+                  ax: Optional[plt.Axes]=None,
+                  title: str=&#34;&#34;,
+                  hatch: bool=False,
+                  show_legend:bool=False,
+                  bbox_to_anchor: list=[1.1, 1],
+                  right: float=0.7,bottom=0.1,
+                  skip_na: bool=False,
+                  order: str=&#34;smallest&#34;,) -&gt;Dict:
+    &#34;&#34;&#34;
+    Drawing a nested pichart by counting the occurrence of string (or integer/boolian) values from pandas dataframe.
+    
+    Parameters
+    ----------
+    df : pandas DataFrame
+
+    category: str or list
+        The column names for counting values. The order of names will correspond to the hierarchical order of the pie chart.
+
+    order: str, optional (default: &#34;largest&#34;) [&#34;largest&#34;, &#34;smallest&#34;]
+        How to sort values in the chart
+    
+    ignore : float, optional (default: 0.05)
+        Remove annotations of which the fraction is smaller than this value. 
+    palette : str or dict, optional (default: &#34;tab20c&#34;)
+        A matplotlib colormap name or dictionary in which keys are values of the hue category and values are RGB array.
+        e.g.) palette={&#34;&#34;}
+    show_values: bool, optional
+        Wheter to exhibit the values of fractions/counts/percentages.
+    
+    show : bool, optional
+        Whether or not to show the figure.
+    
+    figsize : List[int], optional
+        The figure size, e.g., [4, 6].
+    title: str optional, (default:&#34;&#34;)
+        The title of the figure.
+    hatch: bool, optional (default: False)
+        Adding hatches to the bars
+    show_legend: bool, optional (default: False)
+        Whether to show legends.
+   
+
+    Returns
+    -------
+    {&#34;axes&#34;:ax}: dict
+    
+    Raises
+    ------
+    Notes
+    -----
+    References
+    ----------
+    See Also
+    --------
+    Examples
+    --------
+    &#34;&#34;&#34;
+    #df=df.fillna(&#34;NA&#34;)
+    alllabels={}
+    alllabel_sets=set()
+    for i, cat in enumerate(category):
+        alllabels[i]=[]
+        for u in df[cat].unique():
+            alllabels[i].append(u)
+            alllabel_sets.add(u)
+    alllabel_sets=sorted(list(alllabel_sets))
+    
+    if colormode==&#34;independent&#34;:
+        _cmap=plt.get_cmap(palette, len(alllabel_sets))
+        color_lut={u: _cmap(i) for i, u in enumerate(alllabel_sets)}
+        marker_lut={u: hatch_list[i] for i, u in enumerate(alllabel_sets)}
+    elif colormode==&#34;hierarchical&#34; or colormode==&#34;top&#34;:
+        _cmap=plt.get_cmap(palette, len(alllabels[0]))
+        color_lut={u: _cmap(i) for i, u in enumerate(alllabels[0])}
+    
+
+
+    data={}
+    for i in range(len(category)):
+        data[i]={&#34;labels&#34;:[],&#34;counts&#34;:[]}
+        for p in it.product(*[alllabels[j] for j in range(i+1)]):
+            tmp=df
+            for k, _p in enumerate(p):
+                
+                tmp=tmp.loc[tmp[category[k]]==_p]
+            #print(p, len(tmp))
+            if variable !=&#34;&#34;:
+                data[i][&#34;counts&#34;].append(tmp[variable].sum())
+            else:
+                data[i][&#34;counts&#34;].append(len(tmp))
+            data[i][&#34;labels&#34;].append(p)
+    if ax==None:
+        if len(figsize)==0:
+            if (show_legend==True or hatch==True) and colormode==&#34;independent&#34;:
+                figsize=[8,6]
+            else:
+                figsize=[6,6]
+        fig, ax = plt.subplots(figsize =figsize)
+    else:
+        fig=None
+    height=1
+    _bottom=0
+    for i, d in data.items():
+        x=np.array(d[&#34;counts&#34;])
+        y=np.ones(x.shape)*height
+        percent=np.round(100*x/np.sum(x),2)
+        xpi=x/np.sum(x)*2*np.pi
+        s=np.pi/2
+        label=d[&#34;labels&#34;]
+        #print(label, x)
+        for i, (_x,_label) in enumerate(zip(xpi,label)):
+            if skip_na==True and _label[-1]==&#34;NA&#34;:
+                s-=_x
+                continue
+            if colormode==&#34;independent&#34;:
+                _color=color_lut[_label[-1]]
+                edgecolor=&#34;white&#34;
+            elif colormode==&#34;top&#34;:
+                _color=color_lut[_label[0]]
+                edgecolor=&#34;white&#34;
+            elif colormode==&#34;hierarchical&#34;:
+                _color=np.array(color_lut[_label[0]])
+                grad=(1-np.amin(_color))/(len(category)-1)
+                _color=_color+grad*(len(_label)-1)/len(category)
+                _color=np.where(_color&gt;1,1.0,_color)
+                edgecolor=&#34;darkgray&#34;
+            
+            if hatch==True:
+                _baumkuchen(ax,s, -_x, _bottom, _bottom+height, int(100*_x/np.sum(xpi)), _color,edgecolor=edgecolor, linewidth =1,hatch=marker_lut[_label[-1]])
+            else:
+                _baumkuchen(ax,s, -_x, _bottom, _bottom+height, int(100*_x/np.sum(xpi)), _color,edgecolor=edgecolor, linewidth =1)
+
+
+            txt=&#34;&#34;
+            if show_legend==False or colormode!=&#34;independent&#34;:
+                txt= _label[-1]
+            
+            if show_values==True:
+                if x[i]&gt;10000 or x[i] &lt; 0.0001:
+                    txt=txt+&#34;\n{:.3E} {}&#34;.format(x[i], unit)
+                else:
+                    
+                    txt=txt+&#34;\n{:.3f} {}&#34;.format(x[i], unit)
+            if show_percentage==True:
+                txt=txt+&#34;\n({}%)&#34;.format(percent[i])
+            txt=txt.strip(&#34;\n&#34;)
+            showlabel=False
+            if show_legend==False:
+                showlabel=True
+            elif hatch==False:
+                showlabel=True
+            elif colormode!=&#34;independent&#34;:
+                showlabel=True
+            
+            if _x/(2*np.pi)&gt;=ignore and showlabel==True:
+                ax.text(np.cos(s-_x/2)*(_bottom+height/2), np.sin(s-_x/2)*(_bottom+height/2),txt, ha=&#34;center&#34;,
+                        bbox=dict(boxstyle=&#34;round,pad=0.3&#34;, fc=&#34;white&#34;, ec=&#34;y&#34;, lw=1, alpha=0.8))
+            elif _x/(2*np.pi)&gt;=ignore and (show_values==True or show_percentage==True):
+                
+                ax.text(np.cos(s-_x/2)*(_bottom+height/2), np.sin(s-_x/2)*(_bottom+height/2),txt, ha=&#34;center&#34;,
+                        bbox=dict(boxstyle=&#34;round,pad=0.3&#34;, fc=&#34;white&#34;, ec=&#34;y&#34;, lw=1, alpha=0.8))
+                
+
+            s-=_x
+            
+        _bottom+=height
+        height=height*0.6
+    if show_legend==True or hatch==True:
+        if colormode==&#34;independent&#34;:
+            for i, cat in enumerate(category):
+                
+                if hatch==True:
+                    handles = [
+                        Patch(facecolor=color_lut[label], label=label, hatch=marker_lut[label]) 
+                        for label in alllabels[i]]
+                else:
+                    handles = [
+                        Patch(facecolor=color_lut[label], label=label) 
+                        for label in alllabels[i]]
+                legend=ax.legend(handles=handles,bbox_to_anchor=[bbox_to_anchor[0], bbox_to_anchor[0]-i*0.3], title=cat, loc=&#34;center left&#34;)
+                #legend=fig.legend(handles=handles,loc=&#34;outside right upper&#34;, title=cat)
+                #bbox_to_anchor[1]-=0.3
+                ax.add_artist(legend)
+            plt.subplots_adjust(right=right, bottom=bottom)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_facecolor(&#34;white&#34;)
+    if title!=&#34;&#34;:
+        plt.title(title)
+    return ax</code></pre>
+</details>
+</dd>
+<dt id="omniplot.proportion.nested_piechart"><code class="name flex">
+<span>def <span class="ident">nested_piechart</span></span>(<span>df: pandas.core.frame.DataFrame, category: List[str], variable: str = '', palette: str = 'tab20b', figsize: list = [], ignore: float = 0.05, show_values: bool = False, unit: str = '', show_percentage: bool = False, colormode: str = 'independent', ax: Optional[matplotlib.axes._axes.Axes] = None, title: str = '', hatch: bool = False, show_legend: bool = False, bbox_to_anchor: list = [1.1, 1], right: float = 0.7, bottom: float = 0.1, skip_na: bool = False, order: str = 'intact') ‑> Dict[~KT, ~VT]</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Drawing a nested pichart by counting the occurrence of string (or integer/boolian) values from pandas dataframe.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>df</code></strong> :&ensp;<code>pandas DataFrame</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>category</code></strong> :&ensp;<code>str</code> or <code>list</code></dt>
+<dd>The column names for counting values. The order of names will correspond to the hierarchical order of the pie chart.</dd>
+<dt><strong><code>order</code></strong> :&ensp;<code>str</code>, optional <code>(default: "largest") ["largest", "smallest", "intact"]</code></dt>
+<dd>How to sort values in the chart</dd>
+<dt><strong><code>ignore</code></strong> :&ensp;<code>float</code>, optional <code>(default: 0.05)</code></dt>
+<dd>Remove annotations of which the fraction is smaller than this value.</dd>
+<dt><strong><code>palette</code></strong> :&ensp;<code>str</code> or <code>dict</code>, optional <code>(default: "tab20b")</code></dt>
+<dd>A matplotlib colormap name or dictionary in which keys are values of the hue category and values are RGB array.
+e.g.) palette={""}</dd>
+<dt><strong><code>show_values</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>Wheter to exhibit values/counts.</dd>
+<dt><strong><code>show_percentage</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>Wheter to exhibit percentages.</dd>
+<dt><strong><code>show</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>Whether or not to show the figure.</dd>
+<dt><strong><code>figsize</code></strong> :&ensp;<code>List[int]</code>, optional</dt>
+<dd>The figure size, e.g., [4, 6].</dd>
+<dt><strong><code>title</code></strong> :&ensp;<code>str optional, (default:"")</code></dt>
+<dd>The title of the figure.</dd>
+<dt><strong><code>hatch</code></strong> :&ensp;<code>bool</code>, optional <code>(default: False)</code></dt>
+<dd>Adding hatches to the bars</dd>
+<dt><strong><code>show_legend</code></strong> :&ensp;<code>bool</code>, optional <code>(default: False)</code></dt>
+<dd>Whether to show legends.</dd>
+<dt><strong><code>colormode</code></strong> :&ensp;<code>str</code>, optional <code>(default: "independent") ["independent", "hierarchical", "top"]</code></dt>
+<dd>Choosing the ways to color labels. "independent" will give each label a different color (from a single color palette).
+"top" will give different colors to only labels in the top, and other labels follow the same color with the top category they belong to.
+"hierarchical" is similar to "top", but give fainter colors to labels in the lower hierarchical categories.</dd>
+<dt><strong><code>bbox_to_anchor</code></strong> :&ensp;<code>list</code>, optional <code>(default:[1.1, 1])</code></dt>
+<dd>the location of legends to appear</dd>
+<dt><strong><code>right</code></strong> :&ensp;<code>float</code>, optional <code>(default: 0.7)</code></dt>
+<dd>In the case that legends are truncated by the frame of the figure, decrease this value.</dd>
+<dt><strong><code>bottom</code></strong> :&ensp;<code>float</code>, optional <code>(default: 0.1)</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>skip_na</code></strong> :&ensp;<code>bool</code>, optional <code>(default: False)</code></dt>
+<dd>Whether to skip drawing samples labeled "NA". If True, there will be empty spaces for samples with "NA".</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>{"axes":ax}: dict</p>
+<h2 id="raises">Raises</h2>
+<h2 id="notes">Notes</h2>
+<h2 id="references">References</h2>
+<h2 id="see-also">See Also</h2>
+<h2 id="examples">Examples</h2></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def nested_piechart(df: pd.DataFrame, 
+                  category: List[str],
+                  variable: str=&#34;&#34;,
+                  palette: str=&#34;tab20b&#34;,
+                  figsize: list=[],
+                  ignore: float=0.05,
+                  show_values: bool=False,unit: str=&#34;&#34;,
+                  show_percentage: bool=False,
+                  colormode: str=&#34;independent&#34;,
+                  ax: Optional[plt.Axes]=None,
+                  title: str=&#34;&#34;,
+                  hatch: bool=False,
+                  show_legend:bool=False,
+                  bbox_to_anchor: list=[1.1, 1],
+                  right: float=0.7,
+                  bottom: float=0.1,
+                  skip_na: bool=False,
+                  order: str=&#34;intact&#34;,) -&gt;Dict:
+    &#34;&#34;&#34;
+    Drawing a nested pichart by counting the occurrence of string (or integer/boolian) values from pandas dataframe.
+    
+    Parameters
+    ----------
+    df : pandas DataFrame
+
+    category: str or list
+        The column names for counting values. The order of names will correspond to the hierarchical order of the pie chart.
+
+    order: str, optional (default: &#34;largest&#34;) [&#34;largest&#34;, &#34;smallest&#34;, &#34;intact&#34;]
+        How to sort values in the chart
+    
+    ignore : float, optional (default: 0.05)
+        Remove annotations of which the fraction is smaller than this value. 
+    
+    palette : str or dict, optional (default: &#34;tab20b&#34;)
+        A matplotlib colormap name or dictionary in which keys are values of the hue category and values are RGB array.
+        e.g.) palette={&#34;&#34;}
+    
+    show_values: bool, optional
+        Wheter to exhibit values/counts.
+
+    show_percentage: bool, optional
+        Wheter to exhibit percentages.
+    
+    show : bool, optional
+        Whether or not to show the figure.
+    
+    figsize : List[int], optional
+        The figure size, e.g., [4, 6].
+    title: str optional, (default:&#34;&#34;)
+        The title of the figure.
+    hatch: bool, optional (default: False)
+        Adding hatches to the bars
+    show_legend: bool, optional (default: False)
+        Whether to show legends.
+    colormode: str, optional (default: &#34;independent&#34;) [&#34;independent&#34;, &#34;hierarchical&#34;, &#34;top&#34;]
+        Choosing the ways to color labels. &#34;independent&#34; will give each label a different color (from a single color palette).
+        &#34;top&#34; will give different colors to only labels in the top, and other labels follow the same color with the top category they belong to.
+        &#34;hierarchical&#34; is similar to &#34;top&#34;, but give fainter colors to labels in the lower hierarchical categories.
+    
+    bbox_to_anchor: list, optional (default:[1.1, 1])
+        the location of legends to appear
+    right: float, optional (default: 0.7)
+        In the case that legends are truncated by the frame of the figure, decrease this value.
+
+    bottom: float, optional (default: 0.1)
+
+    skip_na: bool, optional (default: False)
+        Whether to skip drawing samples labeled &#34;NA&#34;. If True, there will be empty spaces for samples with &#34;NA&#34;.
+
+
+    Returns
+    -------
+    {&#34;axes&#34;:ax}: dict
+    
+    Raises
+    ------
+    Notes
+    -----
+    References
+    ----------
+    See Also
+    --------
+    Examples
+    --------
+    &#34;&#34;&#34;
+    #df=df.fillna(&#34;NA&#34;)
+    alllabels={}
+    alllabel_sets=set()
+    for i, cat in enumerate(category):
+        alllabels[i]=[]
+        for u in df[cat].unique():
+            alllabels[i].append(u)
+            alllabel_sets.add(u)
+    alllabel_sets=sorted(list(alllabel_sets))
+    
+    if colormode==&#34;independent&#34;:
+        _cmap=plt.get_cmap(palette, len(alllabel_sets))
+        color_lut={u: _cmap(i) for i, u in enumerate(alllabel_sets)}
+        marker_lut={u: hatch_list[i] for i, u in enumerate(alllabel_sets)}
+    elif colormode==&#34;hierarchical&#34; or colormode==&#34;top&#34;:
+        _cmap=plt.get_cmap(palette, len(alllabels[0]))
+        color_lut={u: _cmap(i) for i, u in enumerate(alllabels[0])}
+    
+
+
+    # counting data in each level of categories.
+    # {0: {&#39;labels&#39;: [(&#39;Adelie&#39;,), (&#39;Chinstrap&#39;,), (&#39;Gentoo&#39;,)],
+    #   &#39;counts&#39;: [152, 68, 124]},
+    #  1: {&#39;labels&#39;: [(&#39;Adelie&#39;, &#39;Male&#39;),
+    #    (&#39;Adelie&#39;, &#39;Female&#39;),
+    #    (&#39;Adelie&#39;, &#39;NA&#39;),
+    #    (&#39;Chinstrap&#39;, &#39;Male&#39;),
+    #    (&#39;Chinstrap&#39;, &#39;Female&#39;),
+    #    (&#39;Chinstrap&#39;, &#39;NA&#39;),
+    #    (&#39;Gentoo&#39;, &#39;Male&#39;),
+    #    (&#39;Gentoo&#39;, &#39;Female&#39;),
+    #    (&#39;Gentoo&#39;, &#39;NA&#39;)],
+    #   &#39;counts&#39;: [73, 73, 6, 34, 34, 0, 61, 58, 5]}}
+
+
+    data={}
+    for i in range(len(category)):
+        data[i]={&#34;labels&#34;:[],&#34;counts&#34;:[]}
+        for p in it.product(*[alllabels[j] for j in range(i+1)]):
+            tmp=df
+            for k, _p in enumerate(p):
+                
+                tmp=tmp.loc[tmp[category[k]]==_p]
+            #print(p, len(tmp))
+            if variable !=&#34;&#34;:
+                data[i][&#34;counts&#34;].append(tmp[variable].sum())
+            else:
+                data[i][&#34;counts&#34;].append(len(tmp))
+            data[i][&#34;labels&#34;].append(p)
+    if ax==None:
+        if len(figsize)==0:
+            if (show_legend==True or hatch==True) and colormode==&#34;independent&#34;:
+                figsize=[8,6]
+            else:
+                figsize=[6,6]
+        fig, ax = plt.subplots(figsize =figsize)
+    else:
+        fig=None
+    
+    # Reorganizing data in order to sort the counts
+    # 
+    _data2=[]
+    lastk=np.amax(list(data.keys()))
+    #print(lastk)
+    for k, v in data.items():
+        v[&#34;counts&#34;]=np.array(v[&#34;counts&#34;])
+        v[&#34;labels&#34;]=np.array(v[&#34;labels&#34;])
+        if order==&#34;largest&#34;:
+            srt=np.argsort(v[&#34;counts&#34;])[::-1]
+            v[&#34;counts&#34;]=v[&#34;counts&#34;][srt]
+            v[&#34;labels&#34;]=v[&#34;labels&#34;][srt]
+        elif order==&#34;smallest&#34;:
+            srt=np.argsort(v[&#34;counts&#34;])
+            v[&#34;counts&#34;]=v[&#34;counts&#34;][srt]
+            v[&#34;labels&#34;]=v[&#34;labels&#34;][srt]
+        elif order==&#34;intact&#34;:
+            pass
+        else:
+            raise Exception(&#34;Unknown order type.&#34;) 
+
+        tmp=[]
+        latmp=[]
+        cotmp=[]
+        if len(_data2)==0:
+            for l in v[&#34;labels&#34;]:
+                _l=&#34;|:|&#34;.join(l)
+                latmp.append(_l)
+                tmp.append({_l:{&#34;labels&#34;:[],&#34;counts&#34;:[]}})
+        else:
+            # a brutal way to resort data according to the parent category order
+            # this will not work for a large dataset
+            for parentd in _data2[-1]:                             
+                key=list(parentd.keys())[0]
+                for l, c in zip(v[&#34;labels&#34;], v[&#34;counts&#34;]):
+                    _l=&#34;|:|&#34;.join(l)
+                    if _l.startswith(key):
+                        latmp.append(_l)
+                        tmp.append({_l:{&#34;labels&#34;:[],&#34;counts&#34;:[]}}) 
+                        cotmp.append(c)
+        if len(_data2)!=0:
+            for la, co in zip(latmp, cotmp):
+
+                parent=la.rsplit(&#34;|:|&#34;,1)[0]
+                for parentd in _data2[-1]:
+                    if parent in parentd:
+                        #parentd[parent].append([la, co])
+                        parentd[parent][&#34;labels&#34;].append(la)
+                        parentd[parent][&#34;counts&#34;].append(co)
+        else:
+            parent=&#34;top&#34;
+            parentd={&#34;top&#34;:{&#34;labels&#34;:[],&#34;counts&#34;:[]}}
+            for la, co in zip(latmp, v[&#34;counts&#34;]):
+                parentd[parent][&#34;labels&#34;].append(la)
+                parentd[parent][&#34;counts&#34;].append(co)
+            _data2.append([parentd])
+        if lastk==k:
+            break
+        _data2.append(tmp)
+    #print(data)
+    print(_data2)
+    # Drawing the pie chart. 
+    # _data2 looks like the bellow. A nested list ordered from the top to bottom hierarchical categories (in the below, (species, sex, island)).
+    # The element of the list is also a list consists of dictionaries (if sorted, ordered according to the parent category) of which keys are from
+    # the parent category. And the values are dictionaries containing labels and counts. These labels are combination of those in the parent and 
+    # present categories. 
+    #  
+    #  
+    # [
+    # [{&#39;top&#39;: {&#39;labels&#39;: [&#39;Adelie&#39;, &#39;Gentoo&#39;, &#39;Chinstrap&#39;], &#39;counts&#39;: [152, 124, 68]}}], 
+    # 
+    # [{&#39;Adelie&#39;: {&#39;labels&#39;: [&#39;Adelie|:|Female&#39;, &#39;Adelie|:|Male&#39;, &#39;Adelie|:|NA&#39;], &#39;counts&#39;: [73, 73, 6]}}, 
+    #  {&#39;Gentoo&#39;: {&#39;labels&#39;: [&#39;Gentoo|:|Male&#39;, &#39;Gentoo|:|Female&#39;, &#39;Gentoo|:|NA&#39;], &#39;counts&#39;: [61, 58, 5]}}, 
+    #  {&#39;Chinstrap&#39;: {&#39;labels&#39;: [&#39;Chinstrap|:|Female&#39;, &#39;Chinstrap|:|Male&#39;, &#39;Chinstrap|:|NA&#39;], &#39;counts&#39;: [34, 34, 0]}}], 
+    # 
+    # [{&#39;Adelie|:|Female&#39;: {&#39;labels&#39;: [&#39;Adelie|:|Female|:|Dream&#39;, &#39;Adelie|:|Female|:|Torgersen&#39;, &#39;Adelie|:|Female|:|Biscoe&#39;], &#39;counts&#39;: [27, 24, 22]}}, 
+    #  {&#39;Adelie|:|Male&#39;: {&#39;labels&#39;: [&#39;Adelie|:|Male|:|Dream&#39;, &#39;Adelie|:|Male|:|Torgersen&#39;, &#39;Adelie|:|Male|:|Biscoe&#39;], &#39;counts&#39;: [28, 23, 22]}}, 
+    #  {&#39;Adelie|:|NA&#39;: {&#39;labels&#39;: [&#39;Adelie|:|NA|:|Torgersen&#39;, &#39;Adelie|:|NA|:|Dream&#39;, &#39;Adelie|:|NA|:|Biscoe&#39;], &#39;counts&#39;: [5, 1, 0]}}, 
+    #  {&#39;Gentoo|:|Male&#39;: {&#39;labels&#39;: [&#39;Gentoo|:|Male|:|Biscoe&#39;, &#39;Gentoo|:|Male|:|Torgersen&#39;, &#39;Gentoo|:|Male|:|Dream&#39;], &#39;counts&#39;: [61, 0, 0]}}, 
+    #  {&#39;Gentoo|:|Female&#39;: {&#39;labels&#39;: [&#39;Gentoo|:|Female|:|Biscoe&#39;, &#39;Gentoo|:|Female|:|Torgersen&#39;, &#39;Gentoo|:|Female|:|Dream&#39;], &#39;counts&#39;: [58, 0, 0]}}, 
+    #  {&#39;Gentoo|:|NA&#39;: {&#39;labels&#39;: [&#39;Gentoo|:|NA|:|Biscoe&#39;, &#39;Gentoo|:|NA|:|Dream&#39;, &#39;Gentoo|:|NA|:|Torgersen&#39;], &#39;counts&#39;: [5, 0, 0]}}, 
+    #  {&#39;Chinstrap|:|Female&#39;: {&#39;labels&#39;: [&#39;Chinstrap|:|Female|:|Dream&#39;, &#39;Chinstrap|:|Female|:|Torgersen&#39;, &#39;Chinstrap|:|Female|:|Biscoe&#39;], &#39;counts&#39;: [34, 0, 0]}}, 
+    #  {&#39;Chinstrap|:|Male&#39;: {&#39;labels&#39;: [&#39;Chinstrap|:|Male|:|Dream&#39;, &#39;Chinstrap|:|Male|:|Biscoe&#39;, &#39;Chinstrap|:|Male|:|Torgersen&#39;], &#39;counts&#39;: [34, 0, 0]}}, 
+    #  {&#39;Chinstrap|:|NA&#39;: {&#39;labels&#39;: [&#39;Chinstrap|:|NA|:|Torgersen&#39;, &#39;Chinstrap|:|NA|:|Biscoe&#39;, &#39;Chinstrap|:|NA|:|Dream&#39;], &#39;counts&#39;: [0, 0, 0]}}]
+    # ]
+    #
+    #
+    height=1
+    _bottom=0
+    for h, ds in enumerate(_data2):
+        s=np.pi/2
+
+        for h2, dg in enumerate(ds):
+            for h3, d in dg.items():
+                #print(h, h2,h3,d)
+                x=np.array(d[&#34;counts&#34;])
+                if np.sum(x)==0:
+                    continue
+                if h==0:
+                    total=np.sum(x)
+                y=np.ones(x.shape)*height
+                percent=np.round(100*x/total,2)
+                xpi=x/total*2*np.pi
+                
+                label=d[&#34;labels&#34;]
+                
+                #print(label, x)
+                for i, (_x,_label) in enumerate(zip(xpi,label)):
+                    _label=_label.split(&#34;|:|&#34;)
+                    if skip_na==True and _label[-1]==&#34;NA&#34;:
+                        s-=_x
+                        continue
+                    if colormode==&#34;independent&#34;:
+                        _color=color_lut[_label[-1]]
+                        edgecolor=&#34;white&#34;
+                    elif colormode==&#34;top&#34;:
+                        _color=color_lut[_label[0]]
+                        edgecolor=&#34;white&#34;
+                    elif colormode==&#34;hierarchical&#34;:
+                        _color=np.array(color_lut[_label[0]])
+                        grad=(1-np.amin(_color))/(len(category)-1)
+                        _color=_color+grad*(len(_label)-1)/len(category)
+                        _color=np.where(_color&gt;1,1.0,_color)
+                        edgecolor=&#34;darkgray&#34;
+                    
+                    if hatch==True:
+                        _baumkuchen(ax,s, -_x, _bottom, _bottom+height, int(100*_x/np.sum(xpi)), _color,edgecolor=edgecolor, linewidth =1,hatch=marker_lut[_label[-1]])
+                    else:
+                        _baumkuchen(ax,s, -_x, _bottom, _bottom+height, int(100*_x/np.sum(xpi)), _color,edgecolor=edgecolor, linewidth =1)
+
+
+                    txt=&#34;&#34;
+                    if show_legend==False or colormode!=&#34;independent&#34;:
+                        txt= _label[-1]
+                    
+                    if show_values==True:
+                        if x[i]&gt;10000 or x[i] &lt; 0.0001:
+                            txt=txt+&#34;\n{:.3E} {}&#34;.format(x[i], unit)
+                        else:
+                            
+                            txt=txt+&#34;\n{:.3f} {}&#34;.format(x[i], unit)
+                    if show_percentage==True:
+                        txt=txt+&#34;\n({}%)&#34;.format(percent[i])
+                    txt=txt.strip(&#34;\n&#34;)
+                    showlabel=False
+                    if show_legend==False:
+                        showlabel=True
+                    elif hatch==False:
+                        showlabel=True
+                    elif colormode!=&#34;independent&#34;:
+                        showlabel=True
+                    
+                    if _x/(2*np.pi)&gt;=ignore and showlabel:
+                        ax.text(np.cos(s-_x/2)*(_bottom+height/2), np.sin(s-_x/2)*(_bottom+height/2),txt, ha=&#34;center&#34;,
+                                bbox=dict(boxstyle=&#34;round,pad=0.3&#34;, fc=&#34;white&#34;, ec=&#34;y&#34;, lw=1, alpha=0.8))
+                    elif _x/(2*np.pi)&gt;=ignore and (show_values==True or show_percentage==True):
+                        
+                        ax.text(np.cos(s-_x/2)*(_bottom+height/2), np.sin(s-_x/2)*(_bottom+height/2),txt, ha=&#34;center&#34;,
+                                bbox=dict(boxstyle=&#34;round,pad=0.3&#34;, fc=&#34;white&#34;, ec=&#34;y&#34;, lw=1, alpha=0.8))
+                        
+
+                    s-=_x
+            
+        _bottom+=height
+        height=height*0.6
+    
+
+    # Drawing legend. if hatch is True, because it will be too messy to add texts to the pie chart, it will automatically draw legends.
+
+    if show_legend==True or hatch==True:
+        if colormode==&#34;independent&#34;:
+            for i, cat in enumerate(category):
+                
+                if hatch==True:
+                    handles = []
+                    for label in alllabels[i]:
+                        if skip_na==True and label==&#34;NA&#34;:
+                            continue
+                        handles.append(Patch(facecolor=color_lut[label], label=label, hatch=marker_lut[label]))
+                else:
+                    handles = []
+                    for label in alllabels[i]:
+                        if skip_na==True and label==&#34;NA&#34;:
+                            continue
+                        handles.append(Patch(facecolor=color_lut[label], label=label) ) 
+                legend=ax.legend(handles=handles,bbox_to_anchor=[bbox_to_anchor[0], bbox_to_anchor[0]-i*0.3], title=cat, loc=&#34;center left&#34;)
+                #legend=fig.legend(handles=handles,loc=&#34;outside right upper&#34;, title=cat)
+                #bbox_to_anchor[1]-=0.3
+                ax.add_artist(legend)
+            plt.subplots_adjust(right=right, bottom=bottom)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_facecolor(&#34;white&#34;)
+    if title!=&#34;&#34;:
+        plt.title(title)
+    return ax</code></pre>
+</details>
+</dd>
+<dt id="omniplot.proportion.nice_piechart"><code class="name flex">
+<span>def <span class="ident">nice_piechart</span></span>(<span>df: pandas.core.frame.DataFrame, category: Union[str, List[str]], palette: str = 'tab20c', order: str = 'largest', ncols: int = 2, ignore: float = 0.05, show_values: bool = True, title: str = '', hatch: bool = False, figsize: list = [], show_legend: bool = False, bbox_to_anchor: list = [1.1, 1], right: float = 0.7, bottom=0.1) ‑> Dict[~KT, ~VT]</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Drawing a nice pichart by counting the occurrence of values from pandas dataframe. if you want to draw a pie chart from numerical values, try nice_piechart_num.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>df</code></strong> :&ensp;<code>pandas DataFrame</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>category</code></strong> :&ensp;<code>str</code> or <code>list</code></dt>
+<dd>The column names for counting values.</dd>
+<dt><strong><code>order</code></strong> :&ensp;<code>str</code>, optional <code>(default: "largest") ["largest", "smallest"]</code></dt>
+<dd>How to sort values in the chart</dd>
+<dt><strong><code>ncols</code></strong> :&ensp;<code>int</code>, optional <code>(default: 2)</code></dt>
+<dd>The column number of the figure.</dd>
+<dt><strong><code>ignore</code></strong> :&ensp;<code>float</code>, optional <code>(default: 0.05)</code></dt>
+<dd>Remove annotations of which the fraction is smaller than this value.</dd>
+<dt><strong><code>palette</code></strong> :&ensp;<code>str</code> or <code>dict</code>, optional <code>(default: "tab20c")</code></dt>
+<dd>A matplotlib colormap name or dictionary in which keys are values of the hue category and values are RGB array.
+e.g.) palette={""}</dd>
+<dt><strong><code>show_values</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>Wheter to exhibit the values of fractions/counts/percentages.</dd>
+<dt><strong><code>show</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>Whether or not to show the figure.</dd>
+<dt><strong><code>figsize</code></strong> :&ensp;<code>List[int]</code>, optional</dt>
+<dd>The figure size, e.g., [4, 6].</dd>
+<dt><strong><code>title</code></strong> :&ensp;<code>str optional, (default:"")</code></dt>
+<dd>The title of the figure.</dd>
+<dt><strong><code>hatch</code></strong> :&ensp;<code>bool</code>, optional <code>(default: False)</code></dt>
+<dd>Adding hatches to the bars</dd>
+<dt><strong><code>show_legend</code></strong> :&ensp;<code>bool</code>, optional <code>(default: False)</code></dt>
+<dd>Whether to show legends.</dd>
+<dt><strong><code>bin_num</code></strong> :&ensp;<code>dict, int</code>, optional <code>(default: 10)</code></dt>
+<dd>A histogram bin number when columns with float values are selected.
+You can specify the bin number of each column by using dictionary (e.g., bin_num={"A":10,"B",5}).</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>{"axes":ax}: dict</p>
+<h2 id="raises">Raises</h2>
+<h2 id="notes">Notes</h2>
+<h2 id="references">References</h2>
+<h2 id="see-also">See Also</h2>
+<h2 id="examples">Examples</h2></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -844,15 +2687,82 @@ def stackedlines(df: pd.DataFrame,
 <pre><code class="python">def nice_piechart(df: pd.DataFrame, 
                   category: Union[str, List[str]],
                   palette: str=&#34;tab20c&#34;,
+                  order: str=&#34;largest&#34;,
                   ncols: int=2,
                   ignore: float=0.05,
-                  show_values: bool=True,title: str=&#34;&#34;,) -&gt;Dict:
+                  show_values: bool=True,
+                  title: str=&#34;&#34;,
+                  hatch: bool=False,
+                  figsize: list=[],
+                  show_legend:bool=False,
+                  bbox_to_anchor: list=[1.1, 1],
+                  right: float=0.7,bottom=0.1) -&gt;Dict:
+    &#34;&#34;&#34;
+    Drawing a nice pichart by counting the occurrence of values from pandas dataframe. if you want to draw a pie chart from numerical values, try nice_piechart_num.
     
+    Parameters
+    ----------
+    df : pandas DataFrame
+
+    category: str or list
+        The column names for counting values.
+
+    order: str, optional (default: &#34;largest&#34;) [&#34;largest&#34;, &#34;smallest&#34;]
+        How to sort values in the chart
+    ncols: int, optional (default: 2)
+        The column number of the figure.
+    ignore : float, optional (default: 0.05)
+        Remove annotations of which the fraction is smaller than this value. 
+    palette : str or dict, optional (default: &#34;tab20c&#34;)
+        A matplotlib colormap name or dictionary in which keys are values of the hue category and values are RGB array.
+        e.g.) palette={&#34;&#34;}
+    show_values: bool, optional
+        Wheter to exhibit the values of fractions/counts/percentages.
+    
+    show : bool, optional
+        Whether or not to show the figure.
+    
+    figsize : List[int], optional
+        The figure size, e.g., [4, 6].
+    title: str optional, (default:&#34;&#34;)
+        The title of the figure.
+    hatch: bool, optional (default: False)
+        Adding hatches to the bars
+    show_legend: bool, optional (default: False)
+        Whether to show legends.
+    bin_num: dict, int, optional (default: 10)
+        A histogram bin number when columns with float values are selected. 
+        You can specify the bin number of each column by using dictionary (e.g., bin_num={&#34;A&#34;:10,&#34;B&#34;,5}).
+
+    Returns
+    -------
+    {&#34;axes&#34;:ax}: dict
+    
+    Raises
+    ------
+    Notes
+    -----
+    References
+    ----------
+    See Also
+    --------
+    Examples
+    --------
+    &#34;&#34;&#34;
     if type(category)==str:
         category=[category]
     nrows=len(category)//ncols+int(len(category)%ncols!=0)
-    fig, axes=plt.subplots(nrows=nrows, ncols=ncols, figsize=[ncols*2,
-                                                        nrows*2])
+    if show_legend==True or hatch==True:
+        if len(figsize)==0:
+            figsize=[ncols*4,nrows*3]
+        fig, axes=plt.subplots(nrows=nrows, ncols=ncols, figsize=figsize)
+    else:
+        if len(figsize)==0:
+            figsize=[ncols*3,nrows*3]
+        fig, axes=plt.subplots(nrows=nrows, ncols=ncols, figsize=figsize)
+    if title !=&#34;&#34;:
+        fig.suptitle(title)
+
     axes=axes.flatten()
     for cat, ax in zip(category, axes):
         u, c=np.unique(df[cat], return_counts=True)
@@ -873,32 +2783,94 @@ def stackedlines(df: pd.DataFrame,
                 continue
             if show_values==True:
                 u[j]=u[j]+&#34;\n(&#34;+str(100*np.round(_c[j],1))+&#34;%)&#34;
-        
-        ax.pie(c, labels=u, 
-               counterclock=False,
-               startangle=90, 
-               colors=colors,
-               labeldistance=0.6,
-               radius=1.25)
+        if hatch==True:
+            ax.pie(c, labels=u, 
+                counterclock=False,
+                startangle=90, 
+                colors=colors,
+                radius=1.25,
+                hatch=hatch_list[:c.shape[0]],
+                labeldistance=None)
+            ax.legend(bbox_to_anchor=[1,1])
+        else:
+            if show_legend==True:
+                ax.pie(c, labels=u, 
+                    counterclock=False,
+                    startangle=90, 
+                    colors=colors,
+                    radius=1.25,
+                    labeldistance=None)
+                ax.legend(bbox_to_anchor=[1,1])
+            else:
+                ax.pie(c, labels=u, 
+                    counterclock=False,
+                    startangle=90, 
+                    colors=colors,
+                    labeldistance=0.6,
+                    radius=1.25)
         ax.set_title(cat,backgroundcolor=&#39;lavender&#39;,pad=10)
-    if len(category)%ncols!=0:
-        for i in range(len(category)%ncols-2):
+    
+
+
+    if len(category)!=ncols*nrows:
+        for i in range(ncols*nrows-len(category)):
             fig.delaxes(axes[-(i+1)])
-    plt.tight_layout(h_pad=1)
-    plt.subplots_adjust(top=0.9)
+    # plt.tight_layout(h_pad=1)
+    plt.subplots_adjust(top=0.9,wspace=0.5)
+    if title !=&#34;&#34;:
+        fig.suptitle(title)
     return {&#34;axes&#34;:ax}</code></pre>
 </details>
 </dd>
 <dt id="omniplot.proportion.nice_piechart_num"><code class="name flex">
-<span>def <span class="ident">nice_piechart_num</span></span>(<span>df: pandas.core.frame.DataFrame, hue: List[str], category: str = '', palette: str = 'tab20c', ncols: int = 2, ignore: float = 0.05, show_values: bool = True, title: str = '', figsize=[]) ‑> Dict[~KT, ~VT]</span>
+<span>def <span class="ident">nice_piechart_num</span></span>(<span>df: pandas.core.frame.DataFrame, variables: List[str] = [], category: str = '', palette: str = 'tab20c', ncols: int = 2, ignore: float = 0.05, show_values: bool = True, title: str = '', figsize=[]) ‑> Dict[~KT, ~VT]</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Drawing a nice pichart by taking numerical values.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>df</code></strong> :&ensp;<code>pandas DataFrame</code></dt>
+<dd>It must be a wide-form data. Each pie chart will be drawn from each row, and by default, index values are used for pie chart titles.</dd>
+<dt><strong><code>variables</code></strong> :&ensp;<code>list</code>, optional</dt>
+<dd>The column names to calculate fractions. If not given, all columns will be used for calculation (in this case, all columns must contain only numerical values).</dd>
+<dt><strong><code>order</code></strong> :&ensp;<code>str</code>, optional <code>(default: "largest") ["largest", "smallest"]</code></dt>
+<dd>How to sort values in the chart</dd>
+<dt><strong><code>ncols</code></strong> :&ensp;<code>int</code>, optional <code>(default: 2)</code></dt>
+<dd>The column number of the figure.</dd>
+<dt><strong><code>ignore</code></strong> :&ensp;<code>float</code>, optional <code>(default: 0.05)</code></dt>
+<dd>Remove annotations of which the fraction is smaller than this value.</dd>
+<dt><strong><code>palette</code></strong> :&ensp;<code>str</code> or <code>dict</code>, optional <code>(default: "tab20c")</code></dt>
+<dd>A matplotlib colormap name or dictionary in which keys are values of the hue category and values are RGB array.
+e.g.) palette={""}</dd>
+<dt><strong><code>show_values</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>Wheter to exhibit the values of fractions/counts/percentages.</dd>
+<dt><strong><code>show</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>Whether or not to show the figure.</dd>
+<dt><strong><code>figsize</code></strong> :&ensp;<code>List[int]</code>, optional</dt>
+<dd>The figure size, e.g., [4, 6].</dd>
+<dt><strong><code>title</code></strong> :&ensp;<code>str optional, (default:"")</code></dt>
+<dd>The title of the figure.</dd>
+<dt><strong><code>hatch</code></strong> :&ensp;<code>bool</code>, optional <code>(default: False)</code></dt>
+<dd>Adding hatches to the bars</dd>
+<dt><strong><code>show_legend</code></strong> :&ensp;<code>bool</code>, optional <code>(default: True)</code></dt>
+<dd>Whether to show legends.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>dict {"axes":ax}</code></dt>
+<dd>&nbsp;</dd>
+</dl>
+<h2 id="raises">Raises</h2>
+<h2 id="notes">Notes</h2>
+<h2 id="references">References</h2>
+<h2 id="see-also">See Also</h2>
+<h2 id="examples">Examples</h2></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def nice_piechart_num(df: pd.DataFrame,hue: List[str],
+<pre><code class="python">def nice_piechart_num(df: pd.DataFrame,
+                      variables: List[str]=[],
                       category: str=&#34;&#34; ,
                   
                   palette: str=&#34;tab20c&#34;,
@@ -907,24 +2879,74 @@ def stackedlines(df: pd.DataFrame,
                   show_values: bool=True,
                   title: str=&#34;&#34;,
                   figsize=[]) -&gt;Dict:
+    &#34;&#34;&#34;
+    Drawing a nice pichart by taking numerical values.
     
+    Parameters
+    ----------
+    df : pandas DataFrame
+        It must be a wide-form data. Each pie chart will be drawn from each row, and by default, index values are used for pie chart titles. 
+        
+    variables: list, optional
+        The column names to calculate fractions. If not given, all columns will be used for calculation (in this case, all columns must contain only numerical values).
+    
+    order: str, optional (default: &#34;largest&#34;) [&#34;largest&#34;, &#34;smallest&#34;]
+        How to sort values in the chart
+    ncols: int, optional (default: 2)
+        The column number of the figure.
+    ignore : float, optional (default: 0.05)
+        Remove annotations of which the fraction is smaller than this value. 
+    palette : str or dict, optional (default: &#34;tab20c&#34;)
+        A matplotlib colormap name or dictionary in which keys are values of the hue category and values are RGB array.
+        e.g.) palette={&#34;&#34;}
+    show_values: bool, optional
+        Wheter to exhibit the values of fractions/counts/percentages.
+    
+    show : bool, optional
+        Whether or not to show the figure.
+    
+    figsize : List[int], optional
+        The figure size, e.g., [4, 6].
+    title: str optional, (default:&#34;&#34;)
+        The title of the figure.
+    hatch: bool, optional (default: False)
+        Adding hatches to the bars
+    show_legend: bool, optional (default: True)
+        Whether to show legends.
+ 
+    Returns
+    -------
+    dict {&#34;axes&#34;:ax}
+    
+    Raises
+    ------
+    Notes
+    -----
+    References
+    ----------
+    See Also
+    --------
+    Examples
+    --------
+    &#34;&#34;&#34;
     if category==&#34;&#34;:
         category=list(df.index)
     else:
         df=df.set_index(category)
         category=list(df.index)
+    if len(variables)!=0:
+        df=df[variables]
         
-    df=df[hue]
     srt=np.argsort(df.sum(axis=0))[::-1]
     df=df[df.columns[srt]]
-    hue=list(df.columns)
+    variables=list(df.columns)
     nrows=len(category)//ncols+int(len(category)%ncols!=0)
     if len(figsize)==0:
         figsize=[ncols*2,nrows*2]
     fig, axes=plt.subplots(nrows=nrows, ncols=ncols, figsize=figsize)
     axes=axes.flatten()
-    _cmap=plt.get_cmap(palette, len(hue))
-    colors=[_cmap(i) for i in range(len(hue))]
+    _cmap=plt.get_cmap(palette, len(variables))
+    colors=[_cmap(i) for i in range(len(variables))]
     for cat, ax in zip(category, axes):
         c=df.loc[cat]
         _c=c/np.sum(c)
@@ -942,23 +2964,26 @@ def stackedlines(df: pd.DataFrame,
     plt.subplots_adjust(top=0.95, right=0.81)
     
     legend_elements = [Line2D([0], [0], marker=&#39;o&#39;, color=&#39;lavender&#39;, label=huelabel,markerfacecolor=color, markersize=10)
-                      for color, huelabel in zip(colors, hue)]
+                      for color, huelabel in zip(colors, variables)]
     
     fig.legend(handles=legend_elements,bbox_to_anchor=(1, 1))
+    if title!=&#34;&#34;:
+        plt.title(title)
     return {&#34;axes&#34;:ax}</code></pre>
 </details>
 </dd>
 <dt id="omniplot.proportion.stacked_barplot"><code class="name flex">
-<span>def <span class="ident">stacked_barplot</span></span>(<span>df: pandas.core.frame.DataFrame, x: Union[str, list], hue: Union[str, list], scale: str = 'fraction', order: Optional[list] = None, hue_order: Optional[list] = None, test_pairs: List[List[str]] = [], palette: Union[str, dict] = 'tab20c', show_values: bool = True, show: bool = False, figsize: List[int] = [], xunit: str = '', yunit: str = '', title: str = '', hatch: bool = False, rotation: int = 90, ax: Optional[matplotlib.axes._axes.Axes] = None, show_legend: bool = True) ‑> Dict[~KT, ~VT]</span>
+<span>def <span class="ident">stacked_barplot</span></span>(<span>df: pandas.core.frame.DataFrame, x: Union[str, list], hue: Union[str, list], scale: str = 'fraction', order: Optional[list] = None, hue_order: Optional[list] = None, test_pairs: List[List[str]] = [], palette: Union[str, dict] = 'tab20c', show_values: bool = True, show_values_intact: bool = False, show: bool = False, figsize: List[int] = [], xunit: str = '', yunit: str = '', title: str = '', hatch: bool = False, rotation: int = 90, ax: Optional[matplotlib.axes._axes.Axes] = None, show_legend: bool = True, bin_num: Union[dict, int] = 10, ylim: Optional[int] = None) ‑> Dict[~KT, ~VT]</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Drawing a stacked barplot with or without the fisher's exact test </p>
+<div class="desc"><p>Drawing a stacked barplot by counting observations with or without the fisher's exact test. </p>
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>df</code></strong> :&ensp;<code>pandas DataFrame</code></dt>
 <dd>&nbsp;</dd>
 <dt><strong><code>x</code></strong> :&ensp;<code>str</code> or <code>list</code></dt>
-<dd>The category to place in x axis. Multiple categories can be passed by a list.</dd>
+<dd>The category to place in x axis. Multiple categories can be passed by a list.
+It mainly works with categorical values, including strings boolians and integers, but also can take float values by automatically creating a histogram.</dd>
 <dt><strong><code>hue</code></strong> :&ensp;<code>str</code> or <code>list</code></dt>
 <dd>Counting samples by the hue category. Multiple categories can be passed by a list.</dd>
 <dt><strong><code>order</code></strong> :&ensp;<code>list</code>, optional</dt>
@@ -977,16 +3002,28 @@ Examples: [["Adelie","Chinstrap" ],
 e.g.) palette={""}</dd>
 <dt><strong><code>show_values</code></strong> :&ensp;<code>bool</code>, optional</dt>
 <dd>Wheter to exhibit the values of fractions/counts/percentages.</dd>
+<dt><strong><code>show_values_intact</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>Wheter to exhibit non-scaled counts.</dd>
 <dt><strong><code>show</code></strong> :&ensp;<code>bool</code>, optional</dt>
 <dd>Whether or not to show the figure.</dd>
 <dt><strong><code>figsize</code></strong> :&ensp;<code>List[int]</code>, optional</dt>
 <dd>The figure size, e.g., [4, 6].</dd>
+<dt><strong><code>title</code></strong> :&ensp;<code>str optional, (default:"")</code></dt>
+<dd>The title of the figure.</dd>
+<dt><strong><code>hatch</code></strong> :&ensp;<code>bool</code>, optional <code>(default: False)</code></dt>
+<dd>Adding hatches to the bars</dd>
+<dt><strong><code>rotation</code></strong> :&ensp;<code>int</code>, optional <code>(default:90)</code></dt>
+<dd>The orientation of the x axis labels.</dd>
+<dt><strong><code>ax</code></strong> :&ensp;<code>plt.Axes</code>, optional <code>(default: None)</code></dt>
+<dd>The ax object to be plotted.</dd>
+<dt><strong><code>show_legend</code></strong> :&ensp;<code>bool</code>, optional <code>(default: True)</code></dt>
+<dd>Whether to show legends.</dd>
+<dt><strong><code>bin_num</code></strong> :&ensp;<code>dict, int</code>, optional <code>(default: 10)</code></dt>
+<dd>A histogram bin number when columns with float values are selected.
+You can specify the bin number of each column by using dictionary (e.g., bin_num={"A":10,"B",5}).</dd>
 </dl>
 <h2 id="returns">Returns</h2>
-<dl>
-<dt><code>dict {"pval":pvals,"axes":ax}</code></dt>
-<dd>&nbsp;</dd>
-</dl>
+<p>{"pval":pvals,"axes":ax,"data":data} : dict</p>
 <h2 id="raises">Raises</h2>
 <h2 id="notes">Notes</h2>
 <h2 id="references">References</h2>
@@ -1005,6 +3042,7 @@ e.g.) palette={""}</dd>
                     test_pairs: List[List[str]]=[],
                     palette: Union[str,dict]=&#34;tab20c&#34;,
                     show_values: bool=True,
+                    show_values_intact: bool=False,
                     show: bool=False,
                     figsize: List[int]=[],
                     xunit: str=&#34;&#34;,
@@ -1013,17 +3051,20 @@ e.g.) palette={""}</dd>
                     hatch: bool=False,
                     rotation: int=90,
                     ax: Optional[plt.Axes]=None,
-                    show_legend:bool=True)-&gt; Dict:
+                    show_legend:bool=True,
+                    bin_num: Union[dict, int]=10,
+                    ylim: Optional[int]=None)-&gt; Dict:
     
     &#34;&#34;&#34;
-    Drawing a stacked barplot with or without the fisher&#39;s exact test 
+    Drawing a stacked barplot by counting observations with or without the fisher&#39;s exact test. 
     
     Parameters
     ----------
     df : pandas DataFrame
     
     x: str or list
-        The category to place in x axis. Multiple categories can be passed by a list.
+        The category to place in x axis. Multiple categories can be passed by a list. 
+        It mainly works with categorical values, including strings boolians and integers, but also can take float values by automatically creating a histogram.
     hue: str or list
         Counting samples by the hue category. Multiple categories can be passed by a list.
     order: list, optional
@@ -1042,16 +3083,32 @@ e.g.) palette={""}</dd>
         e.g.) palette={&#34;&#34;}
     show_values: bool, optional
         Wheter to exhibit the values of fractions/counts/percentages.
-    
+
+    show_values_intact: bool, optional
+        Wheter to exhibit non-scaled counts.
+
     show : bool, optional
         Whether or not to show the figure.
     
     figsize : List[int], optional
         The figure size, e.g., [4, 6].
-     
+    title: str optional, (default:&#34;&#34;)
+        The title of the figure.
+    hatch: bool, optional (default: False)
+        Adding hatches to the bars
+    rotation: int, optional (default:90)
+        The orientation of the x axis labels.
+    ax: plt.Axes, optional (default: None)
+        The ax object to be plotted.
+    show_legend: bool, optional (default: True)
+        Whether to show legends.
+    bin_num: dict, int, optional (default: 10)
+        A histogram bin number when columns with float values are selected. 
+        You can specify the bin number of each column by using dictionary (e.g., bin_num={&#34;A&#34;:10,&#34;B&#34;,5}).
+
     Returns
     -------
-    dict {&#34;pval&#34;:pvals,&#34;axes&#34;:ax}
+    {&#34;pval&#34;:pvals,&#34;axes&#34;:ax,&#34;data&#34;:data} : dict
     
     Raises
     ------
@@ -1064,7 +3121,8 @@ e.g.) palette={""}</dd>
     Examples
     --------
     &#34;&#34;&#34;
-    
+    if type(df)==Dict:
+        df=pd.DataFrame(df)
     if type(x)==str:
         x=[x]
         if order!=None:
@@ -1073,17 +3131,31 @@ e.g.) palette={""}</dd>
         hue=[hue]
         if hue_order!=None:
             hue_order=[hue_order]
+    
     for _x in x:
-        if df[_x].isnull().values.any():
+
+        if df[_x].dtype==float:
+            if type(bin_num)==dict:
+                df[_x]=_float2cat(df[_x].values,bin_num=bin_num[_x])
+            else:
+                df[_x]=_float2cat(df[_x].values,bin_num=bin_num)
+
+        elif df[_x].isnull().values.any():
             df[_x]=df[_x].replace(np.nan, &#34;NA&#34;)
     for _hue in hue:
-        if df[_hue].isnull().values.any():
-            df[_hue]=df[_hue].replace(np.nan, &#34;NA&#34;)
+        if df[_hue].dtype==float:
+            if type(bin_num)==dict:
+                df[_hue]=_float2cat(df[_hue].values,bin_num=bin_num[_x])
+            else:
+                df[_hue]=_float2cat(df[_hue].values,bin_num=bin_num)
 
-    xkeys={}
-    keysx={}
+        elif df[_hue].isnull().values.any():
+            df[_hue]=df[_hue].replace(np.nan, &#34;NA&#34;)
+    data: dict={}
+    xkeys: dict={}
+    keysx: dict={}
     meankey_len=0
-    for i, _x in enumerate(x):
+    for i, _x in enumerate(x):              
         if order==None:
             u=np.unique(df[_x])
             keys=sorted(list(u))
@@ -1104,7 +3176,7 @@ e.g.) palette={""}</dd>
             hues=hue_order[i]
         huekeys[_hue]=hues
     
-    data={}
+    
     for _x, keys in xkeys.items():
         data[_x]={}
         for key in keys:
@@ -1230,10 +3302,14 @@ e.g.) palette={""}</dd>
                 
                 pos[_x][_hue][h]={key: [he, bo] for key, he, bo in zip(keys, heights, bottom)}
                 bottom+=heights
-            ax.set_xticks(ax.get_xticks(), labels=keys, rotation=rotation)
+            if len(keys)==1:
+                ax.set_xticks(ax.get_xticks(), labels=keys, rotation=rotation)
+                ax.margins(x=1)
+            else:
+                ax.set_xticks(ax.get_xticks(), labels=keys, rotation=rotation)
             #ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
             if show_legend==True:
-                ax.legend(loc=[1.01,0])
+                ax.legend(title=_hue,loc=[1.01,0])
             ax.set_xlabel(_x)
             if scale==&#34;absolute&#34;:
                 ylabel=&#34;Counts&#34;
@@ -1282,6 +3358,9 @@ e.g.) palette={""}</dd>
                             else:
                                 pval_str=&#34;ns&#34;
                             _line_annotate( &#34;mlp=&#34;+pval_str, line, (idx1+idx2)/2, color=&#34;magenta&#34;)
+            if scale==&#34;absolute&#34; and ylim !=None:
+                ax.set_ylim(0, ylim)
+
     if len(x)==1 and len(hue)==1:
         plt.subplots_adjust(top=0.93,left=0.1,right=0.7, bottom=0.17)                            
     else:
@@ -1291,19 +3370,410 @@ e.g.) palette={""}</dd>
         fig.suptitle(title)
     if show:
         plt.show()
+    return {&#34;pval&#34;:pvals,&#34;axes&#34;:ax,&#34;data&#34;:data}</code></pre>
+</details>
+</dd>
+<dt id="omniplot.proportion.stacked_barplot_num"><code class="name flex">
+<span>def <span class="ident">stacked_barplot_num</span></span>(<span>df: pandas.core.frame.DataFrame, x: str = '', scale: str = 'fraction', test_pairs: List[List[str]] = [], palette: Union[str, dict] = 'tab20c', show_values: bool = True, show_values_intact: bool = False, show: bool = False, figsize: List[int] = [], xlabel: str = '', ylabel: str = '', unit: Union[str, List[~T], Dict[~KT, ~VT]] = '', title: str = '', hatch: bool = False, rotation: Optional[int] = None, ax: Optional[matplotlib.axes._axes.Axes] = None, show_legend: bool = True, ylim: Optional[int] = None, horizontal: bool = False, margins: dict = {}, gridspec_kw: dict = {}, legend_row_num: int = 2, bar_width: float = 0.75) ‑> Dict[~KT, ~VT]</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Drawing a stacked barplot by taking values as an input with or without the fisher's exact test. </p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>df</code></strong> :&ensp;<code>pandas DataFrame</code></dt>
+<dd>A wide-form data format.
+e.g.,
+Bournemouth
+Brighton
+Possession
+36
+64
+Shots
+14
+16
+Shots on Target
+3
+6
+Corners
+5
+5
+Fouls
+11
+5</dd>
+<dt><strong><code>x</code></strong> :&ensp;<code>str</code></dt>
+<dd>The category to place in x axis. If not set, it will use the index of the input dataframe.</dd>
+<dt><strong><code>scale</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>Scaling method. Available options are: fraction, percentage, absolute</dd>
+<dt><strong><code>test_pairs</code></strong> :&ensp;<code>list</code>, optional</dt>
+<dd>pairs of categorical values related to x. It will calculate -log10 (p value) (mlp) of the fisher exact test.
+Examples: [["Adelie","Chinstrap" ],
+["Gentoo","Chinstrap" ],
+["Adelie","Gentoo" ]]</dd>
+<dt><strong><code>palette</code></strong> :&ensp;<code>str</code> or <code>dict</code>, optional <code>(default: "tab20c")</code></dt>
+<dd>A matplotlib colormap name or dictionary in which keys are values of the hue category and values are RGB array.
+e.g.) palette={""}</dd>
+<dt><strong><code>show_values</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>Wheter to exhibit the values of fractions/counts/percentages.</dd>
+<dt><strong><code>show_values_intact</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>Wheter to exhibit non-scaled values.</dd>
+<dt><strong><code>show</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>Whether or not to show the figure.</dd>
+<dt><strong><code>figsize</code></strong> :&ensp;<code>List[int]</code>, optional</dt>
+<dd>The figure size, e.g., [4, 6].</dd>
+<dt><strong><code>title</code></strong> :&ensp;<code>str optional, (default:"")</code></dt>
+<dd>The title of the figure.</dd>
+<dt><strong><code>hatch</code></strong> :&ensp;<code>bool</code>, optional <code>(default: False)</code></dt>
+<dd>Adding hatches to the bars</dd>
+<dt><strong><code>rotation</code></strong> :&ensp;<code>int</code>, optional <code>(default:90)</code></dt>
+<dd>The orientation of the x axis labels.</dd>
+<dt><strong><code>ax</code></strong> :&ensp;<code>plt.Axes</code>, optional <code>(default: None)</code></dt>
+<dd>The ax object to be plotted.</dd>
+<dt><strong><code>show_legend</code></strong> :&ensp;<code>bool</code>, optional <code>(default: True)</code></dt>
+<dd>Whether to show legends.</dd>
+<dt><strong><code>bin_num</code></strong> :&ensp;<code>dict, int</code>, optional <code>(default: 10)</code></dt>
+<dd>A histogram bin number when columns with float values are selected.
+You can specify the bin number of each column by using dictionary (e.g., bin_num={"A":10,"B",5}).</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>{"pval":pvals,"axes":ax,"data":data}: dict</p>
+<h2 id="raises">Raises</h2>
+<h2 id="notes">Notes</h2>
+<h2 id="references">References</h2>
+<h2 id="see-also">See Also</h2>
+<h2 id="examples">Examples</h2></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def stacked_barplot_num(df: pd.DataFrame,
+                    x: str=&#34;&#34;,
+                    scale: str=&#34;fraction&#34;,
+                    test_pairs: List[List[str]]=[],
+                    palette: Union[str,dict]=&#34;tab20c&#34;,
+                    show_values: bool=True,
+                    show_values_intact: bool=False,
+                    show: bool=False,
+                    figsize: List[int]=[],
+                    xlabel: str=&#34;&#34;,
+                    ylabel: str=&#34;&#34;,
+                    unit: Union[str, List, Dict]=&#34;&#34;,
+                    title: str=&#34;&#34;,
+                    hatch: bool=False,
+                    rotation: Optional[int]=None,
+                    ax: Optional[plt.Axes]=None,
+                    show_legend:bool=True,
+                    ylim: Optional[int]=None,
+                    horizontal: bool=False,
+                    margins: dict={},
+                    gridspec_kw: dict={},
+                    legend_row_num: int=2,
+                    bar_width: float=0.75
+                    )-&gt; Dict:
+    
+    &#34;&#34;&#34;
+    Drawing a stacked barplot by taking values as an input with or without the fisher&#39;s exact test. 
+    
+    Parameters
+    ----------
+    df : pandas DataFrame
+        A wide-form data format.
+        e.g., 
+                  Bournemouth    Brighton
+        Possession         36          64
+        Shots              14          16
+        Shots on Target     3           6
+        Corners             5           5
+        Fouls              11           5
+    
+    x: str
+        The category to place in x axis. If not set, it will use the index of the input dataframe.
+    scale: str, optional
+        Scaling method. Available options are: fraction, percentage, absolute
+    test_pairs : list, optional
+        pairs of categorical values related to x. It will calculate -log10 (p value) (mlp) of the fisher exact test.
+        Examples: [[&#34;Adelie&#34;,&#34;Chinstrap&#34; ],
+                    [&#34;Gentoo&#34;,&#34;Chinstrap&#34; ],
+                    [&#34;Adelie&#34;,&#34;Gentoo&#34; ]]
+    palette : str or dict, optional (default: &#34;tab20c&#34;)
+        A matplotlib colormap name or dictionary in which keys are values of the hue category and values are RGB array.
+        e.g.) palette={&#34;&#34;}
+    show_values: bool, optional
+        Wheter to exhibit the values of fractions/counts/percentages.
+
+    show_values_intact: bool, optional
+        Wheter to exhibit non-scaled values.
+
+    show : bool, optional
+        Whether or not to show the figure.
+    
+    figsize : List[int], optional
+        The figure size, e.g., [4, 6].
+    title: str optional, (default:&#34;&#34;)
+        The title of the figure.
+    hatch: bool, optional (default: False)
+        Adding hatches to the bars
+    rotation: int, optional (default:90)
+        The orientation of the x axis labels.
+    ax: plt.Axes, optional (default: None)
+        The ax object to be plotted.
+    show_legend: bool, optional (default: True)
+        Whether to show legends.
+    bin_num: dict, int, optional (default: 10)
+        A histogram bin number when columns with float values are selected. 
+        You can specify the bin number of each column by using dictionary (e.g., bin_num={&#34;A&#34;:10,&#34;B&#34;,5}).
+
+    Returns
+    -------
+    {&#34;pval&#34;:pvals,&#34;axes&#34;:ax,&#34;data&#34;:data}: dict
+    
+    Raises
+    ------
+    Notes
+    -----
+    References
+    ----------
+    See Also
+    --------
+    Examples
+    --------
+    &#34;&#34;&#34;
+    if type(df)==Dict:
+        df=pd.DataFrame(df)
+   
+    pvals={}
+    # if len(test_pairs) &gt;0:
+    #     print(&#34;mlp stands for -log10(p value)&#34;)
+    #     for _hue in hue:
+            
+    #         for i, h in enumerate(huekeys[_hue]):
+                
+    #     for p1,p2 in test_pairs:
+    #         yes_total=np.sum(data[_x][_hue][keys[idx1]])
+    #         no_total=np.sum(data[_x][_hue][keys[idx2]])
+    #         yes_and_hue=data[_x][_hue][keys[idx1]][i]
+    #         no_and_hue=data[_x][_hue][keys[idx2]][i]
+    #         table=[[yes_and_hue, no_and_hue],
+    #                 [yes_total-yes_and_hue, no_total-no_and_hue]]
+
+    #         odd, pval=fisher_exact(table)
+    #         pvals[_x][_hue][h].append([idx1, idx2, pval])
+    
+    
+    if len(gridspec_kw)==0:
+        if horizontal==True:
+            gridspec_kw=dict(top=0.75,left=0.25,right=0.9, bottom=0.17)
+        else:
+            gridspec_kw=dict(top=0.93,left=0.1,right=0.7, bottom=0.17)
+
+    if len(margins)==0:
+        if horizontal==True and scale!=&#34;absolute&#34;:
+            margins=dict(x=0)
+        else:
+            margins=dict(x=0.1)
+
+
+    if len(figsize)==0:
+        if horizontal==True:
+            figsize=[6, len(df.index)/2]
+        else:
+            figsize=[len(df.columns)+1, 6]
+    if ax!=None:
+        fig=None
+    else:
+        fig, ax=plt.subplots(figsize=figsize,gridspec_kw=gridspec_kw)
+        plt.margins(**margins)
+    if unit==&#34;&#34;:
+        if scale==&#34;absolute&#34;:
+            unit=&#34;&#34;
+        elif scale==&#34;fraction&#34;:
+            unit=&#34;&#34;
+        elif scale==&#34;percentage&#34;:
+            unit=&#34;%&#34;
+
+    pos={}
+    if x==&#34;&#34;:
+        keys=list(df.index)
+        _df=df
+    else:
+        keys=list(df[x])
+        _df=df.drop(columns=[x])
+
+    if scale==&#34;fraction&#34;:
+        _df=_df.div(_df.sum(axis=1),axis = &#39;rows&#39;,)
+    elif scale==&#34;percentage&#34;:
+        _df=100*_df.div(_df.sum(axis=1),axis = &#39;rows&#39;,)
+
+
+    if type(palette)==str:
+        cmap=plt.get_cmap(palette, len(_df.columns)) 
+    pos={}
+    bottom=np.zeros([len(keys)])
+    
+    for i, col in enumerate(_df.columns):
+        # print(col)
+        heights=_df[col].values
+        # print(heights,bottom)
+        originalval=df[col].values
+        if horizontal==True:
+            if type(palette)==dict:
+                if hatch==True:
+                    ax.barh(keys, width=heights,height=bar_width, left=bottom, color=palette[col], label=col, hatch=hatch_list[i])
+                else:
+                    ax.barh(keys, width=heights,height=bar_width, left=bottom, color=palette[col], label=col)
+            else:
+                if hatch==True:
+                    ax.barh(keys, width=heights,height=bar_width, left=bottom, color=cmap(i), label=col, hatch=hatch_list[i])
+                else:
+                    ax.barh(keys, width=heights,height=bar_width, left=bottom, color=cmap(i), label=col)
+
+        else:
+            if type(palette)==dict:
+                if hatch==True:
+                    ax.bar(keys, heights,width=bar_width, bottom=bottom, color=palette[col], label=col, hatch=hatch_list[i])
+                else:
+                    ax.bar(keys, heights,width=bar_width, bottom=bottom, color=palette[col], label=col)
+            else:
+                if hatch==True:
+                    ax.bar(keys, heights,width=bar_width, bottom=bottom, color=cmap(i), label=col, hatch=hatch_list[i])
+                else:
+                    ax.bar(keys, heights,width=bar_width, bottom=bottom, color=cmap(i), label=col)
+        if show_values==True:
+            
+            for j, k in enumerate(keys):
+                
+                if type(unit)==dict:
+                    if k in unit:
+                        u=unit[k]
+                    else:
+                        u=&#34;&#34;
+                elif type(unit)==list:
+                    u=unit[j]
+                else:
+                    u=unit
+                if horizontal==True:
+                    if show_values_intact==True:
+                        ax.text(bottom[j]+heights[j]/2, j,&#34;{}{}&#34;.format(originalval[j],u), va=&#34;center&#34;,ha=&#34;center&#34;,
+                                bbox=dict(boxstyle=&#34;round,pad=0.3&#34;, fc=&#34;white&#34;, ec=&#34;y&#34;, lw=1, alpha=0.8))
+                    else:
+                        ax.text(bottom[j]+heights[j]/2,j,&#34;{:.2f}{}&#34;.format(heights[j],u), va=&#34;center&#34;,ha=&#34;center&#34;,
+                                bbox=dict(boxstyle=&#34;round,pad=0.3&#34;, fc=&#34;white&#34;, ec=&#34;y&#34;, lw=1, alpha=0.8))
+                else:
+                    if show_values_intact==True:
+                        ax.text(j,bottom[j]+heights[j]/2,&#34;{}{}&#34;.format(originalval[j],u), ha=&#34;center&#34;,
+                                bbox=dict(boxstyle=&#34;round,pad=0.3&#34;, fc=&#34;white&#34;, ec=&#34;y&#34;, lw=1, alpha=0.8))
+                    else:
+                        ax.text(j,bottom[j]+heights[j]/2,&#34;{:.2f}{}&#34;.format(heights[j],u), ha=&#34;center&#34;,
+                                bbox=dict(boxstyle=&#34;round,pad=0.3&#34;, fc=&#34;white&#34;, ec=&#34;y&#34;, lw=1, alpha=0.8))
+                    
+            
+        pos[col]={key: [he, bo] for key, he, bo in zip(keys, heights, bottom)}
+        bottom+=heights
+    
+    #ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
+    if show_legend==True:
+        if horizontal==True:
+            ax.legend(loc=[0,1.01], ncols=len(_df.columns)//legend_row_num+int(len(_df.columns)%legend_row_num!=0))
+        else:
+            ax.legend(loc=[1.01,0])
+    if horizontal==True:
+        if rotation==None:
+            rotation=0
+
+        if len(keys)==1:
+            ax.set_yticks(ax.get_yticks(), labels=keys, rotation=rotation)
+            ax.margins(x=1)
+        else:
+            ax.set_yticks(ax.get_yticks(), labels=keys, rotation=rotation)
+        ax.set_ylabel(ylabel)
+        if xlabel ==&#34;&#34;:
+            if show_values_intact==False:
+                if scale==&#34;absolute&#34;:
+                    xlabel=&#34;Counts&#34;
+                elif scale==&#34;fraction&#34;:
+                    xlabel=&#34;Fraction&#34;
+                elif scale==&#34;percentage&#34;:
+                    xlabel=&#34;Percentage&#34;
+        
+        ax.set_xlabel(xlabel)
+    else:
+        if rotation==None:
+            rotation=90
+        if len(keys)==1:
+            ax.set_xticks(ax.get_xticks(), labels=keys, rotation=rotation)
+            ax.margins(x=1)
+        else:
+            ax.set_xticks(ax.get_xticks(), labels=keys, rotation=rotation)
+        ax.set_xlabel(xlabel)
+        if ylabel ==&#34;&#34;:
+            if show_values_intact==False:
+                if scale==&#34;absolute&#34;:
+                    ylabel=&#34;Counts&#34;
+                elif scale==&#34;fraction&#34;:
+                    ylabel=&#34;Fraction&#34;
+                elif scale==&#34;percentage&#34;:
+                    ylabel=&#34;Percentage&#34;
+        ax.set_ylabel(ylabel)
+
+    # if len(pvals)&gt;0:
+        
+    #     for _hue in hue:
+    #         if _x==_hue:
+    #             continue
+    #         if not _hue in pos[_x]:
+    #             continue
+    #         hues=huekeys[_hue]
+    #         for i, h in enumerate(hues):
+    #             #print(pos)
+    #             #print(pos[_x])
+    #             _pos=pos[_x][_hue][h]
+    #             for idx1, idx2, pval in pvals[_x][_hue][h]:
+                    
+    #                 he1, bot1=_pos[keys[idx1]]
+    #                 he2, bot2=_pos[keys[idx2]]
+    #                 line, =ax.plot([idx1,idx2],[he1/2+bot1,he2/2+bot2],color=&#34;gray&#34;)
+    #                 # r1=ax.transData.transform([idx1, he1/2+bot1])
+    #                 # r2=ax.transData.transform([idx2, he2/2+bot2])
+    #                 r1=np.array([idx1, he1/2+bot1])
+    #                 r2=np.array([idx2, he2/2+bot2])
+    #                 r=r2-r1
+    #                 #print(ax.get_xlim(),ax.get_ylim())
+    #                 r=np.array([1,3])*r/np.array([ax.get_xlim()[1]-ax.get_xlim()[0],ax.get_ylim()[1]-ax.get_ylim()[0]])
+    #                 #r=ax.transData.transform(r)
+    #                 if idx2&lt;idx1:
+    #                     r=-r
+    #                 #print(r)
+    #                 r=r*(r @ r)**(-0.5)
+    #                 #print(h,r)
+    #                 angle=np.arccos(r[0])
+    #                 if r[1]&lt;0:
+    #                     angle= -angle
+    #                 #print(angle)
+    #                 if pval &lt; 0.05:
+    #                     pval_str=str(np.round(-np.log10(pval), decimals=1))
+    #                 else:
+    #                     pval_str=&#34;ns&#34;
+    #                 _line_annotate( &#34;mlp=&#34;+pval_str, line, (idx1+idx2)/2, color=&#34;magenta&#34;)
+    if scale==&#34;absolute&#34; and ylim !=None:
+        ax.set_ylim(0, ylim)
+    if horizontal==True:
+        ax.invert_yaxis()
+
+    if title !=&#34;&#34; and fig !=None:
+        fig.suptitle(title)
+    if show:
+        plt.show()
     return {&#34;pval&#34;:pvals,&#34;axes&#34;:ax}</code></pre>
 </details>
 </dd>
 <dt id="omniplot.proportion.stackedlines"><code class="name flex">
-<span>def <span class="ident">stackedlines</span></span>(<span>df: pandas.core.frame.DataFrame, x: str, y: list, sort: bool = True, inverse: bool = False, show_values: bool = False, remove_all_zero: bool = False, palette: str = 'tab20c', figsize=[7, 4], ax: Optional[matplotlib.axes._axes.Axes] = None, alpha: float = 0.75, bbox_to_anchor: list = [1.7, 1], right: float = 0.7, bottom: float = 0.12, show_legend: bool = True, xlabel: str = '', ylabel: str = '', yunit: str = '', xunit: str = '', title: str = '', hatch: bool = False)</span>
+<span>def <span class="ident">stackedlines</span></span>(<span>df: pandas.core.frame.DataFrame, x: str, y: list, sort: bool = True, inverse: bool = False, show_values: bool = False, remove_all_zero: bool = False, palette: str = 'tab20c', figsize=[7, 4], ax: Optional[matplotlib.axes._axes.Axes] = None, alpha: float = 0.75, bbox_to_anchor: list = [1.7, 1], right: float = 0.7, bottom: float = 0.12, show_legend: bool = True, xlabel: str = '', ylabel: str = '', yunit: str = '', xunit: str = '', xformat: str = '', yformat: str = '', logscalex: bool = False, logscaley: bool = False, title: str = '', hatch: bool = False)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Drawing a scatter plot of which points are represented by pie charts. </p>
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>df</code></strong> :&ensp;<code>pandas DataFrame</code></dt>
-<dd>A wide form dataframe. Index names are used to label points. It accepts negative values, but not recommended as
-it does not make sense.
+<dd>A wide form dataframe. It accepts negative values.
 e.g.)
 year
 biofuel_consumption
@@ -1378,6 +3848,24 @@ oil_consumption
 <dd>y axis label</dd>
 <dt><strong><code>ax</code></strong> :&ensp;<code>Optional[plt.Axes] optional, (default: None)</code></dt>
 <dd>pyplot ax to add this scatter plot</dd>
+<dt><strong><code>alpha</code></strong> :&ensp;<code>float</code>, optional <code>(default: 0.75)</code></dt>
+<dd>alpha of the stacked lines (areas).</dd>
+<dt><strong><code>bbox_to_anchor</code></strong> :&ensp;<code>list</code>, optional <code>(default: [1.7, 1])</code></dt>
+<dd>The legend location</dd>
+<dt><strong><code>right</code></strong> :&ensp;<code>float=0.7,</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>bottom</code></strong> :&ensp;<code>float=0.120,</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>show_legend</code></strong> :&ensp;<code>bool=True,</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>yunit</code></strong> :&ensp;<code>str=""</code>, optional <code>(default: "")</code></dt>
+<dd>The y axis unit. it will appear at the top of the y axis.</dd>
+<dt><strong><code>xunit</code></strong> :&ensp;<code>str=""</code>, optional <code>(default: "")</code></dt>
+<dd>The X axis unit. it will appear at the top of the x axis.</dd>
+<dt><strong><code>title</code></strong> :&ensp;<code>str=""</code>, optional <code>(default: "")</code></dt>
+<dd>The figure title.</dd>
+<dt><strong><code>hatch</code></strong> :&ensp;<code>bool</code>, optional <code>(default: False)</code></dt>
+<dd>Whether to add hatches to the plots.</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
@@ -1412,6 +3900,10 @@ oil_consumption
                 ylabel: str=&#34;&#34;,
                 yunit: str=&#34;&#34;,
                 xunit: str=&#34;&#34;,
+                xformat: str=&#34;&#34;,
+                yformat: str=&#34;&#34;,
+                logscalex: bool=False,
+                logscaley: bool=False,
                 title: str=&#34;&#34;,
                 hatch: bool=False):
     &#34;&#34;&#34;
@@ -1420,8 +3912,7 @@ oil_consumption
     Parameters
     ----------
     df : pandas DataFrame
-        A wide form dataframe. Index names are used to label points. It accepts negative values, but not recommended as 
-        it does not make sense.
+        A wide form dataframe. It accepts negative values.
         e.g.) 
               year    biofuel_consumption    coal_consumption    gas_consumption    hydro_consumption    nuclear_consumption    oil_consumption
         90    1990                 16.733            5337.998           5170.609              864.271               1723.004           9306.913
@@ -1450,7 +3941,22 @@ oil_consumption
         y axis label
     ax: Optional[plt.Axes] optional, (default: None)
         pyplot ax to add this scatter plot
-
+    alpha: float, optional (default: 0.75)
+        alpha of the stacked lines (areas).
+    bbox_to_anchor: list, optional (default: [1.7, 1])
+        The legend location
+    right: float=0.7,
+    bottom: float=0.120,
+    show_legend: bool=True,
+    
+    yunit: str=&#34;&#34;, optional (default: &#34;&#34;)
+        The y axis unit. it will appear at the top of the y axis.
+    xunit: str=&#34;&#34;, optional (default: &#34;&#34;)
+        The X axis unit. it will appear at the top of the x axis.
+    title: str=&#34;&#34;, optional (default: &#34;&#34;)
+        The figure title.
+    hatch: bool, optional (default: False)
+        Whether to add hatches to the plots.
 
     Returns
     -------
@@ -1540,6 +4046,9 @@ oil_consumption
         last_vals.append(vals[-1,1]-vals[-1,0])
         last_pos.append(vals[-1,1]/2+vals[-1,0]/2)
         i+=1
+
+    
+
     if show_values==True:
         last_vals=100*np.array(last_vals)/np.sum(last_vals)
         for val, pos in zip(last_vals, last_pos):
@@ -1558,8 +4067,18 @@ oil_consumption
         ax.text(0, 1, &#34;({})&#34;.format(yunit), transform=ax.transAxes, ha=&#34;right&#34;)
     if xunit!=&#34;&#34;:
         ax.text(1, 0, &#34;({})&#34;.format(xunit), transform=ax.transAxes, ha=&#34;left&#34;,va=&#34;top&#34;)
+    if xformat!=&#34;&#34;:
+        
+        ax.xaxis.set_major_formatter(StrMethodFormatter(xformat))
+    if yformat !=&#34;&#34;:
+        ax.yaxis.set_major_formatter(StrMethodFormatter(yformat))
+    if logscalex==True:
+        ax.set_xscale(&#34;log&#34;)
+    if logscaley==True:
+        ax.set_yscale(&#34;log&#34;)
     if inverse==True:
-        ax.invert_yaxis()</code></pre>
+        ax.invert_yaxis()
+    return {&#34;axes&#34;:ax}</code></pre>
 </details>
 </dd>
 </dl>
@@ -1579,10 +4098,13 @@ oil_consumption
 </ul>
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
-<ul class="">
+<ul class="two-column">
+<li><code><a title="omniplot.proportion._nested_piechart" href="#omniplot.proportion._nested_piechart">_nested_piechart</a></code></li>
+<li><code><a title="omniplot.proportion.nested_piechart" href="#omniplot.proportion.nested_piechart">nested_piechart</a></code></li>
 <li><code><a title="omniplot.proportion.nice_piechart" href="#omniplot.proportion.nice_piechart">nice_piechart</a></code></li>
 <li><code><a title="omniplot.proportion.nice_piechart_num" href="#omniplot.proportion.nice_piechart_num">nice_piechart_num</a></code></li>
 <li><code><a title="omniplot.proportion.stacked_barplot" href="#omniplot.proportion.stacked_barplot">stacked_barplot</a></code></li>
+<li><code><a title="omniplot.proportion.stacked_barplot_num" href="#omniplot.proportion.stacked_barplot_num">stacked_barplot_num</a></code></li>
 <li><code><a title="omniplot.proportion.stackedlines" href="#omniplot.proportion.stackedlines">stackedlines</a></code></li>
 </ul>
 </li>

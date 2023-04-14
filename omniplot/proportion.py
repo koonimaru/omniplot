@@ -734,7 +734,7 @@ def stacked_barplot_num(df: pd.DataFrame,
 
     Returns
     -------
-    {"pval":pvals,"axes":ax,"data":data} : dict
+    {"pval":pvals,"axes":ax,"data":data}: dict
     
     Raises
     ------
