@@ -18,7 +18,8 @@ plt.rcParams['svg.fonttype'] = 'none'
 sns.set_theme()
 from matplotlib.text import Annotation
 from matplotlib.transforms import Affine2D
-import os 
+import os
+import copy
 
 __all__=["_create_color_markerlut", 
          "_separate_data", "_line_annotate", "_dendrogram_threshold", "_radialtree2",
@@ -1034,20 +1035,27 @@ def _separate_data(df, variables=[],
     return x, category
 
 def _create_color_markerlut(df, cat, palette, markers=[]):
+    # print(type(palette))
     color_lut={}
     marker_lut={}
     if df[cat].isnull().values.any():
         df[cat]=df[cat].fillna("NA")
     uniq_labels=sorted(list(set(df[cat])))
-    _cmap=plt.get_cmap(palette, len(uniq_labels))
-    
-    color_lut={u: _cmap(i) for i, u in enumerate(uniq_labels)}
-    
-    if len(markers)!=0:
-        if len(markers) < len(uniq_labels):
-            while len(markers) < len(uniq_labels):
-                markers.extend(markers)
-        marker_lut={u: markers[i] for i, u in enumerate(uniq_labels)}
+    if type(palette)==str:
+        _cmap=plt.get_cmap(palette, len(uniq_labels))
+        
+        color_lut={u: _cmap(i) for i, u in enumerate(uniq_labels)}
+        
+        if len(markers)!=0:
+            if len(markers) < len(uniq_labels):
+                while len(markers) < len(uniq_labels):
+                    markers.extend(markers)
+            marker_lut={u: markers[i] for i, u in enumerate(uniq_labels)}
+    elif type(palette)==dict:
+        color_lut=copy.deepcopy(palette)
+    else:
+        raise TypeError("Unexpected type of the palette option. It must be either a matplot colormap name or the dictionary of a color look up table")
+
 
     return color_lut, marker_lut
 

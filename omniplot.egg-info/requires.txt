@@ -19,3 +19,5 @@ datashader
 python-louvain
 scikit-fuzzy
 scikit-image
+adjustText
+bioframe

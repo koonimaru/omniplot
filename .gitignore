@@ -26,3 +26,8 @@ tests/scatter5_scatter.png
 tests/scatter6_scatter.png
 tests/scatter7_scatter.png
 tests/scatter8_scatter.png
+data/volcano.csv
+tests/test_2.ipynb
+tests/Untitled.ipynb
+.gitignore
+tests/.ipynb_checkpoints/Untitled-checkpoint.ipynb

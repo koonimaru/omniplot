@@ -81,7 +81,7 @@ setup(
                       "natsort",
                       "joblib","pyranges",
                       "ray",
-                      "intervaltree","networkx","datashader","python-louvain", "scikit-fuzzy","scikit-image",
+                      "intervaltree","networkx","datashader","python-louvain", "scikit-fuzzy","scikit-image","adjustText","bioframe"
                       ],
     long_description=long_description,
 )
