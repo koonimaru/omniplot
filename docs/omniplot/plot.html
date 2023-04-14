@@ -38,7 +38,7 @@ from scipy.cluster.hierarchy import leaves_list
 from scipy.cluster import hierarchy
 from collections import defaultdict
 import matplotlib.colors
-from natsort import natsort_keygen
+from natsort import natsort_keygen, natsorted
 from matplotlib.patches import Rectangle
 import scipy.cluster.hierarchy as sch
 import fastcluster as fcl
@@ -62,9 +62,24 @@ from omniplot.chipseq_utils import _calc_pearson
 import itertools as it
 from omniplot.scatter import *
 from omniplot.proportion import *
-colormap_list: list=[&#34;nipy_spectral&#34;, &#34;terrain&#34;,&#34;tab20b&#34;,&#34;tab20c&#34;,&#34;gist_rainbow&#34;,&#34;hsv&#34;,&#34;CMRmap&#34;,&#34;coolwarm&#34;,&#34;gnuplot&#34;,&#34;gist_stern&#34;,&#34;brg&#34;,&#34;rainbow&#34;,&#34;jet&#34;]
+colormap_list: list=[&#34;nipy_spectral&#34;, 
+                     &#34;terrain&#34;,
+                     &#34;tab20b&#34;,
+                     &#34;tab20c&#34;,
+                     &#34;gist_rainbow&#34;,
+                     &#34;hsv&#34;,
+                     &#34;CMRmap&#34;,
+                     &#34;coolwarm&#34;,
+                     &#34;gnuplot&#34;,
+                     &#34;gist_stern&#34;,
+                     &#34;brg&#34;,
+                     &#34;rainbow&#34;,
+                     &#34;jet&#34;]
 hatch_list: list = [&#39;//&#39;, &#39;\\\\&#39;, &#39;||&#39;, &#39;--&#39;, &#39;++&#39;, &#39;xx&#39;, &#39;oo&#39;, &#39;OO&#39;, &#39;..&#39;, &#39;**&#39;,&#39;/o&#39;, &#39;\\|&#39;, &#39;|*&#39;, &#39;-\\&#39;, &#39;+o&#39;, &#39;x*&#39;, &#39;o-&#39;, &#39;O|&#39;, &#39;O.&#39;, &#39;*-&#39;]
 maker_list: list=[&#39;.&#39;, &#39;_&#39; , &#39;+&#39;,&#39;|&#39;, &#39;x&#39;, &#39;v&#39;, &#39;^&#39;, &#39;&lt;&#39;, &#39;&gt;&#39;, &#39;s&#39;, &#39;p&#39;, &#39;*&#39;, &#39;h&#39;, &#39;D&#39;, &#39;d&#39;, &#39;P&#39;, &#39;X&#39;,&#39;o&#39;, &#39;1&#39;, &#39;2&#39;, &#39;3&#39;, &#39;4&#39;,&#39;|&#39;, &#39;_&#39;]
+
+
+
 
 plt.rcParams[&#39;font.family&#39;]= &#39;sans-serif&#39;
 plt.rcParams[&#39;font.sans-serif&#39;] = [&#39;Arial&#39;]
@@ -84,7 +99,7 @@ def radialtree(df: pd.DataFrame,
                distance_method=&#34;euclidean&#34;,
                tree_method=&#34;ward&#34;,
                title: str=&#34;&#34;,
-               y: list=[],
+               y: list=[],linewidth: float=1,figsize: Optional[list]=None,
                **kwargs) -&gt; Dict:
     &#34;&#34;&#34;
     Drawing a radial dendrogram with color labels.
@@ -175,11 +190,18 @@ def radialtree(df: pd.DataFrame,
     
     Z = sch.dendrogram(Y,labels=_labels,no_plot=True)
     t=_dendrogram_threshold(Z, n_clusters)
+    _fig, _ax =plt.subplots()
     Z=sch.dendrogram(Y,
                         labels = _labels,
-                        color_threshold=t,no_plot=True)
+                        color_threshold=t, ax=_ax)
+    #xticks=set(_ax.get_xticks())
+    plt.close(_fig)
     sample_classes={k: list(category_df[k]) for k in category_df.columns}
-    ax=_radialtree2(Z, sample_classes=sample_classes,addlabels=False, **kwargs)
+    ax=_radialtree2(Z, 
+                    sample_classes=sample_classes,
+                    addlabels=False,
+                    linewidth=linewidth,
+                    figsize=figsize, **kwargs)
     if title !=&#34;&#34;:
         ax.set_title(title)
     _save(save, &#34;radialtree&#34;)
@@ -260,11 +282,12 @@ def correlation(df: pd.DataFrame,
     if ztransform==True:
         X=zscore(X, axis=0)
     if method==&#34;pearson&#34;:
-        dmat=Parallel(n_jobs=-1)(delayed(_calc_pearson)(ind, X) for ind in list(it.combinations(range(X.shape[0]), 2)))
-        dmat=np.array(dmat)
-        dmat=squareform(dmat)
-        print(dmat)
-        dmat+=np.identity(dmat.shape[0])
+        # dmat=Parallel(n_jobs=-1)(delayed(_calc_pearson)(ind, X) for ind in list(it.combinations(range(X.shape[0]), 2)))
+        # dmat=np.array(dmat)
+        # dmat=squareform(dmat)
+        # print(dmat)
+        # dmat+=np.identity(dmat.shape[0])
+        dmat=np.corrcoef(X)
     else:
         dmat=squareform(pdist(X, method))
     if method==&#34;pearson&#34;:
@@ -286,10 +309,9 @@ def correlation(df: pd.DataFrame,
                                yticklabels=yticklabels,
                                figsize=figsize,
                                ctitle=ctitle )
-        return res
     else:
         
-        g=sns.clustermap(data=dmat,
+        res=complex_clustermap(data=dmat,
                          xticklabels=xticklabels,
                          yticklabels=yticklabels,
                    method=&#34;ward&#34;, 
@@ -297,15 +319,15 @@ def correlation(df: pd.DataFrame,
                    col_cluster=True,
                    row_cluster=True,
                    figsize=figsize,
-                   rasterized=True,
+                   #rasterized=True,
                     #cbar_kws={&#34;label&#34;:&#34;Pearson correlation&#34;}, 
-                   annot=show_values,
+                   #annot=show_values,
                    **clustermap_param)
-        
-        g.cax.set_ylabel(ctitle, rotation=-90,va=&#34;bottom&#34;)
-        plt.setp(g.ax_heatmap.get_yticklabels(), rotation=0)  # For y axis
-        plt.setp(g.ax_heatmap.get_xticklabels(), rotation=90) # For x axis
-        return {&#34;grid&#34;:g}
+    return res
+        # g.cax.set_ylabel(ctitle, rotation=-90,va=&#34;bottom&#34;)
+        # plt.setp(g.ax_heatmap.get_yticklabels(), rotation=0)  # For y axis
+        # plt.setp(g.ax_heatmap.get_xticklabels(), rotation=90) # For x axis
+        # return {&#34;grid&#34;:g}
 
 def triangle_heatmap(df, 
                      grid_pos: list=[],
@@ -514,7 +536,7 @@ def complex_clustermap(df: pd.DataFrame,
         The same as the &#34;variables&#34; option. Will be deprecated.
     Returns
     -------
-        dict: {&#34;row_clusters&#34;:pd.DataFrame,&#34;col_clusters&#34;:pd.DataFrame, &#34;grid&#34;:g}
+        {&#34;row_clusters&#34;:pd.DataFrame,&#34;col_clusters&#34;:pd.DataFrame, &#34;grid&#34;:g}: dict
     Raises
     ------
     Notes
@@ -533,7 +555,8 @@ def complex_clustermap(df: pd.DataFrame,
         variables=heatmap_col
     cnum=len(variables)
     if len(figsize)==0:
-        xsize=np.amin([2*cnum, 20])
+        xsize=np.amin([cnum, 20])
+        xsize=np.amax([xsize, 5])
         figsize=[xsize,10]
     scatterpointsize=5
     sns.set(font_scale=1)
@@ -545,7 +568,7 @@ def complex_clustermap(df: pd.DataFrame,
     if len(col_plot)!=0 or len(col_scatter)!=0 or len(col_bar)!=0:
         if dfcol==None:
             raise Exception(&#34;if you want to plot along the x axis, you need provide dfcol option containing values to plot.&#34;)
-    
+    cdata={&#34;Cluster&#34;:[],&#34;Index&#34;:[],&#34;RGB&#34;:[]}
     totalrowplot=0
     if merginalsum==True:
         totalrowplot+=1
@@ -580,7 +603,7 @@ def complex_clustermap(df: pd.DataFrame,
         if len(row_colors)&gt;0:
             for k in row_colors:
                 
-                u=np.unique(df[k])
+                u=np.array(natsorted(np.unique(df[k])))
                 _cmap=plt.get_cmap(colormap_list[colormap_index],u.shape[0])
                 lut={}
                 for _i, _u in enumerate(u):
@@ -592,7 +615,7 @@ def complex_clustermap(df: pd.DataFrame,
                 
         if len(col_colors)&gt;0:
             for k in col_colors:
-                u=np.unique(dfcol[k])
+                u=np.array(natsorted(np.unique(dfcol[k])))
                 _cmap=plt.get_cmap(colormap_list[colormap_index],u.shape[0])
                 lut={}
                 for _i, _u in enumerate(u):
@@ -635,7 +658,7 @@ def complex_clustermap(df: pd.DataFrame,
                              row_colors=_row_colors,
                              method=method,xticklabels=xticklabels, yticklabels=yticklabels,
                              figsize=figsize,dendrogram_ratio=0.1,
-                             cbar_kws=dict(ticks=[0, 0.50, 1],cmap=heatmap_palette, orientation=&#39;horizontal&#39;),
+                             cbar_kws=dict(cmap=heatmap_palette, orientation=&#39;horizontal&#39;),
                              **kwargs)
             
             g.ax_col_colors.invert_yaxis()
@@ -648,7 +671,7 @@ def complex_clustermap(df: pd.DataFrame,
                              xticklabels=xticklabels, 
                              yticklabels=yticklabels,
                              dendrogram_ratio=0.1,
-                             cbar_kws=dict(ticks=[0, 0.50, 1],cmap=heatmap_palette, orientation=&#39;horizontal&#39;),
+                             cbar_kws=dict(cmap=heatmap_palette, orientation=&#39;horizontal&#39;),
                              figsize=figsize,**kwargs)
             g.ax_col_colors.invert_yaxis()
         elif len(_row_colors) &gt;0:
@@ -663,7 +686,7 @@ def complex_clustermap(df: pd.DataFrame,
                              cbar_kws=dict(orientation=&#39;horizontal&#39;),
                              **kwargs)
             g.ax_row_colors.invert_xaxis()
-
+        
         
         #for spine in g.ax_cbar.spines:
         #    g.ax_cbar.spines[spine].set_linewidth(2)
@@ -865,8 +888,10 @@ def complex_clustermap(df: pd.DataFrame,
             legendhandles=[]
             for label, color in colorlut.items():
                 legendhandles.append(Line2D([0], [0], color=color,linewidth=5, label=label))
-
-            legend1=g.ax_heatmap.legend(handles=legendhandles, loc=[1.15,0.8-0.2*legend_num], title=_title)
+            legend1=g.ax_heatmap.legend(handles=legendhandles, 
+                                        loc=&#34;upper left&#34;, 
+                                        title=_title,
+                                        bbox_to_anchor=(1.15, 1-0.2*legend_num))
             g.ax_heatmap.add_artist(legend1)
             legend_num+=1
         for _title, colorlut in _col_color_legend.items():
@@ -874,39 +899,40 @@ def complex_clustermap(df: pd.DataFrame,
             for label, color in colorlut.items():
                 legendhandles.append(Line2D([0], [0], color=color,linewidth=5, label=label))
 
-            legend1=g.ax_heatmap.legend(handles=legendhandles, loc=[1.15,0.8-0.2*legend_num], title=_title)
+            legend1=g.ax_heatmap.legend(handles=legendhandles, 
+                                        loc=&#34;upper left&#34;, 
+                                        title=_title,
+                                        bbox_to_anchor=(1.15, 1-0.2*legend_num))
             g.ax_heatmap.add_artist(legend1)
             legend_num+=1
         
     else:
-        g=sns.clustermap(df,method=method,cbar_kws={&#34;label&#34;:ctitle},**kwargs)
+        g=sns.clustermap(df,method=method,
+                         cbar_kws=dict(orientation=&#39;horizontal&#39;),
+                             xticklabels=xticklabels,
+                             cmap=heatmap_palette, 
+                             yticklabels=yticklabels,
+                             dendrogram_ratio=0.1,
+                             figsize=figsize,
+                             **kwargs)
     if color_var&gt;0:
-        cmap = cm.nipy_spectral(np.linspace(0, 1, color_var))
+        cmap = cm.tab20c(np.linspace(0, 1, color_var))
     else:
-        cmap = cm.nipy_spectral(np.linspace(0, 1, approx_clusternum+5))
+        cmap = cm.tab20c(np.linspace(0, 1, approx_clusternum+5))
     hierarchy.set_link_color_palette([mpl.colors.rgb2hex(rgb[:3]) for rgb in cmap])
     
     &#34;&#34;&#34;coloring the row dendrogram based on branch numbers crossed with the threshold&#34;&#34;&#34;
+    
     if g.dendrogram_row != None:
         t=_dendrogram_threshold(g.dendrogram_row.dendrogram,approx_clusternum)
-        # lbranches=np.array(g.dendrogram_row.dendrogram[&#34;dcoord&#34;])[:,:2]
-        # rbranches=np.array(g.dendrogram_row.dendrogram[&#34;dcoord&#34;])[:,2:]
-        # thre=np.linspace(0, np.amax(g.dendrogram_row.dendrogram[&#34;dcoord&#34;]), 100)[::-1]
-        # for t in thre:
-        #     #print(np.sum(lbranches[:,1]&gt;t),np.sum(rbranches[:,0]&gt;t),np.sum(lbranches[:,0]&gt;t),np.sum(rbranches[:,1]&gt;t))
-        #     crossbranches=np.sum(lbranches[:,1]&gt;t)+np.sum(rbranches[:,0]&gt;t)-np.sum(lbranches[:,0]&gt;t)-np.sum(rbranches[:,1]&gt;t)
-        #     #print(crossbranches)
-        #
-        #     if crossbranches&gt;approx_clusternum:
-        #         break
-        
+               
         den=hierarchy.dendrogram(g.dendrogram_row.linkage,
                                                  labels = g.data.index,
                                                  color_threshold=t,ax=g.ax_row_dendrogram,
                             orientation=&#34;left&#34;)  
         g.ax_row_dendrogram.invert_yaxis()
         clusters = _get_cluster_classes(den)
-        cdata={&#34;Cluster&#34;:[],&#34;Index&#34;:[],&#34;RGB&#34;:[]}
+        
         keys=list(clusters.keys())
         ckeys={}
         i=1
@@ -926,7 +952,7 @@ def complex_clustermap(df: pd.DataFrame,
     
     
     &#34;&#34;&#34;coloring the col dendrogram based on branch numbers crossed with the threshold&#34;&#34;&#34;
-    col_cdata=None
+    col_cdata={&#34;Cluster&#34;:[],&#34;Index&#34;:[],&#34;RGB&#34;:[]}
     if g.dendrogram_col != None:
         t=_dendrogram_threshold(g.dendrogram_col.dendrogram,approx_clusternum_col)
         den=hierarchy.dendrogram(g.dendrogram_col.linkage,
@@ -960,7 +986,8 @@ def complex_clustermap(df: pd.DataFrame,
     
     g.ax_cbar.set_title(ctitle)
     #g.ax_cbar.tick_params(axis=&#39;x&#39;, length=5)
-    g.ax_cbar.set_position(pos=[0.80, 0.3, 0.1, 0.02], which=&#34;both&#34;)
+    g.ax_cbar.set_position(pos=[0.80, 0.1, 0.1, 0.02], 
+                           which=&#34;both&#34;)
     if title !=&#34;&#34;:
         g.fig.suptitle(title, va=&#34;bottom&#34;)
     plt.setp(g.ax_heatmap.xaxis.get_majorticklabels(), rotation=90)
@@ -1347,8 +1374,7 @@ def violinplot(df: pd.DataFrame,
 
 
 
-def volcanoplot():
-    pass
+
 
 
 if __name__==&#34;__main__&#34;:
@@ -1414,7 +1440,7 @@ give this option may solve the problem.</dd>
 <dd>The same as the "variables" option. Will be deprecated.</dd>
 </dl>
 <h2 id="returns">Returns</h2>
-<pre><code>dict: {"row_clusters":pd.DataFrame,"col_clusters":pd.DataFrame, "grid":g}
+<pre><code>{"row_clusters":pd.DataFrame,"col_clusters":pd.DataFrame, "grid":g}: dict
 </code></pre>
 <h2 id="raises">Raises</h2>
 <h2 id="notes">Notes</h2>
@@ -1503,7 +1529,7 @@ give this option may solve the problem.</dd>
         The same as the &#34;variables&#34; option. Will be deprecated.
     Returns
     -------
-        dict: {&#34;row_clusters&#34;:pd.DataFrame,&#34;col_clusters&#34;:pd.DataFrame, &#34;grid&#34;:g}
+        {&#34;row_clusters&#34;:pd.DataFrame,&#34;col_clusters&#34;:pd.DataFrame, &#34;grid&#34;:g}: dict
     Raises
     ------
     Notes
@@ -1522,7 +1548,8 @@ give this option may solve the problem.</dd>
         variables=heatmap_col
     cnum=len(variables)
     if len(figsize)==0:
-        xsize=np.amin([2*cnum, 20])
+        xsize=np.amin([cnum, 20])
+        xsize=np.amax([xsize, 5])
         figsize=[xsize,10]
     scatterpointsize=5
     sns.set(font_scale=1)
@@ -1534,7 +1561,7 @@ give this option may solve the problem.</dd>
     if len(col_plot)!=0 or len(col_scatter)!=0 or len(col_bar)!=0:
         if dfcol==None:
             raise Exception(&#34;if you want to plot along the x axis, you need provide dfcol option containing values to plot.&#34;)
-    
+    cdata={&#34;Cluster&#34;:[],&#34;Index&#34;:[],&#34;RGB&#34;:[]}
     totalrowplot=0
     if merginalsum==True:
         totalrowplot+=1
@@ -1569,7 +1596,7 @@ give this option may solve the problem.</dd>
         if len(row_colors)&gt;0:
             for k in row_colors:
                 
-                u=np.unique(df[k])
+                u=np.array(natsorted(np.unique(df[k])))
                 _cmap=plt.get_cmap(colormap_list[colormap_index],u.shape[0])
                 lut={}
                 for _i, _u in enumerate(u):
@@ -1581,7 +1608,7 @@ give this option may solve the problem.</dd>
                 
         if len(col_colors)&gt;0:
             for k in col_colors:
-                u=np.unique(dfcol[k])
+                u=np.array(natsorted(np.unique(dfcol[k])))
                 _cmap=plt.get_cmap(colormap_list[colormap_index],u.shape[0])
                 lut={}
                 for _i, _u in enumerate(u):
@@ -1624,7 +1651,7 @@ give this option may solve the problem.</dd>
                              row_colors=_row_colors,
                              method=method,xticklabels=xticklabels, yticklabels=yticklabels,
                              figsize=figsize,dendrogram_ratio=0.1,
-                             cbar_kws=dict(ticks=[0, 0.50, 1],cmap=heatmap_palette, orientation=&#39;horizontal&#39;),
+                             cbar_kws=dict(cmap=heatmap_palette, orientation=&#39;horizontal&#39;),
                              **kwargs)
             
             g.ax_col_colors.invert_yaxis()
@@ -1637,7 +1664,7 @@ give this option may solve the problem.</dd>
                              xticklabels=xticklabels, 
                              yticklabels=yticklabels,
                              dendrogram_ratio=0.1,
-                             cbar_kws=dict(ticks=[0, 0.50, 1],cmap=heatmap_palette, orientation=&#39;horizontal&#39;),
+                             cbar_kws=dict(cmap=heatmap_palette, orientation=&#39;horizontal&#39;),
                              figsize=figsize,**kwargs)
             g.ax_col_colors.invert_yaxis()
         elif len(_row_colors) &gt;0:
@@ -1652,7 +1679,7 @@ give this option may solve the problem.</dd>
                              cbar_kws=dict(orientation=&#39;horizontal&#39;),
                              **kwargs)
             g.ax_row_colors.invert_xaxis()
-
+        
         
         #for spine in g.ax_cbar.spines:
         #    g.ax_cbar.spines[spine].set_linewidth(2)
@@ -1854,8 +1881,10 @@ give this option may solve the problem.</dd>
             legendhandles=[]
             for label, color in colorlut.items():
                 legendhandles.append(Line2D([0], [0], color=color,linewidth=5, label=label))
-
-            legend1=g.ax_heatmap.legend(handles=legendhandles, loc=[1.15,0.8-0.2*legend_num], title=_title)
+            legend1=g.ax_heatmap.legend(handles=legendhandles, 
+                                        loc=&#34;upper left&#34;, 
+                                        title=_title,
+                                        bbox_to_anchor=(1.15, 1-0.2*legend_num))
             g.ax_heatmap.add_artist(legend1)
             legend_num+=1
         for _title, colorlut in _col_color_legend.items():
@@ -1863,39 +1892,40 @@ give this option may solve the problem.</dd>
             for label, color in colorlut.items():
                 legendhandles.append(Line2D([0], [0], color=color,linewidth=5, label=label))
 
-            legend1=g.ax_heatmap.legend(handles=legendhandles, loc=[1.15,0.8-0.2*legend_num], title=_title)
+            legend1=g.ax_heatmap.legend(handles=legendhandles, 
+                                        loc=&#34;upper left&#34;, 
+                                        title=_title,
+                                        bbox_to_anchor=(1.15, 1-0.2*legend_num))
             g.ax_heatmap.add_artist(legend1)
             legend_num+=1
         
     else:
-        g=sns.clustermap(df,method=method,cbar_kws={&#34;label&#34;:ctitle},**kwargs)
+        g=sns.clustermap(df,method=method,
+                         cbar_kws=dict(orientation=&#39;horizontal&#39;),
+                             xticklabels=xticklabels,
+                             cmap=heatmap_palette, 
+                             yticklabels=yticklabels,
+                             dendrogram_ratio=0.1,
+                             figsize=figsize,
+                             **kwargs)
     if color_var&gt;0:
-        cmap = cm.nipy_spectral(np.linspace(0, 1, color_var))
+        cmap = cm.tab20c(np.linspace(0, 1, color_var))
     else:
-        cmap = cm.nipy_spectral(np.linspace(0, 1, approx_clusternum+5))
+        cmap = cm.tab20c(np.linspace(0, 1, approx_clusternum+5))
     hierarchy.set_link_color_palette([mpl.colors.rgb2hex(rgb[:3]) for rgb in cmap])
     
     &#34;&#34;&#34;coloring the row dendrogram based on branch numbers crossed with the threshold&#34;&#34;&#34;
+    
     if g.dendrogram_row != None:
         t=_dendrogram_threshold(g.dendrogram_row.dendrogram,approx_clusternum)
-        # lbranches=np.array(g.dendrogram_row.dendrogram[&#34;dcoord&#34;])[:,:2]
-        # rbranches=np.array(g.dendrogram_row.dendrogram[&#34;dcoord&#34;])[:,2:]
-        # thre=np.linspace(0, np.amax(g.dendrogram_row.dendrogram[&#34;dcoord&#34;]), 100)[::-1]
-        # for t in thre:
-        #     #print(np.sum(lbranches[:,1]&gt;t),np.sum(rbranches[:,0]&gt;t),np.sum(lbranches[:,0]&gt;t),np.sum(rbranches[:,1]&gt;t))
-        #     crossbranches=np.sum(lbranches[:,1]&gt;t)+np.sum(rbranches[:,0]&gt;t)-np.sum(lbranches[:,0]&gt;t)-np.sum(rbranches[:,1]&gt;t)
-        #     #print(crossbranches)
-        #
-        #     if crossbranches&gt;approx_clusternum:
-        #         break
-        
+               
         den=hierarchy.dendrogram(g.dendrogram_row.linkage,
                                                  labels = g.data.index,
                                                  color_threshold=t,ax=g.ax_row_dendrogram,
                             orientation=&#34;left&#34;)  
         g.ax_row_dendrogram.invert_yaxis()
         clusters = _get_cluster_classes(den)
-        cdata={&#34;Cluster&#34;:[],&#34;Index&#34;:[],&#34;RGB&#34;:[]}
+        
         keys=list(clusters.keys())
         ckeys={}
         i=1
@@ -1915,7 +1945,7 @@ give this option may solve the problem.</dd>
     
     
     &#34;&#34;&#34;coloring the col dendrogram based on branch numbers crossed with the threshold&#34;&#34;&#34;
-    col_cdata=None
+    col_cdata={&#34;Cluster&#34;:[],&#34;Index&#34;:[],&#34;RGB&#34;:[]}
     if g.dendrogram_col != None:
         t=_dendrogram_threshold(g.dendrogram_col.dendrogram,approx_clusternum_col)
         den=hierarchy.dendrogram(g.dendrogram_col.linkage,
@@ -1949,7 +1979,8 @@ give this option may solve the problem.</dd>
     
     g.ax_cbar.set_title(ctitle)
     #g.ax_cbar.tick_params(axis=&#39;x&#39;, length=5)
-    g.ax_cbar.set_position(pos=[0.80, 0.3, 0.1, 0.02], which=&#34;both&#34;)
+    g.ax_cbar.set_position(pos=[0.80, 0.1, 0.1, 0.02], 
+                           which=&#34;both&#34;)
     if title !=&#34;&#34;:
         g.fig.suptitle(title, va=&#34;bottom&#34;)
     plt.setp(g.ax_heatmap.xaxis.get_majorticklabels(), rotation=90)
@@ -2075,11 +2106,12 @@ give this option may solve the problem.</dd>
     if ztransform==True:
         X=zscore(X, axis=0)
     if method==&#34;pearson&#34;:
-        dmat=Parallel(n_jobs=-1)(delayed(_calc_pearson)(ind, X) for ind in list(it.combinations(range(X.shape[0]), 2)))
-        dmat=np.array(dmat)
-        dmat=squareform(dmat)
-        print(dmat)
-        dmat+=np.identity(dmat.shape[0])
+        # dmat=Parallel(n_jobs=-1)(delayed(_calc_pearson)(ind, X) for ind in list(it.combinations(range(X.shape[0]), 2)))
+        # dmat=np.array(dmat)
+        # dmat=squareform(dmat)
+        # print(dmat)
+        # dmat+=np.identity(dmat.shape[0])
+        dmat=np.corrcoef(X)
     else:
         dmat=squareform(pdist(X, method))
     if method==&#34;pearson&#34;:
@@ -2101,10 +2133,9 @@ give this option may solve the problem.</dd>
                                yticklabels=yticklabels,
                                figsize=figsize,
                                ctitle=ctitle )
-        return res
     else:
         
-        g=sns.clustermap(data=dmat,
+        res=complex_clustermap(data=dmat,
                          xticklabels=xticklabels,
                          yticklabels=yticklabels,
                    method=&#34;ward&#34;, 
@@ -2112,15 +2143,15 @@ give this option may solve the problem.</dd>
                    col_cluster=True,
                    row_cluster=True,
                    figsize=figsize,
-                   rasterized=True,
+                   #rasterized=True,
                     #cbar_kws={&#34;label&#34;:&#34;Pearson correlation&#34;}, 
-                   annot=show_values,
+                   #annot=show_values,
                    **clustermap_param)
-        
-        g.cax.set_ylabel(ctitle, rotation=-90,va=&#34;bottom&#34;)
-        plt.setp(g.ax_heatmap.get_yticklabels(), rotation=0)  # For y axis
-        plt.setp(g.ax_heatmap.get_xticklabels(), rotation=90) # For x axis
-        return {&#34;grid&#34;:g}</code></pre>
+    return res
+        # g.cax.set_ylabel(ctitle, rotation=-90,va=&#34;bottom&#34;)
+        # plt.setp(g.ax_heatmap.get_yticklabels(), rotation=0)  # For y axis
+        # plt.setp(g.ax_heatmap.get_xticklabels(), rotation=90) # For x axis
+        # return {&#34;grid&#34;:g}</code></pre>
 </details>
 </dd>
 <dt id="omniplot.plot.dotplot"><code class="name flex">
@@ -2426,7 +2457,7 @@ e.g., {"color1":[[1,0,0,1], ....]}</dd>
 </details>
 </dd>
 <dt id="omniplot.plot.radialtree"><code class="name flex">
-<span>def <span class="ident">radialtree</span></span>(<span>df: pandas.core.frame.DataFrame, n_clusters: int = 3, x: str = '', variables: List[~T] = [], category: Union[str, List[str]] = [], ztransform: bool = True, save: str = '', distance_method='euclidean', tree_method='ward', title: str = '', y: list = [], **kwargs) ‑> Dict[~KT, ~VT]</span>
+<span>def <span class="ident">radialtree</span></span>(<span>df: pandas.core.frame.DataFrame, n_clusters: int = 3, x: str = '', variables: List[~T] = [], category: Union[str, List[str]] = [], ztransform: bool = True, save: str = '', distance_method='euclidean', tree_method='ward', title: str = '', y: list = [], linewidth: float = 1, figsize: Optional[list] = None, **kwargs) ‑> Dict[~KT, ~VT]</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Drawing a radial dendrogram with color labels.</p>
@@ -2483,7 +2514,7 @@ tree_method="ward",</p>
                distance_method=&#34;euclidean&#34;,
                tree_method=&#34;ward&#34;,
                title: str=&#34;&#34;,
-               y: list=[],
+               y: list=[],linewidth: float=1,figsize: Optional[list]=None,
                **kwargs) -&gt; Dict:
     &#34;&#34;&#34;
     Drawing a radial dendrogram with color labels.
@@ -2574,11 +2605,18 @@ tree_method="ward",</p>
     
     Z = sch.dendrogram(Y,labels=_labels,no_plot=True)
     t=_dendrogram_threshold(Z, n_clusters)
+    _fig, _ax =plt.subplots()
     Z=sch.dendrogram(Y,
                         labels = _labels,
-                        color_threshold=t,no_plot=True)
+                        color_threshold=t, ax=_ax)
+    #xticks=set(_ax.get_xticks())
+    plt.close(_fig)
     sample_classes={k: list(category_df[k]) for k in category_df.columns}
-    ax=_radialtree2(Z, sample_classes=sample_classes,addlabels=False, **kwargs)
+    ax=_radialtree2(Z, 
+                    sample_classes=sample_classes,
+                    addlabels=False,
+                    linewidth=linewidth,
+                    figsize=figsize, **kwargs)
     if title !=&#34;&#34;:
         ax.set_title(title)
     _save(save, &#34;radialtree&#34;)
@@ -2950,19 +2988,6 @@ example: {"<em>":-np.log10(0.05),"</em><em>":4,"</em>**":10}</dd>
     return {&#34;p values&#34;:newpvals,&#34;axes&#34;:ax}</code></pre>
 </details>
 </dd>
-<dt id="omniplot.plot.volcanoplot"><code class="name flex">
-<span>def <span class="ident">volcanoplot</span></span>(<span>)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def volcanoplot():
-    pass</code></pre>
-</details>
-</dd>
 </dl>
 </section>
 <section>
@@ -2987,7 +3012,6 @@ example: {"<em>":-np.log10(0.05),"</em><em>":4,"</em>**":10}</dd>
 <li><code><a title="omniplot.plot.radialtree" href="#omniplot.plot.radialtree">radialtree</a></code></li>
 <li><code><a title="omniplot.plot.triangle_heatmap" href="#omniplot.plot.triangle_heatmap">triangle_heatmap</a></code></li>
 <li><code><a title="omniplot.plot.violinplot" href="#omniplot.plot.violinplot">violinplot</a></code></li>
-<li><code><a title="omniplot.plot.volcanoplot" href="#omniplot.plot.volcanoplot">volcanoplot</a></code></li>
 </ul>
 </li>
 </ul>

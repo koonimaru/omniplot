@@ -3191,7 +3191,7 @@ def volcanoplot(df: pd.DataFrame,
                 topn_labels_left: int=0,
                 topn_labels_right: int=0,
 
-                base_color: str="black",
+                base_color: str="gray",
                 highlight_color: str="red",
                 
                 save: str="",

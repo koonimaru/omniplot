@@ -42,7 +42,7 @@ from natsort import natsort_keygen
 from matplotlib.patches import Rectangle
 import scipy.cluster.hierarchy as sch
 import fastcluster as fcl
-
+from matplotlib.patches import Patch
 import sys 
 import matplotlib as mpl
 from sklearn.cluster import KMeans, DBSCAN
@@ -60,17 +60,700 @@ import scipy.stats as stats
 from joblib import Parallel, delayed
 from omniplot.chipseq_utils import _calc_pearson
 import itertools as it
-
+from matplotlib.ticker import StrMethodFormatter
+import statsmodels.api as sm
+from sklearn.linear_model import RANSACRegressor
+from matplotlib import colors
+from omniplot._adjustText import adjust_text
+import copy
 colormap_list: list=[&#34;nipy_spectral&#34;, &#34;terrain&#34;,&#34;tab20b&#34;,&#34;tab20c&#34;,&#34;gist_rainbow&#34;,&#34;hsv&#34;,&#34;CMRmap&#34;,&#34;coolwarm&#34;,&#34;gnuplot&#34;,&#34;gist_stern&#34;,&#34;brg&#34;,&#34;rainbow&#34;,&#34;jet&#34;]
 hatch_list: list = [&#39;//&#39;, &#39;\\\\&#39;, &#39;||&#39;, &#39;--&#39;, &#39;++&#39;, &#39;xx&#39;, &#39;oo&#39;, &#39;OO&#39;, &#39;..&#39;, &#39;**&#39;,&#39;/o&#39;, &#39;\\|&#39;, &#39;|*&#39;, &#39;-\\&#39;, &#39;+o&#39;, &#39;x*&#39;, &#39;o-&#39;, &#39;O|&#39;, &#39;O.&#39;, &#39;*-&#39;]
-maker_list: list=[&#39;.&#39;, &#39;_&#39; , &#39;+&#39;,&#39;|&#39;, &#39;x&#39;, &#39;v&#39;, &#39;^&#39;, &#39;&lt;&#39;, &#39;&gt;&#39;, &#39;s&#39;, &#39;p&#39;, &#39;*&#39;, &#39;h&#39;, &#39;D&#39;, &#39;d&#39;, &#39;P&#39;, &#39;X&#39;,&#39;o&#39;, &#39;1&#39;, &#39;2&#39;, &#39;3&#39;, &#39;4&#39;,&#39;|&#39;, &#39;_&#39;]
+marker_list: list=[ &#34;o&#34;,&#39;_&#39; , &#39;+&#39;,&#39;|&#39;, &#39;x&#39;, &#39;v&#39;, &#39;^&#39;, &#39;&lt;&#39;, &#39;&gt;&#39;, &#39;s&#39;, &#39;p&#39;, &#39;*&#39;, &#39;h&#39;, &#39;D&#39;, &#39;d&#39;, &#39;P&#39;, &#39;X&#39;,&#39;.&#39;, &#39;1&#39;, &#39;2&#39;, &#39;3&#39;, &#39;4&#39;,&#39;|&#39;, &#39;_&#39;]
+
+
 
 plt.rcParams[&#39;font.family&#39;]= &#39;sans-serif&#39;
 plt.rcParams[&#39;font.sans-serif&#39;] = [&#39;Arial&#39;]
 plt.rcParams[&#39;svg.fonttype&#39;] = &#39;none&#39;
 sns.set_theme(font=&#34;Arial&#34;)
 
-__all__=[&#34;clusterplot&#34;, &#34;decomplot&#34;, &#34;pie_scatter&#34;,&#34;manifoldplot&#34;, &#34;regression_single&#34;]
+__all__=[&#34;clusterplot&#34;, &#34;decomplot&#34;, &#34;pie_scatter&#34;,&#34;manifoldplot&#34;, &#34;regression_single&#34;,&#34;scatterplot&#34;,&#34;volcanoplot&#34;]
+def _scatter(_df, 
+             x,
+             y, 
+             cat, 
+             ax, 
+             lut, 
+             barrierfree, 
+             size, 
+             legend=True, 
+             axlabel=True, 
+             alpha=1, 
+             edgecolors=&#34;w&#34;,
+             linewidths=1.0,
+             outside=False,
+             legendx=1.01, legendy=1,c=[]):
+    if len(c)!=0:
+        sc=ax.scatter(_df[x], _df[y], c=c, s=size,edgecolors=edgecolors)
+        plt.colorbar(sc,ax=ax, label=cat, shrink=0.3,aspect=5,orientation=&#34;vertical&#34;)
+    elif _df[cat].dtype==float :
+        sc=ax.scatter(_df[x], _df[y], c=_df[cat], s=size,edgecolors=edgecolors)
+        plt.colorbar(sc,ax=ax, label=cat, shrink=0.3,aspect=5,orientation=&#34;vertical&#34;)
+    elif barrierfree==True:
+        
+        for key in lut[cat][&#34;colorlut&#34;].keys():
+            _dfnew=_df.loc[_df[cat]==key]
+            if type(size) !=float:
+                _size=size[_df[cat]==key]
+                sc=ax.scatter(_dfnew[x], _dfnew[y], 
+                        c=lut[cat][&#34;colorlut&#34;][key], 
+                        marker=lut[cat][&#34;markerlut&#34;][key], 
+                        label=key, s=_size,alpha=alpha,
+                        edgecolors=edgecolors,
+                        linewidths=linewidths)
+
+            else:
+                sc=ax.scatter(_dfnew[x], _dfnew[y], 
+                        c=lut[cat][&#34;colorlut&#34;][key], 
+                        marker=lut[cat][&#34;markerlut&#34;][key], 
+                        label=key, 
+                        s=size,
+                        alpha=alpha,
+                        edgecolors=edgecolors,
+                        linewidths=linewidths)
+        
+    else:
+        for key in lut[cat][&#34;colorlut&#34;].keys():
+            _dfnew=_df.loc[_df[cat]==key]
+            if type(size) ==float or type(size) ==int:
+                sc=ax.scatter(_dfnew[x], _dfnew[y], color=lut[cat][&#34;colorlut&#34;][key], label=key, s=size,alpha=alpha,edgecolors=edgecolors,linewidths=linewidths)
+
+            else:
+                _size=size[_df[cat]==key]
+                sc=ax.scatter(_dfnew[x], _dfnew[y], color=lut[cat][&#34;colorlut&#34;][key], label=key, s=_size,alpha=alpha,edgecolors=edgecolors,linewidths=linewidths)
+                
+
+    if legend==True:
+        if barrierfree==True:
+            legend_elements = [Line2D([0], [0], marker=lut[cat][&#34;markerlut&#34;][k], linewidth=0, markeredgecolor=v,
+                                      label=k,
+                                      markerfacecolor=v, 
+                                      markersize=10) for k, v in lut[cat][&#34;colorlut&#34;].items()]
+        else:
+            legend_elements = [Line2D([0], [0], marker=&#39;o&#39;, linewidth=0, markeredgecolor=edgecolors,
+                                      label=k,
+                                      markerfacecolor=v, 
+                                      markersize=10) for k, v in lut[cat][&#34;colorlut&#34;].items()]
+        if outside==True:
+            ax.add_artist(ax.legend(handles=legend_elements, title=cat,bbox_to_anchor=(legendx,legendy)))
+        else:
+            ax.add_artist(ax.legend(handles=legend_elements, title=cat))
+
+    if axlabel==True:
+        ax.set_xlabel(x)
+        ax.set_ylabel(y)
+    return sc
+
+def _add_labels(ax,df, x, y, val, topn):
+    if topn&gt;0:
+        srtindex=np.argsort(df[val])[::-1][:topn]
+        _labels=np.array(df.index)
+        for _label, _x, _y, _val in zip(_labels[srtindex], df[x].values[srtindex],df[y].values[srtindex],df[val].values[srtindex]):
+            ax.text(_x, _y, _label)
+
+    else:
+        for _label, _x, _y in zip(df.index, df[x],df[y]):
+            ax.text(_x, _y, _label)
+def _set_axis_format(ax, xformat, yformat, xunit, yunit, logscalex,logscaley):
+    if xformat!=&#34;&#34;:
+        
+        ax.xaxis.set_major_formatter(StrMethodFormatter(xformat))
+    if yformat !=&#34;&#34;:
+        ax.yaxis.set_major_formatter(StrMethodFormatter(yformat))
+    if yunit!=&#34;&#34;:
+        ax.text(0, 1, &#34;({})&#34;.format(yunit), transform=ax.transAxes, ha=&#34;right&#34;)
+    if xunit!=&#34;&#34;:
+        ax.text(1, 0, &#34;({})&#34;.format(xunit), transform=ax.transAxes, ha=&#34;left&#34;,va=&#34;top&#34;)
+    if logscalex==True:
+        ax.set_xscale(&#34;log&#34;)
+    if logscaley==True:
+        ax.set_yscale(&#34;log&#34;)
+
+def _marginal_plot(fig, ax,df, x,y, cat, lut,_xrange,_yrange , marginal_proportion):
+    bb=ax.get_position()
+    _x, _y, _w, _h=bb.bounds
+    _ws, _hs=_w*marginal_proportion, _h*marginal_proportion
+    ax.set_position([_x, _y, _ws, _hs])
+    _ax=fig.add_axes([_x,_y+_hs, _ws, _h*(1-marginal_proportion)])
+    _ax.set_zorder(0)
+
+    if cat !=&#34;&#34;:
+        for key in lut[cat][&#34;colorlut&#34;].keys():
+            _catx=df[x][df[cat]==key].values
+            kernel=stats.gaussian_kde(_catx)
+            _ax.fill(np.concatenate([ [_xrange[0]],_xrange, [_xrange[-1]]]),
+                        np.concatenate([[0], kernel(_xrange),[0]]),
+                        color=lut[cat][&#34;colorlut&#34;][key], 
+                        alpha=0.5)
+
+    else:
+        _catx=df[x].values
+        kernel=stats.gaussian_kde(_catx)
+        _ax.fill(np.concatenate([ [_xrange[0]],_xrange, [_xrange[-1]]]),
+                    np.concatenate([[0], kernel(_xrange),[0]]),
+                    color=&#34;b&#34;, 
+                    alpha=0.5)
+
+    _ax.set_xticks([])
+    _ax=fig.add_axes([_x+_ws,_y, _w*(1-marginal_proportion), _hs])
+    _ax.set_zorder(0)
+    if cat !=&#34;&#34;:
+        for key in lut[cat][&#34;colorlut&#34;].keys():
+            _catx=df[y][df[cat]==key].values
+            kernel=stats.gaussian_kde(_catx)
+            _ax.fill(np.concatenate([[0], kernel(_yrange),[0]]),
+                        np.concatenate([[_yrange[0]],_yrange, [_yrange[-1]]]), 
+                        color=lut[cat][&#34;colorlut&#34;][key], 
+                        alpha=0.5)
+    else:
+        _catx=df[y].values
+        kernel=stats.gaussian_kde(_catx)
+        _ax.fill(np.concatenate([[0], kernel(_yrange),[0]]),
+                    np.concatenate([[_yrange[0]],_yrange, [_yrange[-1]]]), 
+                    color=&#34;b&#34;, 
+                    alpha=0.5)
+    _ax.set_yticks([])
+
+
+def scatterplot(df: pd.DataFrame,
+                x: str,
+                y: str,
+                ax: Optional[plt.Axes]= None,
+                fig : Optional[mpl.figure.Figure] =None,
+
+                colors: Union[str, List[str]]=&#34;&#34;,
+                category: Union[str, List[str]]=&#34;&#34;,
+                sizes: str=&#34;&#34;,
+                marginal_dist: bool=False,
+                kde: bool=False,
+                kde_kw: dict={},
+
+                kmeans: bool=False,
+                n_clusters: int=3,
+                cluster_center: bool=True,
+                kmeans_kw: dict={},
+
+                regression: bool=False,
+                robust_param: dict={},
+                regression_color: str=&#34;lightgreen&#34;,
+
+                c: Union[List, np.ndarray] =[],
+                cname: str=&#34;&#34;,
+                size_scale: float=100,
+                palette: str=&#34;&#34;,
+                palette_cat: Union[str, Dict]=&#34;tab20c&#34;,
+                palette_val: str=&#34;coolwarm&#34;,
+                size_legend_num: int=4,
+                markers: bool=False,
+                size: float=30.0,
+                show_labels: dict={},
+                alpha: float=1,
+                edgecolors: str=&#34;w&#34;,
+                linewidths: float=1,
+
+                cbar_format: str=&#34;&#34;,
+                size_format: str=&#34;&#34;,
+                xformat: str=&#34;&#34;,
+                yformat: str=&#34;&#34;,
+                xunit: str=&#34;&#34;,
+                yunit:str=&#34;&#34;,
+                size_unit: str=&#34;&#34;,
+                color_unit: str=&#34;&#34;,
+                color: str=&#34;b&#34;,
+                axlabel: str=&#34;single&#34;,
+                title: str=&#34;&#34;,
+                show_legend: bool=True,
+                logscalex: bool=False,
+                logscaley: bool=False,
+                figsize: list=[],
+                rows_cols: list=[],
+                save: str=&#34;&#34;,
+                gridspec_kw: dict={},
+
+                )-&gt; Dict:
+    &#34;&#34;&#34;
+    Simple scatter plot. almost same function with seaborn.scatterplot.  
+    
+    Parameters
+    ----------
+    df : pandas DataFrame
+
+
+    x, y: str, optional
+        The column names to be the x and y axes of scatter plots. If reduce_dimension=True, these options will be
+        ignored.
+    colors: Union[str, list]=&#34;&#34;, optional
+        The names of columns (containing numerial values) to appear as a gradient of point colors. 
+    category: Union[str, list]=&#34;&#34;, optional
+        The names of columns (containing categorical values) to appear as color labels 
+    sizes: str=&#34;&#34;, optional
+        The names of columns (containing numerial values) to appear as point sizes.
+    marginal_dist: bool, optional (default: False)
+        Whether to draw marginal distributions
+    kde: bool, optional (default: False)
+        Whether to overlay KDE plot.
+    kde_kw: dict, optional
+        KDE plot keyword arguements. See https://seaborn.pydata.org/generated/seaborn.kdeplot.html for details.
+    
+    kmeans: bool, optional (default: False)
+        Whether to calculate and draw kmean clusters
+    n_clusters: int, optional (default: 3)
+        K-means cluster number.
+    cluster_center: bool, optional (default: True)
+        Whether to draw lines from the k-means centers.https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html for details
+    kmeans_kw: dict,
+        KMeans keyword arguments. See 
+    c: Union[List, np.ndarray], optional
+        1 dimensional array containing values shown as point facecolors or 2 dimensional array consists of RGB(A) 
+    cname: str, optional
+        Label for the color value specified by &#34;c&#34; option
+    palette: str=&#34;&#34;, optional
+
+    palette_cat: str, optional (default: &#34;tab20c&#34;)
+        The color palette for categorical labels
+    palette_val: str, optional (default: &#34;coolwarm&#34;)
+        The color palette for the color gradient specified by the &#34;colors&#34; option.
+    show_labels: dict, optional
+        A dictionary to specify the condition to add labels to the points. dataframe index will be labeled to points. 
+        It may contain &#34;val&#34; and &#34;topn&#34; keys. if you want all points to labeled, pass {&#34;topn&#34;:0} to the option.
+        To add labels to the only top n points of specific values, pass a dictionary like {&#34;val&#34;: &#34;body_mass_g&#34;, &#34;topn&#34;:5}.
+        &#34;val&#34; specify the column name to rank points and &#34;topn&#34; specify the number of points to be labeled.
+
+    save: str, optional
+        Prefix to save the figure 
+    title: str, optional
+        The title for the figure.
+    markers: bool, optional (default: False)
+        Whether to use markers to different categorical labels
+    rows_cols: list, optional
+        The number of rows and columns for subplots
+    size: float, optional (default: 10)
+        point size. This will be ignored when &#34;sizes&#34; option is set.
+    xunit: str, optional
+        The x axis unit.
+    yunit:str, optional
+        The y axis unit.
+    size_unit: str, optional
+        The unit of point sizes when &#34;sizes&#34; option is set.
+    color: str, optional
+    axlabel: str, optional (default:&#34;single&#34;), [&#34;single&#34;, &#34;each&#34;, &#34;non&#34;]
+        How to show the labels of the axes. &#34;each&#34; will add the labels to each axis of subplots. &#34;single&#34; will add single axis labels to the figure.
+    logscalex: bool=False,
+        Whether to transform the x axis to the log scale.
+    logscaley: bool=False,
+        Whether to transform the y axis to the log scale.
+    figsize: list=[], optional
+        figure size. if not set, it automatically calculate a reasonable figure size.
+    alpha: float=1,
+        Alpha of points.    
+    size_scale: float=60,
+        The scale of the point sizes, only effective when &#34;sizes&#34; option is set. If the sizes of points are too small or too large, adjust the sizes with this option.
+    edgecolors: str=&#34;w&#34;, optional
+        The point edge color.
+    linewidths: float=1, optional
+        The point edge width.
+    cbar_format, size_format, xformat, yformat: str 
+        e.g., &#34;{x:.2f}&#34;, &#39;{x:.3E}&#39;
+
+    gridspec_kw: dict, optional
+        Parameters for matplotlib gridspec. (https://matplotlib.org/stable/api/_as_gen/matplotlib.gridspec.GridSpec.html)
+        e.g., {&#34;wspace&#34;:0.75,&#34;hspace&#34;:0.5}
+    adjust_kw: dict, optional
+
+    Return
+    ------
+    {&#34;axes&#34;:axes, &#34;fig&#34;:fig, 
+    &#34;regression_models&#34;:regression_models, &#34;regression_results&#34;:regression_results, 
+    &#34;kmeans_result&#34;:_kmeans, &#34;df&#34;:df} : dict
+
+    &#34;&#34;&#34;
+    # functions to scale and rescale the size of each point
+    def _scale_size(x, size_scale, smin, smax):
+        return size_scale*(0.01+(x-smin)/(smax-smin))
+    def _reverse_size(x, size_scale, smin, smax):
+        return (x/size_scale-0.01)*(smax-smin)+smin
+    
+    if len(kde_kw)==0:
+        kde_kw=dict(alpha=0.5, levels=4)
+    
+    if palette !=&#34;&#34;:
+        palette_cat=palette 
+        palette_val=palette
+    
+    original_index=df.index
+    
+    X, category=_separate_data(df, 
+                               variables=[x, y], 
+                               category=category)
+    if len(colors)!=0:
+        if type(colors)==str:
+            colors=[colors]
+    else: 
+        colors=[]
+    c=np.array(c)
+    if len(c) !=0:
+        if cname ==&#34;&#34;:
+            cname=&#34;c&#34;
+        if len(c.shape)==1:
+            df[cname]=c
+            colors.append(cname)
+
+    # Calculating clusters and add cluster labels to dataframe
+    _kmeans=None
+    if kmeans==True:
+        _kmeans = KMeans(n_clusters=n_clusters, random_state=0, n_init=&#34;auto&#34;).fit(X, *kmeans_kw)
+        df[&#34;kmeans&#34;]=_kmeans.labels_
+        _kmeanlabels=np.unique(_kmeans.labels_)
+        category.append(&#34;kmeans&#34;)
+
+
+    totalnum=len(category)+len(colors)+int(len(c.shape)==2)
+    if totalnum&lt;=1:
+        totalnum=1
+        axlabel=&#34;each&#34;
+    # determining the figure size and the number of rows and columns.
+    if len(gridspec_kw)==0:
+        _right=0
+        if show_legend==False:
+            _right+=0.16
+        if totalnum==1:
+            if regression==True:
+                gridspec_kw={&#34;right&#34;:0.67+_right, &#34;bottom&#34;:0.3}
+            else:
+                gridspec_kw={&#34;right&#34;:0.67+_right, &#34;bottom&#34;:0.15}
+        elif totalnum==2:
+            if regression==True:
+                gridspec_kw={&#34;wspace&#34;:0.75,&#34;hspace&#34;:0.5,&#34;right&#34;:0.85, &#34;bottom&#34;:0.35, &#34;top&#34;:0.95}
+            else:
+                gridspec_kw={&#34;wspace&#34;:0.75,&#34;right&#34;:0.85, &#34;top&#34;:0.95}
+        else:
+            if regression==True:
+                gridspec_kw={&#34;wspace&#34;:0.75,&#34;hspace&#34;:0.5,&#34;right&#34;:0.85, &#34;bottom&#34;:0.2, &#34;top&#34;:0.95}
+            else:
+                gridspec_kw={&#34;wspace&#34;:0.75,&#34;right&#34;:0.85, &#34;top&#34;:0.95}
+    if ax !=None:
+        if totalnum==1 and type(ax)==plt.Axes:
+
+            axes=[ax]
+        elif totalnum&gt;1 and type(ax)==np.ndarray:
+            axes=ax.flatten()
+        elif totalnum&gt;1 and  type(ax)==list:
+            axes=ax
+        elif totalnum&gt;1 and ax==plt.Axes:
+            raise Exception(&#34;If you provide the ax option, the number of plots and axes must be equal. \
+                            The total number of plots will be the sum of category and colors plus whether or not c and kmeans options provided&#34;)
+        plt.subplots_adjust(**gridspec_kw)
+        totalnum=1
+        if marginal_dist==True and fig==None:
+            raise Exception(&#34;if you pass an axis opject and want to draw marginal distribution, you also need to give a figure object&#34;)
+
+    elif len(rows_cols)==0:
+        
+        if totalnum&lt;=1:
+            if len(figsize)==0:
+                figsize=[6,4]
+            fig, ax=plt.subplots(figsize=figsize,gridspec_kw=gridspec_kw)
+            axes=[ax]
+        else:
+            if len(figsize)==0:
+                if regression==True:
+                    figsize=[9,5*totalnum//2+int(totalnum%2!=0)]
+                else:
+                    figsize=[9,4*totalnum//2+int(totalnum%2!=0)]
+            
+            fig, axes=plt.subplots(nrows=totalnum//2+int(totalnum%2!=0),
+                                    ncols=2,figsize=figsize,gridspec_kw=gridspec_kw)
+            axes=axes.flatten()
+    else:
+        if len(figsize)==0:
+            figsize=[10,4*totalnum//2+int(totalnum%2!=0)]
+        fig, axes=plt.subplots(nrows=rows_cols[0],
+                                 ncols=rows_cols[1],
+                                 figsize=figsize,
+                                 gridspec_kw=gridspec_kw)
+        axes=axes.flatten()
+
+
+    if axlabel==&#34;single&#34;:
+        _axlabeleach=False
+    elif axlabel==&#34;non&#34;:
+        _axlabeleach=False
+    elif axlabel==&#34;each&#34;:
+        _axlabeleach=True
+
+
+    # Creating point size array protional to values in the column specified by &#34;sizes&#34; option. 
+    # Point sizes are scaled maximum to be size_scale (in order to avoid too small/large points). 
+    # And creating a size legend of which size labels correspond to the original values 
+    if sizes !=&#34;&#34;:
+
+        size=df[sizes]
+        size=np.nan_to_num(size)
+        smin=np.amin(size)
+        smax=np.amax(size)
+        size=_scale_size(size, size_scale, smin, smax)
+
+        vmin, vmax=np.min(size), np.max(size)
+        vinterval=(vmax-vmin)/(size_legend_num-1)
+        size_legend_elements=[]
+        if size_format==&#34;&#34;:
+            if 1&lt;np.abs(vmax)&lt;=1000:
+                size_format=&#34;{x:.2f}&#34;
+            elif 0&lt;np.abs(vmax)&lt;=1 or 1000&lt;np.abs(vmax):
+                size_format=&#34;{x:.3E}&#34;
+        for _i in range(size_legend_num):
+            s=vmin+_i*vinterval
+            _s=_reverse_size(s, size_scale, smin, smax)
+            size_legend_elements.append(Line2D([0], [0], marker=&#39;o&#39;, linewidth=0, markeredgecolor=&#34;white&#34;,markersize=s**(0.5),
+                                label=size_format.format(x=_s),
+                                markerfacecolor=&#34;black&#34;))
+
+
+    legendx=1.01
+    legendy=1
+    
+    # Preparing x and y ranges for marginal distribution.
+    margins=0.1
+    if marginal_dist==True:
+
+        _xmin, _xmax=np.amin(df[x]), np.amax(df[x])
+        _xmargin=margins*(_xmax-_xmin)
+        _ymin, _ymax=np.amin(df[y]), np.amax(df[y])
+        _ymargin=margins*(_ymax-_ymin)
+        _xrange=np.linspace(_xmin-_xmargin, _xmax+_xmargin, 1000)
+        _yrange=np.linspace(_ymin-_ymargin, _ymax+_ymargin, 1000)
+        marginal_proportion=0.8
+        legendx=legendx/marginal_proportion
+    
+    
+    i=0
+    # Drawing scatter plots 
+    lut={}
+    regression_models={}
+    regression_results={}
+    if len(category) !=0:
+        
+        for cat in category:
+            ax=axes[i]
+            ax.margins(margins)
+            ax.set_zorder(1)
+            i+=1
+
+            _clut, _mlut=_create_color_markerlut(df, cat,palette_cat,marker_list)
+            
+            
+            
+            lut[cat]={&#34;colorlut&#34;:_clut, &#34;markerlut&#34;:_mlut}
+
+            # Plotting KMeans results
+            if cat==&#34;kmeans&#34; and cluster_center==True and regression==False:
+                for ul, center in zip(_kmeanlabels, _kmeans.cluster_centers_):
+                    _df=df.loc[df[&#34;kmeans&#34;]==ul]
+                    for _x, _y in zip(_df[x], _df[y]):
+                        ax.plot([center[0], _x], [center[1], _y], color=_clut[ul], alpha=0.25)
+            
+            # Plotting regression results
+            if regression==True:
+                fitted_models, reg_results=_regression(df, x, y, ax, cat=cat, _clut=_clut, robust_param=robust_param)
+                regression_models.update(fitted_models)
+                regression_results.update(reg_results)
+            
+            #Plotting a scatter plot
+            sc=_scatter(df, x, y, cat, ax, lut, markers, size,
+                        axlabel=_axlabeleach,
+                        alpha=alpha,
+                        edgecolors=edgecolors,
+                        linewidths=linewidths,
+                        outside=True,legendx=legendx, legendy=legendy, legend=show_legend)
+            
+            # Plotting a KDE plot
+            if kde==True:
+                sns.kdeplot(data=df, x=x, y=y,hue=cat, ax=ax, palette=_clut, legend=False, **kde_kw)
+                ax.set(xlabel=None)
+                ax.set(ylabel=None)
+
+            # Plotting marginal distribution
+            if marginal_dist==True:
+                _marginal_plot(fig, ax,df, x,y, cat, lut,_xrange,_yrange , marginal_proportion)
+
+            # Setting the format of axes
+            _set_axis_format(ax, xformat, yformat, xunit, yunit, logscalex,logscaley)
+           
+            # Drawing the legend of point sizes
+            if sizes !=&#34;&#34; and show_legend==True:
+
+                if size_unit!=&#34;&#34;:
+                    sizes=sizes+&#34;(&#34;+size_unit+&#34;)&#34;
+                ax.add_artist(ax.legend(handles=size_legend_elements, title=sizes,bbox_to_anchor=(legendx,0.6)))
+
+            # Drawing point labels
+            if len(show_labels)!=0:
+                _add_labels(ax, df, x, y, show_labels[&#34;val&#34;], show_labels[&#34;topn&#34;])
+    
+    # Plotting scatter plots with color values specified by &#34;colors&#34;
+    if len(colors) !=0:
+        if type(color_unit)==str:
+            color_unit=[color_unit]
+
+        for _c, _unit in zip(colors, color_unit):
+            ax=axes[i]
+            ax.margins(margins)
+            ax.set_zorder(1)
+            i+=1
+            _df=df.sort_values(by=[_c], ascending=True)
+            if type(size)==float or type(size)==int:
+                _size=size
+            else:
+                _size=size[np.argsort(df[_c])]
+
+            if regression==True:
+                fitted_models, reg_results=_regression(df, x, y, ax, robust_param=robust_param, newkey=&#34;total&#34;, color=regression_color)
+                regression_models.update(fitted_models)
+                regression_results.update(reg_results)
+           
+            sc=ax.scatter(_df[x], _df[y], c=_df[_c], 
+                          cmap=palette_val,
+                          s=_size,
+                          alpha=alpha,
+                          edgecolors=edgecolors,
+                          linewidths=linewidths)
+            if kde==True:
+                sns.kdeplot(data=df, x=x, y=y, ax=ax, color=color, legend=False, **kde_kw)
+                ax.set(xlabel=None)
+                ax.set(ylabel=None)
+
+            if marginal_dist==True:
+                _marginal_plot(fig, ax,df, x,y, &#34;&#34;, lut,_xrange,_yrange , marginal_proportion)
+
+            bb=ax.get_position()
+            axx , axy, axw, axh=bb.bounds
+            _xcax=axx+axw*1.005
+            if marginal_dist==True:
+                _xcax=axx+axw*1.005/marginal_proportion
+            cax = plt.axes([_xcax, axy, 0.02, 0.1])
+            if _unit!=&#34;&#34;:
+                _c=_c+&#34;({})&#34;.format(_unit)
+            plt.colorbar(sc,cax=cax, label=_c, shrink=0.3,aspect=5,orientation=&#34;vertical&#34;,anchor=(0.2,0))
+            if cbar_format!=&#34;&#34;:
+                ax.xaxis.set_major_formatter(StrMethodFormatter(cbar_format))
+
+            #ax.set_title(_c)
+            if _axlabeleach==True:
+                ax.set_xlabel(x)
+                ax.set_ylabel(y)
+
+            _set_axis_format(ax, xformat, yformat, xunit, yunit, logscalex,logscaley)
+
+            if sizes !=&#34;&#34; and show_legend==True:
+                if size_unit!=&#34;&#34;:
+                    sizes=sizes+&#34;(&#34;+size_unit+&#34;)&#34;
+                ax.add_artist(ax.legend(handles=size_legend_elements, title=sizes,bbox_to_anchor=(legendx,1)))
+
+            if len(show_labels)!=0:
+                _add_labels(ax, df, x, y, show_labels[&#34;val&#34;], show_labels[&#34;topn&#34;])
+
+
+    if int(len(c.shape)&gt;1):
+        ax=axes[i]
+        i+=1
+        if type(color_unit)==str:
+            color_unit=[color_unit]
+        _unit=color_unit[-1]
+        ax.margins(margins)
+        ax.set_zorder(1)
+
+        if regression==True:
+            fitted_models, reg_results=_regression(df, x, y, ax, robust_param=robust_param, newkey=&#34;total&#34;, color=regression_color)
+            regression_models.update(fitted_models)
+            regression_results.update(reg_results)
+
+        sc=ax.scatter(df[x], df[y], c=c, 
+                        s=size,
+                        edgecolors=edgecolors,
+                        linewidths=linewidths)
+        ax.text(0.1,0.8, cname, bbox=dict(boxstyle=&#34;round,pad=0.3&#34;, fc=&#34;white&#34;, ec=&#34;gray&#34;, lw=1, alpha=0.8))
+
+
+        if kde==True:
+            sns.kdeplot(data=df, x=x, y=y, ax=ax, color=color, legend=False, **kde_kw)
+            ax.set(xlabel=None)
+            ax.set(ylabel=None)
+
+        if marginal_dist==True:
+            _marginal_plot(fig, ax,df, x,y, &#34;&#34;, lut,_xrange,_yrange , marginal_proportion)
+        
+        if _axlabeleach==True:
+            ax.set_xlabel(x)
+            ax.set_ylabel(y)
+
+        _set_axis_format(ax, xformat, yformat, xunit, yunit, logscalex,logscaley)
+
+        if sizes !=&#34;&#34; and show_legend==True:
+            if size_unit!=&#34;&#34;:
+                sizes=sizes+&#34;(&#34;+size_unit+&#34;)&#34;
+            ax.add_artist(ax.legend(handles=size_legend_elements, title=sizes,bbox_to_anchor=(legendx,1)))
+
+        if len(show_labels)!=0:
+            _add_labels(ax, df, x, y, show_labels[&#34;val&#34;], show_labels[&#34;topn&#34;])
+
+    
+    if len(category)+len(colors)==0 and int(len(c.shape)!=2):
+
+        ax=axes[i]
+        if regression==True:
+            fitted_models, reg_results=_regression(df, x, y, ax, robust_param=robust_param, newkey=&#34;total&#34;, color=regression_color)
+            regression_models.update(fitted_models)
+            regression_results.update(reg_results)
+
+        sc=ax.scatter(df[x], df[y], c=color,s=size,alpha=alpha,edgecolors=edgecolors,linewidths=linewidths)
+        if kde==True:
+            sns.kdeplot(data=df, x=x, y=y, ax=ax, color=color, **kde_kw)
+            ax.set(xlabel=None)
+            ax.set(ylabel=None)
+
+        ax.set_xlabel(x)
+        ax.set_ylabel(y)
+        
+        _set_axis_format(ax, xformat, yformat, xunit, yunit, logscalex,logscaley)
+
+        if sizes !=&#34;&#34; and show_legend==True:
+            if size_unit!=&#34;&#34;:
+                sizes=sizes+&#34;(&#34;+size_unit+&#34;)&#34;
+            ax.add_artist(ax.legend(handles=size_legend_elements, 
+                                    title=sizes,
+                                    bbox_to_anchor=(1.01,1)))
+            
+    if title!=&#34;&#34;:
+        if fig !=None:
+            fig.suptitle(title)
+        else:
+            plt.title(title)
+
+    if axlabel==&#34;single&#34; and fig !=None:
+        bbox=axes[0].get_position()
+        fig.text(0.5, 0.05, x, ha=&#39;center&#39;,fontsize=&#34;large&#34;)
+        fig.text(bbox.bounds[0]*0.5, 0.5, y, va=&#39;center&#39;, rotation=&#39;vertical&#39;,fontsize=&#34;large&#34;)
+
+    if len(axes) != totalnum:
+        for i in range(len(axes)-totalnum):
+            axes[-(i+1)].set_axis_off()
+    
+    _save(save, &#34;scatter&#34;)
+    #  plt.tight_layout()
+
+    return {&#34;axes&#34;:axes, &#34;fig&#34;:fig, 
+            &#34;regression_models&#34;:regression_models, &#34;regression_results&#34;:regression_results, 
+            &#34;kmeans_result&#34;:_kmeans, &#34;df&#34;:df}
 
 def clusterplot(df: pd.DataFrame,
                 variables: List=[],
@@ -95,7 +778,8 @@ def clusterplot(df: pd.DataFrame,
                 markers: bool=False,
                 ax: Optional[plt.Axes]=None,
                 piesize_scale: float=0.02,
-                min_cluster_size: int=10,**kwargs)-&gt;Dict:
+                min_cluster_size: int=10,
+                **kwargs)-&gt;Dict:
     &#34;&#34;&#34;
     Clustering data and draw them as a scatter plot optionally with dimensionality reduction.  
     
@@ -173,7 +857,7 @@ def clusterplot(df: pd.DataFrame,
     X, category=_separate_data(df, variables=variables, category=category)
     
     
-    if ztranform:
+    if ztranform==True:
         X=zscore(X, axis=0)
         
     if pcacomponent==None:
@@ -191,7 +875,14 @@ def clusterplot(df: pd.DataFrame,
         import umap
         u=umap.UMAP(random_state=42, min_dist=min_dist,n_neighbors=n_neighbors)
         X=u.fit_transform(xpca)
-    
+        x=&#34;UMAP1&#34;
+        y=&#34;UMAP2&#34;
+    elif reduce_dimension==&#34;tsne&#34;:
+        tsne=_get_embedding(&#34;tsne&#34;)
+        #u=umap.UMAP(random_state=42, min_dist=min_dist,n_neighbors=n_neighbors)
+        X=tsne.fit_transform(xpca)
+        x=&#34;TSNE1&#34;
+        y=&#34;TSNE2&#34;
     if n_clusters==&#34;auto&#34; and method==&#34;kmeans&#34;:
         Sum_of_squared_distances = []
         K = list(range(*testrange))
@@ -203,17 +894,6 @@ def clusterplot(df: pd.DataFrame,
         normy=1-normy
         normx=np.linspace(0,1, len(K))
         perp=_calc_curveture(normx, normy)
-        # perp=[]
-        # for i, (nx, ny) in enumerate(zip(normx, normy)):
-        #     if i==0:
-        #         perp.append(0)
-        #         continue
-        #     r=(nx**2+ny**2)**0.5
-        #     sina=ny/r
-        #     cosa=nx/r
-        #     sinamb=sina*np.cos(np.pi*0.25)-cosa*np.sin(np.pi*0.25)
-        #     perp.append(r*sinamb)
-        # perp=np.array(perp)
         srtindex=np.argsort(perp)[::-1]
         plt.subplots()
         plt.plot(K, Sum_of_squared_distances, &#39;-&#39;, label=&#39;Sum of squared distances&#39;)
@@ -416,9 +1096,7 @@ def clusterplot(df: pd.DataFrame,
         n_clusters=[n_clusters]
     if method==&#34;kmeans&#34;:
         dfnews=[]
-        if reduce_dimension==&#34;umap&#34;:
-            x=&#34;UMAP1&#34;
-            y=&#34;UMAP2&#34;
+
         for nc in n_clusters:
             kmean = KMeans(n_clusters=nc, random_state=0,n_init=10)
             kmX=kmean.fit(X)
@@ -435,9 +1113,7 @@ def clusterplot(df: pd.DataFrame,
         D=ssd.squareform(ssd.pdist(xpca))
         Y = sch.linkage(D, method=&#39;ward&#39;)
         Z = sch.dendrogram(Y,labels=labels,no_plot=True)
-        if reduce_dimension==&#34;umap&#34;:
-            x=&#34;UMAP1&#34;
-            y=&#34;UMAP2&#34;
+        
         dfnews=[]
         for nc in n_clusters:
             t=_dendrogram_threshold(Z, nc)
@@ -458,9 +1134,7 @@ def clusterplot(df: pd.DataFrame,
         hue=&#34;hierarchical&#34;
     elif method==&#34;dbscan&#34;:
         dfnews=[]
-        if reduce_dimension==&#34;umap&#34;:
-            x=&#34;UMAP1&#34;
-            y=&#34;UMAP2&#34;
+
         if type(eps)==float:
             eps=[eps]
         n_clusters=[]
@@ -482,10 +1156,7 @@ def clusterplot(df: pd.DataFrame,
         hue=&#34;dbscan&#34;
     elif method==&#34;hdbscan&#34;:
         dfnews=[]
-        if reduce_dimension==&#34;umap&#34;:
-            x=&#34;UMAP1&#34;
-            y=&#34;UMAP2&#34;
-        
+
         try:
             import hdbscan
         except ImportError:
@@ -530,9 +1201,7 @@ def clusterplot(df: pd.DataFrame,
         
         dfnews=[]
         fuzzylabels=[]
-        if reduce_dimension==&#34;umap&#34;:
-            x=&#34;UMAP1&#34;
-            y=&#34;UMAP2&#34;
+
         _X=X.T
         for nc in n_clusters:
             
@@ -543,19 +1212,19 @@ def clusterplot(df: pd.DataFrame,
             dfnews.append(dfnew)
         hue=&#34;fuzzy&#34;
     
-
-    if len(category)!=0:
-        barrierfree=False
-        if type(markers)==bool:
+    barrierfree=False
+    if type(markers)==bool:
             
-            if markers==True:
-                barrierfree=True
-                markers=maker_list 
-            else: 
-                markers=[]
-                        
+        if markers==True:
+            barrierfree=True
+            markers=marker_list 
+        else: 
+            markers=[]
+    if len(category)!=0:
         lut={}
         for i, cat in enumerate(category):
+            if df[cat].dtype==float :
+                continue 
             _clut, _mlut=_create_color_markerlut(df, cat,palette[1],markers)
             lut[cat]={&#34;colorlut&#34;:_clut, &#34;markerlut&#34;:_mlut}
  
@@ -593,7 +1262,16 @@ def clusterplot(df: pd.DataFrame,
                 
             entropy_srt=np.argsort(color_entropy)
             colors=np.array(colors)[entropy_srt]
-            ax[0].scatter(dfnew[x].values[entropy_srt], dfnew[y].values[entropy_srt], c=colors, s=size)
+            
+            ax[0].scatter(dfnew[x].values[entropy_srt], dfnew[y].values[entropy_srt], color=colors, s=size)
+            ax[0].set_xlabel(x)
+            ax[0].set_ylabel(y)
+
+            # _tmp=dfnew.iloc[entropy_srt]
+            
+            # res=scatterplot(df=_tmp, ax=ax[0], x=x, y=y,c=colors,axlabel=&#34;each&#34;,fig=fig,**sp_kw)
+            # fig=res[&#34;fig&#34;]
+            # ax[0]=res[&#34;axes&#34;][0]
             #sns.scatterplot(data=dfnew,x=x,y=y,hue=hue, ax=ax[0], palette=palette[0],**kwargs)
             if method==&#34;fuzzy&#34;:
                 _title=&#34;Fuzzy c-means. Cluster num=&#34;+str(K)
@@ -603,8 +1281,7 @@ def clusterplot(df: pd.DataFrame,
             legend_elements = [Line2D([0], [0], marker=&#39;o&#39;, color=&#39;lavender&#39;, 
                                       label=method+str(i),
                                       markerfacecolor=_cmap(i), 
-                                      markersize=10)
-                      for i in range(K)]
+                                      markersize=10) for i in range(K)]
     
             ax[0].legend(handles=legend_elements,loc=&#34;best&#34;)
             for i in range(K):
@@ -621,18 +1298,43 @@ def clusterplot(df: pd.DataFrame,
                 for i, cat in enumerate(category):
                     dfnew[cat]=df[cat]
                     #sns.scatterplot(data=dfnew,x=x,y=y,hue=cat, ax=ax[i+2], palette=palette[1], s=size,**kwargs)
-                    if barrierfree==True:
-                        
+                    if dfnew[cat].dtype==float :
+                        # res=scatterplot(df=dfnew, ax=ax[i+2],fig=fig, x=x, y=y,colors=cat,axlabel=&#34;non&#34;,show_legend=False,**sp_kw)
+                        # fig=res[&#34;fig&#34;]
+                        sc=ax[i+2].scatter(dfnew[x], dfnew[y], c=dfnew[cat], s=size)
+                        plt.colorbar(sc,ax=ax[i+2], label=cat, shrink=0.3,aspect=5,orientation=&#34;vertical&#34;)
+                    elif barrierfree==True:
+                        # res=scatterplot(df=dfnew, 
+                        #                 ax=ax[i+2],
+                        #                 fig=fig, 
+                        #                 x=x, 
+                        #                 y=y,
+                        #                 category=cat, 
+                        #                 palette=palette[1],
+                        #                 axlabel=&#34;non&#34;,
+                        #                 markers=True,
+                        #                 show_legend=False,**sp_kw)
+                        # fig=res[&#34;fig&#34;]
                         for key in lut[cat][&#34;colorlut&#34;].keys():
                             _dfnew=dfnew.loc[dfnew[cat]==key]
+                            
                             ax[i+2].scatter(_dfnew[x], _dfnew[y], color=lut[cat][&#34;colorlut&#34;][key], marker=lut[cat][&#34;markerlut&#34;][key], label=key)
-                        ax[i+2].legend(title=key)
-                        
+                        ax[i+2].legend(title=cat)
                     else:
+                        # res=scatterplot(df=dfnew, 
+                        #                 ax=ax[i+2],
+                        #                 fig=fig, 
+                        #                 x=x, 
+                        #                 y=y,
+                        #                 category=cat, 
+                        #                 palette=palette[1],
+                        #                 axlabel=&#34;non&#34;,
+                        #                 show_legend=False,**sp_kw)
+                        # fig=res[&#34;fig&#34;]
                         for key in lut[cat][&#34;colorlut&#34;].keys():
                             _dfnew=dfnew.loc[dfnew[cat]==key]
                             ax[i+2].scatter(_dfnew[x], _dfnew[y], color=lut[cat][&#34;colorlut&#34;][key], label=key, s=size)
-                        ax[i+2].legend(title=key)
+                        ax[i+2].legend(title=cat)
 
 
 
@@ -658,7 +1360,7 @@ def clusterplot(df: pd.DataFrame,
                 for key in _clut.keys():
                     _dfnew=dfnew.loc[dfnew[hue]==key]
                     ax[0].scatter(_dfnew[x], _dfnew[y], color=_clut[key], marker=_mlut[key], label=key)
-                ax[0].legend(title=key)
+                
             else:
                 
                 _clut, _mlut=_create_color_markerlut(dfnew, hue,palette[0],markers)
@@ -667,36 +1369,684 @@ def clusterplot(df: pd.DataFrame,
                     _dfnew=dfnew.loc[dfnew[hue]==key]
                     ax[0].scatter(_dfnew[x], _dfnew[y], color=_clut[key], label=key, s=size)
                     
-                ax[0].legend(title=key)
+            ax[0].legend(title=hue)
             ax[0].set_title(method+&#34; Cluster number=&#34;+str(K))
+            ax[0].set_xlabel(x)
+            ax[0].set_ylabel(y)
             if len(category)!=0:
                 for i, cat in enumerate(category):
                     dfnew[cat]=df[cat]
-                    if barrierfree==True:
+                    
+                    if dfnew[cat].dtype==float :
+                        sc=ax[i+1].scatter(dfnew[x], dfnew[y], c=dfnew[cat], label=key, s=size)
+
+                        plt.colorbar(sc,ax=ax[i+1], label=cat, shrink=0.3,aspect=5,orientation=&#34;vertical&#34;)
+                    elif barrierfree==True:
                         
                         for key in lut[cat][&#34;colorlut&#34;].keys():
                             _dfnew=dfnew.loc[dfnew[cat]==key]
                             ax[i+1].scatter(_dfnew[x], _dfnew[y], color=lut[cat][&#34;colorlut&#34;][key], marker=lut[cat][&#34;markerlut&#34;][key], label=key)
-                        ax[i+1].legend(title=key)
+                        ax[i+1].legend(title=cat)
                         
                     else:
                         for key in lut[cat][&#34;colorlut&#34;].keys():
                             _dfnew=dfnew.loc[dfnew[cat]==key]
                             ax[i+1].scatter(_dfnew[x], _dfnew[y], color=lut[cat][&#34;colorlut&#34;][key], label=key, s=size)
-                        ax[i+1].legend(title=key)
+                        ax[i+1].legend(title=cat)
                         
             _dfnews[K]=dfnew
     _save(save, method+&#34;_scatter&#34;)
     return {&#34;data&#34;: _dfnews, &#34;axes&#34;:ax}
 
 
+def _clusterplot(df: pd.DataFrame,
+                variables: List=[],
+                category: Union[List[str], str]=&#34;&#34;, 
+                method: str=&#34;kmeans&#34;,
+                n_clusters: Union[str , int]=3,
+                x: str=&#34;&#34;,
+                y: str=&#34;&#34;,
+                size: float=10,
+                reduce_dimension: str=&#34;umap&#34;, 
+                testrange: list=[1,20],
+                topn_cluster_num: int=2,
+                show: bool=False,
+                min_dist: float=0.25,
+                n_neighbors: int=15,
+                eps: Union[List[float], float]=0.5,
+                pcacomponent: Optional[int]=None,
+                ztranform: bool=True,
+                palette: list=[&#34;Spectral&#34;,&#34;tab20b&#34;],
+                save: str=&#34;&#34;,
+                title: str=&#34;&#34;,
+                markers: bool=False,
+                ax: Optional[plt.Axes]=None,
+                piesize_scale: float=0.02,
+                min_cluster_size: int=10,
+                sp_kw={},
+                **kwargs)-&gt;Dict:
+    &#34;&#34;&#34;
+    Clustering data and draw them as a scatter plot optionally with dimensionality reduction.  
+    
+    Parameters
+    ----------
+    df : pandas DataFrame
+    x, y: str, optional
+        The column names to be the x and y axes of scatter plots. If reduce_dimension=True, these options will be
+        ignored.
+    
+    variables: list, optional
+        The names of variables to calculate clusters..
+    
+    category: str, optional
+        the column name of a known sample category (if exists). 
+    method: str
+        Method name for clustering. 
+        &#34;kmeans&#34;
+        &#34;hierarchical&#34;,
+        &#34;dbscan&#34;: Density-Based Clustering Algorithms
+        &#34;fuzzy&#34; : fuzzy c-mean clustering using scikit-fuzzy
+    n_clusters: int or str, optional (default: 3)
+        The number of clusters to be created. If &#34;auto&#34; is provided, it will estimate optimal 
+        cluster numbers with &#34;Sum of squared distances&#34; for k-mean clustering and silhouette method for others. 
+    eps: int or list[int]
+        DBSCAN&#39;s hyper parameter. It will affect the total number of clusters. 
+    reduce_dimension: str, optional (default: &#34;umap&#34;)
+        Dimensionality reduction method. if &#34;&#34; is passed, no reduction methods are applied. 
+        In this case, data must have only two dimentions or x and y options must be specified.
+    
+    markers: bool, optional (default: False)
+        Whether to use different markers for each cluster/category (for a colorblind-friendly plot).
+    show: bool, optional (default: False)
+        Whether to show figures
+    size: float, optional (default: 10)
+        The size of points in the scatter plot.
+        
+    testrange: list, optional (default: [1,20])
+        The range of cluster numbers to be tested when n_clusters=&#34;auto&#34;.
+    topn_cluster_num: int, optional (default: 2)
+        Top n optimal cluster numbers to be plotted when n_clusters=&#34;auto&#34;.
+    
+    
+    min_dist: float, optional (default: 0.25)
+        A UMAP parameter
+    n_neighbors: int, optinal (default: 15)
+        A UMAP parameter.
+    eps: Union[List[float], float], optional (default: 0.5)
+        A DBSCAN parameter.
+    pcacomponent: Optional[int]=None,
+        The number of PCA component. PCA result will be used by UMAP and hierarchical clustering.
+    ztranform: bool, optinal (default: True)
+        Whether to convert data into z scores.
+    palette: list, optional (default: [&#34;Spectral&#34;,&#34;cubehelix&#34;])
+    
+    save: str=&#34;&#34;,
+    piesize_scale: float=0.02
+    Returns
+    -------
+    Raises
+    ------
+    Notes
+    -----
+    References
+    ----------
+    See Also
+    --------
+    Examples
+    --------
+    &#34;&#34;&#34; 
+    
+    
+    original_index=df.index
+    
+    X, category=_separate_data(df, variables=variables, category=category)
+    
+    
+    if ztranform==True:
+        X=zscore(X, axis=0)
+        
+    if pcacomponent==None:
+            
+        if 20&lt;X.shape[1]:
+            pcacomponent=20
+        elif 10&lt;X.shape[1]:
+            pcacomponent=10
+        else:
+            pcacomponent=2
+    pca=PCA(n_components=pcacomponent, random_state=1)
+    xpca=pca.fit_transform(X)
+    
+    if reduce_dimension==&#34;umap&#34;:
+        import umap
+        u=umap.UMAP(random_state=42, min_dist=min_dist,n_neighbors=n_neighbors)
+        X=u.fit_transform(xpca)
+        x=&#34;UMAP1&#34;
+        y=&#34;UMAP2&#34;
+    elif reduce_dimension==&#34;tsne&#34;:
+        tsne=_get_embedding(&#34;tsne&#34;)
+        #u=umap.UMAP(random_state=42, min_dist=min_dist,n_neighbors=n_neighbors)
+        X=tsne.fit_transform(xpca)
+        x=&#34;TSNE1&#34;
+        y=&#34;TSNE2&#34;
+    if n_clusters==&#34;auto&#34; and method==&#34;kmeans&#34;:
+        Sum_of_squared_distances = []
+        K = list(range(*testrange))
+        for k in K:
+            km = KMeans(n_clusters=k,n_init=10)
+            km = km.fit(X)
+            Sum_of_squared_distances.append(km.inertia_)
+        normy=np.array(Sum_of_squared_distances)/np.amax(Sum_of_squared_distances)
+        normy=1-normy
+        normx=np.linspace(0,1, len(K))
+        perp=_calc_curveture(normx, normy)
+        srtindex=np.argsort(perp)[::-1]
+        plt.subplots()
+        plt.plot(K, Sum_of_squared_distances, &#39;-&#39;, label=&#39;Sum of squared distances&#39;)
+        plt.plot(K, perp*np.amax(Sum_of_squared_distances), label=&#34;curveture&#34;)
+        for i in range(topn_cluster_num):
+            plt.plot([K[srtindex[i]],K[srtindex[i]]],[0,np.amax(Sum_of_squared_distances)], &#34;--&#34;, color=&#34;r&#34;)
+            plt.text(K[srtindex[i]], np.amax(Sum_of_squared_distances)*0.95, &#34;N=&#34;+str(K[srtindex[i]]))
+        plt.xticks(K)
+        plt.xlabel(&#39;Cluster number&#39;)
+        plt.ylabel(&#39;Sum of squared distances&#39;)
+        plt.title(&#39;Elbow method for optimal cluster number&#39;)    
+        plt.legend()
+        #print(&#34;Top two optimal cluster No are: {}, {}&#34;.format(K[srtindex[0]],K[srtindex[1]]))
+        #n_clusters=[K[srtindex[0]],K[srtindex[1]]]
+        n_clusters=[ K[i] for i in srtindex[:topn_cluster_num]]
+        print(&#34;Top two optimal cluster No are:&#34;, n_clusters)
+        _save(save, method)
+    elif n_clusters==&#34;auto&#34; and method==&#34;fuzzy&#34;:
+        try:
+            import skfuzzy as fuzz
+        except ImportError:
+            from pip._internal import main as pip
+            pip([&#39;install&#39;, &#39;--user&#39;, &#39;scikit-fuzzy&#39;])
+            import skfuzzy as fuzz
+        fpcs = []
+        K = list(range(*testrange))
+        _X=X.T
+        for nc in K:
+            
+            cntr, u, u0, d, jm, p, fpc = fuzz.cmeans(_X, nc, 2, error=0.005, maxiter=1000, init=None)
+            
+            fpcs.append(fpc)
+        
+        srtindex=np.argsort(fpcs)[::-1]
+        plt.subplots()
+        plt.plot(K, fpcs, &#39;-&#39;)
+     
+        for i in range(topn_cluster_num):
+            plt.plot([K[srtindex[i]],K[srtindex[i]]],[0,np.amax(fpcs)], &#34;--&#34;, color=&#34;r&#34;)
+            plt.text(K[srtindex[i]], np.amax(fpcs)*0.95, &#34;N=&#34;+str(K[srtindex[i]]))
+        plt.xticks(K)
+        plt.xlabel(&#39;Cluster number&#39;)
+        plt.ylabel(&#39;Fuzzy partition coefficient&#39;)
+        n_clusters=[ K[i] for i in srtindex[:topn_cluster_num]]
+        print(&#34;Top two optimal cluster No are:&#34;, n_clusters)
+        
+        
+        _save(save, method)
+    elif n_clusters==&#34;auto&#34; and method==&#34;hierarchical&#34;:
+        import scipy.spatial.distance as ssd
+        
+        labels=df.index
+        D=ssd.squareform(ssd.pdist(xpca))
+        Y = sch.linkage(D, method=&#39;ward&#39;)
+        Z = sch.dendrogram(Y,labels=labels,no_plot=True)
+        
+        K = list(range(*testrange))
+        newK=[]
+        scores=[]
+        for k in K:
+            t=_dendrogram_threshold(Z, k)
+            Z2=sch.dendrogram(Y,
+                                labels = labels,
+                                color_threshold=t,no_plot=True) 
+            clusters=_get_cluster_classes(Z2, label=&#39;ivl&#39;)
+            _k=len(clusters)
+            if not _k in newK:
+                newK.append(_k)
+                sample2cluster={}
+                i=1
+                for k, v in clusters.items():
+                    for sample in v:
+                        sample2cluster[sample]=&#34;C&#34;+str(i)
+                    i+=1
+                scores.append(silhouette_score(X, [sample2cluster[sample] for sample in labels], metric = &#39;euclidean&#39;)/_k)
+
+        scores=np.array(scores)
+        srtindex=np.argsort(scores)[::-1]
+        plt.subplots()
+        plt.plot(newK, scores, &#39;-&#39;)
+        for i in range(topn_cluster_num):
+            plt.plot([newK[srtindex[i]],newK[srtindex[i]]],[0,np.amax(scores)], &#34;--&#34;, color=&#34;r&#34;)
+            plt.text(newK[srtindex[i]], np.amax(scores)*0.95, &#34;N=&#34;+str(newK[srtindex[i]]))
+        plt.xticks(newK)
+        plt.xlabel(&#39;Cluster number&#39;)
+        plt.ylabel(&#39;Silhouette scores&#39;)
+        plt.title(&#39;Optimal cluster number searches by silhouette method&#39;)    
+        
+        n_clusters=[ newK[i] for i in srtindex[:topn_cluster_num]]
+        print(&#34;Top two optimal cluster No are:&#34;, n_clusters)
+        _save(save, method)
+    elif n_clusters==&#34;auto&#34; and method==&#34;dbscan&#34;:
+
+        from sklearn.neighbors import NearestNeighbors
+        neigh = NearestNeighbors(n_neighbors=2)
+        nbrs = neigh.fit(X)
+        distances, indices = nbrs.kneighbors(X)
+        distances = np.sort(distances[:,1], axis=0)
+
+        K=np.linspace(np.amin(distances), np.amax(distances),20)
+        newK=[]
+        scores=[]
+        _K=[]
+        for k in K:
+            db = DBSCAN(eps=k, min_samples=5, n_jobs=-1)
+            dbX=db.fit(X)
+            labels=np.unique(dbX.labels_[dbX.labels_&gt;=0])
+  
+            if len(labels)&lt;2:
+                continue
+            _k=len(labels)
+            if not _k in newK:
+                newK.append(_k)
+                _K.append(k)
+                scores.append(silhouette_score(X[dbX.labels_&gt;=0], dbX.labels_[dbX.labels_&gt;=0], metric = &#39;euclidean&#39;)/_k)
+
+        scores=np.array(scores)
+        
+        _ksort=np.argsort(newK)
+        _K=np.array(_K)[_ksort]
+        newK=np.array(newK)[_ksort]
+        scores=np.array(scores)[_ksort]
+        srtindex=np.argsort(scores)[::-1]
+        plt.subplots()
+        plt.plot(newK, scores, &#39;-&#39;)
+        
+        for i in range(topn_cluster_num):
+            plt.plot([_K[srtindex[i]],_K[srtindex[i]]],[0,np.amax(scores)], &#34;--&#34;, color=&#34;r&#34;)
+            plt.text(_K[srtindex[i]], np.amax(scores)*0.95, &#34;N=&#34;+str(newK[srtindex[i]]))
+        plt.xticks(newK)
+        plt.xlabel(&#39;eps&#39;)
+        plt.ylabel(&#39;Silhouette scores&#39;)
+        plt.title(&#39;Optimal cluster number searches by silhouette method&#39;)    
+
+        _n_clusters=[ newK[i] for i in range(topn_cluster_num)]
+        print(&#34;Top two optimal cluster No are:&#34;, _n_clusters)
+        eps=[_K[i] for i in srtindex[:topn_cluster_num]]
+        _save(save, method)
+        
+    elif n_clusters==&#34;auto&#34; and method==&#34;hdbscan&#34;:
+        try:
+            import hdbscan
+        except ImportError:
+            from pip._internal import main as pip
+            pip([&#39;install&#39;, &#39;--user&#39;, &#39;hdbscan&#39;])
+            import hdbscan
+        
+        from sklearn.neighbors import NearestNeighbors
+        neigh = NearestNeighbors(n_neighbors=2)
+        nbrs = neigh.fit(X)
+        distances, indices = nbrs.kneighbors(X)
+        distances = np.sort(distances[:,1], axis=0)
+
+        #K=np.linspace(0.01,1,10)
+        K=np.arange(2, 20,1)
+        print(K)
+        newK=[]
+        scores=[]
+        _K=[]
+        for k in K:
+            db = hdbscan.HDBSCAN(min_cluster_size=k, 
+                                 #cluster_selection_epsilon=k,
+                                 algorithm=&#39;best&#39;, 
+                                 alpha=1.0,leaf_size=40,
+                                metric=&#39;euclidean&#39;, min_samples=None, p=None, core_dist_n_jobs=-1)
+            dbX=db.fit(X)
+            labels=np.unique(dbX.labels_[dbX.labels_&gt;=0])
+  
+            if len(labels)&lt;2:
+                continue
+            _k=len(labels)
+            if not _k in newK:
+                newK.append(_k)
+                _K.append(k)
+                scores.append(silhouette_score(X[dbX.labels_&gt;=0], dbX.labels_[dbX.labels_&gt;=0], metric = &#39;euclidean&#39;)/_k)
+        
+        scores=np.array(scores)
+        
+        _ksort=np.argsort(newK)
+        _K=np.array(_K)[_ksort]
+        newK=np.array(newK)[_ksort]
+        scores=np.array(scores)[_ksort]
+        srtindex=np.argsort(scores)[::-1]
+        plt.subplots()
+        plt.plot(newK, scores, &#39;-&#39;)
+        
+        for i in range(topn_cluster_num):
+            plt.plot([_K[srtindex[i]],_K[srtindex[i]]],[0,np.amax(scores)], &#34;--&#34;, color=&#34;r&#34;)
+            plt.text(_K[srtindex[i]], np.amax(scores)*0.95, &#34;N=&#34;+str(newK[srtindex[i]]))
+        plt.xticks(_K)
+        plt.xlabel(&#39;min_cluster_size&#39;)
+        plt.ylabel(&#39;Silhouette scores&#39;)
+        plt.title(&#39;Optimal cluster number searches by silhouette method&#39;)    
+
+        _n_clusters=[ newK[i] for i in range(topn_cluster_num)]
+        print(&#34;Top two optimal cluster No are:&#34;, _n_clusters)
+        min_cluster_size=[_K[i] for i in srtindex[:topn_cluster_num]]
+        _save(save, method)
+    else:
+        n_clusters=[n_clusters]
+    if method==&#34;kmeans&#34;:
+        dfnews=[]
+
+        for nc in n_clusters:
+            kmean = KMeans(n_clusters=nc, random_state=0,n_init=10)
+            kmX=kmean.fit(X)
+            labels=np.unique(kmX.labels_)
+            
+            dfnew=pd.DataFrame(data = np.array([X[:,0],X[:,1]]).T, columns = [x, y], index=original_index)
+            dfnew[&#34;kmeans&#34;]=kmX.labels_
+            dfnews.append(dfnew)
+        hue=&#34;kmeans&#34;
+        
+    elif method==&#34;hierarchical&#34;:
+        import scipy.spatial.distance as ssd
+        labels=df.index
+        D=ssd.squareform(ssd.pdist(xpca))
+        Y = sch.linkage(D, method=&#39;ward&#39;)
+        Z = sch.dendrogram(Y,labels=labels,no_plot=True)
+        
+        dfnews=[]
+        for nc in n_clusters:
+            t=_dendrogram_threshold(Z, nc)
+            Z2=sch.dendrogram(Y,
+                                labels = labels,
+                                color_threshold=t,no_plot=True) 
+            clusters=_get_cluster_classes(Z2, label=&#39;ivl&#39;)
+            sample2cluster={}
+            i=1
+            for k, v in clusters.items():
+                for sample in v:
+                    sample2cluster[sample]=&#34;C&#34;+str(i)
+                i+=1
+                
+            dfnew=pd.DataFrame(data = np.array([X[:,0],X[:,1]]).T, columns = [x, y], index=original_index)
+            dfnew[&#34;hierarchical&#34;]=[sample2cluster[sample] for sample in labels]       
+            dfnews.append(dfnew)
+        hue=&#34;hierarchical&#34;
+    elif method==&#34;dbscan&#34;:
+        dfnews=[]
+
+        if type(eps)==float:
+            eps=[eps]
+        n_clusters=[]
+        for e in eps:
+            db = DBSCAN(eps=e, min_samples=5, n_jobs=-1)
+            dbX=db.fit(X)
+            labels=np.unique(dbX.labels_)
+            
+            dfnew=pd.DataFrame(data = np.array([X[:,0],X[:,1]]).T, columns = [x, y], index=original_index)
+            dfnew[&#34;dbscan&#34;]=dbX.labels_
+            dfnews.append(dfnew)
+            tmp=0
+            for c in set(dbX.labels_):
+                if c &gt;=0:
+                    tmp+=1
+            n_clusters.append(str(tmp)+&#34;, eps=&#34;+str(np.round(e,2)))
+            
+            
+        hue=&#34;dbscan&#34;
+    elif method==&#34;hdbscan&#34;:
+        dfnews=[]
+
+        try:
+            import hdbscan
+        except ImportError:
+            from pip._internal import main as pip
+            pip([&#39;install&#39;, &#39;--user&#39;, &#39;hdbscan&#39;])
+            import hdbscan
+
+        if type(min_cluster_size)==int:
+            min_cluster_size=[min_cluster_size]
+        n_clusters=[]
+        fuzzylabels=[]
+        for e in min_cluster_size:
+            db = hdbscan.HDBSCAN(min_cluster_size=e,
+                                 prediction_data=True,
+                                 algorithm=&#39;best&#39;, 
+                                 alpha=1.0, 
+                                 approx_min_span_tree=True,
+                                gen_min_span_tree=True, leaf_size=40,
+                                metric=&#39;euclidean&#39;, min_samples=None, p=None)
+            dbX=db.fit(X)
+            labels=np.unique(dbX.labels_)
+            
+            dfnew=pd.DataFrame(data = np.array([X[:,0],X[:,1]]).T, columns = [x, y], index=original_index)
+            dfnew[&#34;dbscan&#34;]=dbX.labels_
+            fuzzylabels.append(hdbscan.all_points_membership_vectors(dbX))
+            dfnews.append(dfnew)
+            tmp=0
+            for c in set(dbX.labels_):
+                if c &gt;=0:
+                    tmp+=1
+            n_clusters.append(str(tmp)+&#34;, eps=&#34;+str(np.round(e,2)))
+            
+            
+        hue=&#34;hdbscan&#34;
+    elif method==&#34;fuzzy&#34;:
+        try:
+            import skfuzzy as fuzz
+        except ImportError:
+            from pip._internal import main as pip
+            pip([&#39;install&#39;, &#39;--user&#39;, &#39;scikit-fuzzy&#39;])
+            import skfuzzy as fuzz
+        
+        dfnews=[]
+        fuzzylabels=[]
+
+        _X=X.T
+        for nc in n_clusters:
+            
+            cntr, u, u0, d, jm, p, fpc = fuzz.cmeans(_X, nc, 2, error=0.005, maxiter=1000, init=None)
+            
+            dfnew=pd.DataFrame(data = np.array([X[:,0],X[:,1]]).T, columns = [x, y], index=original_index)
+            fuzzylabels.append(u.T)
+            dfnews.append(dfnew)
+        hue=&#34;fuzzy&#34;
+    
+    barrierfree=False
+    if type(markers)==bool:
+            
+        if markers==True:
+            barrierfree=True
+            markers=marker_list 
+        else: 
+            markers=[]
+    if len(category)!=0:
+        lut={}
+        for i, cat in enumerate(category):
+            if df[cat].dtype==float :
+                continue 
+            _clut, _mlut=_create_color_markerlut(df, cat,palette[1],markers)
+            lut[cat]={&#34;colorlut&#34;:_clut, &#34;markerlut&#34;:_mlut}
+ 
+    _dfnews={}
+    
+    if method==&#34;fuzzy&#34; or method==&#34;hdbscan&#34;:
+        for dfnew, K, fl in zip(dfnews, n_clusters, fuzzylabels): 
+            if len(category)==0:
+                fig, ax=plt.subplots(ncols=2, figsize=[8,4])
+                ax=[ax]
+            else:
+                fig, ax=plt.subplots(ncols=2+len(category), figsize=[8+4*len(category),4])
+            
+            if title!=&#34;&#34; :
+                fig.suptitle(title)
+
+            if type(K)==str:
+                _K=K
+                K, eps=_K.split(&#34;, &#34;)
+                K=int(K)
+                _cmap=plt.get_cmap(palette[0], K)
+            else:
+                _cmap=plt.get_cmap(palette[0], K)
+            colors=[]
+            color_entropy=[]
+            for c in fl:
+                tmp=np.zeros([3])
+                for i in range(K):
+                    #print(_cmap(i))
+                    #print(c[i])
+                    tmp+=np.array(_cmap(i))[:3]*c[i]
+                tmp=np.where(tmp&gt;1, 1, tmp)
+                colors.append(tmp)
+                color_entropy.append(np.sum(tmp*np.log2(tmp+0.000001)))
+                
+            entropy_srt=np.argsort(color_entropy)
+            colors=np.array(colors)[entropy_srt]
+            
+            # ax[0].scatter(dfnew[x].values[entropy_srt], dfnew[y].values[entropy_srt], color=colors, s=size)
+            # ax[0].set_xlabel(x)
+            # ax[0].set_ylabel(y)
+
+            _tmp=dfnew.iloc[entropy_srt]
+            
+            res=scatterplot(df=_tmp, ax=ax[0], x=x, y=y,c=colors,axlabel=&#34;each&#34;,fig=fig,**sp_kw)
+            fig=res[&#34;fig&#34;]
+            ax[0]=res[&#34;axes&#34;][0]
+            #sns.scatterplot(data=dfnew,x=x,y=y,hue=hue, ax=ax[0], palette=palette[0],**kwargs)
+            if method==&#34;fuzzy&#34;:
+                _title=&#34;Fuzzy c-means. Cluster num=&#34;+str(K)
+            elif method==&#34;hdbscan&#34;:
+                _title=&#34;HDBSCAN. Cluster num=&#34;+_K
+            ax[0].set_title(_title, alpha=0.5)
+            legend_elements = [Line2D([0], [0], marker=&#39;o&#39;, color=&#39;lavender&#39;, 
+                                      label=method+str(i),
+                                      markerfacecolor=_cmap(i), 
+                                      markersize=10) for i in range(K)]
+    
+            ax[0].legend(handles=legend_elements,loc=&#34;best&#34;)
+            for i in range(K):
+                dfnew[method+str(i)]=fl[:,i]
+            
+            pie_scatter(dfnew, x=x,y=y, 
+                        category=[method+str(i) for i in range(K)],
+                        piesize_scale=piesize_scale, 
+                        ax=ax[1],
+                        label=&#34;&#34;,bbox_to_anchor=&#34;best&#34;, title=&#34;Probability is represented by pie charts&#34;)
+            
+            
+            if len(category)!=0:
+                for i, cat in enumerate(category):
+                    dfnew[cat]=df[cat]
+                    #sns.scatterplot(data=dfnew,x=x,y=y,hue=cat, ax=ax[i+2], palette=palette[1], s=size,**kwargs)
+                    if dfnew[cat].dtype==float :
+                        res=scatterplot(df=dfnew, ax=ax[i+2],fig=fig, x=x, y=y,colors=cat,axlabel=&#34;non&#34;,show_legend=False,**sp_kw)
+                        fig=res[&#34;fig&#34;]
+                        # sc=ax[i+2].scatter(dfnew[x], dfnew[y], c=dfnew[cat], s=size)
+                        # plt.colorbar(sc,ax=ax[i+2], label=cat, shrink=0.3,aspect=5,orientation=&#34;vertical&#34;)
+                    elif barrierfree==True:
+                        res=scatterplot(df=dfnew, 
+                                        ax=ax[i+2],
+                                        fig=fig, 
+                                        x=x, 
+                                        y=y,
+                                        category=cat, 
+                                        palette=palette[1],
+                                        axlabel=&#34;non&#34;,
+                                        markers=True,
+                                        show_legend=False,**sp_kw)
+                        fig=res[&#34;fig&#34;]
+                        # for key in lut[cat][&#34;colorlut&#34;].keys():
+                        #     _dfnew=dfnew.loc[dfnew[cat]==key]
+                            
+                        #     ax[i+2].scatter(_dfnew[x], _dfnew[y], color=lut[cat][&#34;colorlut&#34;][key], marker=lut[cat][&#34;markerlut&#34;][key], label=key)
+                        ax[i+2].legend(title=cat)
+                    else:
+                        res=scatterplot(df=dfnew, 
+                                        ax=ax[i+2],
+                                        fig=fig, 
+                                        x=x, 
+                                        y=y,
+                                        category=cat, 
+                                        palette=palette[1],
+                                        axlabel=&#34;non&#34;,
+                                        show_legend=False,**sp_kw)
+                        fig=res[&#34;fig&#34;]
+                        # for key in lut[cat][&#34;colorlut&#34;].keys():
+                        #     _dfnew=dfnew.loc[dfnew[cat]==key]
+                        #     ax[i+2].scatter(_dfnew[x], _dfnew[y], color=lut[cat][&#34;colorlut&#34;][key], label=key, s=size)
+                        ax[i+2].legend(title=cat)
+
+
+
+            _dfnews[K]=dfnew 
+    else:
+        
+        
+        
+            
+        for dfnew, K in zip(dfnews, n_clusters): 
+            if len(category)==0:
+                axnum=1
+                fig, ax=plt.subplots(ncols=1, figsize=[4,4])
+                ax=[ax]
+            else:
+                fig, ax=plt.subplots(ncols=1+len(category), figsize=[4+4*len(category),4])
+            if title!=&#34;&#34; :
+                fig.suptitle(title)
+
+            if barrierfree==True:
+                _clut, _mlut=_create_color_markerlut(dfnew, hue,palette[0],markers)
+                
+                for key in _clut.keys():
+                    _dfnew=dfnew.loc[dfnew[hue]==key]
+                    ax[0].scatter(_dfnew[x], _dfnew[y], color=_clut[key], marker=_mlut[key], label=key)
+                
+            else:
+                
+                _clut, _mlut=_create_color_markerlut(dfnew, hue,palette[0],markers)
+                
+                for key in _clut.keys():
+                    _dfnew=dfnew.loc[dfnew[hue]==key]
+                    ax[0].scatter(_dfnew[x], _dfnew[y], color=_clut[key], label=key, s=size)
+                    
+            ax[0].legend(title=hue)
+            ax[0].set_title(method+&#34; Cluster number=&#34;+str(K))
+            ax[0].set_xlabel(x)
+            ax[0].set_ylabel(y)
+            if len(category)!=0:
+                for i, cat in enumerate(category):
+                    dfnew[cat]=df[cat]
+                    
+                    if dfnew[cat].dtype==float :
+                        sc=ax[i+1].scatter(dfnew[x], dfnew[y], c=dfnew[cat], label=key, s=size)
+
+                        plt.colorbar(sc,ax=ax[i+1], label=cat, shrink=0.3,aspect=5,orientation=&#34;vertical&#34;)
+                    elif barrierfree==True:
+                        
+                        for key in lut[cat][&#34;colorlut&#34;].keys():
+                            _dfnew=dfnew.loc[dfnew[cat]==key]
+                            ax[i+1].scatter(_dfnew[x], _dfnew[y], color=lut[cat][&#34;colorlut&#34;][key], marker=lut[cat][&#34;markerlut&#34;][key], label=key)
+                        ax[i+1].legend(title=cat)
+                        
+                    else:
+                        for key in lut[cat][&#34;colorlut&#34;].keys():
+                            _dfnew=dfnew.loc[dfnew[cat]==key]
+                            ax[i+1].scatter(_dfnew[x], _dfnew[y], color=lut[cat][&#34;colorlut&#34;][key], label=key, s=size)
+                        ax[i+1].legend(title=cat)
+                        
+            _dfnews[K]=dfnew
+    _save(save, method+&#34;_scatter&#34;)
+    return {&#34;data&#34;: _dfnews, &#34;axes&#34;:ax}
+
 def pie_scatter(df: pd.DataFrame,  
                 x: str, 
                 y: str, 
                 category: list, 
-                
-                logscalex: bool=False,
-                logscaley: bool=False,
                 pie_palette: str=&#34;tab20c&#34;,
                 label: Union[List, str]=&#34;all&#34;,
                 topn: int=10,
@@ -712,7 +2062,8 @@ def pie_scatter(df: pd.DataFrame,
                 xlabel: str=&#34;&#34;,
                 ylabel: str=&#34;&#34;, 
                 title: str=&#34;&#34;,
-                
+                logscalex: bool=False,
+                logscaley: bool=False,
                 bbox_to_anchor: Union[List, str]=[0.95, 1],
                 piesize_scale: float=0.01) -&gt; dict:
     &#34;&#34;&#34;
@@ -824,15 +2175,15 @@ def pie_scatter(df: pd.DataFrame,
         for fr, co in zip(_frac, _colors):
             if type(piesizes)==str:
                 if piesizes==&#34;sum_of_each&#34;:
-                    _baumkuchen_xy(ax, _x, _y, angle, fr, 0, sums.loc[_ind],20, co, edge_color=edge_color)
+                    _baumkuchen_xy(ax, _x, _y, angle, fr, 0, sums.loc[_ind],20, co, edgecolor=edge_color)
                 elif piesizes==&#34;&#34;:
-                    _baumkuchen_xy(ax, _x, _y, angle, fr, 0, piesize_scale,20, co, edge_color=edge_color)
+                    _baumkuchen_xy(ax, _x, _y, angle, fr, 0, piesize_scale,20, co, edgecolor=edge_color)
                 else:
                     pass
             elif type(piesizes)==list and len(piesizes) !=0:
-                _baumkuchen_xy(ax, _x, _y, angle, fr, 0, piesize_scale*piesizes[i],20, co, edge_color=edge_color)
+                _baumkuchen_xy(ax, _x, _y, angle, fr, 0, piesize_scale*piesizes[i],20, co, edgecolor=edge_color)
             else:
-                _baumkuchen_xy(ax, _x, _y, angle, fr, 0, piesize_scale,20, co, edge_color=edge_color)
+                _baumkuchen_xy(ax, _x, _y, angle, fr, 0, piesize_scale,20, co, edgecolor=edge_color)
             angle+=fr
         
         if type(label)==str:
@@ -874,6 +2225,7 @@ def pie_scatter(df: pd.DataFrame,
 
 
 
+
 def decomplot(df: pd.DataFrame,
               variables: List=[],
               category: Union[List, str]=&#34;&#34;, 
@@ -893,7 +2245,8 @@ def decomplot(df: pd.DataFrame,
               markers: bool=False,
               saveparam: dict={},
               ax: Optional[plt.Axes]=None,
-              palette: str=&#34;tab20b&#34;) -&gt; Dict:
+              palette: str=&#34;tab20b&#34;,
+              size: int=10) -&gt; Dict:
     
     &#34;&#34;&#34;
     Decomposing data and drawing a scatter plot and some plots for explained variables. 
@@ -932,15 +2285,17 @@ def decomplot(df: pd.DataFrame,
     --------
     &#34;&#34;&#34;
     x, category=_separate_data(df, variables=variables, category=category)
-    # if category !=&#34;&#34;:
-    #     category_val=df[category].values
-    #     df=df.drop([category], axis=1)
-    #     x = df.values
-    #     assert x.dtype==float, f&#34;data must contain only float values except {category} column.&#34;
-    #
-    # else:    
-    #     x = df.values
-    #     assert x.dtype==float, &#34;data must contain only float values.&#34;
+
+    barrierfree=False
+    if type(markers)==bool:
+            
+        if markers==True:
+            barrierfree=True
+            markers=marker_list 
+        else: 
+            markers=[]
+
+
     original_index=df.index
     if len(variables)!=0:
         features=variables
@@ -953,18 +2308,9 @@ def decomplot(df: pd.DataFrame,
 
                     
     if len(category)!=0:
-        barrierfree=False
-        if type(markers)==bool:
-            
-            if markers==True:
-                barrierfree=True
-                markers=maker_list 
-            else: 
-                markers=[]
-                        
         lut={}
         for i, cat in enumerate(category):
-            _clut, _mlut=_create_color_markerlut(df, cat,palette[1],markers)
+            _clut, _mlut=_create_color_markerlut(df, cat,palette,markers)
             lut[cat]={&#34;colorlut&#34;:_clut, &#34;markerlut&#34;:_mlut}
 
 
@@ -978,10 +2324,13 @@ def decomplot(df: pd.DataFrame,
                 nrows=len(comb)//2+int(len(comb)%2!=0)
                 if len(figsize)==0:
                     figsize=[8,3*nrows]
-                
-                fig, axes=plt.subplots(ncols=2, nrows=nrows, figsize=figsize)
-                plt.subplots_adjust(top=0.9,right=0.8)
+                ncols=2
+                fig, axes=plt.subplots(ncols=ncols, nrows=nrows, figsize=figsize)
+                plt.subplots_adjust(top=0.9,right=0.8, left=0.1)
                 axes=axes.flatten()
+                if len(comb)!=ncols*nrows:
+                    for i in range(ncols*nrows-len(comb)):
+                        fig.delaxes(axes[-(i+1)])
             figures[cat]={&#34;fig&#34;: fig, &#34;axes&#34;:axes}
     else:
         figures={}
@@ -994,7 +2343,7 @@ def decomplot(df: pd.DataFrame,
                 figsize=[8,3*nrows]
             
             fig, axes=plt.subplots(ncols=2, nrows=nrows, figsize=figsize)
-            plt.subplots_adjust(top=0.9,right=0.8)
+            plt.subplots_adjust(top=0.9,right=0.8, left=0.1)
             axes=axes.flatten()
         figures[&#34;nocat&#34;]={&#34;fig&#34;: fig, &#34;axes&#34;:axes}
     if method==&#34;pca&#34;:
@@ -1016,18 +2365,20 @@ def decomplot(df: pd.DataFrame,
             if len(category)!=0:
                 for cat in category:
                     dfpc[cat]=df[cat]
+                    
+                    _scatter(dfpc, xlabel,ylabel, cat, figures[cat][&#34;axes&#34;][axi], lut, barrierfree, size,legend=False)
+
+                    # sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=cat, ax=figures[cat][&#34;axes&#34;][axi],palette=palette)
+                    # sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=cat, ax=figures[cat][&#34;axes&#34;][axi],legend=False,palette=palette)
                     if combnum==1:
-                        sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=cat, ax=figures[cat][&#34;axes&#34;][axi],palette=palette)
                         figures[cat][&#34;axes&#34;][axi].legend(bbox_to_anchor=(1.02, 1), loc=&#39;upper left&#39;, borderaxespad=0)
-                    else:
-                        sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=cat, ax=figures[cat][&#34;axes&#34;][axi],
-                                        legend=False,palette=palette)
                     for k, feature in enumerate(_features):
                         figures[cat][&#34;axes&#34;][axi].arrow(0, 0, _loadings[k, 0],_loadings[k, 1],color=arrow_color,width=0.005,head_width=0.1)
                         figures[cat][&#34;axes&#34;][axi].text(_loadings[k, 0],_loadings[k, 1],feature,color=arrow_text_color)
             else:
                 sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, ax=figures[&#34;nocat&#34;][axi],palette=palette)
-            
+                # cat=None
+                # _scatter(dfpc, xlabel,ylabel, cat, figures[&#34;nocat&#34;][axi], lut, barrierfree, size)
                 for k, feature in enumerate(_features):
                     #ax.plot([0,_loadings[k, 0] ], [0,_loadings[k, 1] ],color=arrow_color)
                     figures[&#34;nocat&#34;][axi].arrow(0, 0, _loadings[k, 0],_loadings[k, 1],color=arrow_color,width=0.005,head_width=0.1)
@@ -1081,14 +2432,301 @@ def decomplot(df: pd.DataFrame,
             if len(category)!=0:
                 for cat in category:
                     dfpc[cat]=df[cat]
+                    
+                    # sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=cat, ax=figures[cat][&#34;axes&#34;][axi],palette=palette)
+                    _scatter(dfpc, xlabel,ylabel, cat, figures[cat][&#34;axes&#34;][axi], lut, barrierfree, size,legend=False)
+                    # sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=cat, ax=figures[cat][&#34;axes&#34;][axi],legend=False,palette=palette)
                     if combnum==1:
-                        sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=cat, ax=figures[cat][&#34;axes&#34;][axi],palette=palette)
-                        figures[cat][&#34;axes&#34;][axi].legend(bbox_to_anchor=(1.02, 1), loc=&#39;upper left&#39;, borderaxespad=0,palette=palette)
-                    else:
-                        sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=cat, ax=figures[cat][&#34;axes&#34;][axi],
-                                        legend=False,palette=palette)
+                        figures[cat][&#34;axes&#34;][axi].legend(bbox_to_anchor=(1.02, 1), loc=&#39;upper left&#39;, borderaxespad=0)
+
             else:
                 sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=category, ax=figures[&#34;nocat&#34;][axi],palette=palette)
+                # cat=None
+                # _scatter(dfpc, xlabel,ylabel, cat, figures[&#34;nocat&#34;][axi], lut, barrierfree, size)
+            dfpc_list.append(dfpc)
+            combnum+=1
+        if len(category)!=0:
+            for cat in category:
+                figures[cat][&#34;fig&#34;].suptitle(title)
+                figures[cat][&#34;fig&#34;].tight_layout(pad=0.5)
+                _save(save, cat+&#34;_NMF&#34;, fig=figures[cat][&#34;fig&#34;])
+        else:
+            figures[&#34;nocat&#34;][&#34;fig&#34;].suptitle(title)
+            figures[&#34;nocat&#34;][&#34;fig&#34;].tight_layout(pad=0.5)
+        _save(save, &#34;NMF&#34;)
+        if explained_variance==True:
+            fig, axes2=plt.subplots(nrows=component, figsize=[5,5])
+            axes2=axes2.flatten()
+            for i, ax in enumerate(axes2):
+                if i==0:
+                    ax.set_title(&#34;Coefficients of matrix H&#34;)
+                ax.bar(np.arange(len(features)),H[i])
+                ax.set_ylabel(&#34;p&#34;+str(i+1))
+                ax.set_xticks(np.arange(len(features)),labels=[])
+            ax.set_xticks(np.arange(len(features)),labels=features, rotation=90)
+            fig.tight_layout()
+            
+            # dfw={&#34;index&#34;:[],&#34;p&#34;:[],&#34;val&#34;:[]}
+            # ps=[&#34;p&#34;+str(i+1) for i in range(component)]
+            # originalindex=df.index
+            # for i in range(W.shape[0]):
+            #     for j in range(W.shape[1]):
+            #         dfw[&#34;index&#34;].append(originalindex[i])
+            #         dfw[&#34;p&#34;].append(ps[j])
+            #         dfw[&#34;val&#34;].append(W[i,j])
+            # dfw=pd.DataFrame(data=dfw)
+            #
+            # dfh={&#34;feature&#34;:[],&#34;p&#34;:[],&#34;val&#34;:[]}
+            # for i in range(H.shape[0]):
+            #     for j in range(H.shape[1]):
+            #         dfh[&#34;p&#34;].append(ps[i])
+            #         dfh[&#34;feature&#34;].append(features[j])
+            #
+            #         dfh[&#34;val&#34;].append(H[i,j])
+            # dfw=pd.DataFrame(data=dfw)
+            # dfh=pd.DataFrame(data=dfh)
+            # #dotplot(dfw,row=&#34;index&#34;,col=&#34;p&#34;,size_val=&#34;val&#34;)
+            # dotplot(dfh,row=&#34;p&#34;,col=&#34;feature&#34;,size_val=&#34;val&#34;,)
+            _save(save, &#34;Coefficients&#34;)
+        else:
+            axes2=None
+        if show==True:
+            plt.show()
+        return {&#34;data&#34;: dfpc_list, &#34;W&#34;:W, &#34;H&#34;:H,&#34;axes&#34;:figures,&#34;axes_explained&#34;:axes2}
+    elif method==&#34;lda&#34;:
+        lda=LatentDirichletAllocation(n_components=component, random_state=0)
+        if regularization:
+            x=x/np.sum(x,axis=0)[None,:]
+        
+    else:
+        raise Exception(&#39;{} is not in options. Available options are: pca, nmf&#39;.format(method))
+
+
+def _decomplot(df: pd.DataFrame,
+              variables: List=[],
+              category: Union[List, str]=&#34;&#34;, 
+              method: str=&#34;pca&#34;, 
+              component: int=3,
+              arrow_color: str=&#34;yellow&#34;,
+              arrow_text_color: str=&#34;black&#34;,
+              show: bool=False, 
+              explained_variance: bool=True,
+              arrow_num: int=3,
+              figsize=[],
+              regularization: bool=True,
+              pcapram={&#34;random_state&#34;:0},
+              nmfparam={&#34;random_state&#34;:0},
+              save: str=&#34;&#34;,
+              title: str=&#34;&#34;,
+              markers: bool=False,
+              saveparam: dict={},
+              ax: Optional[plt.Axes]=None,
+              palette: str=&#34;tab20b&#34;,
+              size: int=10) -&gt; Dict:
+    
+    &#34;&#34;&#34;
+    Decomposing data and drawing a scatter plot and some plots for explained variables. 
+    
+    Parameters
+    ----------
+    df : pandas DataFrame
+    
+    category: str
+        the column name of a known sample category (if exists). 
+    variables: list, optional
+        The names of variables to calculate decomposition.
+    method: str
+        Method name for decomposition. Available methods: [&#34;pca&#34;, &#34;nmf&#34;]
+    component: int
+        The component number
+    
+    show : bool
+        Whether or not to show the figure.
+    
+    Returns
+    -------
+        dict {&#34;data&#34;: dfpc_list,&#34;pca&#34;: pca, &#34;axes&#34;:axes, &#34;axes_explained&#34;:ax2} for pca method
+        or {&#34;data&#34;: dfpc_list, &#34;W&#34;:W, &#34;H&#34;:H,&#34;axes&#34;:axes,&#34;axes_explained&#34;:axes2} for nmf method
+            
+    
+    Raises
+    ------
+    Notes
+    -----
+    References
+    ----------
+    See Also
+    --------
+    Examples
+    --------
+    &#34;&#34;&#34;
+    x, category=_separate_data(df, variables=variables, category=category)
+    # if category !=&#34;&#34;:
+    #     category_val=df[category].values
+    #     df=df.drop([category], axis=1)
+    #     x = df.values
+    #     assert x.dtype==float, f&#34;data must contain only float values except {category} column.&#34;
+    #
+    # else:    
+    #     x = df.values
+    #     assert x.dtype==float, &#34;data must contain only float values.&#34;
+    barrierfree=False
+    if type(markers)==bool:
+            
+        if markers==True:
+            barrierfree=True
+            markers=marker_list 
+        else: 
+            markers=[]
+
+
+    original_index=df.index
+    if len(variables)!=0:
+        features=variables
+    else:
+        
+        features=sorted(list(set(df.columns) - set(category)))
+    dfpc_list=[]
+    comb=list(combinations(np.arange(component), 2))
+    
+
+                    
+    if len(category)!=0:
+        lut={}
+        for i, cat in enumerate(category):
+            _clut, _mlut=_create_color_markerlut(df, cat,palette,markers)
+            lut[cat]={&#34;colorlut&#34;:_clut, &#34;markerlut&#34;:_mlut}
+
+
+    if len(category)!=0:
+        figures={}
+        for cat in category:
+            if len(comb)==1:
+                fig, axes=plt.subplots()
+                axes=[axes]
+            else:
+                nrows=len(comb)//2+int(len(comb)%2!=0)
+                if len(figsize)==0:
+                    figsize=[8,3*nrows]
+                ncols=2
+                fig, axes=plt.subplots(ncols=ncols, nrows=nrows, figsize=figsize)
+                plt.subplots_adjust(top=0.9,right=0.8, left=0.1)
+                axes=axes.flatten()
+                if len(comb)!=ncols*nrows:
+                    for i in range(ncols*nrows-len(comb)):
+                        fig.delaxes(axes[-(i+1)])
+            figures[cat]={&#34;fig&#34;: fig, &#34;axes&#34;:axes}
+    else:
+        figures={}
+        if len(comb)==1:
+            fig, axes=plt.subplots()
+            axes=[axes]
+        else:
+            nrows=len(comb)//2+int(len(comb)%2!=0)
+            if len(figsize)==0:
+                figsize=[8,3*nrows]
+            
+            fig, axes=plt.subplots(ncols=2, nrows=nrows, figsize=figsize)
+            plt.subplots_adjust(top=0.9,right=0.8, left=0.1)
+            axes=axes.flatten()
+        figures[&#34;nocat&#34;]={&#34;fig&#34;: fig, &#34;axes&#34;:axes}
+    if method==&#34;pca&#34;:
+        if regularization:
+            x=zscore(x, axis=0)
+        pca = PCA(n_components=component,**pcapram)
+        pccomp = pca.fit_transform(x)
+        loadings = pca.components_.T * np.sqrt(pca.explained_variance_)
+        combnum=0
+        for axi, (i, j) in enumerate(comb):
+            xlabel, ylabel=&#39;pc&#39;+str(i+1), &#39;pc&#39;+str(j+1)
+            dfpc = pd.DataFrame(data = np.array([pccomp[:,i],pccomp[:,j]]).T, columns = [xlabel, ylabel],index=original_index)
+            _loadings=np.array([loadings[:,i],loadings[:,j]]).T
+            a=np.sum(_loadings**2, axis=1)
+            srtindx=np.argsort(a)[::-1][:arrow_num]
+            _loadings=_loadings[srtindx]
+            _features=np.array(features)[srtindx]
+            
+            if len(category)!=0:
+                for cat in category:
+                    dfpc[cat]=df[cat]
+                    
+                    _scatter(dfpc, xlabel,ylabel, cat, figures[cat][&#34;axes&#34;][axi], lut, barrierfree, size,legend=False)
+
+                    # sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=cat, ax=figures[cat][&#34;axes&#34;][axi],palette=palette)
+                    # sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=cat, ax=figures[cat][&#34;axes&#34;][axi],legend=False,palette=palette)
+                    if combnum==1:
+                        figures[cat][&#34;axes&#34;][axi].legend(bbox_to_anchor=(1.02, 1), loc=&#39;upper left&#39;, borderaxespad=0)
+                    for k, feature in enumerate(_features):
+                        figures[cat][&#34;axes&#34;][axi].arrow(0, 0, _loadings[k, 0],_loadings[k, 1],color=arrow_color,width=0.005,head_width=0.1)
+                        figures[cat][&#34;axes&#34;][axi].text(_loadings[k, 0],_loadings[k, 1],feature,color=arrow_text_color)
+            else:
+                sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, ax=figures[&#34;nocat&#34;][axi],palette=palette)
+                # cat=None
+                # _scatter(dfpc, xlabel,ylabel, cat, figures[&#34;nocat&#34;][axi], lut, barrierfree, size)
+                for k, feature in enumerate(_features):
+                    #ax.plot([0,_loadings[k, 0] ], [0,_loadings[k, 1] ],color=arrow_color)
+                    figures[&#34;nocat&#34;][axi].arrow(0, 0, _loadings[k, 0],_loadings[k, 1],color=arrow_color,width=0.005,head_width=0.1)
+                    figures[&#34;nocat&#34;][axi].text(_loadings[k, 0],_loadings[k, 1],feature,color=arrow_text_color)
+    
+            dfpc_list.append(dfpc)
+            combnum+=1
+        
+        if len(category)!=0:
+            for cat in category:
+                figures[cat][&#34;fig&#34;].suptitle(title)
+                figures[cat][&#34;fig&#34;].tight_layout(pad=0.5)
+                _save(save, cat+&#34;_PCA&#34;, fig=figures[cat][&#34;fig&#34;])
+        else:
+            figures[&#34;nocat&#34;][&#34;fig&#34;].suptitle(title)
+            figures[&#34;nocat&#34;][&#34;fig&#34;].tight_layout(pad=0.5)
+            _save(save, &#34;PCA&#34;)
+        
+        if explained_variance==True:
+            fig, ax2=plt.subplots()
+            exp_var_pca = pca.explained_variance_ratio_
+            #
+            # Cumulative sum of eigenvalues; This will be used to create step plot
+            # for visualizing the variance explained by each principal component.
+            #
+            cum_sum_eigenvalues = np.cumsum(exp_var_pca)
+            #
+            # Create the visualization plot
+            #
+            xlabel=[&#34;pc&#34;+str(i+1) for i in range(0,len(exp_var_pca))]
+            plt.bar(xlabel, exp_var_pca, alpha=0.5, align=&#39;center&#39;, label=&#39;Individual explained variance&#39;)
+            plt.step(range(0,len(cum_sum_eigenvalues)), cum_sum_eigenvalues, where=&#39;mid&#39;,label=&#39;Cumulative explained variance&#39;)
+            plt.ylabel(&#39;Explained variance ratio&#39;)
+            plt.xlabel(&#39;Principal component index&#39;)
+            _save(save, &#34;ExplainedVar&#34;)
+        else:
+            ax2=None
+        if show==True:
+            plt.show()
+        return {&#34;data&#34;: dfpc_list,&#34;pca&#34;: pca, &#34;axes&#34;:figures, &#34;axes_explained&#34;:ax2}
+    elif method==&#34;nmf&#34;:
+        nmf=NMF(n_components=component,**nmfparam)
+        if regularization:
+            x=x/np.sum(x,axis=0)[None,:]
+        W = nmf.fit_transform(x)
+        H = nmf.components_
+        combnum=0
+        for axi, (i, j) in enumerate(comb):
+            xlabel, ylabel=&#39;p&#39;+str(i+1), &#39;p&#39;+str(j+1)
+            dfpc = pd.DataFrame(data = np.array([W[:,i],W[:,j]]).T, columns = [xlabel, ylabel],index=original_index)
+            if len(category)!=0:
+                for cat in category:
+                    dfpc[cat]=df[cat]
+                    
+                    # sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=cat, ax=figures[cat][&#34;axes&#34;][axi],palette=palette)
+                    _scatter(dfpc, xlabel,ylabel, cat, figures[cat][&#34;axes&#34;][axi], lut, barrierfree, size,legend=False)
+                    # sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=cat, ax=figures[cat][&#34;axes&#34;][axi],legend=False,palette=palette)
+                    if combnum==1:
+                        figures[cat][&#34;axes&#34;][axi].legend(bbox_to_anchor=(1.02, 1), loc=&#39;upper left&#39;, borderaxespad=0)
+
+            else:
+                sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=category, ax=figures[&#34;nocat&#34;][axi],palette=palette)
+                # cat=None
+                # _scatter(dfpc, xlabel,ylabel, cat, figures[&#34;nocat&#34;][axi], lut, barrierfree, size)
             dfpc_list.append(dfpc)
             combnum+=1
         if len(category)!=0:
@@ -1156,8 +2794,10 @@ def manifoldplot(df: pd.DataFrame,
                  figsize=[5,5],
                  title: str=&#34;&#34;,
                  param: dict={},
-                 save: str=&#34;&#34;,ax: Optional[plt.Axes]=None,
+                 save: str=&#34;&#34;,
+                 ax: Optional[plt.Axes]=None,
                  palette=&#34;tab20c&#34;,
+                 markers: bool=False,size: float=10,
                  **kwargs):
     &#34;&#34;&#34;
     Reducing the dimensionality of data and drawing a scatter plot. 
@@ -1217,7 +2857,20 @@ def manifoldplot(df: pd.DataFrame,
     &#34;nca&#34;: &#34;Neighborhood components analysis&#34;,
     &#34;umap&#34;:&#34;UMAP&#34;}
     x, category=_separate_data(df, variables=variables, category=category)
-   
+    barrierfree=False
+    if type(markers)==bool:
+            
+        if markers==True:
+            barrierfree=True
+            markers=marker_list 
+        else: 
+            markers=[]
+    if len(category)!=0:
+        lut={}
+        for i, cat in enumerate(category):
+            _clut, _mlut=_create_color_markerlut(df, cat,palette,markers)
+            lut[cat]={&#34;colorlut&#34;:_clut, &#34;markerlut&#34;:_mlut}
+
     x=zscore(x, axis=0)
     features=df.columns
     original_index=df.index
@@ -1231,7 +2884,8 @@ def manifoldplot(df: pd.DataFrame,
         axes=axes.flatten()
         for cat,ax in zip(category, axes):
             dft[cat]=df[cat]
-            sns.scatterplot(data=dft, x=&#34;d1&#34;, y=&#34;d2&#34;, hue=cat, ax=ax,palette=palette,**kwargs)
+            _scatter(dft, &#34;d1&#34;,&#34;d2&#34;, cat, ax, lut, barrierfree, size)
+            # sns.scatterplot(data=dft, x=&#34;d1&#34;, y=&#34;d2&#34;, hue=cat, ax=ax,palette=palette,**kwargs)
     else:
         fig, axes=plt.subplots(figsize=figsize)
         sns.scatterplot(data=dft, x=&#34;d1&#34;, y=&#34;d2&#34;, ax=axes,palette=palette,**kwargs)
@@ -1281,7 +2935,21 @@ def regression_single(df: pd.DataFrame,
         figure size
     show : bool
         Whether or not to show the figure.
-    
+    robust_param: dict, optional
+        Hyper parameters for robust regression. Please see https://www.statsmodels.org/dev/generated/statsmodels.robust.robust_linear_model.RLM.html
+    xunit: str, optional
+        X axis unit
+    yunit: str, optional
+        Y axis unit
+    title: str, optional
+        Figure title
+
+    random_state: int, optional (default=42)
+        random state for RANSAC regression
+    ax: plt.Axes, optional,
+        pyplot axis
+    save: str, optional
+        The prefix of file names to save.
     Returns
     -------
     dict: dict {&#34;axes&#34;:ax, &#34;coefficient&#34;:coef,&#34;intercept&#34;:intercept,&#34;coefficient_pval&#34;:coef_p, &#34;r2&#34;:r2, &#34;fitted_model&#34;:fitted_model}
@@ -1307,37 +2975,17 @@ def regression_single(df: pd.DataFrame,
     plotline_X = np.arange(X.min(), X.max()).reshape(-1, 1)
     n = X.shape[0]
     plt.rcParams.update({&#39;font.size&#39;: 14})
-    fig, ax = plt.subplots(figsize=figsize)
-    fig.suptitle(title)
+    if ax==None:
+        fig, ax = plt.subplots(figsize=figsize)
+        fig.suptitle(title)
+    else:
+        fig=None
+        # plt.title(title)
     plt.subplots_adjust(left=0.15)
     if method==&#34;ransac&#34;:
-        from sklearn.linear_model import RANSACRegressor
+        _title=&#34;RANSAC regression, r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x, coefficient p-value: {:.2E}&#34;
+        fitted_model, coef, coef_p, intercept, r2, x_line, y_line, ci, pi,std_error, MSE, inlier_mask, outlier_mask=_ransac(X,Y,plotline_X,random_state, ransac_param)
         
-        
-        
-        fit_df=pd.DataFrame()
-        fitted_model = RANSACRegressor(random_state=random_state,**ransac_param).fit(_X,Y)
-        fit_df[&#34;ransac_regression&#34;] = fitted_model.predict(plotline_X)
-        coef = fitted_model.estimator_.coef_[0]
-        intercept=fitted_model.estimator_.intercept_
-        inlier_mask = fitted_model.inlier_mask_
-        outlier_mask = ~inlier_mask
-        
-                                # number of samples
-        y_model=fitted_model.predict(_X)
-
-        r2 = _calc_r2(X,Y)
-        # mean squared error
-        MSE = 1/n * np.sum( (Y - y_model)**2 )
-        
-        # to plot the adjusted model
-        x_line = plotline_X.flatten()
-        y_line = fit_df[&#34;ransac_regression&#34;]
-         
-        ci, pi, std_error=_ci_pi(X,Y,plotline_X.flatten(),y_model)
-        q=((X-X.mean()).transpose() @ (X-X.mean()))
-        sigma=std_error*(q**-1)**(0.5)
-        coef_p=stats.t.sf(abs(fitted_model.estimator_.coef_[0]/sigma), df=X.shape[0]-2)
         ############### Ploting
 
         _draw_ci_pi(ax, ci, pi,x_line, y_line)
@@ -1346,113 +2994,431 @@ def regression_single(df: pd.DataFrame,
         plt.xlabel(x)
         plt.ylabel(y)
         #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
-        plt.title(&#34;RANSAC regression, r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x, coefficient p-value: {:.2E}&#34;.format(
+        plt.title(_title.format(
             r2, MSE,coef,intercept,coef_p
             )
         )
-        plt.plot(plotline_X.flatten(),fit_df[&#34;ransac_regression&#34;])
+        plt.plot(plotline_X.flatten(),y_line)
         
-        _save(save, &#34;ransac&#34;)
+        _save(save, method)
         if len(category)!=0:
-            fig, ax=plt.subplots(figsize=figsize)
+            fig, ax1=plt.subplots(figsize=figsize)
             plt.subplots_adjust(left=0.15)
-            _draw_ci_pi(ax, ci, pi,x_line, y_line)
-            sns.scatterplot(data=df,x=x, y=y, hue=category)
+            _draw_ci_pi(ax1, ci, pi,x_line, y_line)
+            sns.scatterplot(data=df,x=x, y=y, hue=category, ax=ax1)
             
             plt.xlabel(x)
             plt.ylabel(y)
             #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
-            plt.title(&#34;RANSAC regression, r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x, coefficient p-value: {:.2E}&#34;.format(
+            plt.title(_title.format(
                 r2, MSE,coef,intercept,coef_p
                 )
             )
-            plt.plot(plotline_X.flatten(),fit_df[&#34;ransac_regression&#34;])
-            _save(save, &#34;ransac_&#34;+category)
+            plt.plot(plotline_X.flatten(),y_line)
+            _save(save, method+&#34;_&#34;+category)
     elif method==&#34;robust&#34;:
-        import statsmodels.api as sm
-        rlm_model = sm.RLM(Y, sm.add_constant(X),
-        M=sm.robust.norms.HuberT(),**robust_param)
-        fitted_model = rlm_model.fit()
-        summary=fitted_model.summary()
-        coef=fitted_model.params[1]
-        intercept=fitted_model.params[0]
-        intercept_p=fitted_model.pvalues[0]
-        coef_p=fitted_model.pvalues[1]
-        y_model=fitted_model.predict(sm.add_constant(X))
-        r2 = _calc_r2(X,Y)
-        x_line = plotline_X.flatten()
-        y_line = fitted_model.predict(sm.add_constant(x_line))
-        
-        ci, pi,std_error=_ci_pi(X,Y,plotline_X.flatten(),y_model)
-        MSE = 1/n * np.sum( (Y - y_model)**2 )
+        _title=&#34;Robust linear regression, r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x , p-values: coefficient {:.2f}, \
+        intercept {:.2f}&#34;
+        fitted_model, summary, coef, coef_p, intercept, intercept_p, r2, x_line, y_line, ci, pi,std_error, MSE=_robust_regression(X, Y, plotline_X, robust_param)
 
         _draw_ci_pi(ax, ci, pi,x_line, y_line)
         sns.scatterplot(data=df,x=x, y=y, color=&#34;blue&#34;)
         #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
-        plt.title(&#34;Robust linear regression, r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x , p-values: coefficient {:.2f}, \
-        intercept {:.2f}&#34;.format(
+        plt.title(_title.format(
             r2, MSE,coef,intercept,coef_p,intercept_p
             )
         )
         plt.plot(plotline_X.flatten(),y_line)
-        _save(save, &#34;robust&#34;)
+        _save(save, method)
         if len(category)!=0:
-            fig, ax=plt.subplots(figsize=figsize)
+            fig, ax1=plt.subplots(figsize=figsize)
             plt.subplots_adjust(left=0.15)
-            _draw_ci_pi(ax, ci, pi,x_line, y_line)
-            sns.scatterplot(data=df,x=x, y=y, hue=category)
+            _draw_ci_pi(ax1, ci, pi,x_line, y_line)
+            sns.scatterplot(data=df,x=x, y=y, hue=category, ax=ax1)
             #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
-            plt.title(&#34;Robust linear regression, r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x , p-values: coefficient {:.2f}, \
-            intercept {:.2f}&#34;.format(
+            plt.title(_title.format(
                 r2, MSE,coef,intercept,coef_p,intercept_p
                 )
             )
             plt.plot(plotline_X.flatten(),y_line)
-            _save(save, &#34;robust_&#34;+category)
+            _save(save, method+&#34;_&#34;+category)
     elif method==&#34;lasso&#34; or method==&#34;elastic_net&#34; or method==&#34;ols&#34;:
-        if method==&#34;lasso&#34;:
-            method=&#34;sqrt_lasso&#34;
-        import statsmodels.api as sm
-        rlm_model = sm.OLS(Y, sm.add_constant(X))
-        if method==&#34;ols&#34;:
-            fitted_model = rlm_model.fit()
-        else:
-            fitted_model = rlm_model.fit_regularized(method)
-        coef=fitted_model.params[1]
-        intercept=fitted_model.params[0]
-        y_model=fitted_model.predict(sm.add_constant(X))
-        r2 = _calc_r2(X,Y)
-        x_line = plotline_X.flatten()
-        y_line = fitted_model.predict(sm.add_constant(x_line))
-        ci, pi, std_error=_ci_pi(X,Y,plotline_X.flatten(),y_model)
-        q=((X-X.mean()).transpose() @ (X-X.mean()))
-        sigma=std_error*(q**-1)**(0.5)
-        print(sigma,coef )
-        coef_p=stats.t.sf(abs(coef/sigma), df=X.shape[0]-2)
-        MSE = 1/n * np.sum( (Y - y_model)**2 )
+        _title=&#34;OLS ({}), r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x, coefficient p-value: {:.2E}&#34;
+
+        fitted_model, coef, coef_p, intercept, r2, x_line, y_line, ci, pi,std_error, MSE=_ols(X, Y, plotline_X, method)
+
 
         _draw_ci_pi(ax, ci, pi,x_line, y_line)   
         sns.scatterplot(data=df,x=x, y=y, color=&#34;blue&#34;)
         #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
-        plt.title(&#34;OLS ({}), r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x, coefficient p-value: {:.2E}&#34;.format(method,
+        plt.title(_title.format(method,
             r2, MSE,coef,intercept,coef_p
             )
         )
         plt.plot(plotline_X.flatten(),y_line)
         _save(save, method)
         if len(category)!=0:
-            fig, ax=plt.subplots(figsize=figsize)
+            fig, ax1=plt.subplots(figsize=figsize)
             plt.subplots_adjust(left=0.15)
-            _draw_ci_pi(ax, ci, pi,x_line, y_line)
+            _draw_ci_pi(ax1, ci, pi,x_line, y_line)
             sns.scatterplot(data=df,x=x, y=y, color=&#34;blue&#34;,hue=category)
             #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
-            plt.title(&#34;OLS ({}), r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x, coefficient p-value: {:.2E}&#34;.format(method,
+            plt.title(_title.format(method,
                 r2, MSE,coef,intercept,coef_p
                 )
             )
             plt.plot(plotline_X.flatten(),y_line)
             _save(save, method+&#34;_&#34;+category)
-    return {&#34;axes&#34;:ax, &#34;coefficient&#34;:coef,&#34;intercept&#34;:intercept,&#34;coefficient_pval&#34;:coef_p, &#34;r2&#34;:r2, &#34;fitted_model&#34;:fitted_model}</code></pre>
+    if yunit!=&#34;&#34;:
+        ax.text(0, 1, &#34;({})&#34;.format(yunit), transform=ax.transAxes, ha=&#34;right&#34;)
+        ax1.text(0, 1, &#34;({})&#34;.format(yunit), transform=ax.transAxes, ha=&#34;right&#34;)
+    if xunit!=&#34;&#34;:
+        ax.text(1, 0, &#34;({})&#34;.format(xunit), transform=ax.transAxes, ha=&#34;left&#34;,va=&#34;top&#34;)
+        ax1.text(1, 0, &#34;({})&#34;.format(xunit), transform=ax.transAxes, ha=&#34;left&#34;,va=&#34;top&#34;)
+    
+    return {&#34;axes&#34;:ax, &#34;coefficient&#34;:coef,&#34;intercept&#34;:intercept,&#34;coefficient_pval&#34;:coef_p, &#34;r2&#34;:r2, &#34;fitted_model&#34;:fitted_model}
+
+
+def _robust_regression(X, Y, plotline_X, robust_param):
+    n = X.shape[0]
+    rlm_model = sm.RLM(Y, sm.add_constant(X),
+    M=sm.robust.norms.HuberT(),**robust_param)
+    fitted_model = rlm_model.fit()
+    summary=fitted_model.summary()
+    coef=fitted_model.params[1]
+    intercept=fitted_model.params[0]
+    intercept_p=fitted_model.pvalues[0]
+    coef_p=fitted_model.pvalues[1]
+    y_model=fitted_model.predict(sm.add_constant(X))
+    r2 = _calc_r2(X,Y)
+    x_line = plotline_X.flatten()
+    y_line = fitted_model.predict(sm.add_constant(x_line))
+    
+    ci, pi,std_error=_ci_pi(X,Y,plotline_X.flatten(),y_model)
+    MSE = 1/n * np.sum( (Y - y_model)**2 )
+    return fitted_model, summary, coef, coef_p, intercept, intercept_p, r2, x_line, y_line, ci, pi,std_error, MSE
+
+def _ols(X, Y, plotline_X, method):
+    n = X.shape[0]
+    if method==&#34;lasso&#34;:
+        method=&#34;sqrt_lasso&#34;
+    rlm_model = sm.OLS(Y, sm.add_constant(X))
+    if method==&#34;ols&#34;:
+        fitted_model = rlm_model.fit()
+    else:
+        fitted_model = rlm_model.fit_regularized(method)
+    coef=fitted_model.params[1]
+    intercept=fitted_model.params[0]
+    y_model=fitted_model.predict(sm.add_constant(X))
+    r2 = _calc_r2(X,Y)
+    x_line = plotline_X.flatten()
+    y_line = fitted_model.predict(sm.add_constant(x_line))
+    ci, pi, std_error=_ci_pi(X,Y,plotline_X.flatten(),y_model)
+    q=((X-X.mean()).transpose() @ (X-X.mean()))
+    sigma=std_error*(q**-1)**(0.5)
+    # print(sigma,coef )
+    coef_p=stats.t.sf(abs(coef/sigma), df=X.shape[0]-2)
+    MSE = 1/n * np.sum( (Y - y_model)**2 )
+    return fitted_model, coef, coef_p, intercept, r2, x_line, y_line, ci, pi,std_error, MSE
+
+def _ransac(X,Y,plotline_X,random_state, ransac_param):
+    n = X.shape[0]
+    _X=np.array(X).reshape([-1,1])
+    fitted_model = RANSACRegressor(random_state=random_state,**ransac_param).fit(_X,Y)
+    y_line= fitted_model.predict(plotline_X)
+    coef = fitted_model.estimator_.coef_[0]
+    intercept=fitted_model.estimator_.intercept_
+    inlier_mask = fitted_model.inlier_mask_
+    outlier_mask = ~inlier_mask
+    
+                            # number of samples
+    y_model=fitted_model.predict(_X)
+
+    r2 = _calc_r2(X,Y)
+    # mean squared error
+    MSE = 1/n * np.sum( (Y - y_model)**2 )
+    
+    # to plot the adjusted model
+    x_line = plotline_X.flatten()
+        
+    ci, pi, std_error=_ci_pi(X,Y,plotline_X.flatten(),y_model)
+    q=((X-X.mean()).transpose() @ (X-X.mean()))
+    sigma=std_error*(q**-1)**(0.5)
+    coef_p=stats.t.sf(abs(fitted_model.estimator_.coef_[0]/sigma), df=X.shape[0]-2)
+
+    return fitted_model, coef, coef_p, intercept, r2, x_line, y_line, ci, pi,std_error, MSE, inlier_mask, outlier_mask
+
+
+def _regression(df, x, y, ax, cat=&#34;&#34;, _clut={}, robust_param={}, newkey=&#34;&#34;, color=&#34;&#34;):
+    reg_legend_elements=[]
+    fitted_models={}
+    reg_res={}
+    if cat !=&#34;&#34;:
+        
+        for key in _clut.keys():
+            key_filt=df[cat]==key
+            rdf=df.loc[key_filt]
+            rX, rY=rdf[x], rdf[y]
+            plotline_X = np.arange(rX.min(), rX.max()).reshape(-1, 1)
+            fitted_model, summary, coef, coef_p, intercept, intercept_p, r2, x_line, y_line, ci, pi,std_error, MSE=_robust_regression(rX, rY, plotline_X, robust_param)
+            _tmpcolor=np.array(_clut[key])
+            _draw_ci_pi(ax, ci, pi,x_line, y_line, pi_color=_tmpcolor, ci_color=_tmpcolor+(1-_tmpcolor)*0.5, alpha=0.75)
+            ax.plot(x_line, y_line, c=_tmpcolor)   
+            reg_legend_elements.append(Line2D([0], [0], marker=&#34;&#34;, linewidth=3,color=_tmpcolor,
+                                label=&#34;\u03B21: {x:.2f}\np: {p:.1E}\nr2: {y:.2f}&#34;.format(x=coef,y=r2, p=coef_p),
+                                ))
+            fitted_models[cat+&#34;_&#34;+key]=fitted_model
+            reg_res[cat+&#34;_&#34;+key]={&#34;coefficient&#34;:coef,
+                                  &#34;coefficient_pvalue&#34;:coef_p,
+                                  &#34;intercept&#34;:intercept,
+                                  &#34;intercept_pvalue&#34;:intercept_p,
+                                  &#34;r2&#34;: r2,
+                                  &#34;mse&#34;:MSE}
+    else:
+
+        rX, rY=df[x], df[y]
+        plotline_X = np.arange(rX.min(), rX.max()).reshape(-1, 1)
+        (fitted_model, summary, coef, coef_p, 
+         intercept, intercept_p, r2, 
+         x_line, y_line, ci, pi,std_error, MSE)=_robust_regression(rX, rY, plotline_X, robust_param)
+        if color !=&#34;&#34;:
+            _tmpcolor=np.array(colors.to_rgb(color))
+        else:
+            _tmpcolor=np.array([0,0.75,0])
+        _draw_ci_pi(ax, ci, pi,x_line, y_line, pi_color=_tmpcolor, ci_color=_tmpcolor+(1-_tmpcolor)*0.5, alpha=0.75)
+        ax.plot(x_line, y_line, c=_tmpcolor)   
+        reg_legend_elements.append(Line2D([0], [0], marker=&#34;&#34;, linewidth=3,color=_tmpcolor,
+                            label=&#34;\u03B21: {x:.2f}\np: {p:.1E}\nr2: {y:.2f}&#34;.format(x=coef,y=r2, p=coef_p),
+                            ))
+        if newkey==&#34;&#34;:
+            newkey=&#34;regression&#34;
+        fitted_models[newkey]=fitted_model
+        reg_res[newkey]={&#34;coefficient&#34;:coef,
+                                &#34;coefficient_pvalue&#34;:coef_p,
+                                &#34;intercept&#34;:intercept,
+                                &#34;intercept_pvalue&#34;:intercept_p,
+                                &#34;r2&#34;: r2,
+                                &#34;mse&#34;:MSE}
+    ax.add_artist(ax.legend(handles=reg_legend_elements, 
+                            title=&#34;Regression&#34;,
+                            loc=&#34;upper left&#34;, bbox_to_anchor=(0.0, -0.1), ncol=3))
+    return fitted_models,reg_res
+
+def volcanoplot(df: pd.DataFrame,
+                x: str,
+                y: str,
+                label: str=&#34;&#34;,
+                logscalex: bool=False,
+                logscaley: bool=True,
+                sizes: str=&#34;&#34;,
+                xthreshold: float=1,
+                ythreshold: float=0.05,
+                
+                topn_labels: int=5,
+                rankby: str=&#34;both&#34;,
+                topn_labels_left: int=0,
+                topn_labels_right: int=0,
+                box: bool=True,
+
+                base_color: str=&#34;gray&#34;,
+                highlight_color: str=&#34;red&#34;,
+                
+                save: str=&#34;&#34;,
+                write_csv: Union[bool, str]=False,
+
+                ax: Optional[plt.Axes]= None,
+                fig : Optional[mpl.figure.Figure] =None,
+                
+                markers: bool=False,
+                size: float=5.0,
+                size_scale: float=100,
+                plotline: bool=True,
+                linestyle=&#34;-&#34;,
+                linecolor=&#34;darkcyan&#34;,
+                alpha: float=1,
+                size_format: str=&#34;&#34;,
+                xformat: str=&#34;&#34;,
+                yformat: str=&#34;&#34;,
+                xunit: str=&#34;&#34;,
+                yunit:str=&#34;&#34;,
+                size_unit: str=&#34;&#34;,
+                title: str=&#34;&#34;,
+                figsize: list=[],
+                
+                gridspec_kw: dict={},):
+    
+    if topn_labels_left==0 and topn_labels_right==0:
+        topn_labels_left=topn_labels
+        topn_labels_right=topn_labels
+
+    df=copy.deepcopy(df)
+    if len(figsize)==0:
+        figsize=[5,5]
+    if ax==None:
+        
+
+        fig, ax=plt.subplots(figsize=figsize)
+    
+    if np.amax(df[y]) &lt;=1:
+
+        if logscaley!=False:
+            print(&#34;Transforming {} to -log10 values. if you do not want it, set &#39;logscaley=False&#39;.&#34;.format(y))
+            df[y]=-np.log10(df[y])
+    elif logscaley==True:
+        df[y]=-np.log10(df[y])
+    if logscalex==True:
+        df[x]=np.log2(df[x])
+    if ythreshold &lt;1:
+        ythreshold=-np.log10(ythreshold)
+    updown=[]
+    for _x, _y in zip(list(df[x]), list(df[y])):
+        if (_y &lt;=ythreshold) or (np.abs(_x)&lt;xthreshold):
+            updown.append(&#34;ns&#34;)
+        elif _y&gt;ythreshold and _x&gt;=xthreshold:
+            updown.append(&#34;up&#34;)
+        elif _y&gt;ythreshold and _x&lt;=-xthreshold:
+            updown.append(&#34;down&#34;)
+    df[&#34;updown&#34;]=updown
+    
+    sig=df.loc[df[&#34;updown&#34;]==&#34;up&#34;]
+    sig=sig.reset_index()
+    sigm=df.loc[df[&#34;updown&#34;]==&#34;down&#34;]
+    sigm=sigm.reset_index()
+    palette={&#34;ns&#34;: colors.to_rgb(base_color),
+             &#34;up&#34;: colors.to_rgb(highlight_color),
+             &#34;down&#34;: colors.to_rgb(highlight_color)}
+    
+    if sizes!=&#34;&#34;:
+        
+        scatterplot(df=df, x=x, y=y, category=&#34;updown&#34;, ax=ax,sizes=sizes, color=base_color, alpha=alpha, 
+                    edgecolors=None, 
+                    show_legend=False,
+                    size_format=size_format,
+                    xunit=xunit,
+                    yunit=yunit,
+                    size_unit=size_unit,
+                    size_scale=size_scale,
+                    markers=markers,xformat=xformat,yformat=yformat)
+        #ax.scatter(nonsig[x], nonsig[y], c=base_color, s=nonsig[sizes], alpha=alpha,)
+        # scatterplot(df=sig, x=x, y=y, ax=ax,sizes=sizes, color=highlight_color, alpha=alpha, edgecolors=None, show_legend=False)
+        # scatterplot(df=sigm, x=x, y=y, ax=ax,sizes=sizes, color=highlight_color, alpha=alpha, edgecolors=None, show_legend=False, xunit=xunit, yunit=yunit, title=title)
+        # # ax.scatter(sig[x], sig[y], c=highlight_color, s=sig[sizes])
+        # ax.scatter(sigm[x], sigm[y], c=highlight_color, s=sigm[sizes])
+    else:
+        scatterplot(df=df, x=x, y=y, category=&#34;updown&#34;,palette=palette, ax=ax,size=size, color=base_color, alpha=alpha, edgecolors=None, show_legend=False,
+                    xunit=xunit,
+                    yunit=yunit,
+                    markers=markers,xformat=xformat,yformat=yformat,)
+        # scatterplot(df=nonsig, x=x, y=y, ax=ax,size=size, color=base_color, alpha=alpha, edgecolors=None, show_legend=False)
+        # scatterplot(df=sig, x=x, y=y, ax=ax,size=size, color=highlight_color, alpha=alpha, edgecolors=None, show_legend=False)
+        # scatterplot(df=sigm, x=x, y=y, ax=ax,size=size, color=highlight_color, alpha=alpha, edgecolors=None, show_legend=False, xunit=xunit, yunit=yunit, title=title)
+        # ax.scatter(nonsig[x], nonsig[y], c=base_color, s=size)
+        # ax.scatter(sig[x], sig[y], c=highlight_color, s=size)
+        # ax.scatter(sigm[x], sigm[y], c=highlight_color, s=size)
+    
+    # ax.set_xlabel(x)
+    # ax.set_xlabel(y)
+
+    xsrt=np.argsort(sig[x])[::-1]
+    xrank=np.argsort(xsrt)
+    xsrtm=np.argsort(np.abs(sigm[x]))[::-1]
+    xrankm=np.argsort(xsrtm)
+
+    ysrt=np.argsort(sig[y])[::-1]
+    yrank=np.argsort(ysrt)
+    ysrtm=np.argsort(sigm[y])[::-1]
+    yrankm=np.argsort(ysrtm)
+    if rankby==&#34;both&#34;:
+        rank=(xrank+yrank)/2
+        rankm=(xrankm+yrankm)/2
+    elif rankby==&#34;x&#34; or rankby==x:
+        rank=xrank
+        rankm=xrankm
+    elif rankby==&#34;y&#34; or rankby==y:
+        rank=yrank
+        rankm=yrankm
+    labeled_genes=[]
+    texts=[]
+    for _rank, _sig, _topn_labels in zip([rank, rankm], [sig, sigm], [topn_labels_right, topn_labels_left]):
+        if len(_rank)!=0:
+            top_index=np.argsort(_rank)[:_topn_labels]
+            topsig=_sig.iloc[top_index]
+            if label==&#34;&#34;:
+                labels=topsig.index
+            else:
+                labels=topsig[label]
+            
+            for _x, _y, _l in zip(topsig[x],topsig[y], labels):
+                #ax.text(_x, _y, _l)
+                if box==True:
+                    texts.append( ax.text(_x, _y, _l, va=&#34;bottom&#34;,bbox=dict(boxstyle=&#34;round,pad=0.0&#34;, fc=&#34;white&#34;, ec=&#34;y&#34;, lw=0.5, alpha=0.9)))
+                else:
+                    texts.append( ax.text(_x, _y, _l, va=&#34;bottom&#34;))
+            labeled_genes.append(topsig)
+    adjust_text(texts,
+            arrowprops=dict(arrowstyle=&#34;-&#34;, color=&#39;black&#39;, lw=0.5),force_text=(0.2,0.4))
+    ymin, ymax=np.amin(df[y]),np.amax(df[y])
+    xmin, xmax=np.amin(df[x]),np.amax(df[x])
+
+    if plotline==True:
+        ax.plot([xthreshold,xthreshold], [ythreshold, ymax],linestyle, color=linecolor, alpha=0.5)
+        ax.plot([-xthreshold,-xthreshold], [ythreshold, ymax],linestyle, color=linecolor, alpha=0.5)
+        ax.plot([xthreshold, xmax], [ythreshold, ythreshold],linestyle, color=linecolor, alpha=0.5)
+        ax.plot([xmin, -xthreshold], [ythreshold, ythreshold],linestyle, color=linecolor, alpha=0.5)
+        # ax.plot([xmin, xmax], [ythreshold, ythreshold],linestyle)
+    if title!=&#34;&#34;:
+        if fig !=None:
+            fig.suptitle(title)
+        else:
+            plt.title(title)
+    _save(save, &#34;volcano&#34;)
+    res={&#34;upgenes&#34;:sig, &#34;downgenes&#34;:sigm,&#34;labeledgenes&#34;:pd.concat(labeled_genes)}
+    if type(write_csv)==bool and write_csv==True:
+        for k, v in res.items():
+            v.to_csv(k+&#34;.csv&#34;)
+    elif type(write_csv)==str and write_csv!=&#34;&#34;:
+        for k, v in res.items():
+            v.to_csv(write_csv+&#34;_&#34;+k+&#34;.csv&#34;)
+    return  res
+    
+def manhattanplot(df: pd.DataFrame,
+                  x: str=&#34;BP&#34;,
+                  p: str=&#34;P&#34;,
+                  chrom: str=&#34;CHR&#34;,
+                  snp: str=&#34;SNP&#34;,
+                  zscore: str=&#34;&#34;,
+                  effectsize: str=&#34;&#34;,
+                  gene: str=&#34;&#34;,
+                  distance: str=&#34;&#34;,
+                  logtransform: bool=True,
+                  threshold: float=4,
+                  thresholdcolor: str=&#34;red&#34;
+                  ):
+    df=df.reset_index()
+    gb = df.groupby(chrom)
+    if logtransform==True:
+
+        df[p]=-np.log10(df[p])
+    if threshold &lt;1:
+        threshold=-np.log10(threshold)
+    colors=[&#34;gray&#34;, &#34;black&#34;]
+
+    fig, ax=plt.subplots()
+
+    for i, x in enumerate(gb.groups):
+
+        _df=gb.get_group(x)
+        ax.scatter(_df.index, _df[p], c=colors[i%2], s=5)
+        ax.text((np.max(_df.index)+np.min(_df.index))/2, -0.5, x)
+    _df=df.loc[df[p]&gt;threshold]
+    ax.scatter(_df.index, _df[p], c=thresholdcolor, s=4)
+    maxindex=np.argmax(df[p])
+    ax.text(df.index[maxindex],df[p][maxindex], df[snp][maxindex]) #+&#34;\n&#34;+str(df[chrom][maxindex])+&#34;:&#34;+str(df[x][maxindex]))
+    ax.spines[&#39;top&#39;].set_visible(False)
+    ax.spines[&#39;right&#39;].set_visible(False)
+    ax.spines[&#39;bottom&#39;].set_visible(False)
+    #ax.spines[&#39;left&#39;].set_visible(False)
+    ax.set_xticks([])</code></pre>
 </details>
 </section>
 <section>
@@ -1553,7 +3519,8 @@ In this case, data must have only two dimentions or x and y options must be spec
                 markers: bool=False,
                 ax: Optional[plt.Axes]=None,
                 piesize_scale: float=0.02,
-                min_cluster_size: int=10,**kwargs)-&gt;Dict:
+                min_cluster_size: int=10,
+                **kwargs)-&gt;Dict:
     &#34;&#34;&#34;
     Clustering data and draw them as a scatter plot optionally with dimensionality reduction.  
     
@@ -1631,7 +3598,7 @@ In this case, data must have only two dimentions or x and y options must be spec
     X, category=_separate_data(df, variables=variables, category=category)
     
     
-    if ztranform:
+    if ztranform==True:
         X=zscore(X, axis=0)
         
     if pcacomponent==None:
@@ -1649,7 +3616,14 @@ In this case, data must have only two dimentions or x and y options must be spec
         import umap
         u=umap.UMAP(random_state=42, min_dist=min_dist,n_neighbors=n_neighbors)
         X=u.fit_transform(xpca)
-    
+        x=&#34;UMAP1&#34;
+        y=&#34;UMAP2&#34;
+    elif reduce_dimension==&#34;tsne&#34;:
+        tsne=_get_embedding(&#34;tsne&#34;)
+        #u=umap.UMAP(random_state=42, min_dist=min_dist,n_neighbors=n_neighbors)
+        X=tsne.fit_transform(xpca)
+        x=&#34;TSNE1&#34;
+        y=&#34;TSNE2&#34;
     if n_clusters==&#34;auto&#34; and method==&#34;kmeans&#34;:
         Sum_of_squared_distances = []
         K = list(range(*testrange))
@@ -1661,17 +3635,6 @@ In this case, data must have only two dimentions or x and y options must be spec
         normy=1-normy
         normx=np.linspace(0,1, len(K))
         perp=_calc_curveture(normx, normy)
-        # perp=[]
-        # for i, (nx, ny) in enumerate(zip(normx, normy)):
-        #     if i==0:
-        #         perp.append(0)
-        #         continue
-        #     r=(nx**2+ny**2)**0.5
-        #     sina=ny/r
-        #     cosa=nx/r
-        #     sinamb=sina*np.cos(np.pi*0.25)-cosa*np.sin(np.pi*0.25)
-        #     perp.append(r*sinamb)
-        # perp=np.array(perp)
         srtindex=np.argsort(perp)[::-1]
         plt.subplots()
         plt.plot(K, Sum_of_squared_distances, &#39;-&#39;, label=&#39;Sum of squared distances&#39;)
@@ -1874,9 +3837,7 @@ In this case, data must have only two dimentions or x and y options must be spec
         n_clusters=[n_clusters]
     if method==&#34;kmeans&#34;:
         dfnews=[]
-        if reduce_dimension==&#34;umap&#34;:
-            x=&#34;UMAP1&#34;
-            y=&#34;UMAP2&#34;
+
         for nc in n_clusters:
             kmean = KMeans(n_clusters=nc, random_state=0,n_init=10)
             kmX=kmean.fit(X)
@@ -1893,9 +3854,7 @@ In this case, data must have only two dimentions or x and y options must be spec
         D=ssd.squareform(ssd.pdist(xpca))
         Y = sch.linkage(D, method=&#39;ward&#39;)
         Z = sch.dendrogram(Y,labels=labels,no_plot=True)
-        if reduce_dimension==&#34;umap&#34;:
-            x=&#34;UMAP1&#34;
-            y=&#34;UMAP2&#34;
+        
         dfnews=[]
         for nc in n_clusters:
             t=_dendrogram_threshold(Z, nc)
@@ -1916,9 +3875,7 @@ In this case, data must have only two dimentions or x and y options must be spec
         hue=&#34;hierarchical&#34;
     elif method==&#34;dbscan&#34;:
         dfnews=[]
-        if reduce_dimension==&#34;umap&#34;:
-            x=&#34;UMAP1&#34;
-            y=&#34;UMAP2&#34;
+
         if type(eps)==float:
             eps=[eps]
         n_clusters=[]
@@ -1940,10 +3897,7 @@ In this case, data must have only two dimentions or x and y options must be spec
         hue=&#34;dbscan&#34;
     elif method==&#34;hdbscan&#34;:
         dfnews=[]
-        if reduce_dimension==&#34;umap&#34;:
-            x=&#34;UMAP1&#34;
-            y=&#34;UMAP2&#34;
-        
+
         try:
             import hdbscan
         except ImportError:
@@ -1988,9 +3942,7 @@ In this case, data must have only two dimentions or x and y options must be spec
         
         dfnews=[]
         fuzzylabels=[]
-        if reduce_dimension==&#34;umap&#34;:
-            x=&#34;UMAP1&#34;
-            y=&#34;UMAP2&#34;
+
         _X=X.T
         for nc in n_clusters:
             
@@ -2001,19 +3953,19 @@ In this case, data must have only two dimentions or x and y options must be spec
             dfnews.append(dfnew)
         hue=&#34;fuzzy&#34;
     
-
-    if len(category)!=0:
-        barrierfree=False
-        if type(markers)==bool:
+    barrierfree=False
+    if type(markers)==bool:
             
-            if markers==True:
-                barrierfree=True
-                markers=maker_list 
-            else: 
-                markers=[]
-                        
+        if markers==True:
+            barrierfree=True
+            markers=marker_list 
+        else: 
+            markers=[]
+    if len(category)!=0:
         lut={}
         for i, cat in enumerate(category):
+            if df[cat].dtype==float :
+                continue 
             _clut, _mlut=_create_color_markerlut(df, cat,palette[1],markers)
             lut[cat]={&#34;colorlut&#34;:_clut, &#34;markerlut&#34;:_mlut}
  
@@ -2051,7 +4003,16 @@ In this case, data must have only two dimentions or x and y options must be spec
                 
             entropy_srt=np.argsort(color_entropy)
             colors=np.array(colors)[entropy_srt]
-            ax[0].scatter(dfnew[x].values[entropy_srt], dfnew[y].values[entropy_srt], c=colors, s=size)
+            
+            ax[0].scatter(dfnew[x].values[entropy_srt], dfnew[y].values[entropy_srt], color=colors, s=size)
+            ax[0].set_xlabel(x)
+            ax[0].set_ylabel(y)
+
+            # _tmp=dfnew.iloc[entropy_srt]
+            
+            # res=scatterplot(df=_tmp, ax=ax[0], x=x, y=y,c=colors,axlabel=&#34;each&#34;,fig=fig,**sp_kw)
+            # fig=res[&#34;fig&#34;]
+            # ax[0]=res[&#34;axes&#34;][0]
             #sns.scatterplot(data=dfnew,x=x,y=y,hue=hue, ax=ax[0], palette=palette[0],**kwargs)
             if method==&#34;fuzzy&#34;:
                 _title=&#34;Fuzzy c-means. Cluster num=&#34;+str(K)
@@ -2061,8 +4022,7 @@ In this case, data must have only two dimentions or x and y options must be spec
             legend_elements = [Line2D([0], [0], marker=&#39;o&#39;, color=&#39;lavender&#39;, 
                                       label=method+str(i),
                                       markerfacecolor=_cmap(i), 
-                                      markersize=10)
-                      for i in range(K)]
+                                      markersize=10) for i in range(K)]
     
             ax[0].legend(handles=legend_elements,loc=&#34;best&#34;)
             for i in range(K):
@@ -2079,18 +4039,43 @@ In this case, data must have only two dimentions or x and y options must be spec
                 for i, cat in enumerate(category):
                     dfnew[cat]=df[cat]
                     #sns.scatterplot(data=dfnew,x=x,y=y,hue=cat, ax=ax[i+2], palette=palette[1], s=size,**kwargs)
-                    if barrierfree==True:
-                        
+                    if dfnew[cat].dtype==float :
+                        # res=scatterplot(df=dfnew, ax=ax[i+2],fig=fig, x=x, y=y,colors=cat,axlabel=&#34;non&#34;,show_legend=False,**sp_kw)
+                        # fig=res[&#34;fig&#34;]
+                        sc=ax[i+2].scatter(dfnew[x], dfnew[y], c=dfnew[cat], s=size)
+                        plt.colorbar(sc,ax=ax[i+2], label=cat, shrink=0.3,aspect=5,orientation=&#34;vertical&#34;)
+                    elif barrierfree==True:
+                        # res=scatterplot(df=dfnew, 
+                        #                 ax=ax[i+2],
+                        #                 fig=fig, 
+                        #                 x=x, 
+                        #                 y=y,
+                        #                 category=cat, 
+                        #                 palette=palette[1],
+                        #                 axlabel=&#34;non&#34;,
+                        #                 markers=True,
+                        #                 show_legend=False,**sp_kw)
+                        # fig=res[&#34;fig&#34;]
                         for key in lut[cat][&#34;colorlut&#34;].keys():
                             _dfnew=dfnew.loc[dfnew[cat]==key]
+                            
                             ax[i+2].scatter(_dfnew[x], _dfnew[y], color=lut[cat][&#34;colorlut&#34;][key], marker=lut[cat][&#34;markerlut&#34;][key], label=key)
-                        ax[i+2].legend(title=key)
-                        
+                        ax[i+2].legend(title=cat)
                     else:
+                        # res=scatterplot(df=dfnew, 
+                        #                 ax=ax[i+2],
+                        #                 fig=fig, 
+                        #                 x=x, 
+                        #                 y=y,
+                        #                 category=cat, 
+                        #                 palette=palette[1],
+                        #                 axlabel=&#34;non&#34;,
+                        #                 show_legend=False,**sp_kw)
+                        # fig=res[&#34;fig&#34;]
                         for key in lut[cat][&#34;colorlut&#34;].keys():
                             _dfnew=dfnew.loc[dfnew[cat]==key]
                             ax[i+2].scatter(_dfnew[x], _dfnew[y], color=lut[cat][&#34;colorlut&#34;][key], label=key, s=size)
-                        ax[i+2].legend(title=key)
+                        ax[i+2].legend(title=cat)
 
 
 
@@ -2116,7 +4101,7 @@ In this case, data must have only two dimentions or x and y options must be spec
                 for key in _clut.keys():
                     _dfnew=dfnew.loc[dfnew[hue]==key]
                     ax[0].scatter(_dfnew[x], _dfnew[y], color=_clut[key], marker=_mlut[key], label=key)
-                ax[0].legend(title=key)
+                
             else:
                 
                 _clut, _mlut=_create_color_markerlut(dfnew, hue,palette[0],markers)
@@ -2125,23 +4110,30 @@ In this case, data must have only two dimentions or x and y options must be spec
                     _dfnew=dfnew.loc[dfnew[hue]==key]
                     ax[0].scatter(_dfnew[x], _dfnew[y], color=_clut[key], label=key, s=size)
                     
-                ax[0].legend(title=key)
+            ax[0].legend(title=hue)
             ax[0].set_title(method+&#34; Cluster number=&#34;+str(K))
+            ax[0].set_xlabel(x)
+            ax[0].set_ylabel(y)
             if len(category)!=0:
                 for i, cat in enumerate(category):
                     dfnew[cat]=df[cat]
-                    if barrierfree==True:
+                    
+                    if dfnew[cat].dtype==float :
+                        sc=ax[i+1].scatter(dfnew[x], dfnew[y], c=dfnew[cat], label=key, s=size)
+
+                        plt.colorbar(sc,ax=ax[i+1], label=cat, shrink=0.3,aspect=5,orientation=&#34;vertical&#34;)
+                    elif barrierfree==True:
                         
                         for key in lut[cat][&#34;colorlut&#34;].keys():
                             _dfnew=dfnew.loc[dfnew[cat]==key]
                             ax[i+1].scatter(_dfnew[x], _dfnew[y], color=lut[cat][&#34;colorlut&#34;][key], marker=lut[cat][&#34;markerlut&#34;][key], label=key)
-                        ax[i+1].legend(title=key)
+                        ax[i+1].legend(title=cat)
                         
                     else:
                         for key in lut[cat][&#34;colorlut&#34;].keys():
                             _dfnew=dfnew.loc[dfnew[cat]==key]
                             ax[i+1].scatter(_dfnew[x], _dfnew[y], color=lut[cat][&#34;colorlut&#34;][key], label=key, s=size)
-                        ax[i+1].legend(title=key)
+                        ax[i+1].legend(title=cat)
                         
             _dfnews[K]=dfnew
     _save(save, method+&#34;_scatter&#34;)
@@ -2149,7 +4141,7 @@ In this case, data must have only two dimentions or x and y options must be spec
 </details>
 </dd>
 <dt id="omniplot.scatter.decomplot"><code class="name flex">
-<span>def <span class="ident">decomplot</span></span>(<span>df: pandas.core.frame.DataFrame, variables: List[~T] = [], category: Union[List[~T], str] = '', method: str = 'pca', component: int = 3, arrow_color: str = 'yellow', arrow_text_color: str = 'black', show: bool = False, explained_variance: bool = True, arrow_num: int = 3, figsize=[], regularization: bool = True, pcapram={'random_state': 0}, nmfparam={'random_state': 0}, save: str = '', title: str = '', markers: bool = False, saveparam: dict = {}, ax: Optional[matplotlib.axes._axes.Axes] = None, palette: str = 'tab20b') ‑> Dict[~KT, ~VT]</span>
+<span>def <span class="ident">decomplot</span></span>(<span>df: pandas.core.frame.DataFrame, variables: List[~T] = [], category: Union[List[~T], str] = '', method: str = 'pca', component: int = 3, arrow_color: str = 'yellow', arrow_text_color: str = 'black', show: bool = False, explained_variance: bool = True, arrow_num: int = 3, figsize=[], regularization: bool = True, pcapram={'random_state': 0}, nmfparam={'random_state': 0}, save: str = '', title: str = '', markers: bool = False, saveparam: dict = {}, ax: Optional[matplotlib.axes._axes.Axes] = None, palette: str = 'tab20b', size: int = 10) ‑> Dict[~KT, ~VT]</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Decomposing data and drawing a scatter plot and some plots for explained variables. </p>
@@ -2200,7 +4192,8 @@ or {"data": dfpc_list, "W":W, "H":H,"axes":axes,"axes_explained":axes2} for nmf 
               markers: bool=False,
               saveparam: dict={},
               ax: Optional[plt.Axes]=None,
-              palette: str=&#34;tab20b&#34;) -&gt; Dict:
+              palette: str=&#34;tab20b&#34;,
+              size: int=10) -&gt; Dict:
     
     &#34;&#34;&#34;
     Decomposing data and drawing a scatter plot and some plots for explained variables. 
@@ -2239,15 +4232,17 @@ or {"data": dfpc_list, "W":W, "H":H,"axes":axes,"axes_explained":axes2} for nmf 
     --------
     &#34;&#34;&#34;
     x, category=_separate_data(df, variables=variables, category=category)
-    # if category !=&#34;&#34;:
-    #     category_val=df[category].values
-    #     df=df.drop([category], axis=1)
-    #     x = df.values
-    #     assert x.dtype==float, f&#34;data must contain only float values except {category} column.&#34;
-    #
-    # else:    
-    #     x = df.values
-    #     assert x.dtype==float, &#34;data must contain only float values.&#34;
+
+    barrierfree=False
+    if type(markers)==bool:
+            
+        if markers==True:
+            barrierfree=True
+            markers=marker_list 
+        else: 
+            markers=[]
+
+
     original_index=df.index
     if len(variables)!=0:
         features=variables
@@ -2260,18 +4255,9 @@ or {"data": dfpc_list, "W":W, "H":H,"axes":axes,"axes_explained":axes2} for nmf 
 
                     
     if len(category)!=0:
-        barrierfree=False
-        if type(markers)==bool:
-            
-            if markers==True:
-                barrierfree=True
-                markers=maker_list 
-            else: 
-                markers=[]
-                        
         lut={}
         for i, cat in enumerate(category):
-            _clut, _mlut=_create_color_markerlut(df, cat,palette[1],markers)
+            _clut, _mlut=_create_color_markerlut(df, cat,palette,markers)
             lut[cat]={&#34;colorlut&#34;:_clut, &#34;markerlut&#34;:_mlut}
 
 
@@ -2285,10 +4271,13 @@ or {"data": dfpc_list, "W":W, "H":H,"axes":axes,"axes_explained":axes2} for nmf 
                 nrows=len(comb)//2+int(len(comb)%2!=0)
                 if len(figsize)==0:
                     figsize=[8,3*nrows]
-                
-                fig, axes=plt.subplots(ncols=2, nrows=nrows, figsize=figsize)
-                plt.subplots_adjust(top=0.9,right=0.8)
+                ncols=2
+                fig, axes=plt.subplots(ncols=ncols, nrows=nrows, figsize=figsize)
+                plt.subplots_adjust(top=0.9,right=0.8, left=0.1)
                 axes=axes.flatten()
+                if len(comb)!=ncols*nrows:
+                    for i in range(ncols*nrows-len(comb)):
+                        fig.delaxes(axes[-(i+1)])
             figures[cat]={&#34;fig&#34;: fig, &#34;axes&#34;:axes}
     else:
         figures={}
@@ -2301,7 +4290,7 @@ or {"data": dfpc_list, "W":W, "H":H,"axes":axes,"axes_explained":axes2} for nmf 
                 figsize=[8,3*nrows]
             
             fig, axes=plt.subplots(ncols=2, nrows=nrows, figsize=figsize)
-            plt.subplots_adjust(top=0.9,right=0.8)
+            plt.subplots_adjust(top=0.9,right=0.8, left=0.1)
             axes=axes.flatten()
         figures[&#34;nocat&#34;]={&#34;fig&#34;: fig, &#34;axes&#34;:axes}
     if method==&#34;pca&#34;:
@@ -2323,18 +4312,20 @@ or {"data": dfpc_list, "W":W, "H":H,"axes":axes,"axes_explained":axes2} for nmf 
             if len(category)!=0:
                 for cat in category:
                     dfpc[cat]=df[cat]
+                    
+                    _scatter(dfpc, xlabel,ylabel, cat, figures[cat][&#34;axes&#34;][axi], lut, barrierfree, size,legend=False)
+
+                    # sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=cat, ax=figures[cat][&#34;axes&#34;][axi],palette=palette)
+                    # sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=cat, ax=figures[cat][&#34;axes&#34;][axi],legend=False,palette=palette)
                     if combnum==1:
-                        sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=cat, ax=figures[cat][&#34;axes&#34;][axi],palette=palette)
                         figures[cat][&#34;axes&#34;][axi].legend(bbox_to_anchor=(1.02, 1), loc=&#39;upper left&#39;, borderaxespad=0)
-                    else:
-                        sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=cat, ax=figures[cat][&#34;axes&#34;][axi],
-                                        legend=False,palette=palette)
                     for k, feature in enumerate(_features):
                         figures[cat][&#34;axes&#34;][axi].arrow(0, 0, _loadings[k, 0],_loadings[k, 1],color=arrow_color,width=0.005,head_width=0.1)
                         figures[cat][&#34;axes&#34;][axi].text(_loadings[k, 0],_loadings[k, 1],feature,color=arrow_text_color)
             else:
                 sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, ax=figures[&#34;nocat&#34;][axi],palette=palette)
-            
+                # cat=None
+                # _scatter(dfpc, xlabel,ylabel, cat, figures[&#34;nocat&#34;][axi], lut, barrierfree, size)
                 for k, feature in enumerate(_features):
                     #ax.plot([0,_loadings[k, 0] ], [0,_loadings[k, 1] ],color=arrow_color)
                     figures[&#34;nocat&#34;][axi].arrow(0, 0, _loadings[k, 0],_loadings[k, 1],color=arrow_color,width=0.005,head_width=0.1)
@@ -2388,14 +4379,17 @@ or {"data": dfpc_list, "W":W, "H":H,"axes":axes,"axes_explained":axes2} for nmf 
             if len(category)!=0:
                 for cat in category:
                     dfpc[cat]=df[cat]
+                    
+                    # sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=cat, ax=figures[cat][&#34;axes&#34;][axi],palette=palette)
+                    _scatter(dfpc, xlabel,ylabel, cat, figures[cat][&#34;axes&#34;][axi], lut, barrierfree, size,legend=False)
+                    # sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=cat, ax=figures[cat][&#34;axes&#34;][axi],legend=False,palette=palette)
                     if combnum==1:
-                        sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=cat, ax=figures[cat][&#34;axes&#34;][axi],palette=palette)
-                        figures[cat][&#34;axes&#34;][axi].legend(bbox_to_anchor=(1.02, 1), loc=&#39;upper left&#39;, borderaxespad=0,palette=palette)
-                    else:
-                        sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=cat, ax=figures[cat][&#34;axes&#34;][axi],
-                                        legend=False,palette=palette)
+                        figures[cat][&#34;axes&#34;][axi].legend(bbox_to_anchor=(1.02, 1), loc=&#39;upper left&#39;, borderaxespad=0)
+
             else:
                 sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=category, ax=figures[&#34;nocat&#34;][axi],palette=palette)
+                # cat=None
+                # _scatter(dfpc, xlabel,ylabel, cat, figures[&#34;nocat&#34;][axi], lut, barrierfree, size)
             dfpc_list.append(dfpc)
             combnum+=1
         if len(category)!=0:
@@ -2456,7 +4450,7 @@ or {"data": dfpc_list, "W":W, "H":H,"axes":axes,"axes_explained":axes2} for nmf 
 </details>
 </dd>
 <dt id="omniplot.scatter.manifoldplot"><code class="name flex">
-<span>def <span class="ident">manifoldplot</span></span>(<span>df: pandas.core.frame.DataFrame, variables: List[~T] = [], category: Union[List[~T], str] = '', method: str = 'tsne', show: bool = False, figsize=[5, 5], title: str = '', param: dict = {}, save: str = '', ax: Optional[matplotlib.axes._axes.Axes] = None, palette='tab20c', **kwargs)</span>
+<span>def <span class="ident">manifoldplot</span></span>(<span>df: pandas.core.frame.DataFrame, variables: List[~T] = [], category: Union[List[~T], str] = '', method: str = 'tsne', show: bool = False, figsize=[5, 5], title: str = '', param: dict = {}, save: str = '', ax: Optional[matplotlib.axes._axes.Axes] = None, palette='tab20c', markers: bool = False, size: float = 10, **kwargs)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Reducing the dimensionality of data and drawing a scatter plot. </p>
@@ -2506,8 +4500,10 @@ Available methods: {"random_projection": "Sparse random projection",
                  figsize=[5,5],
                  title: str=&#34;&#34;,
                  param: dict={},
-                 save: str=&#34;&#34;,ax: Optional[plt.Axes]=None,
+                 save: str=&#34;&#34;,
+                 ax: Optional[plt.Axes]=None,
                  palette=&#34;tab20c&#34;,
+                 markers: bool=False,size: float=10,
                  **kwargs):
     &#34;&#34;&#34;
     Reducing the dimensionality of data and drawing a scatter plot. 
@@ -2567,7 +4563,20 @@ Available methods: {"random_projection": "Sparse random projection",
     &#34;nca&#34;: &#34;Neighborhood components analysis&#34;,
     &#34;umap&#34;:&#34;UMAP&#34;}
     x, category=_separate_data(df, variables=variables, category=category)
-   
+    barrierfree=False
+    if type(markers)==bool:
+            
+        if markers==True:
+            barrierfree=True
+            markers=marker_list 
+        else: 
+            markers=[]
+    if len(category)!=0:
+        lut={}
+        for i, cat in enumerate(category):
+            _clut, _mlut=_create_color_markerlut(df, cat,palette,markers)
+            lut[cat]={&#34;colorlut&#34;:_clut, &#34;markerlut&#34;:_mlut}
+
     x=zscore(x, axis=0)
     features=df.columns
     original_index=df.index
@@ -2581,7 +4590,8 @@ Available methods: {"random_projection": "Sparse random projection",
         axes=axes.flatten()
         for cat,ax in zip(category, axes):
             dft[cat]=df[cat]
-            sns.scatterplot(data=dft, x=&#34;d1&#34;, y=&#34;d2&#34;, hue=cat, ax=ax,palette=palette,**kwargs)
+            _scatter(dft, &#34;d1&#34;,&#34;d2&#34;, cat, ax, lut, barrierfree, size)
+            # sns.scatterplot(data=dft, x=&#34;d1&#34;, y=&#34;d2&#34;, hue=cat, ax=ax,palette=palette,**kwargs)
     else:
         fig, axes=plt.subplots(figsize=figsize)
         sns.scatterplot(data=dft, x=&#34;d1&#34;, y=&#34;d2&#34;, ax=axes,palette=palette,**kwargs)
@@ -2596,7 +4606,7 @@ Available methods: {"random_projection": "Sparse random projection",
 </details>
 </dd>
 <dt id="omniplot.scatter.pie_scatter"><code class="name flex">
-<span>def <span class="ident">pie_scatter</span></span>(<span>df: pandas.core.frame.DataFrame, x: str, y: str, category: list, logscalex: bool = False, logscaley: bool = False, pie_palette: str = 'tab20c', label: Union[List[~T], str] = 'all', topn: int = 10, ax: Optional[matplotlib.axes._axes.Axes] = None, piesizes: Union[List[~T], str] = '', save: str = '', show: bool = False, edge_color: str = 'gray', min_piesize: float = 0.3, figsize: list = [6, 6], xunit: str = '', yunit: str = '', xlabel: str = '', ylabel: str = '', title: str = '', bbox_to_anchor: Union[List[~T], str] = [0.95, 1], piesize_scale: float = 0.01) ‑> dict</span>
+<span>def <span class="ident">pie_scatter</span></span>(<span>df: pandas.core.frame.DataFrame, x: str, y: str, category: list, pie_palette: str = 'tab20c', label: Union[List[~T], str] = 'all', topn: int = 10, ax: Optional[matplotlib.axes._axes.Axes] = None, piesizes: Union[List[~T], str] = '', save: str = '', show: bool = False, edge_color: str = 'gray', min_piesize: float = 0.3, figsize: list = [6, 6], xunit: str = '', yunit: str = '', xlabel: str = '', ylabel: str = '', title: str = '', logscalex: bool = False, logscaley: bool = False, bbox_to_anchor: Union[List[~T], str] = [0.95, 1], piesize_scale: float = 0.01) ‑> dict</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Drawing a scatter plot of which points are represented by pie charts. </p>
@@ -2687,9 +4697,6 @@ list: the list of pie chart sizes</dd>
                 x: str, 
                 y: str, 
                 category: list, 
-                
-                logscalex: bool=False,
-                logscaley: bool=False,
                 pie_palette: str=&#34;tab20c&#34;,
                 label: Union[List, str]=&#34;all&#34;,
                 topn: int=10,
@@ -2705,7 +4712,8 @@ list: the list of pie chart sizes</dd>
                 xlabel: str=&#34;&#34;,
                 ylabel: str=&#34;&#34;, 
                 title: str=&#34;&#34;,
-                
+                logscalex: bool=False,
+                logscaley: bool=False,
                 bbox_to_anchor: Union[List, str]=[0.95, 1],
                 piesize_scale: float=0.01) -&gt; dict:
     &#34;&#34;&#34;
@@ -2817,15 +4825,15 @@ list: the list of pie chart sizes</dd>
         for fr, co in zip(_frac, _colors):
             if type(piesizes)==str:
                 if piesizes==&#34;sum_of_each&#34;:
-                    _baumkuchen_xy(ax, _x, _y, angle, fr, 0, sums.loc[_ind],20, co, edge_color=edge_color)
+                    _baumkuchen_xy(ax, _x, _y, angle, fr, 0, sums.loc[_ind],20, co, edgecolor=edge_color)
                 elif piesizes==&#34;&#34;:
-                    _baumkuchen_xy(ax, _x, _y, angle, fr, 0, piesize_scale,20, co, edge_color=edge_color)
+                    _baumkuchen_xy(ax, _x, _y, angle, fr, 0, piesize_scale,20, co, edgecolor=edge_color)
                 else:
                     pass
             elif type(piesizes)==list and len(piesizes) !=0:
-                _baumkuchen_xy(ax, _x, _y, angle, fr, 0, piesize_scale*piesizes[i],20, co, edge_color=edge_color)
+                _baumkuchen_xy(ax, _x, _y, angle, fr, 0, piesize_scale*piesizes[i],20, co, edgecolor=edge_color)
             else:
-                _baumkuchen_xy(ax, _x, _y, angle, fr, 0, piesize_scale,20, co, edge_color=edge_color)
+                _baumkuchen_xy(ax, _x, _y, angle, fr, 0, piesize_scale,20, co, edgecolor=edge_color)
             angle+=fr
         
         if type(label)==str:
@@ -2890,6 +4898,20 @@ Available methods: ["ransac",
 <dd>figure size</dd>
 <dt><strong><code>show</code></strong> :&ensp;<code>bool</code></dt>
 <dd>Whether or not to show the figure.</dd>
+<dt><strong><code>robust_param</code></strong> :&ensp;<code>dict</code>, optional</dt>
+<dd>Hyper parameters for robust regression. Please see <a href="https://www.statsmodels.org/dev/generated/statsmodels.robust.robust_linear_model.RLM.html">https://www.statsmodels.org/dev/generated/statsmodels.robust.robust_linear_model.RLM.html</a></dd>
+<dt><strong><code>xunit</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>X axis unit</dd>
+<dt><strong><code>yunit</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>Y axis unit</dd>
+<dt><strong><code>title</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>Figure title</dd>
+<dt><strong><code>random_state</code></strong> :&ensp;<code>int</code>, optional <code>(default=42)</code></dt>
+<dd>random state for RANSAC regression</dd>
+<dt><strong><code>ax</code></strong> :&ensp;<code>plt.Axes</code>, optional<code>,</code></dt>
+<dd>pyplot axis</dd>
+<dt><strong><code>save</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>The prefix of file names to save.</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
@@ -2942,7 +4964,21 @@ this can be used like: y_predict=fitted_model.predict(_X)</dd>
         figure size
     show : bool
         Whether or not to show the figure.
-    
+    robust_param: dict, optional
+        Hyper parameters for robust regression. Please see https://www.statsmodels.org/dev/generated/statsmodels.robust.robust_linear_model.RLM.html
+    xunit: str, optional
+        X axis unit
+    yunit: str, optional
+        Y axis unit
+    title: str, optional
+        Figure title
+
+    random_state: int, optional (default=42)
+        random state for RANSAC regression
+    ax: plt.Axes, optional,
+        pyplot axis
+    save: str, optional
+        The prefix of file names to save.
     Returns
     -------
     dict: dict {&#34;axes&#34;:ax, &#34;coefficient&#34;:coef,&#34;intercept&#34;:intercept,&#34;coefficient_pval&#34;:coef_p, &#34;r2&#34;:r2, &#34;fitted_model&#34;:fitted_model}
@@ -2968,37 +5004,17 @@ this can be used like: y_predict=fitted_model.predict(_X)</dd>
     plotline_X = np.arange(X.min(), X.max()).reshape(-1, 1)
     n = X.shape[0]
     plt.rcParams.update({&#39;font.size&#39;: 14})
-    fig, ax = plt.subplots(figsize=figsize)
-    fig.suptitle(title)
+    if ax==None:
+        fig, ax = plt.subplots(figsize=figsize)
+        fig.suptitle(title)
+    else:
+        fig=None
+        # plt.title(title)
     plt.subplots_adjust(left=0.15)
     if method==&#34;ransac&#34;:
-        from sklearn.linear_model import RANSACRegressor
+        _title=&#34;RANSAC regression, r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x, coefficient p-value: {:.2E}&#34;
+        fitted_model, coef, coef_p, intercept, r2, x_line, y_line, ci, pi,std_error, MSE, inlier_mask, outlier_mask=_ransac(X,Y,plotline_X,random_state, ransac_param)
         
-        
-        
-        fit_df=pd.DataFrame()
-        fitted_model = RANSACRegressor(random_state=random_state,**ransac_param).fit(_X,Y)
-        fit_df[&#34;ransac_regression&#34;] = fitted_model.predict(plotline_X)
-        coef = fitted_model.estimator_.coef_[0]
-        intercept=fitted_model.estimator_.intercept_
-        inlier_mask = fitted_model.inlier_mask_
-        outlier_mask = ~inlier_mask
-        
-                                # number of samples
-        y_model=fitted_model.predict(_X)
-
-        r2 = _calc_r2(X,Y)
-        # mean squared error
-        MSE = 1/n * np.sum( (Y - y_model)**2 )
-        
-        # to plot the adjusted model
-        x_line = plotline_X.flatten()
-        y_line = fit_df[&#34;ransac_regression&#34;]
-         
-        ci, pi, std_error=_ci_pi(X,Y,plotline_X.flatten(),y_model)
-        q=((X-X.mean()).transpose() @ (X-X.mean()))
-        sigma=std_error*(q**-1)**(0.5)
-        coef_p=stats.t.sf(abs(fitted_model.estimator_.coef_[0]/sigma), df=X.shape[0]-2)
         ############### Ploting
 
         _draw_ci_pi(ax, ci, pi,x_line, y_line)
@@ -3007,113 +5023,905 @@ this can be used like: y_predict=fitted_model.predict(_X)</dd>
         plt.xlabel(x)
         plt.ylabel(y)
         #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
-        plt.title(&#34;RANSAC regression, r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x, coefficient p-value: {:.2E}&#34;.format(
+        plt.title(_title.format(
             r2, MSE,coef,intercept,coef_p
             )
         )
-        plt.plot(plotline_X.flatten(),fit_df[&#34;ransac_regression&#34;])
+        plt.plot(plotline_X.flatten(),y_line)
         
-        _save(save, &#34;ransac&#34;)
+        _save(save, method)
         if len(category)!=0:
-            fig, ax=plt.subplots(figsize=figsize)
+            fig, ax1=plt.subplots(figsize=figsize)
             plt.subplots_adjust(left=0.15)
-            _draw_ci_pi(ax, ci, pi,x_line, y_line)
-            sns.scatterplot(data=df,x=x, y=y, hue=category)
+            _draw_ci_pi(ax1, ci, pi,x_line, y_line)
+            sns.scatterplot(data=df,x=x, y=y, hue=category, ax=ax1)
             
             plt.xlabel(x)
             plt.ylabel(y)
             #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
-            plt.title(&#34;RANSAC regression, r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x, coefficient p-value: {:.2E}&#34;.format(
+            plt.title(_title.format(
                 r2, MSE,coef,intercept,coef_p
                 )
             )
-            plt.plot(plotline_X.flatten(),fit_df[&#34;ransac_regression&#34;])
-            _save(save, &#34;ransac_&#34;+category)
+            plt.plot(plotline_X.flatten(),y_line)
+            _save(save, method+&#34;_&#34;+category)
     elif method==&#34;robust&#34;:
-        import statsmodels.api as sm
-        rlm_model = sm.RLM(Y, sm.add_constant(X),
-        M=sm.robust.norms.HuberT(),**robust_param)
-        fitted_model = rlm_model.fit()
-        summary=fitted_model.summary()
-        coef=fitted_model.params[1]
-        intercept=fitted_model.params[0]
-        intercept_p=fitted_model.pvalues[0]
-        coef_p=fitted_model.pvalues[1]
-        y_model=fitted_model.predict(sm.add_constant(X))
-        r2 = _calc_r2(X,Y)
-        x_line = plotline_X.flatten()
-        y_line = fitted_model.predict(sm.add_constant(x_line))
-        
-        ci, pi,std_error=_ci_pi(X,Y,plotline_X.flatten(),y_model)
-        MSE = 1/n * np.sum( (Y - y_model)**2 )
+        _title=&#34;Robust linear regression, r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x , p-values: coefficient {:.2f}, \
+        intercept {:.2f}&#34;
+        fitted_model, summary, coef, coef_p, intercept, intercept_p, r2, x_line, y_line, ci, pi,std_error, MSE=_robust_regression(X, Y, plotline_X, robust_param)
 
         _draw_ci_pi(ax, ci, pi,x_line, y_line)
         sns.scatterplot(data=df,x=x, y=y, color=&#34;blue&#34;)
         #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
-        plt.title(&#34;Robust linear regression, r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x , p-values: coefficient {:.2f}, \
-        intercept {:.2f}&#34;.format(
+        plt.title(_title.format(
             r2, MSE,coef,intercept,coef_p,intercept_p
             )
         )
         plt.plot(plotline_X.flatten(),y_line)
-        _save(save, &#34;robust&#34;)
+        _save(save, method)
         if len(category)!=0:
-            fig, ax=plt.subplots(figsize=figsize)
+            fig, ax1=plt.subplots(figsize=figsize)
             plt.subplots_adjust(left=0.15)
-            _draw_ci_pi(ax, ci, pi,x_line, y_line)
-            sns.scatterplot(data=df,x=x, y=y, hue=category)
+            _draw_ci_pi(ax1, ci, pi,x_line, y_line)
+            sns.scatterplot(data=df,x=x, y=y, hue=category, ax=ax1)
             #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
-            plt.title(&#34;Robust linear regression, r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x , p-values: coefficient {:.2f}, \
-            intercept {:.2f}&#34;.format(
+            plt.title(_title.format(
                 r2, MSE,coef,intercept,coef_p,intercept_p
                 )
             )
             plt.plot(plotline_X.flatten(),y_line)
-            _save(save, &#34;robust_&#34;+category)
+            _save(save, method+&#34;_&#34;+category)
     elif method==&#34;lasso&#34; or method==&#34;elastic_net&#34; or method==&#34;ols&#34;:
-        if method==&#34;lasso&#34;:
-            method=&#34;sqrt_lasso&#34;
-        import statsmodels.api as sm
-        rlm_model = sm.OLS(Y, sm.add_constant(X))
-        if method==&#34;ols&#34;:
-            fitted_model = rlm_model.fit()
-        else:
-            fitted_model = rlm_model.fit_regularized(method)
-        coef=fitted_model.params[1]
-        intercept=fitted_model.params[0]
-        y_model=fitted_model.predict(sm.add_constant(X))
-        r2 = _calc_r2(X,Y)
-        x_line = plotline_X.flatten()
-        y_line = fitted_model.predict(sm.add_constant(x_line))
-        ci, pi, std_error=_ci_pi(X,Y,plotline_X.flatten(),y_model)
-        q=((X-X.mean()).transpose() @ (X-X.mean()))
-        sigma=std_error*(q**-1)**(0.5)
-        print(sigma,coef )
-        coef_p=stats.t.sf(abs(coef/sigma), df=X.shape[0]-2)
-        MSE = 1/n * np.sum( (Y - y_model)**2 )
+        _title=&#34;OLS ({}), r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x, coefficient p-value: {:.2E}&#34;
+
+        fitted_model, coef, coef_p, intercept, r2, x_line, y_line, ci, pi,std_error, MSE=_ols(X, Y, plotline_X, method)
+
 
         _draw_ci_pi(ax, ci, pi,x_line, y_line)   
         sns.scatterplot(data=df,x=x, y=y, color=&#34;blue&#34;)
         #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
-        plt.title(&#34;OLS ({}), r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x, coefficient p-value: {:.2E}&#34;.format(method,
+        plt.title(_title.format(method,
             r2, MSE,coef,intercept,coef_p
             )
         )
         plt.plot(plotline_X.flatten(),y_line)
         _save(save, method)
         if len(category)!=0:
-            fig, ax=plt.subplots(figsize=figsize)
+            fig, ax1=plt.subplots(figsize=figsize)
             plt.subplots_adjust(left=0.15)
-            _draw_ci_pi(ax, ci, pi,x_line, y_line)
+            _draw_ci_pi(ax1, ci, pi,x_line, y_line)
             sns.scatterplot(data=df,x=x, y=y, color=&#34;blue&#34;,hue=category)
             #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
-            plt.title(&#34;OLS ({}), r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x, coefficient p-value: {:.2E}&#34;.format(method,
+            plt.title(_title.format(method,
                 r2, MSE,coef,intercept,coef_p
                 )
             )
             plt.plot(plotline_X.flatten(),y_line)
             _save(save, method+&#34;_&#34;+category)
+    if yunit!=&#34;&#34;:
+        ax.text(0, 1, &#34;({})&#34;.format(yunit), transform=ax.transAxes, ha=&#34;right&#34;)
+        ax1.text(0, 1, &#34;({})&#34;.format(yunit), transform=ax.transAxes, ha=&#34;right&#34;)
+    if xunit!=&#34;&#34;:
+        ax.text(1, 0, &#34;({})&#34;.format(xunit), transform=ax.transAxes, ha=&#34;left&#34;,va=&#34;top&#34;)
+        ax1.text(1, 0, &#34;({})&#34;.format(xunit), transform=ax.transAxes, ha=&#34;left&#34;,va=&#34;top&#34;)
+    
     return {&#34;axes&#34;:ax, &#34;coefficient&#34;:coef,&#34;intercept&#34;:intercept,&#34;coefficient_pval&#34;:coef_p, &#34;r2&#34;:r2, &#34;fitted_model&#34;:fitted_model}</code></pre>
+</details>
+</dd>
+<dt id="omniplot.scatter.scatterplot"><code class="name flex">
+<span>def <span class="ident">scatterplot</span></span>(<span>df: pandas.core.frame.DataFrame, x: str, y: str, ax: Optional[matplotlib.axes._axes.Axes] = None, fig: Optional[matplotlib.figure.Figure] = None, colors: Union[str, List[str]] = '', category: Union[str, List[str]] = '', sizes: str = '', marginal_dist: bool = False, kde: bool = False, kde_kw: dict = {}, kmeans: bool = False, n_clusters: int = 3, cluster_center: bool = True, kmeans_kw: dict = {}, regression: bool = False, robust_param: dict = {}, regression_color: str = 'lightgreen', c: Union[List[~T], numpy.ndarray] = [], cname: str = '', size_scale: float = 100, palette: str = '', palette_cat: Union[str, Dict[~KT, ~VT]] = 'tab20c', palette_val: str = 'coolwarm', size_legend_num: int = 4, markers: bool = False, size: float = 30.0, show_labels: dict = {}, alpha: float = 1, edgecolors: str = 'w', linewidths: float = 1, cbar_format: str = '', size_format: str = '', xformat: str = '', yformat: str = '', xunit: str = '', yunit: str = '', size_unit: str = '', color_unit: str = '', color: str = 'b', axlabel: str = 'single', title: str = '', show_legend: bool = True, logscalex: bool = False, logscaley: bool = False, figsize: list = [], rows_cols: list = [], save: str = '', gridspec_kw: dict = {}) ‑> Dict[~KT, ~VT]</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Simple scatter plot. almost same function with seaborn.scatterplot.
+</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>df</code></strong> :&ensp;<code>pandas DataFrame</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>x</code></strong>, <strong><code>y</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>The column names to be the x and y axes of scatter plots. If reduce_dimension=True, these options will be
+ignored.</dd>
+<dt><strong><code>colors</code></strong> :&ensp;<code>Union[str, list]=""</code>, optional</dt>
+<dd>The names of columns (containing numerial values) to appear as a gradient of point colors.</dd>
+<dt><strong><code>category</code></strong> :&ensp;<code>Union[str, list]=""</code>, optional</dt>
+<dd>The names of columns (containing categorical values) to appear as color labels</dd>
+<dt><strong><code>sizes</code></strong> :&ensp;<code>str=""</code>, optional</dt>
+<dd>The names of columns (containing numerial values) to appear as point sizes.</dd>
+<dt><strong><code>marginal_dist</code></strong> :&ensp;<code>bool</code>, optional <code>(default: False)</code></dt>
+<dd>Whether to draw marginal distributions</dd>
+<dt><strong><code>kde</code></strong> :&ensp;<code>bool</code>, optional <code>(default: False)</code></dt>
+<dd>Whether to overlay KDE plot.</dd>
+<dt><strong><code>kde_kw</code></strong> :&ensp;<code>dict</code>, optional</dt>
+<dd>KDE plot keyword arguements. See <a href="https://seaborn.pydata.org/generated/seaborn.kdeplot.html">https://seaborn.pydata.org/generated/seaborn.kdeplot.html</a> for details.</dd>
+<dt><strong><code>kmeans</code></strong> :&ensp;<code>bool</code>, optional <code>(default: False)</code></dt>
+<dd>Whether to calculate and draw kmean clusters</dd>
+<dt><strong><code>n_clusters</code></strong> :&ensp;<code>int</code>, optional <code>(default: 3)</code></dt>
+<dd>K-means cluster number.</dd>
+<dt><strong><code>cluster_center</code></strong> :&ensp;<code>bool</code>, optional <code>(default: True)</code></dt>
+<dd>Whether to draw lines from the k-means centers.<a href="https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html">https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html</a> for details</dd>
+<dt><strong><code>kmeans_kw</code></strong> :&ensp;<code>dict,</code></dt>
+<dd>KMeans keyword arguments. See</dd>
+<dt><strong><code>c</code></strong> :&ensp;<code>Union[List, np.ndarray]</code>, optional</dt>
+<dd>1 dimensional array containing values shown as point facecolors or 2 dimensional array consists of RGB(A)</dd>
+<dt><strong><code>cname</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>Label for the color value specified by "c" option</dd>
+<dt><strong><code>palette</code></strong> :&ensp;<code>str=""</code>, optional</dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>palette_cat</code></strong> :&ensp;<code>str</code>, optional <code>(default: "tab20c")</code></dt>
+<dd>The color palette for categorical labels</dd>
+<dt><strong><code>palette_val</code></strong> :&ensp;<code>str</code>, optional <code>(default: "coolwarm")</code></dt>
+<dd>The color palette for the color gradient specified by the "colors" option.</dd>
+<dt><strong><code>show_labels</code></strong> :&ensp;<code>dict</code>, optional</dt>
+<dd>A dictionary to specify the condition to add labels to the points. dataframe index will be labeled to points.
+It may contain "val" and "topn" keys. if you want all points to labeled, pass {"topn":0} to the option.
+To add labels to the only top n points of specific values, pass a dictionary like {"val": "body_mass_g", "topn":5}.
+"val" specify the column name to rank points and "topn" specify the number of points to be labeled.</dd>
+<dt><strong><code>save</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>Prefix to save the figure</dd>
+<dt><strong><code>title</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>The title for the figure.</dd>
+<dt><strong><code>markers</code></strong> :&ensp;<code>bool</code>, optional <code>(default: False)</code></dt>
+<dd>Whether to use markers to different categorical labels</dd>
+<dt><strong><code>rows_cols</code></strong> :&ensp;<code>list</code>, optional</dt>
+<dd>The number of rows and columns for subplots</dd>
+<dt><strong><code>size</code></strong> :&ensp;<code>float</code>, optional <code>(default: 10)</code></dt>
+<dd>point size. This will be ignored when "sizes" option is set.</dd>
+<dt><strong><code>xunit</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>The x axis unit.</dd>
+<dt>yunit:str, optional</dt>
+<dt>The y axis unit.</dt>
+<dt><strong><code>size_unit</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>The unit of point sizes when "sizes" option is set.</dd>
+<dt><strong><code>color</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>axlabel</code></strong> :&ensp;<code>str</code>, optional <code>(default:"single"), ["single", "each", "non"]</code></dt>
+<dd>How to show the labels of the axes. "each" will add the labels to each axis of subplots. "single" will add single axis labels to the figure.</dd>
+<dt><strong><code>logscalex</code></strong> :&ensp;<code>bool=False,</code></dt>
+<dd>Whether to transform the x axis to the log scale.</dd>
+<dt><strong><code>logscaley</code></strong> :&ensp;<code>bool=False,</code></dt>
+<dd>Whether to transform the y axis to the log scale.</dd>
+<dt><strong><code>figsize</code></strong> :&ensp;<code>list=[]</code>, optional</dt>
+<dd>figure size. if not set, it automatically calculate a reasonable figure size.</dd>
+<dt><strong><code>alpha</code></strong> :&ensp;<code>float=1,</code></dt>
+<dd>Alpha of points.</dd>
+<dt><strong><code>size_scale</code></strong> :&ensp;<code>float=60,</code></dt>
+<dd>The scale of the point sizes, only effective when "sizes" option is set. If the sizes of points are too small or too large, adjust the sizes with this option.</dd>
+<dt><strong><code>edgecolors</code></strong> :&ensp;<code>str="w"</code>, optional</dt>
+<dd>The point edge color.</dd>
+<dt><strong><code>linewidths</code></strong> :&ensp;<code>float=1</code>, optional</dt>
+<dd>The point edge width.</dd>
+<dt><strong><code>cbar_format</code></strong>, <strong><code>size_format</code></strong>, <strong><code>xformat</code></strong>, <strong><code>yformat</code></strong> :&ensp;<code>str </code></dt>
+<dd>e.g., "{x:.2f}", '{x:.3E}'</dd>
+<dt><strong><code>gridspec_kw</code></strong> :&ensp;<code>dict</code>, optional</dt>
+<dd>Parameters for matplotlib gridspec. (<a href="https://matplotlib.org/stable/api/_as_gen/matplotlib.gridspec.GridSpec.html">https://matplotlib.org/stable/api/_as_gen/matplotlib.gridspec.GridSpec.html</a>)
+e.g., {"wspace":0.75,"hspace":0.5}</dd>
+<dt><strong><code>adjust_kw</code></strong> :&ensp;<code>dict</code>, optional</dt>
+<dd>&nbsp;</dd>
+</dl>
+<h2 id="return">Return</h2>
+<p>{"axes":axes, "fig":fig,
+"regression_models":regression_models, "regression_results":regression_results,
+"kmeans_result":_kmeans, "df":df} : dict</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def scatterplot(df: pd.DataFrame,
+                x: str,
+                y: str,
+                ax: Optional[plt.Axes]= None,
+                fig : Optional[mpl.figure.Figure] =None,
+
+                colors: Union[str, List[str]]=&#34;&#34;,
+                category: Union[str, List[str]]=&#34;&#34;,
+                sizes: str=&#34;&#34;,
+                marginal_dist: bool=False,
+                kde: bool=False,
+                kde_kw: dict={},
+
+                kmeans: bool=False,
+                n_clusters: int=3,
+                cluster_center: bool=True,
+                kmeans_kw: dict={},
+
+                regression: bool=False,
+                robust_param: dict={},
+                regression_color: str=&#34;lightgreen&#34;,
+
+                c: Union[List, np.ndarray] =[],
+                cname: str=&#34;&#34;,
+                size_scale: float=100,
+                palette: str=&#34;&#34;,
+                palette_cat: Union[str, Dict]=&#34;tab20c&#34;,
+                palette_val: str=&#34;coolwarm&#34;,
+                size_legend_num: int=4,
+                markers: bool=False,
+                size: float=30.0,
+                show_labels: dict={},
+                alpha: float=1,
+                edgecolors: str=&#34;w&#34;,
+                linewidths: float=1,
+
+                cbar_format: str=&#34;&#34;,
+                size_format: str=&#34;&#34;,
+                xformat: str=&#34;&#34;,
+                yformat: str=&#34;&#34;,
+                xunit: str=&#34;&#34;,
+                yunit:str=&#34;&#34;,
+                size_unit: str=&#34;&#34;,
+                color_unit: str=&#34;&#34;,
+                color: str=&#34;b&#34;,
+                axlabel: str=&#34;single&#34;,
+                title: str=&#34;&#34;,
+                show_legend: bool=True,
+                logscalex: bool=False,
+                logscaley: bool=False,
+                figsize: list=[],
+                rows_cols: list=[],
+                save: str=&#34;&#34;,
+                gridspec_kw: dict={},
+
+                )-&gt; Dict:
+    &#34;&#34;&#34;
+    Simple scatter plot. almost same function with seaborn.scatterplot.  
+    
+    Parameters
+    ----------
+    df : pandas DataFrame
+
+
+    x, y: str, optional
+        The column names to be the x and y axes of scatter plots. If reduce_dimension=True, these options will be
+        ignored.
+    colors: Union[str, list]=&#34;&#34;, optional
+        The names of columns (containing numerial values) to appear as a gradient of point colors. 
+    category: Union[str, list]=&#34;&#34;, optional
+        The names of columns (containing categorical values) to appear as color labels 
+    sizes: str=&#34;&#34;, optional
+        The names of columns (containing numerial values) to appear as point sizes.
+    marginal_dist: bool, optional (default: False)
+        Whether to draw marginal distributions
+    kde: bool, optional (default: False)
+        Whether to overlay KDE plot.
+    kde_kw: dict, optional
+        KDE plot keyword arguements. See https://seaborn.pydata.org/generated/seaborn.kdeplot.html for details.
+    
+    kmeans: bool, optional (default: False)
+        Whether to calculate and draw kmean clusters
+    n_clusters: int, optional (default: 3)
+        K-means cluster number.
+    cluster_center: bool, optional (default: True)
+        Whether to draw lines from the k-means centers.https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html for details
+    kmeans_kw: dict,
+        KMeans keyword arguments. See 
+    c: Union[List, np.ndarray], optional
+        1 dimensional array containing values shown as point facecolors or 2 dimensional array consists of RGB(A) 
+    cname: str, optional
+        Label for the color value specified by &#34;c&#34; option
+    palette: str=&#34;&#34;, optional
+
+    palette_cat: str, optional (default: &#34;tab20c&#34;)
+        The color palette for categorical labels
+    palette_val: str, optional (default: &#34;coolwarm&#34;)
+        The color palette for the color gradient specified by the &#34;colors&#34; option.
+    show_labels: dict, optional
+        A dictionary to specify the condition to add labels to the points. dataframe index will be labeled to points. 
+        It may contain &#34;val&#34; and &#34;topn&#34; keys. if you want all points to labeled, pass {&#34;topn&#34;:0} to the option.
+        To add labels to the only top n points of specific values, pass a dictionary like {&#34;val&#34;: &#34;body_mass_g&#34;, &#34;topn&#34;:5}.
+        &#34;val&#34; specify the column name to rank points and &#34;topn&#34; specify the number of points to be labeled.
+
+    save: str, optional
+        Prefix to save the figure 
+    title: str, optional
+        The title for the figure.
+    markers: bool, optional (default: False)
+        Whether to use markers to different categorical labels
+    rows_cols: list, optional
+        The number of rows and columns for subplots
+    size: float, optional (default: 10)
+        point size. This will be ignored when &#34;sizes&#34; option is set.
+    xunit: str, optional
+        The x axis unit.
+    yunit:str, optional
+        The y axis unit.
+    size_unit: str, optional
+        The unit of point sizes when &#34;sizes&#34; option is set.
+    color: str, optional
+    axlabel: str, optional (default:&#34;single&#34;), [&#34;single&#34;, &#34;each&#34;, &#34;non&#34;]
+        How to show the labels of the axes. &#34;each&#34; will add the labels to each axis of subplots. &#34;single&#34; will add single axis labels to the figure.
+    logscalex: bool=False,
+        Whether to transform the x axis to the log scale.
+    logscaley: bool=False,
+        Whether to transform the y axis to the log scale.
+    figsize: list=[], optional
+        figure size. if not set, it automatically calculate a reasonable figure size.
+    alpha: float=1,
+        Alpha of points.    
+    size_scale: float=60,
+        The scale of the point sizes, only effective when &#34;sizes&#34; option is set. If the sizes of points are too small or too large, adjust the sizes with this option.
+    edgecolors: str=&#34;w&#34;, optional
+        The point edge color.
+    linewidths: float=1, optional
+        The point edge width.
+    cbar_format, size_format, xformat, yformat: str 
+        e.g., &#34;{x:.2f}&#34;, &#39;{x:.3E}&#39;
+
+    gridspec_kw: dict, optional
+        Parameters for matplotlib gridspec. (https://matplotlib.org/stable/api/_as_gen/matplotlib.gridspec.GridSpec.html)
+        e.g., {&#34;wspace&#34;:0.75,&#34;hspace&#34;:0.5}
+    adjust_kw: dict, optional
+
+    Return
+    ------
+    {&#34;axes&#34;:axes, &#34;fig&#34;:fig, 
+    &#34;regression_models&#34;:regression_models, &#34;regression_results&#34;:regression_results, 
+    &#34;kmeans_result&#34;:_kmeans, &#34;df&#34;:df} : dict
+
+    &#34;&#34;&#34;
+    # functions to scale and rescale the size of each point
+    def _scale_size(x, size_scale, smin, smax):
+        return size_scale*(0.01+(x-smin)/(smax-smin))
+    def _reverse_size(x, size_scale, smin, smax):
+        return (x/size_scale-0.01)*(smax-smin)+smin
+    
+    if len(kde_kw)==0:
+        kde_kw=dict(alpha=0.5, levels=4)
+    
+    if palette !=&#34;&#34;:
+        palette_cat=palette 
+        palette_val=palette
+    
+    original_index=df.index
+    
+    X, category=_separate_data(df, 
+                               variables=[x, y], 
+                               category=category)
+    if len(colors)!=0:
+        if type(colors)==str:
+            colors=[colors]
+    else: 
+        colors=[]
+    c=np.array(c)
+    if len(c) !=0:
+        if cname ==&#34;&#34;:
+            cname=&#34;c&#34;
+        if len(c.shape)==1:
+            df[cname]=c
+            colors.append(cname)
+
+    # Calculating clusters and add cluster labels to dataframe
+    _kmeans=None
+    if kmeans==True:
+        _kmeans = KMeans(n_clusters=n_clusters, random_state=0, n_init=&#34;auto&#34;).fit(X, *kmeans_kw)
+        df[&#34;kmeans&#34;]=_kmeans.labels_
+        _kmeanlabels=np.unique(_kmeans.labels_)
+        category.append(&#34;kmeans&#34;)
+
+
+    totalnum=len(category)+len(colors)+int(len(c.shape)==2)
+    if totalnum&lt;=1:
+        totalnum=1
+        axlabel=&#34;each&#34;
+    # determining the figure size and the number of rows and columns.
+    if len(gridspec_kw)==0:
+        _right=0
+        if show_legend==False:
+            _right+=0.16
+        if totalnum==1:
+            if regression==True:
+                gridspec_kw={&#34;right&#34;:0.67+_right, &#34;bottom&#34;:0.3}
+            else:
+                gridspec_kw={&#34;right&#34;:0.67+_right, &#34;bottom&#34;:0.15}
+        elif totalnum==2:
+            if regression==True:
+                gridspec_kw={&#34;wspace&#34;:0.75,&#34;hspace&#34;:0.5,&#34;right&#34;:0.85, &#34;bottom&#34;:0.35, &#34;top&#34;:0.95}
+            else:
+                gridspec_kw={&#34;wspace&#34;:0.75,&#34;right&#34;:0.85, &#34;top&#34;:0.95}
+        else:
+            if regression==True:
+                gridspec_kw={&#34;wspace&#34;:0.75,&#34;hspace&#34;:0.5,&#34;right&#34;:0.85, &#34;bottom&#34;:0.2, &#34;top&#34;:0.95}
+            else:
+                gridspec_kw={&#34;wspace&#34;:0.75,&#34;right&#34;:0.85, &#34;top&#34;:0.95}
+    if ax !=None:
+        if totalnum==1 and type(ax)==plt.Axes:
+
+            axes=[ax]
+        elif totalnum&gt;1 and type(ax)==np.ndarray:
+            axes=ax.flatten()
+        elif totalnum&gt;1 and  type(ax)==list:
+            axes=ax
+        elif totalnum&gt;1 and ax==plt.Axes:
+            raise Exception(&#34;If you provide the ax option, the number of plots and axes must be equal. \
+                            The total number of plots will be the sum of category and colors plus whether or not c and kmeans options provided&#34;)
+        plt.subplots_adjust(**gridspec_kw)
+        totalnum=1
+        if marginal_dist==True and fig==None:
+            raise Exception(&#34;if you pass an axis opject and want to draw marginal distribution, you also need to give a figure object&#34;)
+
+    elif len(rows_cols)==0:
+        
+        if totalnum&lt;=1:
+            if len(figsize)==0:
+                figsize=[6,4]
+            fig, ax=plt.subplots(figsize=figsize,gridspec_kw=gridspec_kw)
+            axes=[ax]
+        else:
+            if len(figsize)==0:
+                if regression==True:
+                    figsize=[9,5*totalnum//2+int(totalnum%2!=0)]
+                else:
+                    figsize=[9,4*totalnum//2+int(totalnum%2!=0)]
+            
+            fig, axes=plt.subplots(nrows=totalnum//2+int(totalnum%2!=0),
+                                    ncols=2,figsize=figsize,gridspec_kw=gridspec_kw)
+            axes=axes.flatten()
+    else:
+        if len(figsize)==0:
+            figsize=[10,4*totalnum//2+int(totalnum%2!=0)]
+        fig, axes=plt.subplots(nrows=rows_cols[0],
+                                 ncols=rows_cols[1],
+                                 figsize=figsize,
+                                 gridspec_kw=gridspec_kw)
+        axes=axes.flatten()
+
+
+    if axlabel==&#34;single&#34;:
+        _axlabeleach=False
+    elif axlabel==&#34;non&#34;:
+        _axlabeleach=False
+    elif axlabel==&#34;each&#34;:
+        _axlabeleach=True
+
+
+    # Creating point size array protional to values in the column specified by &#34;sizes&#34; option. 
+    # Point sizes are scaled maximum to be size_scale (in order to avoid too small/large points). 
+    # And creating a size legend of which size labels correspond to the original values 
+    if sizes !=&#34;&#34;:
+
+        size=df[sizes]
+        size=np.nan_to_num(size)
+        smin=np.amin(size)
+        smax=np.amax(size)
+        size=_scale_size(size, size_scale, smin, smax)
+
+        vmin, vmax=np.min(size), np.max(size)
+        vinterval=(vmax-vmin)/(size_legend_num-1)
+        size_legend_elements=[]
+        if size_format==&#34;&#34;:
+            if 1&lt;np.abs(vmax)&lt;=1000:
+                size_format=&#34;{x:.2f}&#34;
+            elif 0&lt;np.abs(vmax)&lt;=1 or 1000&lt;np.abs(vmax):
+                size_format=&#34;{x:.3E}&#34;
+        for _i in range(size_legend_num):
+            s=vmin+_i*vinterval
+            _s=_reverse_size(s, size_scale, smin, smax)
+            size_legend_elements.append(Line2D([0], [0], marker=&#39;o&#39;, linewidth=0, markeredgecolor=&#34;white&#34;,markersize=s**(0.5),
+                                label=size_format.format(x=_s),
+                                markerfacecolor=&#34;black&#34;))
+
+
+    legendx=1.01
+    legendy=1
+    
+    # Preparing x and y ranges for marginal distribution.
+    margins=0.1
+    if marginal_dist==True:
+
+        _xmin, _xmax=np.amin(df[x]), np.amax(df[x])
+        _xmargin=margins*(_xmax-_xmin)
+        _ymin, _ymax=np.amin(df[y]), np.amax(df[y])
+        _ymargin=margins*(_ymax-_ymin)
+        _xrange=np.linspace(_xmin-_xmargin, _xmax+_xmargin, 1000)
+        _yrange=np.linspace(_ymin-_ymargin, _ymax+_ymargin, 1000)
+        marginal_proportion=0.8
+        legendx=legendx/marginal_proportion
+    
+    
+    i=0
+    # Drawing scatter plots 
+    lut={}
+    regression_models={}
+    regression_results={}
+    if len(category) !=0:
+        
+        for cat in category:
+            ax=axes[i]
+            ax.margins(margins)
+            ax.set_zorder(1)
+            i+=1
+
+            _clut, _mlut=_create_color_markerlut(df, cat,palette_cat,marker_list)
+            
+            
+            
+            lut[cat]={&#34;colorlut&#34;:_clut, &#34;markerlut&#34;:_mlut}
+
+            # Plotting KMeans results
+            if cat==&#34;kmeans&#34; and cluster_center==True and regression==False:
+                for ul, center in zip(_kmeanlabels, _kmeans.cluster_centers_):
+                    _df=df.loc[df[&#34;kmeans&#34;]==ul]
+                    for _x, _y in zip(_df[x], _df[y]):
+                        ax.plot([center[0], _x], [center[1], _y], color=_clut[ul], alpha=0.25)
+            
+            # Plotting regression results
+            if regression==True:
+                fitted_models, reg_results=_regression(df, x, y, ax, cat=cat, _clut=_clut, robust_param=robust_param)
+                regression_models.update(fitted_models)
+                regression_results.update(reg_results)
+            
+            #Plotting a scatter plot
+            sc=_scatter(df, x, y, cat, ax, lut, markers, size,
+                        axlabel=_axlabeleach,
+                        alpha=alpha,
+                        edgecolors=edgecolors,
+                        linewidths=linewidths,
+                        outside=True,legendx=legendx, legendy=legendy, legend=show_legend)
+            
+            # Plotting a KDE plot
+            if kde==True:
+                sns.kdeplot(data=df, x=x, y=y,hue=cat, ax=ax, palette=_clut, legend=False, **kde_kw)
+                ax.set(xlabel=None)
+                ax.set(ylabel=None)
+
+            # Plotting marginal distribution
+            if marginal_dist==True:
+                _marginal_plot(fig, ax,df, x,y, cat, lut,_xrange,_yrange , marginal_proportion)
+
+            # Setting the format of axes
+            _set_axis_format(ax, xformat, yformat, xunit, yunit, logscalex,logscaley)
+           
+            # Drawing the legend of point sizes
+            if sizes !=&#34;&#34; and show_legend==True:
+
+                if size_unit!=&#34;&#34;:
+                    sizes=sizes+&#34;(&#34;+size_unit+&#34;)&#34;
+                ax.add_artist(ax.legend(handles=size_legend_elements, title=sizes,bbox_to_anchor=(legendx,0.6)))
+
+            # Drawing point labels
+            if len(show_labels)!=0:
+                _add_labels(ax, df, x, y, show_labels[&#34;val&#34;], show_labels[&#34;topn&#34;])
+    
+    # Plotting scatter plots with color values specified by &#34;colors&#34;
+    if len(colors) !=0:
+        if type(color_unit)==str:
+            color_unit=[color_unit]
+
+        for _c, _unit in zip(colors, color_unit):
+            ax=axes[i]
+            ax.margins(margins)
+            ax.set_zorder(1)
+            i+=1
+            _df=df.sort_values(by=[_c], ascending=True)
+            if type(size)==float or type(size)==int:
+                _size=size
+            else:
+                _size=size[np.argsort(df[_c])]
+
+            if regression==True:
+                fitted_models, reg_results=_regression(df, x, y, ax, robust_param=robust_param, newkey=&#34;total&#34;, color=regression_color)
+                regression_models.update(fitted_models)
+                regression_results.update(reg_results)
+           
+            sc=ax.scatter(_df[x], _df[y], c=_df[_c], 
+                          cmap=palette_val,
+                          s=_size,
+                          alpha=alpha,
+                          edgecolors=edgecolors,
+                          linewidths=linewidths)
+            if kde==True:
+                sns.kdeplot(data=df, x=x, y=y, ax=ax, color=color, legend=False, **kde_kw)
+                ax.set(xlabel=None)
+                ax.set(ylabel=None)
+
+            if marginal_dist==True:
+                _marginal_plot(fig, ax,df, x,y, &#34;&#34;, lut,_xrange,_yrange , marginal_proportion)
+
+            bb=ax.get_position()
+            axx , axy, axw, axh=bb.bounds
+            _xcax=axx+axw*1.005
+            if marginal_dist==True:
+                _xcax=axx+axw*1.005/marginal_proportion
+            cax = plt.axes([_xcax, axy, 0.02, 0.1])
+            if _unit!=&#34;&#34;:
+                _c=_c+&#34;({})&#34;.format(_unit)
+            plt.colorbar(sc,cax=cax, label=_c, shrink=0.3,aspect=5,orientation=&#34;vertical&#34;,anchor=(0.2,0))
+            if cbar_format!=&#34;&#34;:
+                ax.xaxis.set_major_formatter(StrMethodFormatter(cbar_format))
+
+            #ax.set_title(_c)
+            if _axlabeleach==True:
+                ax.set_xlabel(x)
+                ax.set_ylabel(y)
+
+            _set_axis_format(ax, xformat, yformat, xunit, yunit, logscalex,logscaley)
+
+            if sizes !=&#34;&#34; and show_legend==True:
+                if size_unit!=&#34;&#34;:
+                    sizes=sizes+&#34;(&#34;+size_unit+&#34;)&#34;
+                ax.add_artist(ax.legend(handles=size_legend_elements, title=sizes,bbox_to_anchor=(legendx,1)))
+
+            if len(show_labels)!=0:
+                _add_labels(ax, df, x, y, show_labels[&#34;val&#34;], show_labels[&#34;topn&#34;])
+
+
+    if int(len(c.shape)&gt;1):
+        ax=axes[i]
+        i+=1
+        if type(color_unit)==str:
+            color_unit=[color_unit]
+        _unit=color_unit[-1]
+        ax.margins(margins)
+        ax.set_zorder(1)
+
+        if regression==True:
+            fitted_models, reg_results=_regression(df, x, y, ax, robust_param=robust_param, newkey=&#34;total&#34;, color=regression_color)
+            regression_models.update(fitted_models)
+            regression_results.update(reg_results)
+
+        sc=ax.scatter(df[x], df[y], c=c, 
+                        s=size,
+                        edgecolors=edgecolors,
+                        linewidths=linewidths)
+        ax.text(0.1,0.8, cname, bbox=dict(boxstyle=&#34;round,pad=0.3&#34;, fc=&#34;white&#34;, ec=&#34;gray&#34;, lw=1, alpha=0.8))
+
+
+        if kde==True:
+            sns.kdeplot(data=df, x=x, y=y, ax=ax, color=color, legend=False, **kde_kw)
+            ax.set(xlabel=None)
+            ax.set(ylabel=None)
+
+        if marginal_dist==True:
+            _marginal_plot(fig, ax,df, x,y, &#34;&#34;, lut,_xrange,_yrange , marginal_proportion)
+        
+        if _axlabeleach==True:
+            ax.set_xlabel(x)
+            ax.set_ylabel(y)
+
+        _set_axis_format(ax, xformat, yformat, xunit, yunit, logscalex,logscaley)
+
+        if sizes !=&#34;&#34; and show_legend==True:
+            if size_unit!=&#34;&#34;:
+                sizes=sizes+&#34;(&#34;+size_unit+&#34;)&#34;
+            ax.add_artist(ax.legend(handles=size_legend_elements, title=sizes,bbox_to_anchor=(legendx,1)))
+
+        if len(show_labels)!=0:
+            _add_labels(ax, df, x, y, show_labels[&#34;val&#34;], show_labels[&#34;topn&#34;])
+
+    
+    if len(category)+len(colors)==0 and int(len(c.shape)!=2):
+
+        ax=axes[i]
+        if regression==True:
+            fitted_models, reg_results=_regression(df, x, y, ax, robust_param=robust_param, newkey=&#34;total&#34;, color=regression_color)
+            regression_models.update(fitted_models)
+            regression_results.update(reg_results)
+
+        sc=ax.scatter(df[x], df[y], c=color,s=size,alpha=alpha,edgecolors=edgecolors,linewidths=linewidths)
+        if kde==True:
+            sns.kdeplot(data=df, x=x, y=y, ax=ax, color=color, **kde_kw)
+            ax.set(xlabel=None)
+            ax.set(ylabel=None)
+
+        ax.set_xlabel(x)
+        ax.set_ylabel(y)
+        
+        _set_axis_format(ax, xformat, yformat, xunit, yunit, logscalex,logscaley)
+
+        if sizes !=&#34;&#34; and show_legend==True:
+            if size_unit!=&#34;&#34;:
+                sizes=sizes+&#34;(&#34;+size_unit+&#34;)&#34;
+            ax.add_artist(ax.legend(handles=size_legend_elements, 
+                                    title=sizes,
+                                    bbox_to_anchor=(1.01,1)))
+            
+    if title!=&#34;&#34;:
+        if fig !=None:
+            fig.suptitle(title)
+        else:
+            plt.title(title)
+
+    if axlabel==&#34;single&#34; and fig !=None:
+        bbox=axes[0].get_position()
+        fig.text(0.5, 0.05, x, ha=&#39;center&#39;,fontsize=&#34;large&#34;)
+        fig.text(bbox.bounds[0]*0.5, 0.5, y, va=&#39;center&#39;, rotation=&#39;vertical&#39;,fontsize=&#34;large&#34;)
+
+    if len(axes) != totalnum:
+        for i in range(len(axes)-totalnum):
+            axes[-(i+1)].set_axis_off()
+    
+    _save(save, &#34;scatter&#34;)
+    #  plt.tight_layout()
+
+    return {&#34;axes&#34;:axes, &#34;fig&#34;:fig, 
+            &#34;regression_models&#34;:regression_models, &#34;regression_results&#34;:regression_results, 
+            &#34;kmeans_result&#34;:_kmeans, &#34;df&#34;:df}</code></pre>
+</details>
+</dd>
+<dt id="omniplot.scatter.volcanoplot"><code class="name flex">
+<span>def <span class="ident">volcanoplot</span></span>(<span>df: pandas.core.frame.DataFrame, x: str, y: str, label: str = '', logscalex: bool = False, logscaley: bool = True, sizes: str = '', xthreshold: float = 1, ythreshold: float = 0.05, topn_labels: int = 5, rankby: str = 'both', topn_labels_left: int = 0, topn_labels_right: int = 0, box: bool = True, base_color: str = 'gray', highlight_color: str = 'red', save: str = '', write_csv: Union[bool, str] = False, ax: Optional[matplotlib.axes._axes.Axes] = None, fig: Optional[matplotlib.figure.Figure] = None, markers: bool = False, size: float = 5.0, size_scale: float = 100, plotline: bool = True, linestyle='-', linecolor='darkcyan', alpha: float = 1, size_format: str = '', xformat: str = '', yformat: str = '', xunit: str = '', yunit: str = '', size_unit: str = '', title: str = '', figsize: list = [], gridspec_kw: dict = {})</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def volcanoplot(df: pd.DataFrame,
+                x: str,
+                y: str,
+                label: str=&#34;&#34;,
+                logscalex: bool=False,
+                logscaley: bool=True,
+                sizes: str=&#34;&#34;,
+                xthreshold: float=1,
+                ythreshold: float=0.05,
+                
+                topn_labels: int=5,
+                rankby: str=&#34;both&#34;,
+                topn_labels_left: int=0,
+                topn_labels_right: int=0,
+                box: bool=True,
+
+                base_color: str=&#34;gray&#34;,
+                highlight_color: str=&#34;red&#34;,
+                
+                save: str=&#34;&#34;,
+                write_csv: Union[bool, str]=False,
+
+                ax: Optional[plt.Axes]= None,
+                fig : Optional[mpl.figure.Figure] =None,
+                
+                markers: bool=False,
+                size: float=5.0,
+                size_scale: float=100,
+                plotline: bool=True,
+                linestyle=&#34;-&#34;,
+                linecolor=&#34;darkcyan&#34;,
+                alpha: float=1,
+                size_format: str=&#34;&#34;,
+                xformat: str=&#34;&#34;,
+                yformat: str=&#34;&#34;,
+                xunit: str=&#34;&#34;,
+                yunit:str=&#34;&#34;,
+                size_unit: str=&#34;&#34;,
+                title: str=&#34;&#34;,
+                figsize: list=[],
+                
+                gridspec_kw: dict={},):
+    
+    if topn_labels_left==0 and topn_labels_right==0:
+        topn_labels_left=topn_labels
+        topn_labels_right=topn_labels
+
+    df=copy.deepcopy(df)
+    if len(figsize)==0:
+        figsize=[5,5]
+    if ax==None:
+        
+
+        fig, ax=plt.subplots(figsize=figsize)
+    
+    if np.amax(df[y]) &lt;=1:
+
+        if logscaley!=False:
+            print(&#34;Transforming {} to -log10 values. if you do not want it, set &#39;logscaley=False&#39;.&#34;.format(y))
+            df[y]=-np.log10(df[y])
+    elif logscaley==True:
+        df[y]=-np.log10(df[y])
+    if logscalex==True:
+        df[x]=np.log2(df[x])
+    if ythreshold &lt;1:
+        ythreshold=-np.log10(ythreshold)
+    updown=[]
+    for _x, _y in zip(list(df[x]), list(df[y])):
+        if (_y &lt;=ythreshold) or (np.abs(_x)&lt;xthreshold):
+            updown.append(&#34;ns&#34;)
+        elif _y&gt;ythreshold and _x&gt;=xthreshold:
+            updown.append(&#34;up&#34;)
+        elif _y&gt;ythreshold and _x&lt;=-xthreshold:
+            updown.append(&#34;down&#34;)
+    df[&#34;updown&#34;]=updown
+    
+    sig=df.loc[df[&#34;updown&#34;]==&#34;up&#34;]
+    sig=sig.reset_index()
+    sigm=df.loc[df[&#34;updown&#34;]==&#34;down&#34;]
+    sigm=sigm.reset_index()
+    palette={&#34;ns&#34;: colors.to_rgb(base_color),
+             &#34;up&#34;: colors.to_rgb(highlight_color),
+             &#34;down&#34;: colors.to_rgb(highlight_color)}
+    
+    if sizes!=&#34;&#34;:
+        
+        scatterplot(df=df, x=x, y=y, category=&#34;updown&#34;, ax=ax,sizes=sizes, color=base_color, alpha=alpha, 
+                    edgecolors=None, 
+                    show_legend=False,
+                    size_format=size_format,
+                    xunit=xunit,
+                    yunit=yunit,
+                    size_unit=size_unit,
+                    size_scale=size_scale,
+                    markers=markers,xformat=xformat,yformat=yformat)
+        #ax.scatter(nonsig[x], nonsig[y], c=base_color, s=nonsig[sizes], alpha=alpha,)
+        # scatterplot(df=sig, x=x, y=y, ax=ax,sizes=sizes, color=highlight_color, alpha=alpha, edgecolors=None, show_legend=False)
+        # scatterplot(df=sigm, x=x, y=y, ax=ax,sizes=sizes, color=highlight_color, alpha=alpha, edgecolors=None, show_legend=False, xunit=xunit, yunit=yunit, title=title)
+        # # ax.scatter(sig[x], sig[y], c=highlight_color, s=sig[sizes])
+        # ax.scatter(sigm[x], sigm[y], c=highlight_color, s=sigm[sizes])
+    else:
+        scatterplot(df=df, x=x, y=y, category=&#34;updown&#34;,palette=palette, ax=ax,size=size, color=base_color, alpha=alpha, edgecolors=None, show_legend=False,
+                    xunit=xunit,
+                    yunit=yunit,
+                    markers=markers,xformat=xformat,yformat=yformat,)
+        # scatterplot(df=nonsig, x=x, y=y, ax=ax,size=size, color=base_color, alpha=alpha, edgecolors=None, show_legend=False)
+        # scatterplot(df=sig, x=x, y=y, ax=ax,size=size, color=highlight_color, alpha=alpha, edgecolors=None, show_legend=False)
+        # scatterplot(df=sigm, x=x, y=y, ax=ax,size=size, color=highlight_color, alpha=alpha, edgecolors=None, show_legend=False, xunit=xunit, yunit=yunit, title=title)
+        # ax.scatter(nonsig[x], nonsig[y], c=base_color, s=size)
+        # ax.scatter(sig[x], sig[y], c=highlight_color, s=size)
+        # ax.scatter(sigm[x], sigm[y], c=highlight_color, s=size)
+    
+    # ax.set_xlabel(x)
+    # ax.set_xlabel(y)
+
+    xsrt=np.argsort(sig[x])[::-1]
+    xrank=np.argsort(xsrt)
+    xsrtm=np.argsort(np.abs(sigm[x]))[::-1]
+    xrankm=np.argsort(xsrtm)
+
+    ysrt=np.argsort(sig[y])[::-1]
+    yrank=np.argsort(ysrt)
+    ysrtm=np.argsort(sigm[y])[::-1]
+    yrankm=np.argsort(ysrtm)
+    if rankby==&#34;both&#34;:
+        rank=(xrank+yrank)/2
+        rankm=(xrankm+yrankm)/2
+    elif rankby==&#34;x&#34; or rankby==x:
+        rank=xrank
+        rankm=xrankm
+    elif rankby==&#34;y&#34; or rankby==y:
+        rank=yrank
+        rankm=yrankm
+    labeled_genes=[]
+    texts=[]
+    for _rank, _sig, _topn_labels in zip([rank, rankm], [sig, sigm], [topn_labels_right, topn_labels_left]):
+        if len(_rank)!=0:
+            top_index=np.argsort(_rank)[:_topn_labels]
+            topsig=_sig.iloc[top_index]
+            if label==&#34;&#34;:
+                labels=topsig.index
+            else:
+                labels=topsig[label]
+            
+            for _x, _y, _l in zip(topsig[x],topsig[y], labels):
+                #ax.text(_x, _y, _l)
+                if box==True:
+                    texts.append( ax.text(_x, _y, _l, va=&#34;bottom&#34;,bbox=dict(boxstyle=&#34;round,pad=0.0&#34;, fc=&#34;white&#34;, ec=&#34;y&#34;, lw=0.5, alpha=0.9)))
+                else:
+                    texts.append( ax.text(_x, _y, _l, va=&#34;bottom&#34;))
+            labeled_genes.append(topsig)
+    adjust_text(texts,
+            arrowprops=dict(arrowstyle=&#34;-&#34;, color=&#39;black&#39;, lw=0.5),force_text=(0.2,0.4))
+    ymin, ymax=np.amin(df[y]),np.amax(df[y])
+    xmin, xmax=np.amin(df[x]),np.amax(df[x])
+
+    if plotline==True:
+        ax.plot([xthreshold,xthreshold], [ythreshold, ymax],linestyle, color=linecolor, alpha=0.5)
+        ax.plot([-xthreshold,-xthreshold], [ythreshold, ymax],linestyle, color=linecolor, alpha=0.5)
+        ax.plot([xthreshold, xmax], [ythreshold, ythreshold],linestyle, color=linecolor, alpha=0.5)
+        ax.plot([xmin, -xthreshold], [ythreshold, ythreshold],linestyle, color=linecolor, alpha=0.5)
+        # ax.plot([xmin, xmax], [ythreshold, ythreshold],linestyle)
+    if title!=&#34;&#34;:
+        if fig !=None:
+            fig.suptitle(title)
+        else:
+            plt.title(title)
+    _save(save, &#34;volcano&#34;)
+    res={&#34;upgenes&#34;:sig, &#34;downgenes&#34;:sigm,&#34;labeledgenes&#34;:pd.concat(labeled_genes)}
+    if type(write_csv)==bool and write_csv==True:
+        for k, v in res.items():
+            v.to_csv(k+&#34;.csv&#34;)
+    elif type(write_csv)==str and write_csv!=&#34;&#34;:
+        for k, v in res.items():
+            v.to_csv(write_csv+&#34;_&#34;+k+&#34;.csv&#34;)
+    return  res</code></pre>
 </details>
 </dd>
 </dl>
@@ -3133,12 +5941,14 @@ this can be used like: y_predict=fitted_model.predict(_X)</dd>
 </ul>
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
-<ul class="">
+<ul class="two-column">
 <li><code><a title="omniplot.scatter.clusterplot" href="#omniplot.scatter.clusterplot">clusterplot</a></code></li>
 <li><code><a title="omniplot.scatter.decomplot" href="#omniplot.scatter.decomplot">decomplot</a></code></li>
 <li><code><a title="omniplot.scatter.manifoldplot" href="#omniplot.scatter.manifoldplot">manifoldplot</a></code></li>
 <li><code><a title="omniplot.scatter.pie_scatter" href="#omniplot.scatter.pie_scatter">pie_scatter</a></code></li>
 <li><code><a title="omniplot.scatter.regression_single" href="#omniplot.scatter.regression_single">regression_single</a></code></li>
+<li><code><a title="omniplot.scatter.scatterplot" href="#omniplot.scatter.scatterplot">scatterplot</a></code></li>
+<li><code><a title="omniplot.scatter.volcanoplot" href="#omniplot.scatter.volcanoplot">volcanoplot</a></code></li>
 </ul>
 </li>
 </ul>

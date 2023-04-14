@@ -3190,6 +3190,7 @@ def volcanoplot(df: pd.DataFrame,
                 rankby: str="both",
                 topn_labels_left: int=0,
                 topn_labels_right: int=0,
+                box: bool=True,
 
                 base_color: str="gray",
                 highlight_color: str="red",
@@ -3207,7 +3208,6 @@ def volcanoplot(df: pd.DataFrame,
                 linestyle="-",
                 linecolor="darkcyan",
                 alpha: float=1,
-                edgecolors: str="w",
                 size_format: str="",
                 xformat: str="",
                 yformat: str="",
@@ -3262,14 +3262,25 @@ def volcanoplot(df: pd.DataFrame,
     
     if sizes!="":
         
-        scatterplot(df=df, x=x, y=y, category="updown", ax=ax,sizes=sizes, color=base_color, alpha=alpha, edgecolors=None, show_legend=False)
+        scatterplot(df=df, x=x, y=y, category="updown", ax=ax,sizes=sizes, color=base_color, alpha=alpha, 
+                    edgecolors=None, 
+                    show_legend=False,
+                    size_format=size_format,
+                    xunit=xunit,
+                    yunit=yunit,
+                    size_unit=size_unit,
+                    size_scale=size_scale,
+                    markers=markers,xformat=xformat,yformat=yformat)
         #ax.scatter(nonsig[x], nonsig[y], c=base_color, s=nonsig[sizes], alpha=alpha,)
         # scatterplot(df=sig, x=x, y=y, ax=ax,sizes=sizes, color=highlight_color, alpha=alpha, edgecolors=None, show_legend=False)
         # scatterplot(df=sigm, x=x, y=y, ax=ax,sizes=sizes, color=highlight_color, alpha=alpha, edgecolors=None, show_legend=False, xunit=xunit, yunit=yunit, title=title)
         # # ax.scatter(sig[x], sig[y], c=highlight_color, s=sig[sizes])
         # ax.scatter(sigm[x], sigm[y], c=highlight_color, s=sigm[sizes])
     else:
-        scatterplot(df=df, x=x, y=y, category="updown",palette=palette, ax=ax,size=size, color=base_color, alpha=alpha, edgecolors=None, show_legend=False)
+        scatterplot(df=df, x=x, y=y, category="updown",palette=palette, ax=ax,size=size, color=base_color, alpha=alpha, edgecolors=None, show_legend=False,
+                    xunit=xunit,
+                    yunit=yunit,
+                    markers=markers,xformat=xformat,yformat=yformat,)
         # scatterplot(df=nonsig, x=x, y=y, ax=ax,size=size, color=base_color, alpha=alpha, edgecolors=None, show_legend=False)
         # scatterplot(df=sig, x=x, y=y, ax=ax,size=size, color=highlight_color, alpha=alpha, edgecolors=None, show_legend=False)
         # scatterplot(df=sigm, x=x, y=y, ax=ax,size=size, color=highlight_color, alpha=alpha, edgecolors=None, show_legend=False, xunit=xunit, yunit=yunit, title=title)
@@ -3311,8 +3322,10 @@ def volcanoplot(df: pd.DataFrame,
             
             for _x, _y, _l in zip(topsig[x],topsig[y], labels):
                 #ax.text(_x, _y, _l)
-                texts.append( ax.text(_x, _y, _l, va="bottom"))
-
+                if box==True:
+                    texts.append( ax.text(_x, _y, _l, va="bottom",bbox=dict(boxstyle="round,pad=0.0", fc="white", ec="y", lw=0.5, alpha=0.9)))
+                else:
+                    texts.append( ax.text(_x, _y, _l, va="bottom"))
             labeled_genes.append(topsig)
     adjust_text(texts,
             arrowprops=dict(arrowstyle="-", color='black', lw=0.5),force_text=(0.2,0.4))
@@ -3325,6 +3338,11 @@ def volcanoplot(df: pd.DataFrame,
         ax.plot([xthreshold, xmax], [ythreshold, ythreshold],linestyle, color=linecolor, alpha=0.5)
         ax.plot([xmin, -xthreshold], [ythreshold, ythreshold],linestyle, color=linecolor, alpha=0.5)
         # ax.plot([xmin, xmax], [ythreshold, ythreshold],linestyle)
+    if title!="":
+        if fig !=None:
+            fig.suptitle(title)
+        else:
+            plt.title(title)
     _save(save, "volcano")
     res={"upgenes":sig, "downgenes":sigm,"labeledgenes":pd.concat(labeled_genes)}
     if type(write_csv)==bool and write_csv==True:

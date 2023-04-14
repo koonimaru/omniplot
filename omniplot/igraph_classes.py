@@ -1,6 +1,6 @@
-"""
-This code was copied and mofified from https://igraph.readthedocs.io/en/stable/
-"""
+
+# This code was copied and mofified from https://igraph.readthedocs.io/en/stable/
+
 from igraph.configuration import Configuration
 from warnings import warn
 from igraph.drawing.colors import Palette, palettes
