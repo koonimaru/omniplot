@@ -24,9 +24,23 @@ import copy
 __all__=["_create_color_markerlut", 
          "_separate_data", "_line_annotate", "_dendrogram_threshold", "_radialtree2",
          "_get_cluster_classes","_calc_curveture", "_draw_ci_pi","_calc_r2",
-         "_ci_pi", "_save","_baumkuchen", "_baumkuchen_xy", "_get_embedding"]
+         "_ci_pi", "_save","_baumkuchen", "_baumkuchen_xy", "_get_embedding", "_get_cluster_classes2"]
 
-
+colormap_list: list=["nipy_spectral", 
+                     "terrain",
+                     "tab20b",
+                     "tab20c",
+                     "gist_rainbow",
+                     "hsv",
+                     "CMRmap",
+                     "coolwarm",
+                     "gnuplot",
+                     "gist_stern",
+                     "brg",
+                     "rainbow",
+                     "jet"]
+hatch_list: list = ['//', '\\\\', '||', '--', '++', 'xx', 'oo', 'OO', '..', '**','/o', '\\|', '|*', '-\\', '+o', 'x*', 'o-', 'O|', 'O.', '*-']
+maker_list: list=['.', '_' , '+','|', 'x', 'v', '^', '<', '>', 's', 'p', '*', 'h', 'D', 'd', 'P', 'X','o', '1', '2', '3', '4','|', '_']
 class LineAnnotation(Annotation):
     """A sloped annotation to *line* at position *x* with *text*
     Optionally an arrow pointing from the text to the graph at *x* can be drawn.
@@ -170,13 +184,45 @@ def _calc_curveture(normx, normy):
     perp=np.array(perp)
     return perp
 
-def _get_cluster_classes(den, label='ivl'):
+def _get_cluster_classes2(den,above_threshold_color, label='ivl'):
     cluster_idxs = defaultdict(list)
-    for c, pi in zip(den['color_list'], den['icoord']):
-        for leg in pi[1:3]:
-            i = (leg - 5.0) / 10.0
-            if abs(i - int(i)) < 1e-5:
-                cluster_idxs[c].append(int(i))
+    _cnums_dict={}
+    ccolor_unique=[]
+    ab=0
+    for _color, pi, pj in zip(den['color_list'], den['icoord'], den['dcoord']):
+        for leg, bottom in zip(pi[1:3], [pj[0],pj[3]]):
+            l, r=str(leg).split(".")
+            print(leg, l, r)
+            # i = (leg - 5.0) / 10.0
+            # if abs(i - int(i)) < 1e-5:
+            if l.endswith("5") and r=="0" and bottom==0:
+                if _color==above_threshold_color:
+                    _color=_color+"_"+str(ab)
+                    ab+=1
+                if not _color in ccolor_unique:
+                    ccolor_unique.append(_color)
+                    _cnums_dict[_color]=0
+                _cnums_dict[_color]+=1
+    return _cnums_dict, ccolor_unique
+
+def _get_cluster_classes(den, label='ivl', above_threshold_color="C0"):
+    cluster_idxs = defaultdict(list)
+    ab=0
+    for _color, pi, pj in zip(den['color_list'], den['icoord'], den['dcoord']):
+        for leg, bottom in zip(pi[1:3], [pj[0],pj[3]]):
+            l, r=str(leg).split(".")
+            print(leg, l, r)
+            # i = (leg - 5.0) / 10.0
+            # if abs(i - int(i)) < 1e-5:
+            if l.endswith("5") and r=="0" and bottom==0:
+                if _color==above_threshold_color:
+                    _color=_color+"_"+str(ab)
+                    ab+=1
+
+                for leg in pi[1:3]:
+                    i = (leg - 5.0) / 10.0
+                    if abs(i - int(i)) < 1e-5:
+                        cluster_idxs[_color].append(int(i))
 
     cluster_classes = {}
     for c, l in cluster_idxs.items():
