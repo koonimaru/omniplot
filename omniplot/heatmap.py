@@ -1207,15 +1207,17 @@ def heatmap(df: pd.DataFrame,
     if len(gridspec_kw)==0:
         gridspec_kw={"right":0.80, "bottom":0.1, "top":0.80}
     if len(figsize)==0:
-        figure_height=np.amax([X.shape[0]/5, 4])
+        figure_height=np.amax([X.shape[0]/5, 3])
         if show_legend>0:
             # figure_width=np.amax([figure_height*X.shape[1]/X.shape[0], 4])+1
             figure_width=figure_height*X.shape[1]/X.shape[0]+1
+            figure_width=np.amax([figure_height*X.shape[1]/X.shape[0]+1, 5])
         else:
             # figure_width=np.amax([figure_height*X.shape[1]/X.shape[0], 4])
             figure_width=figure_height*X.shape[1]/X.shape[0]
         figsize=[figure_width,figure_height,]
-    fig=plt.figure(figsize=figsize)
+    print("figsize: ", figsize)
+    fig=plt.figure(figsize=figsize, layout='constrained')
     
 
 
@@ -1232,7 +1234,7 @@ def heatmap(df: pd.DataFrame,
     lcatw=0.05
     
     legendw=0.15*show_legend
-    legendh=0.15
+    
     if row_cluster==True:
         ltreew=0.15
         ttreew=0.6-lcatw*len(category)-legendw
@@ -1249,6 +1251,7 @@ def heatmap(df: pd.DataFrame,
     hmapw=ttreew
     hmaph=ltreeh
     hmapx=xori+ltreew+lcatw*len(category)
+    legendh=(3/Xshape[0])*hmaph
     lcatx=xori+ltreew
 
     print([xori,ltreew,hmapw,legendw])
@@ -1271,16 +1274,15 @@ def heatmap(df: pd.DataFrame,
                 size_format="{x:.2f}"
             elif 0<np.abs(vmax)<=1 or 1000<np.abs(vmax):
                 size_format="{x:.3E}"
-        # sx=vmax*Xshape[0]*hmapw/legendw
-        # sy=3*Xshape[1]*vmax*hmaph/legendh
-        # shapemin=np.amin(Xshape)
-        # # hmapmin=np.amin([hmapw, hmaph])
         sx=1
-        sy=size_legend_num
-        #sy=vmax*hmaph/legendh
-        print(sx, sy)
-        size_legend_elements.append(Rectangle((0 -0.5,0-0.5), sx, sy))
+        _sx=vmax*(hmaph/legendw)*size_legend_num/Xshape[1]
+        _sy=vmax*(hmaph/legendh)*size_legend_num/Xshape[0]
+        _sy=200
+        print("_sy", _sy)
+        size_legend_elements.append(Rectangle((0 -0.5,0-0.5), 1, size_legend_num))
+
         size_labels=[]
+        prev_top=0
         for _i in range(size_legend_num):
             s=vmin+_i*vinterval
             if s <0.1:
@@ -1288,19 +1290,20 @@ def heatmap(df: pd.DataFrame,
             sx=s*(hmapw/legendw)/Xshape[1]
             sy=s*(hmaph/legendh)*size_legend_num/Xshape[0]
             print(sx, sy)
-            _s=_reverse_size(s, 1, smin, smax)
-            size_labels.append(size_format.format(x=_s))
-            # size_legend_elements.append(Line2D([0], [0], marker='o', 
-            #                                    linewidth=0, 
-            #                                    markeredgecolor="white"
-            #                                    ,markersize=s**(0.5),
-            #                                 label=size_format.format(x=_s),
-            #                                 markerfacecolor="black"))
+            
+            if prev_top==0:
+                _yh=0
+            else:
+                _yh=prev_top+sy
             if shape=="rectangle":
+                # size_legend_elements.append(Rectangle((0-sx/2,_yh-sy/2),sx,sy))
                 size_legend_elements.append(Rectangle((0-sx/2,_i-sy/2),sx,sy))
             elif shape=="circle":
+                # size_legend_elements.append(Ellipse((0,_yh),sx,sy))
                 size_legend_elements.append(Ellipse((0,_i),sx,sy))
-
+            prev_top+=sy+0.1
+            _s=_reverse_size(s, 1, smin, smax)
+            size_labels.append([size_format.format(x=_s), _i])
     legend_elements_dict={}
     rclusters={}
     cclusters={}
@@ -1468,12 +1471,12 @@ def heatmap(df: pd.DataFrame,
     if type(Xsize)!=type(None):
         if legendnum>0:
             legendnum+=1
-        axlegend=fig.add_axes([hmapx+hmapw+0.02,0.7-legendnum*0.15,legendw,legendh])
+        axlegend=fig.add_axes([hmapx+hmapw+0.02,0.1,legendw,legendh])
         _pc = PatchCollection(size_legend_elements, edgecolor=["white"]+["darkgray"]*size_legend_num,
                               facecolor=["white"]+["darkgray"]*size_legend_num, 
                               alpha=[0,0.8,0.8,0.8])
-        for _i, _label in enumerate(size_labels):
-            axlegend.text(0.1, _i, _label, color="black", va="center")
+        for _i, (_label, pos) in enumerate(size_labels):
+            axlegend.text(0.1, pos, _label, color="black", va="center")
         axlegend.add_collection(_pc)
         # axlegend.add_artist(axlegend.legend(handles=size_legend_elements, 
         #                                     title="size",bbox_to_anchor=(0.0,0.5),
@@ -1483,7 +1486,7 @@ def heatmap(df: pd.DataFrame,
         if size_title!="":
             axlegend.set_title(size_title)
         axlegend.set_facecolor('lavender')
-    axc=fig.add_axes([hmapx+hmapw,0.065,0.15,0.02])
+    axc=fig.add_axes([hmapx+hmapw+0.02,0.065,0.15,0.02])
 
 
     norm = mpl.colors.Normalize(vmin=np.amin(X), vmax=np.amax(X))
@@ -1510,7 +1513,7 @@ def _add_patches(facecolors, Xshape, shape, row_col, edgecolor, Xsize, _Xsize,ax
             # _pc = PatchCollection(_shapes, facecolor="w", alpha=1,
             #             edgecolor="w")
             _row_col=np.array(row_col)
-            _shapes = [Rectangle((- 0.5,- 0.5), np.amax(_row_col[:,0])+0.5, np.amax(_row_col[:,1])+0.5)]
+            _shapes = [Rectangle((- 0.5,- 0.5), np.amax(_row_col[:,0])+1, np.amax(_row_col[:,1])+1)]
             _pc = PatchCollection(_shapes, facecolor="w", alpha=1,
                         edgecolor="w")
             ax.add_collection(_pc)
@@ -1526,7 +1529,7 @@ def _add_patches(facecolors, Xshape, shape, row_col, edgecolor, Xsize, _Xsize,ax
             #             edgecolor="w")
             # ax.add_collection(_pc)
             _row_col=np.array(row_col)
-            _shapes = [Rectangle((- 0.5,- 0.5), np.amax(_row_col[:,0])+0.5, np.amax(_row_col[:,1])+0.5)]
+            _shapes = [Rectangle((- 0.5,- 0.5), np.amax(_row_col[:,0])+1, np.amax(_row_col[:,1])+1)]
             _pc = PatchCollection(_shapes, facecolor="w", alpha=1,
                         edgecolor="w")
             ax.add_collection(_pc)
