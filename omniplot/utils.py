@@ -20,27 +20,16 @@ from matplotlib.text import Annotation
 from matplotlib.transforms import Affine2D
 import os
 import copy
+colormap_list: list=["nipy_spectral", "terrain","tab20b","tab20c","gist_rainbow","hsv","CMRmap","coolwarm","gnuplot","gist_stern","brg","rainbow","jet"]
+hatch_list: list = ['//', '\\\\', '||', '--', '++', 'xx', 'oo', 'OO', '..', '**','/o', '\\|', '|*', '-\\', '+o', 'x*', 'o-', 'O|', 'O.', '*-']
+marker_list: list=[ "o",'_' , '+','|', 'x', 'v', '^', '<', '>', 's', 'p', '*', 'h', 'D', 'd', 'P', 'X','.', '1', '2', '3', '4','|', '_']
 
 __all__=["_create_color_markerlut", 
          "_separate_data", "_line_annotate", "_dendrogram_threshold", "_radialtree2",
          "_get_cluster_classes","_calc_curveture", "_draw_ci_pi","_calc_r2",
-         "_ci_pi", "_save","_baumkuchen", "_baumkuchen_xy", "_get_embedding", "_get_cluster_classes2"]
+         "_ci_pi", "_save","_baumkuchen", "_baumkuchen_xy", "_get_embedding", "_get_cluster_classes2",
+         "colormap_list", "hatch_list","marker_list"]
 
-colormap_list: list=["nipy_spectral", 
-                     "terrain",
-                     "tab20b",
-                     "tab20c",
-                     "gist_rainbow",
-                     "hsv",
-                     "CMRmap",
-                     "coolwarm",
-                     "gnuplot",
-                     "gist_stern",
-                     "brg",
-                     "rainbow",
-                     "jet"]
-hatch_list: list = ['//', '\\\\', '||', '--', '++', 'xx', 'oo', 'OO', '..', '**','/o', '\\|', '|*', '-\\', '+o', 'x*', 'o-', 'O|', 'O.', '*-']
-maker_list: list=['.', '_' , '+','|', 'x', 'v', '^', '<', '>', 's', 'p', '*', 'h', 'D', 'd', 'P', 'X','o', '1', '2', '3', '4','|', '_']
 class LineAnnotation(Annotation):
     """A sloped annotation to *line* at position *x* with *text*
     Optionally an arrow pointing from the text to the graph at *x* can be drawn.
@@ -189,10 +178,13 @@ def _get_cluster_classes2(den,above_threshold_color, label='ivl'):
     _cnums_dict={}
     ccolor_unique=[]
     ab=0
-    for _color, pi, pj in zip(den['color_list'], den['icoord'], den['dcoord']):
+
+    icoord, dcoord, color_list=zip(*sorted(zip(den["icoord"], den["dcoord"], den["color_list"])))
+
+    for _color, pi, pj in zip(color_list, icoord, dcoord):
         for leg, bottom in zip(pi[1:3], [pj[0],pj[3]]):
             l, r=str(leg).split(".")
-            print(leg, l, r)
+            # print(leg, l, r)
             # i = (leg - 5.0) / 10.0
             # if abs(i - int(i)) < 1e-5:
             if l.endswith("5") and r=="0" and bottom==0:
@@ -205,31 +197,39 @@ def _get_cluster_classes2(den,above_threshold_color, label='ivl'):
                 _cnums_dict[_color]+=1
     return _cnums_dict, ccolor_unique
 
-def _get_cluster_classes(den, label='ivl', above_threshold_color="C0"):
+def _get_cluster_classes(den, label='ivl', above_threshold_color="C0", original_rows=[]):
+    original_rows=list(original_rows)
     cluster_idxs = defaultdict(list)
     ab=0
     for _color, pi, pj in zip(den['color_list'], den['icoord'], den['dcoord']):
         for leg, bottom in zip(pi[1:3], [pj[0],pj[3]]):
             l, r=str(leg).split(".")
-            print(leg, l, r)
+            # print(leg, l, r)
             # i = (leg - 5.0) / 10.0
             # if abs(i - int(i)) < 1e-5:
             if l.endswith("5") and r=="0" and bottom==0:
                 if _color==above_threshold_color:
                     _color=_color+"_"+str(ab)
                     ab+=1
-
-                for leg in pi[1:3]:
-                    i = (leg - 5.0) / 10.0
-                    if abs(i - int(i)) < 1e-5:
-                        cluster_idxs[_color].append(int(i))
+                if l[:-1]=="":
+                    indx=0
+                else:
+                    indx=int(l[:-1])
+                cluster_idxs[_color].append(indx)
 
     cluster_classes = {}
+    label_classes=["" for _ in  range(len(den[label]))]
+        
     for c, l in cluster_idxs.items():
         i_l = [den[label][i] for i in l]
         cluster_classes[c] = i_l
-
-    return cluster_classes
+        if len(original_rows)>0:
+            for i in i_l:
+                label_classes[original_rows.index(i)]=c
+    if len(original_rows)>0:
+        return cluster_classes, label_classes
+    else:
+        return cluster_classes
 
 def _dendrogram_threshold(Z, approx_clusternum):
     lbranches=np.array(Z["dcoord"])[:,:2]

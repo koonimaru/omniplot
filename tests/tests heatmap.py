@@ -71,14 +71,18 @@ elif test=="complex_clustermap":
                         merginalsum=True, title="Penguins")
     plt.show()
 elif test=="heatmap":
-    # df=sns.load_dataset("penguins")
+    df=sns.load_dataset("penguins")
     
-    # df=df.dropna(axis=0)
-    
-    # op.heatmap(df[["bill_length_mm","bill_depth_mm","flipper_length_mm"]], row_ticklabels=False, approx_clusternum=3)
+    df=df.dropna(axis=0)
+    # df=df.reset_index(drop=True)
+    op.heatmap(df=df, variables=["bill_length_mm","bill_depth_mm","flipper_length_mm"],
+               category=["species", "island"], row_ticklabels=False, approx_clusternum=3)
     mat=np.concatenate([0.25*np.random.uniform(0,1,size=[10, 25]),0.5*np.random.uniform(0,1,size=[15, 25]),
                         np.random.uniform(0,1,size=[15, 25])])
     df=pd.DataFrame(mat)
-    op.heatmap(df, sizes=mat, edgecolor=None, approx_clusternum=3)
-    op.heatmap(df, shape="circle", sizes=mat, edgecolor=None, approx_clusternum=3, row_split=True)
+    op.heatmap(df, sizes=mat, edgecolor=None, approx_clusternum=3, ztranform=False)
+    # op.heatmap(df, shape="circle", sizes=mat, edgecolor=None, approx_clusternum=3, row_split=True, ztranform=False)
+    mat=np.arange(50).reshape([5,10]).astype(np.float)
+    df=pd.DataFrame(mat)
+    op.heatmap(df, shape="circle", sizes=mat, edgecolor=None, approx_clusternum=3, ztranform=False, row_split=True)
     plt.show()

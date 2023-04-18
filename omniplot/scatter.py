@@ -27,7 +27,7 @@ from itertools import combinations
 import os
 #script_dir = os.path.dirname( __file__ )
 #sys.path.append( script_dir )
-from omniplot.utils import _create_color_markerlut, _separate_data, _line_annotate, _dendrogram_threshold, _radialtree2,_get_cluster_classes,_calc_curveture, _draw_ci_pi,_calc_r2,_ci_pi, _save, _baumkuchen_xy, _get_embedding
+from omniplot.utils import *
 import scipy.stats as stats
 from joblib import Parallel, delayed
 from omniplot.chipseq_utils import _calc_pearson
@@ -38,10 +38,7 @@ from sklearn.linear_model import RANSACRegressor
 from matplotlib import colors
 from omniplot._adjustText import adjust_text
 import copy
-colormap_list: list=["nipy_spectral", "terrain","tab20b","tab20c","gist_rainbow","hsv","CMRmap","coolwarm","gnuplot","gist_stern","brg","rainbow","jet"]
-hatch_list: list = ['//', '\\\\', '||', '--', '++', 'xx', 'oo', 'OO', '..', '**','/o', '\\|', '|*', '-\\', '+o', 'x*', 'o-', 'O|', 'O.', '*-']
-marker_list: list=[ "o",'_' , '+','|', 'x', 'v', '^', '<', '>', 's', 'p', '*', 'h', 'D', 'd', 'P', 'X','.', '1', '2', '3', '4','|', '_']
-
+from sklearn import metrics
 
 
 plt.rcParams['font.family']= 'sans-serif'
