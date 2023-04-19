@@ -1101,21 +1101,19 @@ def heatmap(df: pd.DataFrame,
                 row_bar: Union[dict, list]={},
                 col_bar: Union[dict, list]={},
                 barkw: dict={},
-                
-                cunit: str="",
+            
                 approx_clusternum: Union[int, str]=3,
                 approx_clusternum_col: int=3,
+
+                cunit: str="",
                 show: bool=False,
-                return_col_cluster: bool=True,
                 ztranform: bool=True,
- 
-                show_plot_labels: bool=False,
+
                 figsize: list=[],
                 title: str="",
                 cbar_title: str="",
 
                 save: str="",
-                heatmap_col: list=[],
                 treepalette: str="tab20b",
                 gridspec_kw: dict={},
                 above_threshold_color="black",
@@ -1204,49 +1202,74 @@ def heatmap(df: pd.DataFrame,
     palette: str="coolwarm"
         The colormap name for the heatmap
 
-    row_colors, col_colors: list or dictionary, optional
-        the column names of categorical values to be plotted as color labels. for the col_colors to be plotted, dfcol options will be needed.
+    col_colors: dictionary, optional
+        A dictionary for column-wise color labels. The number of elemens for each value must be equal to 
+        the number of the df columns.  
     
     row_plot, col_plot : list, optional
-        The column names for the values to be plotted as lines.
-    row_scatter, col_scatter: list, optional
-        The column names for the values to be plotted as points.
-    row_bar, col_bar: list, optional
-        The column names for the values to be plotted as bars.
-    approx_clusternum : int, optional
-        The approximate number of row clusters to be created. Labeling the groups of leaves with different colors. The result of hierarchical clustering won't change.    
-    approx_clusternum_col : int, optional
-        The approximate number of column clusters to be created. Labeling the groups of leaves with different colors. The result of hierarchical clustering won't change.
+        Dictionaries for the values to be plotted as lines.
+    plotkw: dict, optional
+        the keyword arguments for pyplot.plot
 
-    color_var : int, optional
-        The number of potential colors in dendrograms. If some clusters in the dendrogram share a same color (because the number of clusters is too many), 
-        give this option may solve the problem. 
-    merginalsum : bool, optional
-        Whether or not to draw bar plots for merginal distribution.
+    row_scatter, col_scatter: list, optional
+        Dictionaries for the values to be plotted as points.
+    scatterkw: dict, optional
+        the keyword arguments for pyplot.scatter
+    
+    row_bar, col_bar: list, optional
+        Dictionaries for the values to be plotted as bars.
+    barkw: dict, optional
+        the keyword arguments for pyplot.bar
+
+    approx_clusternum : int, optional (default: 3)
+        The approximate number of row clusters to be created. Labeling the groups of leaves with different colors. 
+        The result of hierarchical clustering won't change.    
+    approx_clusternum_col : int, optional (default: 3)
+        The approximate number of column clusters to be created. Labeling the groups of leaves with different colors. 
+        The result of hierarchical clustering won't change.
+
     show : bool, optional
         Whether or not to show the figure.
-    method : string, optional (default: "ward")
-        Method for hierarchical clustering. ["ward", "single", 
-    return_col_cluster : string
-        The title for color values. If not set, "color_val" will be used.
-    
+    cunit: str, optional
+        The color bar unit
+    cbar_title: str, optional
+        The color bar title
+    show: bool, optional (default: False)
+        Whether to show the figure
+
     ztranform: bool, optional (default: True)
-    xticklabels: bool, optional (default: True)
-        Whether or not to show xtick labels
-    yticklabels: bool, optional (default: False)
-        Whether or not to show ytick labels
-    show_plot_labels: bool, optional (default: False)
-        Whether or not to show plot labels.
+        Whether to ztransform values
+
     figsize: list, optional
-        
+        the figure size. 
+
     title: str, optional
+        The title of the figure.
+
     save: str, optional
+        The prefix of a saving file name.
+
+    treepalette: str, optional (default: "tab20b")
+        The colormap of dendrograms
     
-    heatmap_col: list, optional
-        The same as the "variables" option. Will be deprecated.
+    above_threshold_color, optional (default: "black")
+        The color of dendrogram branches above the threshold
+
+    rasterized: bool, optional (default: False)
+        Whether to rasterize the figure
+    
+    size_format: str, optional
+        The format of size values in the legend
+
+    rowplot_format: str, optional (default: "{x:.1f}")
+        The format of y axis values of row plots/scatter/bar
+
+    colplot_format:  str, optional (default: "{x:.1f}")
+        The format of y axis values of row plots/scatter/bar
+    
     Returns
     -------
-        {"row_clusters":pd.DataFrame,"col_clusters":pd.DataFrame, "grid":g}: dict
+        {"row_clsuter":rclusters,"col_cluster":cclusters}
     Raises
     ------
     Notes
@@ -1391,7 +1414,7 @@ def heatmap(df: pd.DataFrame,
     hmaph=ltreeh
     lcatx=xori+ltreew
     tcaty=yori+ltreeh
-    tcath=0.05
+    tcath=0.025
 
     hmapx=xori+ltreew+lcatw*rowplot_num
     ttreey=yori+ltreeh+tcath*colplot_num
@@ -1459,7 +1482,9 @@ def heatmap(df: pd.DataFrame,
             prev_top+=sy+0.1
             _s=_reverse_size(s, 1, smin, smax)
             size_labels.append([size_format.format(x=_s), _i])
-    legend_elements_dict={}
+    
+    # Row-wise clustering 
+    legend_elements_dict={} 
     rclusters={}
     cclusters={}
     if row_cluster==True:
@@ -1488,7 +1513,7 @@ def heatmap(df: pd.DataFrame,
 
         # print(rclusters)
     
-
+    # Column-wise clustering 
     if col_cluster==True:
         tcmap = _tcmap(np.linspace(0, 1, approx_clusternum_col))
         sch.set_link_color_palette([mpl.colors.rgb2hex(rgb[:3]) for rgb in tcmap])
@@ -1620,12 +1645,9 @@ def heatmap(df: pd.DataFrame,
         for _i, (_label, pos) in enumerate(size_labels):
             axlegend.text(0.1, pos, _label, color="black", va="center")
         axlegend.add_collection(_pc)
-        # axlegend.add_artist(axlegend.legend(handles=size_legend_elements, 
-        #                                     title="size",bbox_to_anchor=(0.0,0.5),
-        #                                     loc="center left"))
+
         axlegend.axis('off')
-        # axlegend.set_xticks([])
-        # axlegend.set_yticks([])
+
         axlegend.margins(0.0)
         if size_title!="":
             axlegend.set_title(size_title)
@@ -1646,6 +1668,9 @@ def heatmap(df: pd.DataFrame,
     fig.suptitle(title)
     # plt.subplots_adjust(**gridspec_kw)
     _save(save, "heatmap")
+    if show==True:
+        plt.show()
+
     return {"row_clsuter":rclusters,"col_cluster":cclusters}
 
 def _add_patches(facecolors, Xshape, shape, row_col, edgecolor, Xsize, 
