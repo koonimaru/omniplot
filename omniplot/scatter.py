@@ -27,7 +27,7 @@ from itertools import combinations
 import os
 #script_dir = os.path.dirname( __file__ )
 #sys.path.append( script_dir )
-from omniplot.utils import _create_color_markerlut, _separate_data, _line_annotate, _dendrogram_threshold, _radialtree2,_get_cluster_classes,_calc_curveture, _draw_ci_pi,_calc_r2,_ci_pi, _save, _baumkuchen_xy, _get_embedding
+from omniplot.utils import *
 import scipy.stats as stats
 from joblib import Parallel, delayed
 from omniplot.chipseq_utils import _calc_pearson
@@ -38,10 +38,7 @@ from sklearn.linear_model import RANSACRegressor
 from matplotlib import colors
 from omniplot._adjustText import adjust_text
 import copy
-colormap_list: list=["nipy_spectral", "terrain","tab20b","tab20c","gist_rainbow","hsv","CMRmap","coolwarm","gnuplot","gist_stern","brg","rainbow","jet"]
-hatch_list: list = ['//', '\\\\', '||', '--', '++', 'xx', 'oo', 'OO', '..', '**','/o', '\\|', '|*', '-\\', '+o', 'x*', 'o-', 'O|', 'O.', '*-']
-marker_list: list=[ "o",'_' , '+','|', 'x', 'v', '^', '<', '>', 's', 'p', '*', 'h', 'D', 'd', 'P', 'X','.', '1', '2', '3', '4','|', '_']
-
+from sklearn import metrics
 
 
 plt.rcParams['font.family']= 'sans-serif'
@@ -64,7 +61,8 @@ def _scatter(_df,
              edgecolors="w",
              linewidths=1.0,
              outside=False,
-             legendx=1.01, legendy=1,c=[]):
+             legendx=1.01, 
+             legendy=1,c=[]):
     if len(c)!=0:
         sc=ax.scatter(_df[x], _df[y], c=c, s=size,edgecolors=edgecolors)
         plt.colorbar(sc,ax=ax, label=cat, shrink=0.3,aspect=5,orientation="vertical")
@@ -807,7 +805,8 @@ def clusterplot(df: pd.DataFrame,
         Whether to convert data into z scores.
     palette: list, optional (default: ["Spectral","cubehelix"])
     
-    save: str="",
+    save: str, optional
+
     piesize_scale: float=0.02
     Returns
     -------
@@ -2210,7 +2209,7 @@ def decomplot(df: pd.DataFrame,
               arrow_num: int=3,
               figsize=[],
               regularization: bool=True,
-              pcapram={"random_state":0},
+              pcaparam={"random_state":0},
               nmfparam={"random_state":0},
               save: str="",
               title: str="",
@@ -2227,22 +2226,70 @@ def decomplot(df: pd.DataFrame,
     ----------
     df : pandas DataFrame
     
-    category: str
+    category: str, optional
         the column name of a known sample category (if exists). 
+
     variables: list, optional
         The names of variables to calculate decomposition.
-    method: str
+
+    method: str, optional (default: "pca")
         Method name for decomposition. Available methods: ["pca", "nmf"]
-    component: int
+
+    component: int, optional (default: 3)
         The component number
     
+    arrow_color: str, optional (default: "yellow")
+        The color of eigen vectors
+
+    arrow_text_color: str, optional (default: "black")
+        The color of the labels of eigen vectors
+
+    explained_variance: bool, optional (default: True)
+        Wheter to plot explained_variance to interpret the PCA/NMF results.
+
+    arrow_num: int, optional (default: 3)
+        The number of eigen vectors to be displayed
+
+    figsize: list, optional
+        The figure size
+
+    regularization: bool, optional (default: True)
+        Whether to regularize the data (z score for PCA and zero to one scaling for NMF)
+
+    pcaparam: dict, optional (default: {"random_state":0})
+        The hyperparameter for PCA.
+
+    nmfparam: dict, optional (default: {"random_state":0})
+        The hyperparameter for NFM.
+
+    save: str, optional
+        if you give a filename to this option, it will save produced figures.
+
+    title: str, optional
+        A figure title.
+
+    markers: bool, optional (default: False)
+        Whether to make points to be different shapes
+
+    saveparam: dict, optional
+        Parameters for saving figures
+
+    ax: Optional[plt.Axes], optional (default: None)
+        Axis object to plot
+    
+    palette: str, optional (default: "tab20b")
+        A matplotlib colormap name
+
+    size: int, optional (default: 10)
+        scatter point size
+
     show : bool
         Whether or not to show the figure.
     
     Returns
     -------
-        dict {"data": dfpc_list,"pca": pca, "axes":axes, "axes_explained":ax2} for pca method
-        or {"data": dfpc_list, "W":W, "H":H,"axes":axes,"axes_explained":axes2} for nmf method
+        {"data": dfpc_list,"pca": pca, "axes":axes, "axes_explained":ax2}: dict for pca method
+        {"data": dfpc_list, "W":W, "H":H,"axes":axes,"axes_explained":axes2}: dict for nmf method
             
     
     Raises
@@ -2319,9 +2366,9 @@ def decomplot(df: pd.DataFrame,
             axes=axes.flatten()
         figures["nocat"]={"fig": fig, "axes":axes}
     if method=="pca":
-        if regularization:
+        if regularization==True:
             x=zscore(x, axis=0)
-        pca = PCA(n_components=component,**pcapram)
+        pca = PCA(n_components=component,**pcaparam)
         pccomp = pca.fit_transform(x)
         loadings = pca.components_.T * np.sqrt(pca.explained_variance_)
         combnum=0
@@ -2393,7 +2440,7 @@ def decomplot(df: pd.DataFrame,
         return {"data": dfpc_list,"pca": pca, "axes":figures, "axes_explained":ax2}
     elif method=="nmf":
         nmf=NMF(n_components=component,**nmfparam)
-        if regularization:
+        if regularization==True:
             x=x/np.sum(x,axis=0)[None,:]
         W = nmf.fit_transform(x)
         H = nmf.components_
