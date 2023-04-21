@@ -14,7 +14,7 @@ test="regression"
 test="correlation"
 test="complex_clustermap"
 test="heatmap"
-
+test="heatmap"
 if test=="correlation":
     df=sns.load_dataset("penguins")
     df=df.dropna(axis=0)
@@ -61,7 +61,7 @@ elif test=="complex_clustermap":
                         row_bar=["body_mass_g"],
                         col_colors=["features"],
                         approx_clusternum=3,
-                        merginalsum=True, title="Penguins")
+                        marginalsum=True, title="Penguins")
     plt.show()
 elif test=="heatmap":
     df=sns.load_dataset("penguins")

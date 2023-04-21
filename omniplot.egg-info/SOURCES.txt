@@ -7,6 +7,7 @@ omniplot/_version.py
 omniplot/chipseq.py
 omniplot/chipseq_utils.py
 omniplot/data.py
+omniplot/heatmap.py
 omniplot/igraph_classes.py
 omniplot/networkplot.py
 omniplot/plot.py
