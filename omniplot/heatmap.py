@@ -1669,34 +1669,7 @@ def heatmap(df: pd.DataFrame,
             facecolors=cmap(_X)
         elif dtype=="categorical":
              facecolors=[_color_lut[u] for u in _X]
-            # if column_wise_color==False:
-            #     _uniq_labels=np.unique(_X)
-            #     _cmap=plt.get_cmap(cpalette, len(_uniq_labels))
-            #     _color_lut={u: _cmap(i) for i, u in enumerate(_uniq_labels)}
-            #     legend_elements=[]
-            #     for _cat, _color in _color_lut.items():
-            #         legend_elements.append(Line2D([0], [0], marker="s", linewidth=0, markeredgecolor="darkgray",
-            #                             label=_cat,
-            #                             markerfacecolor=_color))
-            #     legend_elements_dict["categorical"]=legend_elements
-            # else:
-            #     _color_lut={}
-            #     _color_lut_class={}
-            #     for i in range(Xshape[1]):
-            #         __X=X[:,i]
-            #         _uniq_labels=np.unique(__X)
-            #         _cmap=plt.get_cmap(colormap_list[i+int(row_cluster)+int(col_cluster)], len(_uniq_labels))
-            #         _tmp_lut={u: _cmap(i) for i, u in enumerate(_uniq_labels)}
-                    
-            #         legend_elements=[]
-            #         for _cat, _color in _tmp_lut.items():
-            #             legend_elements.append(Line2D([0], [0], marker="s", linewidth=0, markeredgecolor="darkgray",
-            #                                 label=_cat,
-            #                                 markerfacecolor=_color))
-            #         legend_elements_dict[collabels[i]]=legend_elements
-            #         _color_lut.update(_tmp_lut)
-            # facecolors=[_color_lut[u] for u in _X]
-
+            
         row_col=[ [j,i] for i in range(X.shape[0]) for j in range(X.shape[1])]
         
         ax=fig.add_axes([hmapx,yori,hmapw,hmaph])
@@ -1735,7 +1708,7 @@ def heatmap(df: pd.DataFrame,
 
     # Setting the color bar
     
-    if dtype=="numeric":
+    if dtype=="numerical":
         axc=fig.add_axes([hmapx+hmapw+0.02,0.09,0.15,0.02])
         norm = mpl.colors.Normalize(vmin=np.amin(X), vmax=np.amax(X))
         cb1 = mpl.colorbar.ColorbarBase(axc, cmap=cmap,
