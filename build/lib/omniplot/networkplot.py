@@ -483,7 +483,10 @@ def pienodes(g: igraph.Graph,
     return {"axes":ax}
 
 
-def sankey_flow(df):
+def sankey_linkage(df: pd.DataFrame,
+                   src: str,
+                   trg: str,
+                   ):
     
     pass
 
@@ -539,45 +542,66 @@ def correlation(df: pd.DataFrame,
     
     ----------
     df : pandas DataFrame
+
     variables: list, optional (default: [])
         the names of values to calculate correlations
          
     category: str or list, optional (default: [])
         the names of categorical values to display as color labels
+
     method: str, optional (default: "pearson")
         method for correlation/distance calculation. Availables: "pearson", "euclidean", "cosine",
         if a distance method is chosen, sigmoidal function is used to convert distances into edge weights.
+
     layout: str, optional
         Networkx layouts include: pydot_layout, spring_layout, random_layout, circular_layout and so on. Please see https://networkx.org/documentation/stable/reference/drawing.html
+    
     palette : str, optional (default: "tab20c")
         A colormap name.
+    
     clustering: str, optional (default: "louvain")
         Networkx clustering methods include:  "louvain", "greedy_modularity", "kernighan_lin_bisection", "asyn_lpa_communities","asyn_fluidc"
+    
     figsize : List[int], optional
         The figure size, e.g., [4, 6].
+    
     ztransform : bool, optional
         Whether to transform values to z-score
+    
     threshold : float, optional (default: 0.5)
         A cutoff value to remove edges of which correlations/distances are less than this value
+   
     layout_param: dict, optional
         Networkx layout parameters related to the layout option
+    
     node_edge_color: str, optional (default: "black")
         The colors of node edges.
         
     edge_color: str, optional (default: "weight")
         The color of edges. The default will color edges based on the edge weights calculated based on pearson/distance methods.
+    
     edge_cmap: str, optional (default: "hot")
         
     edge_width: Union[str, float]="weight",
+    
     node_size: float=50,
+    
     node_alpha: float=0.85,
+    
     linewidths: float=0.5,
+    
     n_jobs: int=-1,
+    
     edges_alpha: float=0.7,
+    
     edge_width_scaling: float=4,
+    
     rows_cols: list=[],
+    
     node_color="b",
+    
     bundle: bool=True,
+    
     show_edges: bool=True
     
     Returns

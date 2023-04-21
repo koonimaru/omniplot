@@ -1,5 +1,4 @@
 import sys, os 
-import sys
 #sys.path.append("../omniplot")
 from omniplot  import plot as op
 import pandas as pd
@@ -15,7 +14,7 @@ test="regression"
 test="correlation"
 test="complex_clustermap"
 test="heatmap"
-
+test="heatmap"
 if test=="correlation":
     df=sns.load_dataset("penguins")
     df=df.dropna(axis=0)
@@ -48,13 +47,7 @@ elif test=="triangle_heatmap":
     df=pd.DataFrame(data=mat, index=labels, columns=labels)
     op.triangle_heatmap(df,grid_pos=[2*s//10,5*s//10,7*s//10],grid_labels=["A","B","C","D"])
 elif test=="complex_clustermap":
-    # _df=pd.DataFrame(np.arange(100).reshape([10,10]))
-    # cmap=plt.get_cmap("tab20b")
-    # complex_clustermap(_df,
-    #                    row_colormap={"test1":[cmap(v) for v in np.linspace(0,1,10)]},
-    #                    row_plot={"sine":np.sin(np.linspace(0,np.pi,10))},
-    #                    approx_clusternum=3,
-    #                    merginalsum=True)
+
     df=sns.load_dataset("penguins")
     
     df=df.dropna(axis=0)
@@ -68,19 +61,22 @@ elif test=="complex_clustermap":
                         row_bar=["body_mass_g"],
                         col_colors=["features"],
                         approx_clusternum=3,
-                        merginalsum=True, title="Penguins")
+                        marginalsum=True, title="Penguins")
     plt.show()
 elif test=="heatmap":
     df=sns.load_dataset("penguins")
     
     df=df.dropna(axis=0)
     # df=df.reset_index(drop=True)
-    op.heatmap(df=df, variables=["bill_length_mm","bill_depth_mm","flipper_length_mm"],
+    op.heatmap(df=df, variables=["bill_length_mm","bill_depth_mm","flipper_length_mm"],row_split=True, clustering_method="kmeans",
                category=["species", "island"],col_colors={"colors": ["bill","bill","flipper"]}, row_plot=["body_mass_g"], row_ticklabels=False, approx_clusternum=3)
+    op.heatmap(df=df, dtype="categorical", variables=["species", "island", "sex"],
+               row_plot=["body_mass_g"], row_ticklabels=False, approx_clusternum=3,column_wise_color=True) 
     mat=np.concatenate([0.25*np.random.uniform(0,1,size=[10, 25]),0.5*np.random.uniform(0,1,size=[15, 25]),
                         np.random.uniform(0,1,size=[15, 25])])
     df=pd.DataFrame(mat)
     op.heatmap(df, sizes=mat, 
+               row_split=True,
                row_plot={"normal": np.random.normal(size=mat.shape[0])}, 
                row_scatter={"uniform": np.random.uniform(size=mat.shape[0])}, 
                row_bar={"range": np.arange(mat.shape[0])},
@@ -90,5 +86,5 @@ elif test=="heatmap":
     # op.heatmap(df, shape="circle", sizes=mat, edgecolor=None, approx_clusternum=3, row_split=True, ztranform=False)
     mat=np.arange(50).reshape([5,10]).astype(np.float)
     df=pd.DataFrame(mat)
-    op.heatmap(df, shape="triangle", sizes=mat, edgecolor=None, approx_clusternum=3, ztranform=False, row_split=True)
+    op.heatmap(df, shape="triangle", sizes=mat, row_cluster=False,col_cluster=False, edgecolor=None, approx_clusternum=3, ztranform=False, row_split=True)
     plt.show()
