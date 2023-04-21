@@ -11,7 +11,7 @@ from scipy.cluster.hierarchy import leaves_list
 from matplotlib import cm
 from scipy.cluster import hierarchy
 import scipy.stats as stats
-colormap_list=["nipy_spectral", "terrain","tab20b","gist_rainbow","tab20c","CMRmap","coolwarm","gnuplot","gist_stern","brg","rainbow"]
+colormap_list=["tab20b","tab20c", "terrain","nipy_spectral","cubehelix","PiYG","gnuplot","gnuplot2","gist_stern","CMRmap","RdYlGn","gist_rainbow"]
 plt.rcParams['font.family']= 'sans-serif'
 plt.rcParams['font.sans-serif'] = ['Arial']
 plt.rcParams['svg.fonttype'] = 'none'
@@ -20,12 +20,12 @@ from matplotlib.text import Annotation
 from matplotlib.transforms import Affine2D
 import os
 import copy
-colormap_list: list=["nipy_spectral", "terrain","tab20b","tab20c","gist_rainbow","hsv","CMRmap","coolwarm","gnuplot","gist_stern","brg","rainbow","jet"]
+# colormap_list: list=["nipy_spectral", "terrain","tab20b","tab20c","gist_rainbow","hsv","CMRmap","coolwarm","gnuplot","gist_stern","brg","rainbow","jet"]
 hatch_list: list = ['//', '\\\\', '||', '--', '++', 'xx', 'oo', 'OO', '..', '**','/o', '\\|', '|*', '-\\', '+o', 'x*', 'o-', 'O|', 'O.', '*-']
 marker_list: list=[ "o",'_' , '+','|', 'x', 'v', '^', '<', '>', 's', 'p', '*', 'h', 'D', 'd', 'P', 'X','.', '1', '2', '3', '4','|', '_']
 
 __all__=["_create_color_markerlut", 
-         "_separate_data", "_line_annotate", "_dendrogram_threshold", "_radialtree2",
+         "_separate_data","_separate_cdata", "_line_annotate", "_dendrogram_threshold", "_radialtree2",
          "_get_cluster_classes","_calc_curveture", "_draw_ci_pi","_calc_r2",
          "_ci_pi", "_save","_baumkuchen", "_baumkuchen_xy", "_get_embedding", "_get_cluster_classes2",
          "colormap_list", "hatch_list","marker_list"]
@@ -1077,6 +1077,27 @@ def _separate_data(df, variables=[],
         if x.dtype!=float: 
             raise TypeError(f"data must contain only float values. \
         or you can specify the numeric variables with the option 'variables'.")
+        
+    return x, category
+
+def _separate_cdata(df, variables=[], 
+                   category=""):
+    if len(variables) !=0:
+        x = np.array(df[variables].values)
+        if len(category) !=0:
+            if type(category)==str:
+                category=[category]
+
+    elif len(category) !=0:
+        if type(category)==str:
+            category=[category]
+        #category_val=df[category].values
+        df=df.drop(category, axis=1)
+        x = np.array(df.values)
+        
+    else:    
+        x = df.values
+        #category_val=[]
         
     return x, category
 

@@ -34,7 +34,7 @@ from omniplot.chipseq_utils import _calc_pearson
 import itertools as it
 from matplotlib.collections import PatchCollection
 from matplotlib.patches import Rectangle, Circle,Ellipse, RegularPolygon, Polygon
-
+import copy
 __all__=["correlation", "triangle_heatmap", "complex_clustermap","dotplot", "heatmap"]
 def correlation(df: pd.DataFrame, 
                 category: Union[str, list]=[],
@@ -1067,10 +1067,15 @@ def heatmap(df: pd.DataFrame,
                 fillna: float=0,
                 colors: str="",
                 
+                dtype: str="numerical",
+                column_wise_color: bool=False,
+
                 sizes: Union[str, list, np.ndarray, pd.DataFrame]="",
                 size_title: str="",
 
                 clustering_method: str="hierarchical",
+                kmeans_kw: dict={},
+
                 method: str="ward",
                 metric: str="euclidean",
                 row_cluster: bool=True,
@@ -1088,7 +1093,7 @@ def heatmap(df: pd.DataFrame,
                 colrot: int=90,
                 
                 palette:str="coolwarm",
-
+                cpalette:str="tab20b",
                 row_colors: Union[dict, list]={},
                 col_colors: Union[dict, list]={},
                 row_plot: Union[dict, list]={},
@@ -1281,8 +1286,8 @@ def heatmap(df: pd.DataFrame,
     Examples
     --------
     """
-
-
+    row_colors=copy.deepcopy(row_colors)
+    col_colors=copy.deepcopy(col_colors)
     def _scale_size(x, size_scale, smin, smax):
         return size_scale*((x-smin)/(smax-smin))
     def _reverse_size(x, size_scale, smin, smax):
@@ -1294,83 +1299,30 @@ def heatmap(df: pd.DataFrame,
 
 
     # Separating values into heatmap colors, sizes, ans category
-    Xsize=None
+    
     lut={}
-    if len(variables)==0 and len(category)==0 and len(row)==0 and len(col)==0:
-        print("Assuming data is a wide form")
-        if rowlabels=="":
-            rowlabels=np.array(df.index)
-        else:
-            rowlabels=np.array(df[rowlabels])
-            df=df.drop([rowlabels], axis=1)
-        X=df.to_numpy()
-        if type(sizes)==pd.DataFrame:
-            Xsize=sizes.to_numpy()
-            if size_title=="":
-                try:
-                    size_title=sizes.name
-                except:
-                    size_title=""
-        elif type(sizes)==dict:
-            size_title, Xsize, =list(sizes.keys())[0], list(sizes.values())[0]
-        elif type(sizes)==np.ndarray or type(sizes)==list:
-            Xsize=np.array(sizes)
-        
-        collabels=np.array(df.columns)
-    elif len(row)==0 and len(col)==0:
-        print("Assuming data is a wide form")
-        if rowlabels=="":
-            rowlabels=np.array(df.index)
-        else:
-            rowlabels=np.array(df[rowlabels])
-            df=df.drop([rowlabels], axis=1)
-        X, category=_separate_data(df, variables, category)
-        
-        for cat, _palette in zip(category, colormap_list):
-            _clut, _mlut=_create_color_markerlut(df, cat,_palette,marker_list)
-            lut[cat]={"colorlut":_clut, "markerlut":_mlut}
-        if type(sizes)==pd.DataFrame:
-            Xsize=sizes.to_numpy()
-        elif type(sizes)==np.ndarray or type(sizes)==list:
-            Xsize=np.array(sizes)
-        elif type(sizes)==str and sizes!="":
-            Xsize=df[sizes].values
-
-        if len(variables)>0:
-            collabels=np.array(variables)
-        else:
-            collabels=np.array(df.drop(category, axis=1).columns)
-    elif len(variables)==0 and len(category)==0:
-        print("Assuming data is a long form")
-        _df=df.pivot_table(index=row, columns=col, values=colors)
-        _df=_df.fillna(fillna)
-        X=_df.to_numpy()
-        if type(sizes)==str and sizes !="":
-            _df=df.pivot_table(index=row, columns=col, values=sizes)
-            Xsize=_df.to_numpy()
-
-        if type(rowlabels)==str and rowlabels=="":
-            rowlabels=np.array(_df.index)
-        else:
-            rowlabels=np.array(rowlabels)
-        collabels=np.array(df.columns)
-    else:
-        raise Exception("")
-    rowlabels=rowlabels.astype(str)
-
-    rowplot_num=len(category)+len(row_colors)+len(row_plot)+len(row_scatter)+len(row_bar)
+    if dtype=="numerical":
+        (df, X, category, rowlabels, collabels, 
+        Xsize, size_title, cunit, lut)=_process_vdata(df, variables, category,
+                                                        row,  col,rowlabels, 
+                                                        sizes, size_title, 
+                                                        colors, lut,fillna,ztranform,cunit)
+    elif  dtype=="categorical":
+        (df, X, category, rowlabels, collabels, 
+         Xsize, size_title, cunit, lut)=_process_cdata(df, variables,category ,
+                                                       row,  col,rowlabels, sizes, size_title, 
+                                                       colors, lut,fillna,cunit)
+        if row_cluster==True or col_cluster==True:
+            clustering_method="kmodes"
+            print("Categorical variables are provided. 'kmodes' will be used for the clustering method.")
+    rowplot_num=len(category)+len(row_colors)+len(row_plot)+len(row_scatter)+len(row_bar)+int(clustering_method=="kmeans")+int(clustering_method=="kmodes")
     colplot_num=len(col_colors)+len(col_plot)+len(col_scatter)+len(col_bar)
     Xshape=X.shape
-    if ztranform==True:
-        X=zscore(X, axis=0)
-        if cunit =="":
-            cunit="zscore"
-    if np.sum(X.shape)>200:
+    if np.sum(Xshape)>200:
         edgecolor=None
+    show_legend=int(rowplot_num>0 or type(Xsize)!=type(None))
+    
 
-    show_legend=int(rowplot_num>0 or type(Xsize)!=None)
-    if len(gridspec_kw)==0:
-        gridspec_kw={"right":0.80, "bottom":0.1, "top":0.80}
     if len(figsize)==0:
         figure_height=np.amax([X.shape[0]/5, 3])
         if show_legend>0:
@@ -1392,7 +1344,7 @@ def heatmap(df: pd.DataFrame,
         lmax=0
     # print(lmax)
     xori=0.1
-    yori=0.1+lmax
+    yori=0.11+lmax
     lcatw=0.05
     
     legendw=0.15*show_legend
@@ -1426,8 +1378,6 @@ def heatmap(df: pd.DataFrame,
     size_legend_num=3
     size_legend_elements=[]
     if type(Xsize)!=type(None):
-
-        
         smin=np.amin(Xsize)
         smax=np.amax(Xsize)
         _scaled=_scale_size(Xsize,1, smin, smax)
@@ -1488,77 +1438,163 @@ def heatmap(df: pd.DataFrame,
     rclusters={}
     cclusters={}
     if row_cluster==True:
+        if clustering_method=="hierarchical":
+            # Drawing the left dendrogram
+            ax0=fig.add_axes([xori,yori,ltreew,ltreeh])
+            X, Xsize, Z, rowlabels, rclusters=_dendrogram(X, 
+                                                                    Xsize, ax0,rowlabels,
+                                                                    treepalette ,
+                                                                    approx_clusternum, 
+                                                                    metric,method,above_threshold_color, "left")
 
-        # Drawing the left dendrogram
-        ax0=fig.add_axes([xori,yori,ltreew,ltreeh])
-        _tcmap=plt.get_cmap(treepalette)
-        tcmap = _tcmap(np.linspace(0, 1, approx_clusternum))
-        sch.set_link_color_palette([mpl.colors.rgb2hex(rgb[:3]) for rgb in tcmap])
-        D=squareform(pdist(X,metric=metric))
-        Y = sch.linkage(D, method=method)
-        Z = sch.dendrogram(Y,orientation="left",above_threshold_color=above_threshold_color, no_plot=True)
-        t=_dendrogram_threshold(Z,approx_clusternum)
+            ax0.axis('off')
+            ax0.margins(y=margin)
+            sortindexr=Z["leaves"]
+        elif clustering_method=="kmeans":
+            _kmeans = KMeans(n_clusters=approx_clusternum, random_state=0, n_init="auto").fit(X, *kmeans_kw)
+            row_colors["kmeans_row"]=_kmeans.labels_.astype(str)
+            sortindexr=np.lexsort((X.mean(axis=1),_kmeans.labels_))
+            X=X[sortindexr]
+            rowlabels=rowlabels[sortindexr]
+            _klabels=_kmeans.labels_[sortindexr]
+            for i, (kclass, label) in enumerate(zip(_klabels, rowlabels)):
+                if not kclass in rclusters:
+                    rclusters[kclass]=[]
+                rclusters[kclass].append(label)
+        elif clustering_method=="kmodes":
+            try:
+                from kmodes.kmodes import KModes
+            except ImportError:
+                from pip._internal import main as pip
+                pip(['install', '--user', 'kmodes'])
+            km = KModes(n_clusters=3, init='Huang', n_init=5, verbose=1)
+            clusters = km.fit_predict(X)
+            row_colors["kmodes_row"]=clusters.astype(str)
+            sortindexr=np.argsort(clusters)
+            X=X[sortindexr]
+            rowlabels=rowlabels[sortindexr]
+            _klabels=clusters[sortindexr]
+            for i, (kclass, label) in enumerate(zip(_klabels, rowlabels)):
+                if not kclass in rclusters:
+                    rclusters[kclass]=[]
+                rclusters[kclass].append(label)
 
-        Z = sch.dendrogram(Y,ax=ax0,orientation="left",labels=rowlabels,color_threshold=t,above_threshold_color=above_threshold_color)
-        ax0.axis('off')
-        ax0.margins(y=margin)
-        # Sorting the row values of X.
-        X=X[Z['leaves']]
-        if type(Xsize)!=type(None):
-            Xsize=Xsize[Z['leaves']]
-
-        rclusters, _rlabels = _get_cluster_classes(Z, original_rows=rowlabels)
-        # print(_rlabels)
-        rowlabels=rowlabels[Z['leaves']]
-
-        # print(rclusters)
-    
+    else:
+        sortindexr=np.arange(len(rowlabels))
     # Column-wise clustering 
     if col_cluster==True:
-        tcmap = _tcmap(np.linspace(0, 1, approx_clusternum_col))
-        sch.set_link_color_palette([mpl.colors.rgb2hex(rgb[:3]) for rgb in tcmap])
-        ax1=fig.add_axes([hmapx,ttreey,ttreew,ttreeh])
-        Dt=squareform(pdist(X.T,metric=metric))
-        Yt = sch.linkage(Dt, method=method)
+        
+        if clustering_method=="hierarchical":
+            ax1=fig.add_axes([hmapx,ttreey,ttreew,ttreeh])
+            X, Xsize, Zt, collabels, cclusters,=_dendrogram(X, 
+                                                                    Xsize, ax1,collabels,
+                                                                    treepalette ,
+                                                                    approx_clusternum_col, 
+                                                                    metric,method,above_threshold_color, "top")     
+            ax1.axis('off')
+            ax1.margins(x=margin)
+            sortindexc=Zt["leaves"]
 
-        Zt = sch.dendrogram(Yt,orientation="top",above_threshold_color=above_threshold_color, no_plot=True)
-        t=_dendrogram_threshold(Zt,approx_clusternum)
-
-        Zt = sch.dendrogram(Yt,ax=ax1,orientation="top",labels=collabels,color_threshold=t,above_threshold_color=above_threshold_color)
-        ax1.axis('off')
-        ax1.margins(x=margin)
-
-        X=X[:,Zt['leaves']]
-        if type(Xsize)!=type(None):
-            Xsize=Xsize[:,Zt['leaves']]
-        collabels=collabels[Zt['leaves']]
-
-        cclusters = _get_cluster_classes(Z)
+        elif clustering_method=="kmeans":
+            _ckmeans = KMeans(n_clusters=approx_clusternum, random_state=0, n_init="auto").fit(X.T, *kmeans_kw)
+            col_colors["kmeans_column"]=_ckmeans.labels_.astype(str)
+            sortindexc=np.lexsort((X.mean(axis=0),_ckmeans.labels_))
+            X=X[:,sortindexc]
+            collabels=collabels[sortindexc]
+            _cklabels=_ckmeans.labels_[sortindexc]
+            for i, (kclass, label) in enumerate(zip(_cklabels, collabels)):
+                if not kclass in cclusters:
+                    cclusters[kclass]=[]
+                cclusters[kclass].append(label)
+        elif clustering_method=="kmodes":
+            try:
+                from kmodes.kmodes import KModes
+            except ImportError:
+                from pip._internal import main as pip
+                pip(['install', '--user', 'kmodes'])
+            km = KModes(n_clusters=3, init='Huang', n_init=5, verbose=1)
+            clustersc = km.fit_predict(X.T)
+            col_colors["kmodes_column"]=clustersc.astype(str)
+            sortindexc=np.argsort(clustersc)
+            X=X[:, sortindexc]
+            collabels=collabels[sortindexc]
+            _cklabels=clustersc[sortindexc]
+            print(_cklabels,collabels )
+            for i, (kclass, label) in enumerate(zip(_cklabels, collabels)):
+                if not kclass in cclusters:
+                    cclusters[kclass]=[]
+                cclusters[kclass].append(label)
+    else:
+        sortindexc=np.arange(len(collabels))
     catnum=0
-    legend_elements_dict, catnum=_row_plot(df, Z, fig, category, lut, row_plot, row_scatter, 
-                                   row_bar, rowplot_format, legend_elements_dict, 
-                                   Xshape, lcatx,lcatw,yori,hmaph, margin, plotkw, scatterkw, barkw, catnum)
-    legend_elements_dict, catnum=_col_plot(Zt, fig, col_colors, col_plot, 
-              col_scatter, col_bar, 
-              colplot_format,
-                legend_elements_dict, 
-                Xshape, tcaty,tcath,hmapx,
-                hmapw, margin, plotkw, scatterkw, barkw, catnum)
-    cmap=plt.get_cmap(palette)
-    Xmin=np.amin(X)
-    Xmax=np.amax(X)
-    if type(Xsize)!=type(None):
-        Xsizemin=np.amin(Xsize)
-        Xsizemax=np.amax(Xsize)
+    legend_elements_dict, catnum=_row_plot(df, 
+                                           sortindexr, 
+                                           fig, 
+                                           category, 
+                                           lut,
+                                           row_colors,
+                                           row_plot, 
+                                           row_scatter, 
+                                           row_bar, 
+                                           rowplot_format, 
+                                           legend_elements_dict, 
+                                           Xshape, 
+                                           lcatx,lcatw,
+                                           yori,hmaph, margin, 
+                                           plotkw, scatterkw, barkw, catnum)
+    legend_elements_dict, catnum=_col_plot(sortindexc, fig, col_colors, col_plot, 
+                                            col_scatter, col_bar, 
+                                            colplot_format,
+                                            legend_elements_dict, 
+                                            Xshape, tcaty,tcath,hmapx,
+                                            hmapw, margin, plotkw, scatterkw, barkw, catnum)
     
-    # facecolors=np.array([cmap(i) for i in mat.flatten()])
-    # facecolors=cmap(X.flatten())
-    
-    if row_split==True:
-        _cnums_dict, ccolor_unique=_get_cluster_classes2(Z,above_threshold_color)
+    # Creating the heatmap
+    if dtype=="numerical":
+        cmap=plt.get_cmap(palette)
+        Xmin=np.amin(X)
+        Xmax=np.amax(X)
+        if type(Xsize)!=type(None):
+            Xsizemin=np.amin(Xsize)
+            Xsizemax=np.amax(Xsize)
+    if dtype=="categorical":
+        if column_wise_color==False:
+            _uniq_labels=np.unique(X.flatten())
+            _cmap=plt.get_cmap(cpalette, len(_uniq_labels))
+            _color_lut={u: _cmap(i) for i, u in enumerate(_uniq_labels)}
+            legend_elements=[]
+            for _cat, _color in _color_lut.items():
+                legend_elements.append(Line2D([0], [0], marker="s", linewidth=0, markeredgecolor="darkgray",
+                                    label=_cat,
+                                    markerfacecolor=_color))
+            legend_elements_dict["categorical"]=legend_elements
+        else:
+            _color_lut={}
+            for i in range(Xshape[1]):
+                __X=X[:,i]
+                _uniq_labels=np.unique(__X)
+                print(colormap_list[i+int(row_cluster)+int(col_cluster)], _uniq_labels)
+                _cmap=plt.get_cmap(colormap_list[i+int(row_cluster)+int(col_cluster)], len(_uniq_labels))
+                _tmp_lut={u: _cmap(i) for i, u in enumerate(_uniq_labels)}
+                
+                legend_elements=[]
+                for _cat, _color in _tmp_lut.items():
+                    legend_elements.append(Line2D([0], [0], marker="s", linewidth=0, markeredgecolor="darkgray",
+                                        label=_cat,
+                                        markerfacecolor=_color))
+                legend_elements_dict[collabels[i]]=legend_elements
+                _color_lut.update(_tmp_lut)
 
-        print(_cnums_dict, ccolor_unique)
-        cnums=np.array([_cnums_dict[k] for k in ccolor_unique])
+    if row_split==True and row_cluster==True:
+        if clustering_method=="hierarchical":
+            _cnums_dict, ccolor_unique=_get_cluster_classes2(Z,above_threshold_color)
+            print("_cnums_dict", "ccolor_unique", _cnums_dict, ccolor_unique)
+            cnums=np.array([_cnums_dict[k] for k in ccolor_unique])
+        else:
+            _klabels
+            u, i, c=np.unique(_klabels, return_counts=True, return_index=True
+                    )
+            cnums=c[np.argsort(i)]
         _cnums=cnums/np.sum(cnums)
         print(cnums, _cnums)
         _y=0
@@ -1569,8 +1605,11 @@ def heatmap(df: pd.DataFrame,
             Xsub=X[_r:_r+c]
             Xsubshape=Xsub.shape
             _X=Xsub.flatten()
-            _X=(_X-Xmin)/(Xmax-Xmin)
-            facecolors=cmap(_X)
+            if dtype=="numerical":
+                _X=(_X-Xmin)/(Xmax-Xmin)
+                facecolors=cmap(_X)
+            elif dtype=="categorical":
+                facecolors=[_color_lut[u] for u in _X]
             _Xsize=None
             if type(Xsize)!=type(None):
                 Xsizesub=Xsize[_r:_r+c]
@@ -1579,19 +1618,19 @@ def heatmap(df: pd.DataFrame,
             row_col=[ [j,i] for i in range(Xsub.shape[0]) for j in range(Xsub.shape[1])]
             
             _add_patches(facecolors, 
-                         Xsubshape, 
-                         shape, 
-                         row_col, 
-                         None, 
-                         Xsize, 
-                         _Xsize,
-                         ax,
-                         row_ticklabels,
-                         rowlabels[_r:_r+c], 
-                         rowrot, 
-                         col_ticklabels, 
-                         collabels, 
-                         colrot,rasterized)
+                        Xsubshape, 
+                        shape, 
+                        row_col, 
+                        None, 
+                        Xsize, 
+                        _Xsize,
+                        ax,
+                        row_ticklabels,
+                        rowlabels[_r:_r+c], 
+                        rowrot, 
+                        col_ticklabels, 
+                        collabels, 
+                        colrot,rasterized)
             ax.margins(x=margin,y=margin)
             ax.tick_params(pad=1,axis='both', which='both', length=0)
             if _y>0:
@@ -1601,44 +1640,71 @@ def heatmap(df: pd.DataFrame,
             _y+=hmaph*_c
             if c==1:
                 for pos in TBLR:
-                    ax.spines[pos].set_color('lightgray')
+                    ax.spines[pos].set_color('gray')
             else:
                 for pos in TBLR:
-                    ax.spines[pos].set_color('gray')
-
-        print(_y)
-            #plt.setp([ax.get_xticklines(), ax.get_yticklines()], color="w")
+                    ax.spines[pos].set_color('black')
     else:
         _X=X.flatten()
-        _X=(_X-Xmin)/(Xmax-Xmin)
-        # print(Xsize)
-        # print(type(Xsize))
         _Xsize=None
         if type(Xsize)!=type(None):
             _Xsize=Xsize.flatten()
             _Xsize=(_Xsize-Xsizemin)/(Xsizemax-Xsizemin)
-        facecolors=cmap(_X)
+        if dtype=="numerical":
+            _X=(_X-Xmin)/(Xmax-Xmin)
+            facecolors=cmap(_X)
+        elif dtype=="categorical":
+             facecolors=[_color_lut[u] for u in _X]
+            # if column_wise_color==False:
+            #     _uniq_labels=np.unique(_X)
+            #     _cmap=plt.get_cmap(cpalette, len(_uniq_labels))
+            #     _color_lut={u: _cmap(i) for i, u in enumerate(_uniq_labels)}
+            #     legend_elements=[]
+            #     for _cat, _color in _color_lut.items():
+            #         legend_elements.append(Line2D([0], [0], marker="s", linewidth=0, markeredgecolor="darkgray",
+            #                             label=_cat,
+            #                             markerfacecolor=_color))
+            #     legend_elements_dict["categorical"]=legend_elements
+            # else:
+            #     _color_lut={}
+            #     _color_lut_class={}
+            #     for i in range(Xshape[1]):
+            #         __X=X[:,i]
+            #         _uniq_labels=np.unique(__X)
+            #         _cmap=plt.get_cmap(colormap_list[i+int(row_cluster)+int(col_cluster)], len(_uniq_labels))
+            #         _tmp_lut={u: _cmap(i) for i, u in enumerate(_uniq_labels)}
+                    
+            #         legend_elements=[]
+            #         for _cat, _color in _tmp_lut.items():
+            #             legend_elements.append(Line2D([0], [0], marker="s", linewidth=0, markeredgecolor="darkgray",
+            #                                 label=_cat,
+            #                                 markerfacecolor=_color))
+            #         legend_elements_dict[collabels[i]]=legend_elements
+            #         _color_lut.update(_tmp_lut)
+            # facecolors=[_color_lut[u] for u in _X]
+
         row_col=[ [j,i] for i in range(X.shape[0]) for j in range(X.shape[1])]
         
         ax=fig.add_axes([hmapx,yori,hmapw,hmaph])
         _add_patches(facecolors, Xshape, shape, row_col, edgecolor, Xsize, 
-                     _Xsize,ax,row_ticklabels,rowlabels, rowrot, 
-                     col_ticklabels, collabels, colrot,rasterized)
+                    _Xsize,ax,row_ticklabels,rowlabels, rowrot, 
+                    col_ticklabels, collabels, colrot,rasterized)
         ax.margins(x=margin,y=margin)
         ax.tick_params(pad=1,axis='both', which='both', length=0)
     legendnum=0
-    if len(category) >0:
+    if len(legend_elements_dict) >0:
         for legendnum, (cat, legend_elements) in enumerate(legend_elements_dict.items()):
             axlegend=fig.add_axes([hmapx+hmapw,ttreey-legendnum*0.15,legendw,legendh])
             axlegend.add_artist(axlegend.legend(handles=legend_elements, 
                                                 title=cat,bbox_to_anchor=(0.0,0.5),
                                                 loc="center left"))
             axlegend.axis('off')
-            
+
+           
     if type(Xsize)!=type(None):
         if legendnum>0:
             legendnum+=1
-        axlegend=fig.add_axes([hmapx+hmapw+0.02,0.1,legendw,legendh])
+        axlegend=fig.add_axes([hmapx+hmapw+0.02,0.11,legendw,legendh])
         _pc = PatchCollection(size_legend_elements, edgecolor=["white"]+["darkgray"]*size_legend_num,
                               facecolor=["white"]+["darkgray"]*size_legend_num, 
                               alpha=[0,0.8,0.8,0.8])
@@ -1654,17 +1720,19 @@ def heatmap(df: pd.DataFrame,
         axlegend.set_facecolor('lavender')
 
     # Setting the color bar
-    axc=fig.add_axes([hmapx+hmapw+0.02,0.065,0.15,0.02])
-    norm = mpl.colors.Normalize(vmin=np.amin(X), vmax=np.amax(X))
-    cb1 = mpl.colorbar.ColorbarBase(axc, cmap=cmap,
-                                    norm=norm,
-                                    orientation='horizontal')
-    if cbar_title!="":
-        cb1.set_title(cbar_title)
-    if ztranform==True:
-        cb1.set_label('z-score')
-    elif cunit!="":
-        cb1.set_label(cunit)
+    
+    if dtype=="numeric":
+        axc=fig.add_axes([hmapx+hmapw+0.02,0.09,0.15,0.02])
+        norm = mpl.colors.Normalize(vmin=np.amin(X), vmax=np.amax(X))
+        cb1 = mpl.colorbar.ColorbarBase(axc, cmap=cmap,
+                                        norm=norm,
+                                        orientation='horizontal')
+        if cbar_title!="":
+            cb1.set_title(cbar_title)
+        if ztranform==True:
+            cb1.set_label('z-score')
+        elif cunit!="":
+            cb1.set_label(cunit)
     fig.suptitle(title)
     # plt.subplots_adjust(**gridspec_kw)
     _save(save, "heatmap")
@@ -1749,8 +1817,8 @@ def _add_patches(facecolors, Xshape, shape, row_col, edgecolor, Xsize,
     else:
         ax.set_xticks([])
 
-def _row_plot(df, Z, fig, 
-              category, lut, row_plot, 
+def _row_plot(df, leaves, fig, 
+              category, lut, row_colors, row_plot, 
               row_scatter, row_bar, 
               rowplot_format,
                 legend_elements_dict, 
@@ -1771,7 +1839,7 @@ def _row_plot(df, Z, fig,
         ax.invert_xaxis()
 
     row_plot_index=0
-    _df=df.iloc[Z['leaves']]
+    _df=df.iloc[leaves]
     if len(category)!=0:
         for cat in category:
             ax=fig.add_axes([lcatx+row_plot_index*lcatw,yori,lcatw,hmaph])
@@ -1795,97 +1863,19 @@ def _row_plot(df, Z, fig,
             legend_elements_dict[cat]=legend_elements
             row_plot_index+=1
             catnum+=1
-    if len(row_plot)!=0:
-        if type(row_plot)==list:
-            for cat in row_plot:
-                val=_df[cat]
-                ax=fig.add_axes([lcatx+row_plot_index*lcatw,yori,lcatw,hmaph])
-                ax.plot(val,np.arange(len(val)),**plotkw)
-                set_axis(ax, val, cat, margin, rowplot_format)
 
-                row_plot_index+=1
-        elif type(row_plot)==dict:
-            
-            for cat, val in row_plot.items():
-                val=np.array(val)[Z['leaves']]
-                ax=fig.add_axes([lcatx+row_plot_index*lcatw,yori,lcatw,hmaph])
-                ax.plot(val,np.arange(len(val)),**plotkw)
-                set_axis(ax, val, cat, margin, rowplot_format)
-                row_plot_index+=1
-                
-    if len(row_scatter)!=0:
-        if type(row_scatter)==list:
-            for cat in row_scatter:
-                val=_df[cat]
-                ax=fig.add_axes([lcatx+row_plot_index*lcatw,yori,lcatw,hmaph])
-                ax.scatter(val,np.arange(len(val)),**scatterkw)
-                set_axis(ax, val, cat, margin, rowplot_format)
-                row_plot_index+=1
-
-        elif type(row_scatter)==dict:
-            
-            for cat, val in row_scatter.items():
-                val=np.array(val)[Z['leaves']]
-                ax=fig.add_axes([lcatx+row_plot_index*lcatw,yori,lcatw,hmaph])
-                ax.scatter(val,np.arange(len(val)),**scatterkw)
-                set_axis(ax, val, cat, margin, rowplot_format)
-                row_plot_index+=1
-
-    if len(row_bar)!=0:
-        if type(row_bar)==list:
-            for cat in row_bar:
-                val=_df[cat]
-                ax=fig.add_axes([lcatx+row_plot_index*lcatw,yori,lcatw,hmaph])
-                ax.barh(np.arange(len(val)), width=val,**barkw)
-                set_axis(ax, val, cat, margin, rowplot_format)
-                row_plot_index+=1
-
-        elif type(row_bar)==dict:
-            
-            for cat, val in row_bar.items():
-                val=np.array(val)[Z['leaves']]
-                ax=fig.add_axes([lcatx+row_plot_index*lcatw,yori,lcatw,hmaph])
-                ax.barh(np.arange(len(val)), width=val,**barkw)
-                set_axis(ax, val, cat, margin, rowplot_format)
-                row_plot_index+=1
-    return legend_elements_dict, catnum
-
-
-
-def _col_plot(Zt, fig, col_colors, col_plot, 
-              col_scatter, col_bar, 
-              colplot_format,
-                legend_elements_dict, 
-                Xshape, tcaty,tcatw,hmapx,
-                hmapw, margin, plotkw, scatterkw, barkw ,catnum):
-    
-    def set_axis(_ax, _val, _cat, _margin, _lowplot_format):
-        _ax.tick_params(pad=-5)
-        _ax.margins(x=_margin,y=_margin)
-        _ax.set_ylabel(_cat, rotation=0, labelpad=20)
-        vmin, vmax=np.amin(_val), np.amax(_val)
-        shift=(vmax-vmin)/5
-
-        _ax.set_yticks([vmin+shift, vmax-shift],
-                        labels=[_lowplot_format.format(x=vmin), 
-                        _lowplot_format.format(x=vmax)], 
-                        rotation=0)
-        _ax.set_xticks([])
-
-
-    row_plot_index=0
-    if len(col_colors)!=0:
-        for i, (cat, val) in enumerate(col_colors.items()):
-            print(Zt['leaves'])
-            val=np.array(val)[Zt['leaves']]
-            ax=fig.add_axes([hmapx,tcaty+row_plot_index*tcatw,hmapw,tcatw])
+    if len(row_colors)!=0:
+        for i, (cat, val) in enumerate(row_colors.items()):
+            # print(leaves)
+            val=np.array(val)[leaves]
+            ax=fig.add_axes([lcatx+row_plot_index*lcatw,yori,lcatw,hmaph])
             uniq_labels=np.unique(val)
             _cmap=plt.get_cmap(colormap_list[catnum], len(uniq_labels))
         
             color_lut={u: _cmap(i) for i, u in enumerate(uniq_labels)}
             facecolors=[color_lut[_cat] for _cat in val]
-            _shapes = [Rectangle(( _y - 0.5,  - 0.5), 1.0, 1.0)
-                        for _y in range(Xshape[1])]
+            _shapes = [Rectangle(( - 0.5, _y - 0.5), 1.0, 1.0)
+                        for _y in range(Xshape[0])]
             _pc = PatchCollection(_shapes, facecolor=facecolors, alpha=1,
                         edgecolor=facecolors)
             ax.add_collection(_pc)
@@ -1903,13 +1893,123 @@ def _col_plot(Zt, fig, col_colors, col_plot,
             legend_elements_dict[cat]=legend_elements
             row_plot_index+=1
             catnum+=1
+    if len(row_plot)!=0:
+        if type(row_plot)==list:
+            for cat in row_plot:
+                val=_df[cat]
+                ax=fig.add_axes([lcatx+row_plot_index*lcatw,yori,lcatw,hmaph])
+                ax.plot(val,np.arange(len(val)),**plotkw)
+                set_axis(ax, val, cat, margin, rowplot_format)
+
+                row_plot_index+=1
+        elif type(row_plot)==dict:
+            
+            for cat, val in row_plot.items():
+                val=np.array(val)[leaves]
+                ax=fig.add_axes([lcatx+row_plot_index*lcatw,yori,lcatw,hmaph])
+                ax.plot(val,np.arange(len(val)),**plotkw)
+                set_axis(ax, val, cat, margin, rowplot_format)
+                row_plot_index+=1
+                
+    if len(row_scatter)!=0:
+        if type(row_scatter)==list:
+            for cat in row_scatter:
+                val=_df[cat]
+                ax=fig.add_axes([lcatx+row_plot_index*lcatw,yori,lcatw,hmaph])
+                ax.scatter(val,np.arange(len(val)),**scatterkw)
+                set_axis(ax, val, cat, margin, rowplot_format)
+                row_plot_index+=1
+
+        elif type(row_scatter)==dict:
+            
+            for cat, val in row_scatter.items():
+                val=np.array(val)[leaves]
+                ax=fig.add_axes([lcatx+row_plot_index*lcatw,yori,lcatw,hmaph])
+                ax.scatter(val,np.arange(len(val)),**scatterkw)
+                set_axis(ax, val, cat, margin, rowplot_format)
+                row_plot_index+=1
+
+    if len(row_bar)!=0:
+        if type(row_bar)==list:
+            for cat in row_bar:
+                val=_df[cat]
+                ax=fig.add_axes([lcatx+row_plot_index*lcatw,yori,lcatw,hmaph])
+                ax.barh(np.arange(len(val)), width=val,**barkw)
+                set_axis(ax, val, cat, margin, rowplot_format)
+                row_plot_index+=1
+
+        elif type(row_bar)==dict:
+            
+            for cat, val in row_bar.items():
+                val=np.array(val)[leaves]
+                ax=fig.add_axes([lcatx+row_plot_index*lcatw,yori,lcatw,hmaph])
+                ax.barh(np.arange(len(val)), width=val,**barkw)
+                set_axis(ax, val, cat, margin, rowplot_format)
+                row_plot_index+=1
+    return legend_elements_dict, catnum
+
+
+
+def _col_plot(leaves, fig, col_colors, col_plot, 
+              
+              col_scatter, col_bar, 
+              colplot_format,
+                legend_elements_dict, 
+                Xshape, tcaty,tcatw,hmapx,
+                hmapw, margin, plotkw, scatterkw, barkw ,catnum):
+    
+    def set_axis(_ax, _val, _cat, _margin, _lowplot_format, pad=-5):
+        _ax.tick_params(pad=pad)
+        _ax.margins(x=_margin,y=_margin)
+        _ax.set_ylabel(_cat, rotation=0,labelpad=20, ha="right")
+        vmin, vmax=np.amin(_val), np.amax(_val)
+        shift=(vmax-vmin)/5
+
+        _ax.set_yticks([vmin+shift, vmax-shift],
+                        labels=[_lowplot_format.format(x=vmin), 
+                        _lowplot_format.format(x=vmax)], 
+                        rotation=0)
+        _ax.set_xticks([])
+
+
+    row_plot_index=0
+    if len(col_colors)!=0:
+        for i, (cat, val) in enumerate(col_colors.items()):
+            # print(leaves)
+            val=np.array(val)[leaves]
+            ax=fig.add_axes([hmapx,tcaty+row_plot_index*tcatw,hmapw,tcatw])
+            # ax.tick_params(pad=15)
+            uniq_labels=np.unique(val)
+            _cmap=plt.get_cmap(colormap_list[catnum], len(uniq_labels))
+        
+            color_lut={u: _cmap(i) for i, u in enumerate(uniq_labels)}
+            facecolors=[color_lut[_cat] for _cat in val]
+            _shapes = [Rectangle(( _y - 0.5,  - 0.5), 1.0, 1.0)
+                        for _y in range(Xshape[1])]
+            _pc = PatchCollection(_shapes, facecolor=facecolors, alpha=1,
+                        edgecolor=facecolors)
+            ax.add_collection(_pc)
+            ax.set_xticks([])
+            ax.set_yticks([])
+            ax.margins(x=margin,y=margin)
+            # ax.axis('off')
+
+            ax.set_ylabel(cat, rotation=0,labelpad=0, ha="right")
+            legend_elements=[]
+            for _cat, _color in color_lut.items():
+                legend_elements.append(Line2D([0], [0], marker="s", linewidth=0, markeredgecolor="darkgray",
+                                    label=_cat,
+                                    markerfacecolor=_color))
+            legend_elements_dict[cat]=legend_elements
+            row_plot_index+=1
+            catnum+=1
     if len(col_plot)!=0:
         if type(col_plot)==list:
             raise Exception("Currently, 'col_plot' option accepts only dictionary")
         elif type(col_plot)==dict:
             
             for cat, val in col_plot.items():
-                val=np.array(val)[Zt['leaves']]
+                val=np.array(val)[leaves]
                 ax=fig.add_axes([hmapx,tcaty+row_plot_index*tcatw,hmapw,tcatw])
                 ax.plot(val,np.arange(len(val)),**plotkw)
                 set_axis(ax, val, cat, margin, colplot_format)
@@ -1922,7 +2022,7 @@ def _col_plot(Zt, fig, col_colors, col_plot,
         elif type(col_scatter)==dict:
             
             for cat, val in col_scatter.items():
-                val=np.array(val)[Zt['leaves']]
+                val=np.array(val)[leaves]
                 ax=fig.add_axes([hmapx,tcaty+row_plot_index*tcatw,hmapw,tcatw])
                 ax.scatter(val,np.arange(len(val)),**scatterkw)
                 set_axis(ax, val, cat, margin, colplot_format)
@@ -1935,9 +2035,179 @@ def _col_plot(Zt, fig, col_colors, col_plot,
         elif type(col_bar)==dict:
             
             for cat, val in col_bar.items():
-                val=np.array(val)[Zt['leaves']]
+                val=np.array(val)[leaves]
                 ax=fig.add_axes([hmapx,tcaty+row_plot_index*tcatw,hmapw,tcatw])
                 ax.bar(np.arange(len(val)), height=val,**barkw)
                 set_axis(ax, val, cat, margin, colplot_format)
                 row_plot_index+=1
     return legend_elements_dict, catnum
+
+
+def _process_vdata(df, variables,category ,row,  col,rowlabels, sizes, size_title, colors, lut,fillna, ztranform,cunit):
+    Xsize=None
+    if len(variables)==0 and len(category)==0 and len(row)==0 and len(col)==0:
+        print("Assuming data is a wide form")
+        if rowlabels=="":
+            rowlabels=np.array(df.index)
+        else:
+            rowlabels=np.array(df[rowlabels])
+            df=df.drop([rowlabels], axis=1)
+        X=df.to_numpy()
+        if type(sizes)==pd.DataFrame:
+            Xsize=sizes.to_numpy()
+            if size_title=="":
+                try:
+                    size_title=sizes.name
+                except:
+                    size_title=""
+        elif type(sizes)==dict:
+            size_title, Xsize, =list(sizes.keys())[0], list(sizes.values())[0]
+        elif type(sizes)==np.ndarray or type(sizes)==list:
+            Xsize=np.array(sizes)
+        
+        collabels=np.array(df.columns)
+    elif len(row)==0 and len(col)==0:
+        print("Assuming data is a wide form")
+        if rowlabels=="":
+            rowlabels=np.array(df.index)
+        else:
+            rowlabels=np.array(df[rowlabels])
+            df=df.drop([rowlabels], axis=1)
+        X, category=_separate_data(df, variables, category)
+        
+        for cat, _palette in zip(category, colormap_list):
+            _clut, _mlut=_create_color_markerlut(df, cat,_palette,marker_list)
+            lut[cat]={"colorlut":_clut, "markerlut":_mlut}
+        if type(sizes)==pd.DataFrame:
+            Xsize=sizes.to_numpy()
+        elif type(sizes)==np.ndarray or type(sizes)==list:
+            Xsize=np.array(sizes)
+        elif type(sizes)==str and sizes!="":
+            Xsize=df[sizes].values
+
+        if len(variables)>0:
+            collabels=np.array(variables)
+        else:
+            collabels=np.array(df.drop(category, axis=1).columns)
+    elif len(variables)==0 and len(category)==0:
+        print("Assuming data is a long form")
+        _df=df.pivot_table(index=row, columns=col, values=colors)
+        _df=_df.fillna(fillna)
+        X=_df.to_numpy()
+        if type(sizes)==str and sizes !="":
+            _df=df.pivot_table(index=row, columns=col, values=sizes)
+            Xsize=_df.to_numpy()
+
+        if type(rowlabels)==str and rowlabels=="":
+            rowlabels=np.array(_df.index)
+        else:
+            rowlabels=np.array(rowlabels)
+        collabels=np.array(df.columns)
+    else:
+        raise Exception("")
+    rowlabels=rowlabels.astype(str)
+    if ztranform==True:
+        X=zscore(X, axis=0)
+        if cunit =="":
+            cunit="zscore"
+    return df, X, category, rowlabels, collabels, Xsize, size_title, cunit, lut
+
+
+def _process_cdata(df, variables,category ,row,  col,rowlabels, sizes, size_title, colors, lut,fillna,cunit):
+    Xsize=None
+    if len(variables)==0 and len(category)==0 and len(row)==0 and len(col)==0:
+        print("Assuming data is a wide form")
+        if rowlabels=="":
+            rowlabels=np.array(df.index)
+        else:
+            rowlabels=np.array(df[rowlabels])
+            df=df.drop([rowlabels], axis=1)
+        X=df.to_numpy()
+        if type(sizes)==pd.DataFrame:
+            Xsize=sizes.to_numpy()
+            if size_title=="":
+                try:
+                    size_title=sizes.name
+                except:
+                    size_title=""
+        elif type(sizes)==dict:
+            size_title, Xsize, =list(sizes.keys())[0], list(sizes.values())[0]
+        elif type(sizes)==np.ndarray or type(sizes)==list:
+            Xsize=np.array(sizes)
+        
+        collabels=np.array(df.columns)
+    elif len(row)==0 and len(col)==0:
+        print("Assuming data is a wide form")
+        if rowlabels=="":
+            rowlabels=np.array(df.index)
+        else:
+            rowlabels=np.array(df[rowlabels])
+            df=df.drop([rowlabels], axis=1)
+    
+        X, category=_separate_cdata(df, variables, category)
+        
+        for cat, _palette in zip(category, colormap_list):
+            _clut, _mlut=_create_color_markerlut(df, cat,_palette,marker_list)
+            lut[cat]={"colorlut":_clut, "markerlut":_mlut}
+        if type(sizes)==pd.DataFrame:
+            Xsize=sizes.to_numpy()
+        elif type(sizes)==np.ndarray or type(sizes)==list:
+            Xsize=np.array(sizes)
+        elif type(sizes)==str and sizes!="":
+            Xsize=df[sizes].values
+
+        if len(variables)>0:
+            collabels=np.array(variables)
+        else:
+            collabels=np.array(df.drop(category, axis=1).columns)
+    elif len(variables)==0 and len(category)==0:
+        print("Assuming data is a long form")
+        _df=df.pivot_table(index=row, columns=col, values=colors)
+        _df=_df.fillna(fillna)
+        X=_df.to_numpy()
+        if type(sizes)==str and sizes !="":
+            _df=df.pivot_table(index=row, columns=col, values=sizes)
+            Xsize=_df.to_numpy()
+
+        if type(rowlabels)==str and rowlabels=="":
+            rowlabels=np.array(_df.index)
+        else:
+            rowlabels=np.array(rowlabels)
+        collabels=np.array(df.columns)
+    else:
+        raise Exception("")
+    rowlabels=rowlabels.astype(str)
+
+    return df, X, category, rowlabels, collabels, Xsize, size_title, cunit, lut
+
+
+def _dendrogram(X, Xsize, ax, rowlabels,treepalette ,approx_clusternum, metric,method,above_threshold_color,orientation):
+
+    _tcmap=plt.get_cmap(treepalette)
+    tcmap = _tcmap(np.linspace(0, 1, approx_clusternum))
+    sch.set_link_color_palette([mpl.colors.rgb2hex(rgb[:3]) for rgb in tcmap])
+    if orientation=="left":
+        D=squareform(pdist(X,metric=metric))
+    elif orientation=="top":
+        D=squareform(pdist(X.T,metric=metric))
+    Y = sch.linkage(D, method=method)
+    Z = sch.dendrogram(Y,orientation=orientation,above_threshold_color=above_threshold_color, no_plot=True)
+    t=_dendrogram_threshold(Z,approx_clusternum)
+
+    Z = sch.dendrogram(Y,ax=ax,orientation=orientation,labels=rowlabels,color_threshold=t,above_threshold_color=above_threshold_color)
+    # Sorting the row values of X.
+    if orientation=="left":
+        X=X[Z['leaves']]
+        if type(Xsize)!=type(None):
+            Xsize=Xsize[Z['leaves']]
+    elif orientation=="top":
+        X=X[:, Z['leaves']]
+        if type(Xsize)!=type(None):
+            Xsize=Xsize[:, Z['leaves']]
+    rclusters = _get_cluster_classes(Z, original_rows=[])
+    # print(_rlabels)
+    rowlabels=rowlabels[Z['leaves']]
+    return X, Xsize, Z, rowlabels, rclusters
+
+
+
