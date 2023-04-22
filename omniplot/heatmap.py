@@ -36,6 +36,7 @@ from matplotlib.collections import PatchCollection
 from matplotlib.patches import Rectangle, Circle,Ellipse, RegularPolygon, Polygon
 import copy
 import textwrap
+from matplotlib.artist import Artist
 
 __all__=["correlation", "triangle_heatmap", "complex_clustermap","dotplot", "heatmap"]
 def correlation(df: pd.DataFrame, 
@@ -1140,10 +1141,12 @@ def heatmap(df: pd.DataFrame,
                 size_format: str="",
                 rowplot_format: str="{x:.1f}",
                 colplot_format:  str="{x:.1f}",
-                boxlabels=False,
                 
+                boxlabels: bool=False,
+                box_textwidth: Optional[int]=None,
+                box_max_lines: Optional[int]=None,
     
-                **kwargs):
+                ):
     """
     Drawing a heatmap. The function is mostly overlapping with the complex_clustermap, but has more flexibility, but may be slower.
     The main difference is this heatmap uses patch collections instead of pcolormech.  
@@ -1307,6 +1310,10 @@ def heatmap(df: pd.DataFrame,
     ax_dict={}
     row_colors=copy.deepcopy(row_colors)
     col_colors=copy.deepcopy(col_colors)
+    
+    if col_split==True and row_split==True:
+        raise Exception("Splitting both columns and rows may not be a good idea...")
+    
     def _scale_size(x, size_scale, smin, smax):
         return size_scale*((x-smin)/(smax-smin))
     def _reverse_size(x, size_scale, smin, smax):
@@ -1347,10 +1354,10 @@ def heatmap(df: pd.DataFrame,
         if show_legend>0:
             # figure_width=np.amax([figure_height*X.shape[1]/X.shape[0], 4])+1
             figure_width=figure_height*X.shape[1]/X.shape[0]+1
-            figure_width=np.amin([np.amax([figure_height*X.shape[1]/X.shape[0]+1, 5]), 10])
+            figure_width=np.amin([np.amax([figure_height*X.shape[1]/X.shape[0]+1+int(boxlabels)*6, 5]), 10])
         else:
             # figure_width=np.amax([figure_height*X.shape[1]/X.shape[0], 4])
-            figure_width=figure_height*X.shape[1]/X.shape[0]
+            figure_width=figure_height*X.shape[1]/X.shape[0]+int(boxlabels)*6
         figsize=[figure_width,figure_height,]
     print("figsize: ", figsize)
     fig=plt.figure(figsize=figsize, layout='constrained')
@@ -1362,18 +1369,22 @@ def heatmap(df: pd.DataFrame,
     else:
         lmax=0
     # print(lmax)
-    xori=0.1
+
+    if boxlabels==True:
+        row_ticklabels=False
+
+    xori=0.05
     yori=0.11+lmax
-    lcatw=0.035
+    lcatw=0.04
     
     legendw=0.15*show_legend
     if boxlabels==True:
-        boxwidth=0.3
+        boxwidth=0.15
     else:
         boxwidth=0.
     if row_cluster==True:
         ltreew=0.15
-        ttreew=0.6-lcatw*rowplot_num-legendw-boxwidth
+        ttreew=0.65-lcatw*rowplot_num-legendw-boxwidth
     else:
         ltreew=0
         ttreew=0.75-lcatw*rowplot_num-legendw
@@ -1625,39 +1636,70 @@ def heatmap(df: pd.DataFrame,
                 legend_elements_dict[collabels[i]]=legend_elements
                 _color_lut.update(_tmp_lut)
 
-    #Row the number of members in cluster
+    #the number of members in row clusters
     if row_cluster==True:
         if clustering_method=="hierarchical":
             _cnums_dict, ccolor_unique=_get_cluster_classes2(Z,above_threshold_color)
             # print("_cnums_dict", "ccolor_unique", _cnums_dict, ccolor_unique)
             cnums=np.array([_cnums_dict[k] for k in ccolor_unique])
         else:
-            _klabels
             u, i, c=np.unique(_klabels, return_counts=True, return_index=True
                     )
             cnums=c[np.argsort(i)]
-            _cnums=cnums/np.sum(cnums)
+        _cnums=cnums/np.sum(cnums)
+
+    #the number of members in column clusters
+    if col_cluster==True:
+        if clustering_method=="hierarchical":
+            _col_cnums_dict, col_ccolor_unique=_get_cluster_classes2(Zt,above_threshold_color)
+            # print("_cnums_dict", "ccolor_unique", _cnums_dict, ccolor_unique)
+            col_cnums=np.array([_col_cnums_dict[k] for k in col_ccolor_unique])
+        else:
+            u, i, c=np.unique(_cklabels, return_counts=True, return_index=True
+                    )
+            col_cnums=c[np.argsort(i)]
+        _col_cnums=col_cnums/np.sum(col_cnums)
     
+    #Boxed row labels by clusters
     render = fig.canvas.get_renderer()
     rwidth=render.width
     if row_cluster==True and boxlabels==True:
-        rownum=len(rowlabels)
-        linenum=rownum//20+int(rownum%20!=0)
-        max_lines=np.amin([5,linenum])
+        rownum=len("".join(rowlabels))
+        if box_textwidth==None:
+            box_textwidth=20
+            linenum=rownum//box_textwidth+int(rownum%box_textwidth!=0)
+        if box_max_lines==None:
+            box_max_lines=np.amin([10,linenum])
         wrapper = textwrap.TextWrapper(width=20, max_lines=max_lines)
         _r=0
         _y=0
-        boxfont=10
+        boxfont=12
         ax=fig.add_axes([hmapx+hmapw,yori+_y,boxwidth,hmaph])
+        ax.axis('off')
         for i, (_c,c) in enumerate(zip(_cnums, cnums)):
-            text=rowlabels[_r:_r+c]
+            text=", ".join(rowlabels[_r:_r+c])
             word_list = wrapper.wrap(text=text)
-            t=ax.text(0,_y,"\n".join(word_list), fontsize=boxfont, 
+            print(word_list)
+            t=ax.text(0.1,_y+_c-0.01,"\n".join(word_list), fontsize=boxfont,va="top",
                       bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", lw=1, alpha=0.8))
             bb=t.get_window_extent(renderer=render)
+            print("width", rwidth, bb.width)
+            if i==0 and bb.width/rwidth> boxwidth:
+                while bb.width/rwidth > boxwidth:
+                    Artist.remove(t)
+                    boxfont-=0.5
+                    print(boxfont)
+                    if boxfont<0:
+                        break
+                    t=ax.text(0.1,_y+_c-0.01,"\n".join(word_list), fontsize=boxfont, va="top",
+                      bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", lw=1, alpha=0.8))
+                    bb=t.get_window_extent(renderer=render)
+
 
             _r+=c
-            _y+=c
+            _y+=_c
+
+    #Drawing a heatmap
     if row_split==True and row_cluster==True:
         
         # print(cnums, _cnums)
@@ -1711,6 +1753,60 @@ def heatmap(df: pd.DataFrame,
                     ax.spines[pos].set_color('black')
 
             axis_dict["heatmap"+str(i)]=ax
+
+    elif col_split==True and col_cluster==True:
+        
+        # print(cnums, _cnums)
+        _y=0
+        _r=0
+        for i, (_c,c) in enumerate(zip(_col_cnums, col_cnums)):
+            #print([hmapx,yori+_y,hmapw,hmaph*_c])
+            ax=fig.add_axes([hmapx+_y,yori,hmapw*_c,hmaph])
+            
+            Xsub=X[:,_r:_r+c]
+            Xsubshape=Xsub.shape
+            _X=Xsub.flatten()
+            if dtype=="numerical":
+                _X=(_X-Xmin)/(Xmax-Xmin)
+                facecolors=cmap(_X)
+            elif dtype=="categorical":
+                facecolors=[_color_lut[u] for u in _X]
+            _Xsize=None
+            if type(Xsize)!=type(None):
+                Xsizesub=Xsize[:, _r:_r+c]
+                _Xsize=Xsizesub.flatten()
+                _Xsize=(_Xsize-Xsizemin)/(Xsizemax-Xsizemin)
+            row_col=[ [j,i] for i in range(Xsub.shape[0]) for j in range(Xsub.shape[1])]
+            
+            _add_patches(facecolors, 
+                        Xsubshape, 
+                        shape, 
+                        row_col, 
+                        None, 
+                        Xsize, 
+                        _Xsize,
+                        ax,
+                        row_ticklabels,
+                        rowlabels, 
+                        rowrot, 
+                        col_ticklabels, 
+                        collabels[_r:_r+c], 
+                        colrot,rasterized)
+            ax.margins(x=margin,y=margin)
+            ax.tick_params(pad=1,axis='both', which='both', length=0)
+            if i<len(col_cnums)-1:
+                ax.set_yticks([])
+            
+            _r+=c
+            _y+=hmapw*_c
+            if c==1:
+                for pos in TBLR:
+                    ax.spines[pos].set_color('gray')
+            else:
+                for pos in TBLR:
+                    ax.spines[pos].set_color('black')
+
+            axis_dict["heatmap"+str(i)]=ax
     else:
         _X=X.flatten()
         _Xsize=None
@@ -1732,16 +1828,19 @@ def heatmap(df: pd.DataFrame,
         ax.margins(x=margin,y=margin)
         ax.tick_params(pad=1,axis='both', which='both', length=0)
         axis_dict["heatmap"]=ax
+    
+    #Setting categorical color legends
     legendnum=0
     if len(legend_elements_dict) >0:
         for legendnum, (cat, legend_elements) in enumerate(legend_elements_dict.items()):
-            axlegend=fig.add_axes([hmapx+hmapw,ttreey-legendnum*0.15,legendw,legendh])
+            axlegend=fig.add_axes([hmapx+hmapw+boxwidth+0.01,ttreey-legendnum*0.15,legendw,legendh])
             axlegend.add_artist(axlegend.legend(handles=legend_elements, 
                                                 title=cat,bbox_to_anchor=(0.0,0.5),
                                                 loc="center left"))
             axlegend.axis('off')
             axis_dict["legend_"+cat]=axlegend
            
+    #Setting the size legend
     if type(Xsize)!=type(None):
         if legendnum>0:
             legendnum+=1
@@ -1760,8 +1859,9 @@ def heatmap(df: pd.DataFrame,
             axlegend.set_title(size_title)
         axlegend.set_facecolor('lavender')
         axis_dict["size"]=axlegend
+
+
     # Setting the color bar
-    
     if dtype=="numerical":
         axc=fig.add_axes([hmapx+hmapw+0.02,0.09,0.15,0.02])
         norm = mpl.colors.Normalize(vmin=np.amin(X), vmax=np.amax(X))
@@ -1786,7 +1886,12 @@ def heatmap(df: pd.DataFrame,
 def _add_patches(facecolors, Xshape, shape, row_col, edgecolor, Xsize, 
                  _Xsize,ax,row_ticklabels,rowlabels, 
                  rowrot, col_ticklabels, collabels, colrot,rasterized):
-    if shape=="rectangle":
+    
+    if type(shape)==dict:
+        ...
+    
+    
+    elif shape=="rectangle":
         if type(Xsize)!=type(None):
 
             _row_col=np.array(row_col)
@@ -2111,7 +2216,7 @@ def _col_plot(leaves, fig, col_colors, col_plot,
                 set_axis(ax, val, cat, margin, colplot_format)
                 row_plot_index+=1
                 axis_dict[cat]=ax
-    return legend_elements_dict, catnum
+    return legend_elements_dict, catnum, axis_dict
 
 
 def _process_vdata(df, variables,category ,row,  col,rowlabels, sizes, size_title, colors, lut,fillna, ztranform,cunit):

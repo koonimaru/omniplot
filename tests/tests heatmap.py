@@ -64,19 +64,25 @@ elif test=="complex_clustermap":
                         marginalsum=True, title="Penguins")
     plt.show()
 elif test=="heatmap":
-    df=sns.load_dataset("penguins")
+    # df=sns.load_dataset("penguins")
     
-    df=df.dropna(axis=0)
-    # df=df.reset_index(drop=True)
-    op.heatmap(df=df, variables=["bill_length_mm","bill_depth_mm","flipper_length_mm"],row_split=True, clustering_method="kmeans",
-               category=["species", "island"],col_colors={"colors": ["bill","bill","flipper"]}, row_plot=["body_mass_g"], row_ticklabels=False, approx_clusternum=3)
-    op.heatmap(df=df, dtype="categorical", variables=["species", "island", "sex"],
-               row_plot=["body_mass_g"], row_ticklabels=False, approx_clusternum=3,column_wise_color=True) 
+    # df=df.dropna(axis=0)
+    # # df=df.reset_index(drop=True)
+    # op.heatmap(df=df,boxlabels=True, 
+    # variables=["bill_length_mm","bill_depth_mm","flipper_length_mm"],
+    # row_split=True, clustering_method="kmeans",
+    #            category=["species", "island"],
+    #            col_colors={"colors": ["bill","bill","flipper"]}, 
+    #            row_plot=["body_mass_g"], row_ticklabels=False, approx_clusternum=3)
+    # op.heatmap(df=df, dtype="categorical", variables=["species", "island", "sex"],
+    #            row_plot=["body_mass_g"], row_ticklabels=False, approx_clusternum=3,column_wise_color=True) 
     mat=np.concatenate([0.25*np.random.uniform(0,1,size=[10, 25]),0.5*np.random.uniform(0,1,size=[15, 25]),
                         np.random.uniform(0,1,size=[15, 25])])
+    mat=np.concatenate([mat, np.random.uniform(0,1,size=[40, 15])], axis=1)
+    print(mat.shape)
     df=pd.DataFrame(mat)
     op.heatmap(df, sizes=mat, 
-               row_split=True,
+               col_split=True,
                row_plot={"normal": np.random.normal(size=mat.shape[0])}, 
                row_scatter={"uniform": np.random.uniform(size=mat.shape[0])}, 
                row_bar={"range": np.arange(mat.shape[0])},
