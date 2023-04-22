@@ -35,6 +35,8 @@ import itertools as it
 from matplotlib.collections import PatchCollection
 from matplotlib.patches import Rectangle, Circle,Ellipse, RegularPolygon, Polygon
 import copy
+import textwrap
+
 __all__=["correlation", "triangle_heatmap", "complex_clustermap","dotplot", "heatmap"]
 def correlation(df: pd.DataFrame, 
                 category: Union[str, list]=[],
@@ -1138,6 +1140,9 @@ def heatmap(df: pd.DataFrame,
                 size_format: str="",
                 rowplot_format: str="{x:.1f}",
                 colplot_format:  str="{x:.1f}",
+                boxlabels=False,
+                
+    
                 **kwargs):
     """
     Drawing a heatmap. The function is mostly overlapping with the complex_clustermap, but has more flexibility, but may be slower.
@@ -1286,7 +1291,7 @@ def heatmap(df: pd.DataFrame,
     
     Returns
     -------
-        {"row_clsuter":rclusters,"col_cluster":cclusters}
+        {"row_clsuter":rclusters,"col_cluster":cclusters, "axes":axis_dict} : dict
     Raises
     ------
     Notes
@@ -1298,6 +1303,8 @@ def heatmap(df: pd.DataFrame,
     Examples
     --------
     """
+
+    ax_dict={}
     row_colors=copy.deepcopy(row_colors)
     col_colors=copy.deepcopy(col_colors)
     def _scale_size(x, size_scale, smin, smax):
@@ -1357,13 +1364,16 @@ def heatmap(df: pd.DataFrame,
     # print(lmax)
     xori=0.1
     yori=0.11+lmax
-    lcatw=0.05
+    lcatw=0.035
     
     legendw=0.15*show_legend
-    
+    if boxlabels==True:
+        boxwidth=0.3
+    else:
+        boxwidth=0.
     if row_cluster==True:
         ltreew=0.15
-        ttreew=0.6-lcatw*rowplot_num-legendw
+        ttreew=0.6-lcatw*rowplot_num-legendw-boxwidth
     else:
         ltreew=0
         ttreew=0.75-lcatw*rowplot_num-legendw
@@ -1374,6 +1384,8 @@ def heatmap(df: pd.DataFrame,
     else:
         ltreeh=0.8-lmax
         ttreeh=0
+    if ttreew<0:
+        raise Exception("Too many things to plot. Please reduce the number of row-wise plots.")
     hmapw=ttreew
     hmaph=ltreeh
     lcatx=xori+ltreew
@@ -1406,7 +1418,7 @@ def heatmap(df: pd.DataFrame,
         _sx=vmax*(hmaph/legendw)*size_legend_num/Xshape[1]
         _sy=vmax*(hmaph/legendh)*size_legend_num/Xshape[0]
         _sy=200
-        print("_sy", _sy)
+        # print("_sy", _sy)
         size_legend_elements.append(Rectangle((0 -0.5,0-0.5), 1, size_legend_num))
 
         size_labels=[]
@@ -1441,6 +1453,15 @@ def heatmap(df: pd.DataFrame,
                 y2=_y-0.5*sy*np.sin(np.pi/6)
 
                 size_legend_elements.append(Polygon(((x0,y0),(x1,y1),(x2,y2))))
+            elif shape=="star":
+
+                _x=0
+                _y=_i
+                rs=[]
+                for i in range(5):
+                    rs.append([_x+0.5*sx*np.cos(np.pi/2+(2*i)*2*np.pi/5),_y+0.5*sy*np.sin(np.pi/2+(2*i)*2*np.pi/5)])
+                size_legend_elements.append(Polygon(rs))
+
             prev_top+=sy+0.1
             _s=_reverse_size(s, 1, smin, smax)
             size_labels.append([size_format.format(x=_s), _i])
@@ -1462,6 +1483,7 @@ def heatmap(df: pd.DataFrame,
             ax0.axis('off')
             ax0.margins(y=margin)
             sortindexr=Z["leaves"]
+            ax_dict["lefttree"]=ax0
         elif clustering_method=="kmeans":
             _kmeans = KMeans(n_clusters=approx_clusternum, random_state=0, n_init="auto").fit(X, *kmeans_kw)
             row_colors["kmeans_row"]=_kmeans.labels_.astype(str)
@@ -1507,7 +1529,7 @@ def heatmap(df: pd.DataFrame,
             ax1.axis('off')
             ax1.margins(x=margin)
             sortindexc=Zt["leaves"]
-
+            ax_dict["toptree"]=ax1
         elif clustering_method=="kmeans":
             _ckmeans = KMeans(n_clusters=approx_clusternum, random_state=0, n_init="auto").fit(X.T, *kmeans_kw)
             col_colors["kmeans_column"]=_ckmeans.labels_.astype(str)
@@ -1541,7 +1563,7 @@ def heatmap(df: pd.DataFrame,
     else:
         sortindexc=np.arange(len(collabels))
     catnum=0
-    legend_elements_dict, catnum=_row_plot(df, 
+    legend_elements_dict, catnum, axis_dict=_row_plot(df, 
                                            sortindexr, 
                                            fig, 
                                            category, 
@@ -1555,15 +1577,17 @@ def heatmap(df: pd.DataFrame,
                                            Xshape, 
                                            lcatx,lcatw,
                                            yori,hmaph, margin, 
-                                           plotkw, scatterkw, barkw, catnum)
-    legend_elements_dict, catnum=_col_plot(sortindexc, fig, col_colors, col_plot, 
+                                           plotkw, scatterkw, barkw, catnum, ax_dict)
+    legend_elements_dict, catnum, axis_dict=_col_plot(sortindexc, fig, col_colors, col_plot, 
                                             col_scatter, col_bar, 
                                             colplot_format,
                                             legend_elements_dict, 
                                             Xshape, tcaty,tcath,hmapx,
-                                            hmapw, margin, plotkw, scatterkw, barkw, catnum)
+                                            hmapw, margin, plotkw, scatterkw, barkw, catnum, axis_dict)
     
     # Creating the heatmap
+
+    # Calculating the maximum and minum values of the data if the data is numerical.
     if dtype=="numerical":
         cmap=plt.get_cmap(palette)
         Xmin=np.amin(X)
@@ -1571,6 +1595,8 @@ def heatmap(df: pd.DataFrame,
         if type(Xsize)!=type(None):
             Xsizemin=np.amin(Xsize)
             Xsizemax=np.amax(Xsize)
+
+    # Creating the color legend lists if the data is categorical
     if dtype=="categorical":
         if column_wise_color==False:
             _uniq_labels=np.unique(X.flatten())
@@ -1599,7 +1625,8 @@ def heatmap(df: pd.DataFrame,
                 legend_elements_dict[collabels[i]]=legend_elements
                 _color_lut.update(_tmp_lut)
 
-    if row_split==True and row_cluster==True:
+    #Row the number of members in cluster
+    if row_cluster==True:
         if clustering_method=="hierarchical":
             _cnums_dict, ccolor_unique=_get_cluster_classes2(Z,above_threshold_color)
             # print("_cnums_dict", "ccolor_unique", _cnums_dict, ccolor_unique)
@@ -1609,11 +1636,34 @@ def heatmap(df: pd.DataFrame,
             u, i, c=np.unique(_klabels, return_counts=True, return_index=True
                     )
             cnums=c[np.argsort(i)]
-        _cnums=cnums/np.sum(cnums)
+            _cnums=cnums/np.sum(cnums)
+    
+    render = fig.canvas.get_renderer()
+    rwidth=render.width
+    if row_cluster==True and boxlabels==True:
+        rownum=len(rowlabels)
+        linenum=rownum//20+int(rownum%20!=0)
+        max_lines=np.amin([5,linenum])
+        wrapper = textwrap.TextWrapper(width=20, max_lines=max_lines)
+        _r=0
+        _y=0
+        boxfont=10
+        ax=fig.add_axes([hmapx+hmapw,yori+_y,boxwidth,hmaph])
+        for i, (_c,c) in enumerate(zip(_cnums, cnums)):
+            text=rowlabels[_r:_r+c]
+            word_list = wrapper.wrap(text=text)
+            t=ax.text(0,_y,"\n".join(word_list), fontsize=boxfont, 
+                      bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", lw=1, alpha=0.8))
+            bb=t.get_window_extent(renderer=render)
+
+            _r+=c
+            _y+=c
+    if row_split==True and row_cluster==True:
+        
         # print(cnums, _cnums)
         _y=0
         _r=0
-        for _c,c in zip(_cnums, cnums):
+        for i, (_c,c) in enumerate(zip(_cnums, cnums)):
             #print([hmapx,yori+_y,hmapw,hmaph*_c])
             ax=fig.add_axes([hmapx,yori+_y,hmapw,hmaph*_c])
             Xsub=X[_r:_r+c]
@@ -1647,6 +1697,7 @@ def heatmap(df: pd.DataFrame,
                         colrot,rasterized)
             ax.margins(x=margin,y=margin)
             ax.tick_params(pad=1,axis='both', which='both', length=0)
+            
             if _y>0:
                 ax.set_xticks([])
                 
@@ -1658,6 +1709,8 @@ def heatmap(df: pd.DataFrame,
             else:
                 for pos in TBLR:
                     ax.spines[pos].set_color('black')
+
+            axis_dict["heatmap"+str(i)]=ax
     else:
         _X=X.flatten()
         _Xsize=None
@@ -1678,6 +1731,7 @@ def heatmap(df: pd.DataFrame,
                     col_ticklabels, collabels, colrot,rasterized)
         ax.margins(x=margin,y=margin)
         ax.tick_params(pad=1,axis='both', which='both', length=0)
+        axis_dict["heatmap"]=ax
     legendnum=0
     if len(legend_elements_dict) >0:
         for legendnum, (cat, legend_elements) in enumerate(legend_elements_dict.items()):
@@ -1686,7 +1740,7 @@ def heatmap(df: pd.DataFrame,
                                                 title=cat,bbox_to_anchor=(0.0,0.5),
                                                 loc="center left"))
             axlegend.axis('off')
-
+            axis_dict["legend_"+cat]=axlegend
            
     if type(Xsize)!=type(None):
         if legendnum>0:
@@ -1705,7 +1759,7 @@ def heatmap(df: pd.DataFrame,
         if size_title!="":
             axlegend.set_title(size_title)
         axlegend.set_facecolor('lavender')
-
+        axis_dict["size"]=axlegend
     # Setting the color bar
     
     if dtype=="numerical":
@@ -1720,13 +1774,14 @@ def heatmap(df: pd.DataFrame,
             cb1.set_label('z-score')
         elif cunit!="":
             cb1.set_label(cunit)
+        axis_dict["colorbar"]=axc
     fig.suptitle(title)
     # plt.subplots_adjust(**gridspec_kw)
     _save(save, "heatmap")
     if show==True:
         plt.show()
 
-    return {"row_clsuter":rclusters,"col_cluster":cclusters}
+    return {"row_clsuter":rclusters,"col_cluster":cclusters, "axes":axis_dict}
 
 def _add_patches(facecolors, Xshape, shape, row_col, edgecolor, Xsize, 
                  _Xsize,ax,row_ticklabels,rowlabels, 
@@ -1784,6 +1839,29 @@ def _add_patches(facecolors, Xshape, shape, row_col, edgecolor, Xsize,
                 y2=_y-0.5*np.sin(np.pi/6)
 
                 shapes.append(Polygon(((x0,y0),(x1,y1),(x2,y2))))
+    elif shape=="star":
+        if type(Xsize)!=type(None):
+            
+            _row_col=np.array(row_col)
+            _shapes = [Rectangle((- 0.5,- 0.5), np.amax(_row_col[:,0])+1, np.amax(_row_col[:,1])+1)]
+            _pc = PatchCollection(_shapes, facecolor="w", alpha=1,
+                        edgecolor="w")
+            ax.add_collection(_pc)
+            shapes=[]
+            for (_x, _y), wh in zip(row_col, _Xsize):
+                rs=[]
+                for i in range(5):
+                    rs.append([_x+0.5*wh*np.cos(np.pi/2+(2*i)*2*np.pi/5),_y+0.5*wh*np.sin(np.pi/2+(2*i)*2*np.pi/5)])
+
+                shapes.append(Polygon(rs))
+        else:
+            shapes=[]
+            for _x, _y in row_col:
+                rs=[]
+                for i in range(5):
+                    rs.append([_x+0.5*np.cos(np.pi/2+(2*i)*2*np.pi/5),_y+0.5*np.sin(np.pi/2+(2*i)*2*np.pi/5)])
+
+                shapes.append(Polygon(rs))
     # Create patch collection with specified colour/alpha
     if edgecolor==None:
         pc = PatchCollection(shapes, facecolor=facecolors, alpha=1,
@@ -1810,7 +1888,7 @@ def _row_plot(df, leaves, fig,
               rowplot_format,
                 legend_elements_dict, 
                 Xshape, lcatx,lcatw,yori,
-                hmaph, margin, plotkw, scatterkw, barkw ,catnum):
+                hmaph, margin, plotkw, scatterkw, barkw ,catnum,axis_dict):
     
     def set_axis(_ax, _val, _cat, _margin, _rowplot_format):
         _ax.tick_params(pad=-5)
@@ -1850,6 +1928,7 @@ def _row_plot(df, leaves, fig,
             legend_elements_dict[cat]=legend_elements
             row_plot_index+=1
             catnum+=1
+            axis_dict[cat]=ax
 
     if len(row_colors)!=0:
         for i, (cat, val) in enumerate(row_colors.items()):
@@ -1880,6 +1959,7 @@ def _row_plot(df, leaves, fig,
             legend_elements_dict[cat]=legend_elements
             row_plot_index+=1
             catnum+=1
+            axis_dict[cat]=ax
     if len(row_plot)!=0:
         if type(row_plot)==list:
             for cat in row_plot:
@@ -1889,6 +1969,7 @@ def _row_plot(df, leaves, fig,
                 set_axis(ax, val, cat, margin, rowplot_format)
 
                 row_plot_index+=1
+                axis_dict[cat]=ax
         elif type(row_plot)==dict:
             
             for cat, val in row_plot.items():
@@ -1897,7 +1978,7 @@ def _row_plot(df, leaves, fig,
                 ax.plot(val,np.arange(len(val)),**plotkw)
                 set_axis(ax, val, cat, margin, rowplot_format)
                 row_plot_index+=1
-                
+                axis_dict[cat]=ax
     if len(row_scatter)!=0:
         if type(row_scatter)==list:
             for cat in row_scatter:
@@ -1906,7 +1987,7 @@ def _row_plot(df, leaves, fig,
                 ax.scatter(val,np.arange(len(val)),**scatterkw)
                 set_axis(ax, val, cat, margin, rowplot_format)
                 row_plot_index+=1
-
+                axis_dict[cat]=ax
         elif type(row_scatter)==dict:
             
             for cat, val in row_scatter.items():
@@ -1915,7 +1996,7 @@ def _row_plot(df, leaves, fig,
                 ax.scatter(val,np.arange(len(val)),**scatterkw)
                 set_axis(ax, val, cat, margin, rowplot_format)
                 row_plot_index+=1
-
+                axis_dict[cat]=ax
     if len(row_bar)!=0:
         if type(row_bar)==list:
             for cat in row_bar:
@@ -1924,7 +2005,7 @@ def _row_plot(df, leaves, fig,
                 ax.barh(np.arange(len(val)), width=val,**barkw)
                 set_axis(ax, val, cat, margin, rowplot_format)
                 row_plot_index+=1
-
+                axis_dict[cat]=ax
         elif type(row_bar)==dict:
             
             for cat, val in row_bar.items():
@@ -1933,7 +2014,8 @@ def _row_plot(df, leaves, fig,
                 ax.barh(np.arange(len(val)), width=val,**barkw)
                 set_axis(ax, val, cat, margin, rowplot_format)
                 row_plot_index+=1
-    return legend_elements_dict, catnum
+                axis_dict[cat]=ax
+    return legend_elements_dict, catnum, axis_dict
 
 
 
@@ -1943,7 +2025,7 @@ def _col_plot(leaves, fig, col_colors, col_plot,
               colplot_format,
                 legend_elements_dict, 
                 Xshape, tcaty,tcatw,hmapx,
-                hmapw, margin, plotkw, scatterkw, barkw ,catnum):
+                hmapw, margin, plotkw, scatterkw, barkw ,catnum, axis_dict):
     
     def set_axis(_ax, _val, _cat, _margin, _lowplot_format, pad=-5):
         _ax.tick_params(pad=pad)
@@ -1990,6 +2072,7 @@ def _col_plot(leaves, fig, col_colors, col_plot,
             legend_elements_dict[cat]=legend_elements
             row_plot_index+=1
             catnum+=1
+            axis_dict[cat]=ax
     if len(col_plot)!=0:
         if type(col_plot)==list:
             raise Exception("Currently, 'col_plot' option accepts only dictionary")
@@ -2001,7 +2084,7 @@ def _col_plot(leaves, fig, col_colors, col_plot,
                 ax.plot(val,np.arange(len(val)),**plotkw)
                 set_axis(ax, val, cat, margin, colplot_format)
                 row_plot_index+=1
-                
+                axis_dict[cat]=ax
     if len(col_scatter)!=0:
         if type(col_scatter)==list:
             raise Exception("Currently, 'col_scatter' option accepts only dictionary")
@@ -2014,7 +2097,7 @@ def _col_plot(leaves, fig, col_colors, col_plot,
                 ax.scatter(val,np.arange(len(val)),**scatterkw)
                 set_axis(ax, val, cat, margin, colplot_format)
                 row_plot_index+=1
-
+                axis_dict[cat]=ax
     if len(col_bar)!=0:
         if type(col_bar)==list:
             raise Exception("Currently, 'col_scatter' option accepts only dictionary")
@@ -2027,6 +2110,7 @@ def _col_plot(leaves, fig, col_colors, col_plot,
                 ax.bar(np.arange(len(val)), height=val,**barkw)
                 set_axis(ax, val, cat, margin, colplot_format)
                 row_plot_index+=1
+                axis_dict[cat]=ax
     return legend_elements_dict, catnum
 
 
