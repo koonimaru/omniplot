@@ -23,7 +23,7 @@ import copy
 # colormap_list: list=["nipy_spectral", "terrain","tab20b","tab20c","gist_rainbow","hsv","CMRmap","coolwarm","gnuplot","gist_stern","brg","rainbow","jet"]
 hatch_list: list = ['//', '\\\\', '||', '--', '++', 'xx', 'oo', 'OO', '..', '**','/o', '\\|', '|*', '-\\', '+o', 'x*', 'o-', 'O|', 'O.', '*-']
 marker_list: list=[ "o",'_' , '+','|', 'x', 'v', '^', '<', '>', 's', 'p', '*', 'h', 'D', 'd', 'P', 'X','.', '1', '2', '3', '4','|', '_']
-
+shape_list: list=["rectangle", "circle", "triangle","star","polygon:4","polygon:5","polygon:6","star:7:3"]
 __all__=["_create_color_markerlut", 
          "_separate_data","_separate_cdata", "_line_annotate", "_dendrogram_threshold", "_radialtree2",
          "_get_cluster_classes","_calc_curveture", "_draw_ci_pi","_calc_r2",

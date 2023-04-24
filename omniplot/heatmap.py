@@ -27,7 +27,7 @@ import os
 #script_dir = os.path.dirname( __file__ )
 #sys.path.append( script_dir )
 from omniplot.utils import * #
-from omniplot.utils import colormap_list
+from omniplot.utils import colormap_list, shape_list
 import scipy.stats as stats
 from joblib import Parallel, delayed
 from omniplot.chipseq_utils import _calc_pearson
@@ -1102,7 +1102,7 @@ def heatmap(df: pd.DataFrame,
                 shape: str="rectangle",
                 edgecolor: str="w",
                 rowlabels: str="",
-
+                shape_colors: Union[np.ndarray, list, dict]=[],
                 row_ticklabels: bool=True,
                 rowrot: int=0,
                 col_ticklabels: bool=True,
@@ -1338,11 +1338,19 @@ def heatmap(df: pd.DataFrame,
          Xsize, size_title, cunit, lut)=_process_cdata(df, variables,category ,
                                                        row,  col,rowlabels, sizes, size_title, 
                                                        colors, lut,fillna,cunit)
+        if len(shape_colors)>0:
+            if type(shape_colors)==dict:
+                scX=np.array(list(shape_colors.values())[0])
+            else:
+                scX=np.array(shape_colors)
         if row_cluster==True or col_cluster==True:
             clustering_method="kmodes"
             print("Categorical variables are provided. 'kmodes' will be used for the clustering method.")
-    rowplot_num=len(category)+len(row_colors)+len(row_plot)+len(row_scatter)+len(row_bar)+int(clustering_method=="kmeans")+int(clustering_method=="kmodes")
-    colplot_num=len(col_colors)+len(col_plot)+len(col_scatter)+len(col_bar)
+    
+    rowplot_num=len(category)+len(row_colors)+len(row_plot)+len(row_scatter)+len(row_bar)+\
+        int(clustering_method=="kmeans" and row_cluster==True)+int(clustering_method=="kmodes" and row_cluster==True)
+    colplot_num=len(col_colors)+len(col_plot)+len(col_scatter)+len(col_bar)+\
+        int(clustering_method=="kmeans" and col_cluster==True)+int(clustering_method=="kmodes" and col_cluster==True)
     Xshape=X.shape
     if np.sum(Xshape)>200:
         edgecolor=None
@@ -1446,32 +1454,11 @@ def heatmap(df: pd.DataFrame,
                 _yh=0
             else:
                 _yh=prev_top+sy
-            if shape=="rectangle":
-                # size_legend_elements.append(Rectangle((0-sx/2,_yh-sy/2),sx,sy))
-                size_legend_elements.append(Rectangle((0-sx/2,_i-sy/2),sx,sy))
-            elif shape=="circle":
-                # size_legend_elements.append(Ellipse((0,_yh),sx,sy))
-                size_legend_elements.append(Ellipse((0,_i),sx,sy))
-            elif shape=="triangle":
- 
-                _x=0
-                _y=_i
-                x0=_x-0.5*sx*np.cos(np.pi/6)
-                y0=_y-0.5*sy*np.sin(np.pi/6)
-                x1=_x
-                y1=_y+0.5*sy
-                x2=_x+0.5*sx*np.cos(np.pi/6)
-                y2=_y-0.5*sy*np.sin(np.pi/6)
+            if shape=="by_category":
+                size_legend_elements.append(_create_polygon("circle", 0, _i, sx,ry=sy))
+            else:
+                size_legend_elements.append(_create_polygon(shape, 0, _i, sx,ry=sy))
 
-                size_legend_elements.append(Polygon(((x0,y0),(x1,y1),(x2,y2))))
-            elif shape=="star":
-
-                _x=0
-                _y=_i
-                rs=[]
-                for i in range(5):
-                    rs.append([_x+0.5*sx*np.cos(np.pi/2+(2*i)*2*np.pi/5),_y+0.5*sy*np.sin(np.pi/2+(2*i)*2*np.pi/5)])
-                size_legend_elements.append(Polygon(rs))
 
             prev_top+=sy+0.1
             _s=_reverse_size(s, 1, smin, smax)
@@ -1495,11 +1482,15 @@ def heatmap(df: pd.DataFrame,
             ax0.margins(y=margin)
             sortindexr=Z["leaves"]
             ax_dict["lefttree"]=ax0
+            if len(shape_colors)>0:
+                scX=scX[sortindexr]
         elif clustering_method=="kmeans":
             _kmeans = KMeans(n_clusters=approx_clusternum, random_state=0, n_init="auto").fit(X, *kmeans_kw)
             row_colors["kmeans_row"]=_kmeans.labels_.astype(str)
             sortindexr=np.lexsort((X.mean(axis=1),_kmeans.labels_))
             X=X[sortindexr]
+            if len(shape_colors)>0:
+                scX=scX[sortindexr]
             rowlabels=rowlabels[sortindexr]
             _klabels=_kmeans.labels_[sortindexr]
             for i, (kclass, label) in enumerate(zip(_klabels, rowlabels)):
@@ -1518,6 +1509,8 @@ def heatmap(df: pd.DataFrame,
             row_colors["kmodes_row"]=clusters.astype(str)
             sortindexr=np.argsort(clusters)
             X=X[sortindexr]
+            if len(shape_colors)>0:
+                scX=scX[sortindexr]
             rowlabels=rowlabels[sortindexr]
             _klabels=clusters[sortindexr]
             for i, (kclass, label) in enumerate(zip(_klabels, rowlabels)):
@@ -1540,12 +1533,17 @@ def heatmap(df: pd.DataFrame,
             ax1.axis('off')
             ax1.margins(x=margin)
             sortindexc=Zt["leaves"]
+            if len(shape_colors)>0:
+                scX=scX[:, sortindexc]
             ax_dict["toptree"]=ax1
         elif clustering_method=="kmeans":
             _ckmeans = KMeans(n_clusters=approx_clusternum, random_state=0, n_init="auto").fit(X.T, *kmeans_kw)
             col_colors["kmeans_column"]=_ckmeans.labels_.astype(str)
             sortindexc=np.lexsort((X.mean(axis=0),_ckmeans.labels_))
             X=X[:,sortindexc]
+            if len(shape_colors)>0:
+                scX=scX[:, sortindexc]
+
             collabels=collabels[sortindexc]
             _cklabels=_ckmeans.labels_[sortindexc]
             for i, (kclass, label) in enumerate(zip(_cklabels, collabels)):
@@ -1564,6 +1562,8 @@ def heatmap(df: pd.DataFrame,
             col_colors["kmodes_column"]=clustersc.astype(str)
             sortindexc=np.argsort(clustersc)
             X=X[:, sortindexc]
+            if len(shape_colors)>0:
+                scX=scX[:, sortindexc]
             collabels=collabels[sortindexc]
             _cklabels=clustersc[sortindexc]
             # print(_cklabels,collabels )
@@ -1603,39 +1603,78 @@ def heatmap(df: pd.DataFrame,
         cmap=plt.get_cmap(palette)
         Xmin=np.amin(X)
         Xmax=np.amax(X)
-        if type(Xsize)!=type(None):
-            Xsizemin=np.amin(Xsize)
-            Xsizemax=np.amax(Xsize)
+    if len(shape_colors)>0:
+        cmap=plt.get_cmap(palette)
+        scXmin=np.amin(scX)
+        scXmax=np.amax(scX)
+    if type(Xsize)!=type(None):
+        Xsizemin=np.amin(Xsize)
+        Xsizemax=np.amax(Xsize)
 
     # Creating the color legend lists if the data is categorical
+    shape_legend_elements={}
     if dtype=="categorical":
+        _shape_lut={}
+        _color_lut={}
         if column_wise_color==False:
-            _uniq_labels=np.unique(X.flatten())
-            _cmap=plt.get_cmap(cpalette, len(_uniq_labels))
-            _color_lut={u: _cmap(i) for i, u in enumerate(_uniq_labels)}
-            legend_elements=[]
-            for _cat, _color in _color_lut.items():
-                legend_elements.append(Line2D([0], [0], marker="s", linewidth=0, markeredgecolor="darkgray",
-                                    label=_cat,
-                                    markerfacecolor=_color))
-            legend_elements_dict["categorical"]=legend_elements
+            
+            if shape=="by_category":
+                
+                _shape_lut={u: shape_list[i] for i, u in enumerate(_uniq_labels)}
+                _shape_legend_elements={"ao":[],"labels":[],"handler":{}}
+                for _cat, _shape in _shape_lut.items():
+                    ao=_AnyObject()
+                    obshape=_AnyObjectHandler(facecolor="black", shape=_shape,label=_cat)
+                    _shape_legend_elements["ao"].append(ao)
+                    _shape_legend_elements["labels"].append(_cat)
+                    _shape_legend_elements["handeler"][ao]=obshape
+                    # legend_elements.append(Line2D([0], [0], marker="s", linewidth=0, markeredgecolor="darkgray",
+                                        # label=_cat,
+                                        # markerfacecolor=_color))
+                shape_legend_elements["categorical"]=_shape_legend_elements
+            else:
+                _uniq_labels=np.unique(X.flatten())
+                _cmap=plt.get_cmap(cpalette, len(_uniq_labels)+2)
+                _color_lut={u: _cmap(i+1) for i, u in enumerate(_uniq_labels)}
+                
+                legend_elements=[]
+                for _cat, _color in _color_lut.items():
+                    legend_elements.append(Line2D([0], [0], marker="s", linewidth=0, markeredgecolor="darkgray",
+                                        label=_cat,
+                                        markerfacecolor=_color))
+                legend_elements_dict["categorical"]=legend_elements
         else:
-            _color_lut={}
             for i in range(Xshape[1]):
                 __X=X[:,i]
                 _uniq_labels=np.unique(__X)
                 # print(colormap_list[i+int(row_cluster)+int(col_cluster)], _uniq_labels)
-                _cmap=plt.get_cmap(colormap_list[i+int(row_cluster)+int(col_cluster)], len(_uniq_labels))
-                _tmp_lut={u: _cmap(i) for i, u in enumerate(_uniq_labels)}
                 
-                legend_elements=[]
-                for _cat, _color in _tmp_lut.items():
-                    legend_elements.append(Line2D([0], [0], marker="s", linewidth=0, markeredgecolor="darkgray",
-                                        label=_cat,
-                                        markerfacecolor=_color))
-                legend_elements_dict[collabels[i]]=legend_elements
-                _color_lut.update(_tmp_lut)
+                if shape=="by_category":
+                    _shape_legend_elements={"ao":[],"labels":[],"handler":{}}
+                    _shape_tmp_lut={u: shape_list[i] for i, u in enumerate(_uniq_labels)}
+                    for _cat, _shape in _shape_tmp_lut.items():
+                        ao=_AnyObject()
+                        obshape=_AnyObjectHandler(facecolor="black", shape=_shape)
+                        _shape_legend_elements["ao"].append(ao)
+                        _shape_legend_elements["labels"].append(_cat)
+                        _shape_legend_elements["handler"][ao]=obshape
+                    shape_legend_elements[collabels[i]]=_shape_legend_elements
+                    _shape_lut.update(_shape_tmp_lut)
+                else:
+                    _cmap=plt.get_cmap(colormap_list[i+int(row_cluster)+int(col_cluster)], len(_uniq_labels)+2)
+                    _tmp_lut={u: _cmap(i+1) for i, u in enumerate(_uniq_labels)}
+                    
+                    legend_elements=[]
+                    for _cat, _color in _tmp_lut.items():
+                        legend_elements.append(Line2D([0], [0], marker="s", linewidth=0, markeredgecolor="darkgray",
+                                            label=_cat,
+                                            markerfacecolor=_color))
+                    legend_elements_dict[collabels[i]]=legend_elements
+                    _color_lut.update(_tmp_lut)
+                
 
+    if shape=="by_category":
+        shape=_shape_lut
     #the number of members in row clusters
     if row_cluster==True:
         if clustering_method=="hierarchical":
@@ -1670,7 +1709,7 @@ def heatmap(df: pd.DataFrame,
             linenum=rownum//box_textwidth+int(rownum%box_textwidth!=0)
         if box_max_lines==None:
             box_max_lines=np.amin([10,linenum])
-        wrapper = textwrap.TextWrapper(width=20, max_lines=max_lines)
+        wrapper = textwrap.TextWrapper(width=20, max_lines=box_max_lines)
         _r=0
         _y=0
         boxfont=12
@@ -1715,7 +1754,17 @@ def heatmap(df: pd.DataFrame,
                 _X=(_X-Xmin)/(Xmax-Xmin)
                 facecolors=cmap(_X)
             elif dtype=="categorical":
-                facecolors=[_color_lut[u] for u in _X]
+                if type(shape)==dict:
+                    if len(shape_colors)>0:
+                        Xsub=scX[_r:_r+c]
+                        Xsubshape=scX.shape
+                        _scX=Xsub.flatten()
+                        _scX=(_scX-scXmin)/(scXmax-scXmin)
+                        facecolors=cmap(_X)
+                    else:
+                       facecolors=["black" for u in _X]
+                else:
+                    facecolors=[_color_lut[u] for u in _X]
             _Xsize=None
             if type(Xsize)!=type(None):
                 Xsizesub=Xsize[_r:_r+c]
@@ -1770,7 +1819,17 @@ def heatmap(df: pd.DataFrame,
                 _X=(_X-Xmin)/(Xmax-Xmin)
                 facecolors=cmap(_X)
             elif dtype=="categorical":
-                facecolors=[_color_lut[u] for u in _X]
+                if type(shape)==dict:
+                    if len(shape_colors)>0:
+                        Xsub=scX[_r:_r+c]
+                        Xsubshape=scX.shape
+                        _scX=Xsub.flatten()
+                        _scX=(_scX-scXmin)/(scXmax-scXmin)
+                        facecolors=cmap(_scX)
+                    else:
+                       facecolors=["black" for u in _X]
+                else:
+                    facecolors=[_color_lut[u] for u in _X]
             _Xsize=None
             if type(Xsize)!=type(None):
                 Xsizesub=Xsize[:, _r:_r+c]
@@ -1817,14 +1876,23 @@ def heatmap(df: pd.DataFrame,
             _X=(_X-Xmin)/(Xmax-Xmin)
             facecolors=cmap(_X)
         elif dtype=="categorical":
-             facecolors=[_color_lut[u] for u in _X]
+            if type(shape)==dict:
+                if len(shape_colors)>0:
+
+                    _scX=scX.flatten()
+                    _scX=(_scX-scXmin)/(scXmax-scXmin)
+                    facecolors=cmap(_scX)
+                else:
+                    facecolors=["black" for u in _X]
+            else:
+                facecolors=[_color_lut[u] for u in _X]
             
         row_col=[ [j,i] for i in range(X.shape[0]) for j in range(X.shape[1])]
         
         ax=fig.add_axes([hmapx,yori,hmapw,hmaph])
         _add_patches(facecolors, Xshape, shape, row_col, edgecolor, Xsize, 
                     _Xsize,ax,row_ticklabels,rowlabels, rowrot, 
-                    col_ticklabels, collabels, colrot,rasterized)
+                    col_ticklabels, collabels, colrot,rasterized,Xflatten=_X)
         ax.margins(x=margin,y=margin)
         ax.tick_params(pad=1,axis='both', which='both', length=0)
         axis_dict["heatmap"]=ax
@@ -1839,12 +1907,30 @@ def heatmap(df: pd.DataFrame,
                                                 loc="center left"))
             axlegend.axis('off')
             axis_dict["legend_"+cat]=axlegend
-           
+    
+    if len(shape_legend_elements) >0:
+        if legendnum>0:
+            legendnum+=1
+        for cat, legend_elements in shape_legend_elements.items():
+            axlegend=fig.add_axes([hmapx+hmapw+boxwidth+0.01,ttreey-legendnum*0.15,legendw,legendh])
+            axlegend.add_artist(axlegend.legend(legend_elements["ao"], 
+            legend_elements["labels"],
+            handler_map=legend_elements["handler"],
+            title=cat,
+            bbox_to_anchor=(0.0,0.5),
+            loc="center left"))
+            # axlegend.add_artist(axlegend.legend(handles=legend_elements, 
+            #                                     title=cat,bbox_to_anchor=(0.0,0.5),
+            #                                     loc="center left"))
+            axlegend.axis('off')
+            axis_dict["legend_"+cat]=axlegend
+            legendnum+=1
+
     #Setting the size legend
     if type(Xsize)!=type(None):
         if legendnum>0:
             legendnum+=1
-        axlegend=fig.add_axes([hmapx+hmapw+0.02,0.11,legendw,legendh])
+        axlegend=fig.add_axes([hmapx+hmapw+0.02,0.14,legendw,legendh])
         _pc = PatchCollection(size_legend_elements, edgecolor=["white"]+["darkgray"]*size_legend_num,
                               facecolor=["white"]+["darkgray"]*size_legend_num, 
                               alpha=[0,0.8,0.8,0.8])
@@ -1869,104 +1955,60 @@ def heatmap(df: pd.DataFrame,
                                         norm=norm,
                                         orientation='horizontal')
         if cbar_title!="":
-            cb1.set_title(cbar_title)
+            axc.set_title(cbar_title)
         if ztranform==True:
             cb1.set_label('z-score')
         elif cunit!="":
             cb1.set_label(cunit)
         axis_dict["colorbar"]=axc
+    elif len(shape_colors)>0:
+        axc=fig.add_axes([hmapx+hmapw+0.02,0.09,0.15,0.02])
+        norm = mpl.colors.Normalize(vmin=np.amin(scX), vmax=np.amax(scX))
+        cb1 = mpl.colorbar.ColorbarBase(axc, cmap=cmap,
+                                        norm=norm,
+                                        orientation='horizontal')
+        if cbar_title!="":
+            axc.set_title(cbar_title)
+        if cunit!="":
+            cb1.set_label(cunit)
+        axis_dict["colorbar"]=axc
+
     fig.suptitle(title)
     # plt.subplots_adjust(**gridspec_kw)
     _save(save, "heatmap")
     if show==True:
         plt.show()
 
-    return {"row_clsuter":rclusters,"col_cluster":cclusters, "axes":axis_dict}
+    return {"row_clsuter":rclusters,"col_cluster":cclusters, "axes":axis_dict, "colsort":sortindexc,"rowsort":sortindexr}
 
 def _add_patches(facecolors, Xshape, shape, row_col, edgecolor, Xsize, 
                  _Xsize,ax,row_ticklabels,rowlabels, 
-                 rowrot, col_ticklabels, collabels, colrot,rasterized):
+                 rowrot, col_ticklabels, collabels, colrot,rasterized,Xflatten=None):
     
-    if type(shape)==dict:
-        ...
-    
-    
-    elif shape=="rectangle":
-        if type(Xsize)!=type(None):
+    if type(Xsize)!=type(None):
+        _row_col=np.array(row_col)
+        _shapes = [Rectangle((- 0.5,- 0.5), np.amax(_row_col[:,0])+1, np.amax(_row_col[:,1])+1)]
+        _pc = PatchCollection(_shapes, facecolor="w", alpha=1,
+                    edgecolor="w")
+        ax.add_collection(_pc)
 
-            _row_col=np.array(row_col)
-            _shapes = [Rectangle((- 0.5,- 0.5), np.amax(_row_col[:,0])+1, np.amax(_row_col[:,1])+1)]
-            _pc = PatchCollection(_shapes, facecolor="w", alpha=1,
-                        edgecolor="w")
-            ax.add_collection(_pc)
-            shapes = [Rectangle((x -wh/2, y - wh/2), wh, wh)
+    if type(shape)==dict:
+        print(shape)
+        print(Xflatten)
+        if type(Xsize)!=type(None):
+            shapes = [_create_polygon(shape[val], x,y, wh)
+                        for (x, y), wh, val in zip(row_col, _Xsize,Xflatten)]
+        else:
+            shapes = [_create_polygon(shape[val], x,y, 1)
+                        for (x, y), val in zip(row_col,Xflatten)]
+    else:
+        if type(Xsize)!=type(None):            
+            shapes = [_create_polygon(shape, x,y, wh)
                         for (x, y), wh in zip(row_col, _Xsize)]
         else:
-            shapes = [Rectangle((x - 0.5, y - 0.5), 1.0, 1.0)
+            shapes = [_create_polygon(shape, x,y, 1)
                         for x, y in row_col]
-    elif shape=="circle":
-        if type(Xsize)!=type(None):
 
-            _row_col=np.array(row_col)
-            _shapes = [Rectangle((- 0.5,- 0.5), np.amax(_row_col[:,0])+1, np.amax(_row_col[:,1])+1)]
-            _pc = PatchCollection(_shapes, facecolor="w", alpha=1,
-                        edgecolor="w")
-            ax.add_collection(_pc)
-            shapes = [Circle((x, y),wh/2) for (x, y), wh in zip(row_col, _Xsize)]
-        else:
-            shapes=[Circle((x, y), 0.5) for (x, y) in row_col]
-    elif shape=="triangle":
-        if type(Xsize)!=type(None):
-            
-            _row_col=np.array(row_col)
-            _shapes = [Rectangle((- 0.5,- 0.5), np.amax(_row_col[:,0])+1, np.amax(_row_col[:,1])+1)]
-            _pc = PatchCollection(_shapes, facecolor="w", alpha=1,
-                        edgecolor="w")
-            ax.add_collection(_pc)
-            shapes=[]
-            for (_x, _y), wh in zip(row_col, _Xsize):
-                x0=_x-wh*0.5*np.cos(np.pi/6)
-                y0=_y-wh*0.5*np.sin(np.pi/6)
-                x1=_x
-                y1=_y+wh*0.5
-                x2=_x+wh*0.5*np.cos(np.pi/6)
-                y2=_y-wh*0.5*np.sin(np.pi/6)
-
-                shapes.append(Polygon(((x0,y0),(x1,y1),(x2,y2))))
-        else:
-            shapes=[]
-            for _x, _y in row_col:
-                x0=_x-0.5*np.cos(np.pi/6)
-                y0=_y-0.5*np.sin(np.pi/6)
-                x1=_x
-                y1=_y+0.5
-                x2=_x+0.5*np.cos(np.pi/6)
-                y2=_y-0.5*np.sin(np.pi/6)
-
-                shapes.append(Polygon(((x0,y0),(x1,y1),(x2,y2))))
-    elif shape=="star":
-        if type(Xsize)!=type(None):
-            
-            _row_col=np.array(row_col)
-            _shapes = [Rectangle((- 0.5,- 0.5), np.amax(_row_col[:,0])+1, np.amax(_row_col[:,1])+1)]
-            _pc = PatchCollection(_shapes, facecolor="w", alpha=1,
-                        edgecolor="w")
-            ax.add_collection(_pc)
-            shapes=[]
-            for (_x, _y), wh in zip(row_col, _Xsize):
-                rs=[]
-                for i in range(5):
-                    rs.append([_x+0.5*wh*np.cos(np.pi/2+(2*i)*2*np.pi/5),_y+0.5*wh*np.sin(np.pi/2+(2*i)*2*np.pi/5)])
-
-                shapes.append(Polygon(rs))
-        else:
-            shapes=[]
-            for _x, _y in row_col:
-                rs=[]
-                for i in range(5):
-                    rs.append([_x+0.5*np.cos(np.pi/2+(2*i)*2*np.pi/5),_y+0.5*np.sin(np.pi/2+(2*i)*2*np.pi/5)])
-
-                shapes.append(Polygon(rs))
     # Create patch collection with specified colour/alpha
     if edgecolor==None:
         pc = PatchCollection(shapes, facecolor=facecolors, alpha=1,
@@ -1986,6 +2028,48 @@ def _add_patches(facecolors, Xshape, shape, row_col, edgecolor, Xsize,
         _=ax.set_xticks(np.arange(Xshape[1]), labels=collabels, rotation=colrot)
     else:
         ax.set_xticks([])
+
+def _create_polygon(shape, x, y, r, ry=None, **kwargs):
+    if ry==None:
+        ry=r
+    if shape=="rectangle":
+        return Rectangle((x -r/2, y - r/2), r, ry, **kwargs)
+    elif shape=="circle":
+        return Ellipse((x, y),r, ry, **kwargs)
+        
+    elif shape=="triangle":
+        vnum=3
+        rs=[]
+        for i in range(vnum):
+            rs.append([x+0.5*r*np.cos(np.pi/2+i*2*np.pi/vnum),y+0.5*ry*np.sin(np.pi/2+i*2*np.pi/vnum)])
+        return Polygon(rs, **kwargs)
+    elif shape=="star":
+        rs=[]
+        for i in range(5):
+            rs.append([x+0.5*r*np.cos(np.pi/2+(2*i)*2*np.pi/5),y+0.5*ry*np.sin(np.pi/2+(2*i)*2*np.pi/5)])
+        return Polygon(rs, **kwargs)
+    elif shape.startswith("polygon:"):
+        _, vnum=shape.split(":")
+        vnum=int(vnum)
+        rs=[]
+        for i in range(vnum):
+            rs.append([x+0.5*r*np.cos(np.pi/2+i*2*np.pi/vnum),y+0.5*ry*np.sin(np.pi/2+i*2*np.pi/vnum)])
+
+        return Polygon(rs, **kwargs)
+    elif shape.startswith("star:"):
+        _, n, m=shape.split(":")
+        n, m=int(n), int(m)
+        rs=[]
+        if n%m==0:
+            l=n//m
+            for _m in range(m):
+                
+                for _l in range(l+1):
+                    rs.append([x+0.5*r*np.cos(np.pi/2+(_l+_m/m)*2*np.pi/l),y+0.5*ry*np.sin(np.pi/2+(_l+_m/m)*2*np.pi/l)])
+        else:
+            for i in range(n):
+                rs.append([x+0.5*r*np.cos(np.pi/2+(m*i)*2*np.pi/n),y+0.5*ry*np.sin(np.pi/2+(m*i)*2*np.pi/n)])
+        return Polygon(rs, **kwargs)
 
 def _row_plot(df, leaves, fig, 
               category, lut, row_colors, row_plot, 
@@ -2387,3 +2471,25 @@ def _dendrogram(X, Xsize, ax, rowlabels,treepalette ,approx_clusternum, metric,m
 
 
 
+class _AnyObject:
+    pass
+
+
+class _AnyObjectHandler:
+    def __init__(self, facecolor, shape):
+        self.facecolor=facecolor
+        self.shape=shape
+    def legend_artist(self, legend, orig_handle, fontsize, handlebox):
+        x0, y0 = handlebox.xdescent, handlebox.ydescent
+        print(x0, y0)
+        width, height = handlebox.width, handlebox.height
+        print(width, height)
+        patch=_create_polygon(self.shape, 10, 3, 10, facecolor=self.facecolor,
+                                   edgecolor='black', lw=1,
+                                   transform=handlebox.get_transform())
+        # patch = Ellipse([10, 3], 10, 10, facecolor=self.facecolor,
+        #                            edgecolor='black', lw=1,
+        #                            transform=handlebox.get_transform())
+        handlebox.add_artist(patch)
+        
+        return patch
