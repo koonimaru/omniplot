@@ -64,27 +64,54 @@ elif test=="complex_clustermap":
                         marginalsum=True, title="Penguins")
     plt.show()
 elif test=="heatmap":
-    df=sns.load_dataset("penguins")
-    
-    df=df.dropna(axis=0)
-    # df=df.reset_index(drop=True)
-    op.heatmap(df=df, variables=["bill_length_mm","bill_depth_mm","flipper_length_mm"],row_split=True, clustering_method="kmeans",
-               category=["species", "island"],col_colors={"colors": ["bill","bill","flipper"]}, row_plot=["body_mass_g"], row_ticklabels=False, approx_clusternum=3)
-    op.heatmap(df=df, dtype="categorical", variables=["species", "island", "sex"],
-               row_plot=["body_mass_g"], row_ticklabels=False, approx_clusternum=3,column_wise_color=True) 
-    mat=np.concatenate([0.25*np.random.uniform(0,1,size=[10, 25]),0.5*np.random.uniform(0,1,size=[15, 25]),
-                        np.random.uniform(0,1,size=[15, 25])])
-    df=pd.DataFrame(mat)
-    op.heatmap(df, sizes=mat, 
-               row_split=True,
-               row_plot={"normal": np.random.normal(size=mat.shape[0])}, 
-               row_scatter={"uniform": np.random.uniform(size=mat.shape[0])}, 
-               row_bar={"range": np.arange(mat.shape[0])},
-               col_bar={"range": np.arange(mat.shape[1])},
-               
-               edgecolor=None, approx_clusternum=3, ztranform=False)
-    # op.heatmap(df, shape="circle", sizes=mat, edgecolor=None, approx_clusternum=3, row_split=True, ztranform=False)
-    mat=np.arange(50).reshape([5,10]).astype(np.float)
-    df=pd.DataFrame(mat)
-    op.heatmap(df, shape="triangle", sizes=mat, row_cluster=False,col_cluster=False, edgecolor=None, approx_clusternum=3, ztranform=False, row_split=True)
+    from PIL import Image
+    im=Image.open("/home/koh/Pictures/wave128.jpg").convert("LA")
+    op.heatmap(pd.DataFrame(np.array(im)[:,:,0][::-1]), shape="triangle",row_cluster=True, col_cluster=False,
+    ztranform=False, row_ticklabels=False, col_ticklabels=False)
     plt.show()
+    
+    # df=sns.load_dataset("penguins")
+    
+    # df=df.dropna(axis=0)
+    # df=df.reset_index(drop=True)
+    # op.heatmap(df=df,boxlabels=True, 
+    # variables=["bill_length_mm","bill_depth_mm","flipper_length_mm"],
+    # row_split=True, clustering_method="kmeans",
+    #            category=["species", "island"],
+    #            col_colors={"colors": ["bill","bill","flipper"]}, 
+    #            row_plot=["body_mass_g"], row_ticklabels=False, approx_clusternum=3)
+    # op.heatmap(df=df, dtype="categorical", variables=["species", "island", "sex"],
+    #            row_plot=["body_mass_g"], row_ticklabels=False, approx_clusternum=3,column_wise_color=True) 
+    # _df=df.sample(n=25, replace=False, random_state=1)
+    # _df=_df.reset_index(drop=True)
+    # op.heatmap(df=_df, 
+
+
+
+
+    # dtype="categorical", 
+    # variables=["species", "island", "sex"],
+    #            row_plot=["body_mass_g"], 
+    #            shape="by_category", shape_colors=np.arange(25*3).reshape([25,3]),
+    #            row_ticklabels=False, 
+    #            approx_clusternum=3,
+    #            column_wise_color=True, sizes=np.arange(25*3).reshape([25,3])) 
+
+    # mat=np.concatenate([0.25*np.random.uniform(0,1,size=[10, 25]),0.5*np.random.uniform(0,1,size=[15, 25]),
+    #                     np.random.uniform(0,1,size=[15, 25])])
+    # mat=np.concatenate([mat, np.random.uniform(0,1,size=[40, 15])], axis=1)
+    # print(mat.shape)
+    # df=pd.DataFrame(mat)
+    # op.heatmap(df, sizes=mat, size_title="random",cbar_title="random colors",
+    #            col_split=True,
+    #            row_plot={"normal": np.random.normal(size=mat.shape[0])}, 
+    #            row_scatter={"uniform": np.random.uniform(size=mat.shape[0])}, 
+    #            row_bar={"range": np.arange(mat.shape[0])},
+    #            col_bar={"range": np.arange(mat.shape[1])},
+               
+    #            edgecolor=None, approx_clusternum=3, ztranform=False)
+    # # op.heatmap(df, shape="circle", sizes=mat, edgecolor=None, approx_clusternum=3, row_split=True, ztranform=False)
+    # mat=np.arange(50).reshape([5,10]).astype(np.float)
+    # df=pd.DataFrame(mat)
+    # op.heatmap(df, shape="circle", sizes=mat, row_cluster=False,col_cluster=False, edgecolor=None, approx_clusternum=3, ztranform=False, row_split=True)
+    # plt.show()

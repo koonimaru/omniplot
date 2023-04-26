@@ -26,5 +26,3 @@ omniplot/cython_utils/__init__.py
 omniplot/scripts/__init__.py
 omniplot/scripts/gff2tss.py
 tests/test_chipseq.py
-tests/test_network.py
-tests/tests.py

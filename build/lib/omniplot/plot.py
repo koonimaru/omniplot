@@ -35,21 +35,9 @@ import itertools as it
 from omniplot.scatter import *
 from omniplot.proportion import *
 from omniplot.heatmap import *
-colormap_list: list=["nipy_spectral", 
-                     "terrain",
-                     "tab20b",
-                     "tab20c",
-                     "gist_rainbow",
-                     "hsv",
-                     "CMRmap",
-                     "coolwarm",
-                     "gnuplot",
-                     "gist_stern",
-                     "brg",
-                     "rainbow",
-                     "jet"]
-hatch_list: list = ['//', '\\\\', '||', '--', '++', 'xx', 'oo', 'OO', '..', '**','/o', '\\|', '|*', '-\\', '+o', 'x*', 'o-', 'O|', 'O.', '*-']
-maker_list: list=['.', '_' , '+','|', 'x', 'v', '^', '<', '>', 's', 'p', '*', 'h', 'D', 'd', 'P', 'X','o', '1', '2', '3', '4','|', '_']
+from omniplot.utils import colormap_list, hatch_list, marker_list
+# hatch_list: list = ['//', '\\\\', '||', '--', '++', 'xx', 'oo', 'OO', '..', '**','/o', '\\|', '|*', '-\\', '+o', 'x*', 'o-', 'O|', 'O.', '*-']
+# marker_list: list=['.', '_' , '+','|', 'x', 'v', '^', '<', '>', 's', 'p', '*', 'h', 'D', 'd', 'P', 'X','o', '1', '2', '3', '4','|', '_']
 
 
 
