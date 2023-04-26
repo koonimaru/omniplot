@@ -7,7 +7,7 @@ import pandas as pd
 from matplotlib import cm
 from matplotlib.lines import Line2D
 from scipy.cluster.hierarchy import leaves_list
-
+from joblib import Parallel, delayed
 from collections import defaultdict
 import matplotlib.colors
 from natsort import natsort_keygen, natsorted
@@ -1100,9 +1100,10 @@ def heatmap(df: pd.DataFrame,
                 col_split: bool=False,
 
                 shape: str="rectangle",
-                edgecolor: str="w",
-                rowlabels: str="",
                 shape_colors: Union[np.ndarray, list, dict]=[],
+                edgecolor: str="w",
+                
+                rowlabels: str="",
                 row_ticklabels: bool=True,
                 rowrot: int=0,
                 col_ticklabels: bool=True,
@@ -1137,7 +1138,7 @@ def heatmap(df: pd.DataFrame,
                 save: str="",
                 treepalette: str="tab20b",
                 above_threshold_color="black",
-                rasterized: bool=False,
+                rasterized: bool=True,
                 size_format: str="",
                 rowplot_format: str="{x:.1f}",
                 colplot_format:  str="{x:.1f}",
@@ -1145,7 +1146,7 @@ def heatmap(df: pd.DataFrame,
                 boxlabels: bool=False,
                 box_textwidth: Optional[int]=None,
                 box_max_lines: Optional[int]=None,
-    
+                n_jobs=-1,
                 ):
     """
     Drawing a heatmap. The function is mostly overlapping with the complex_clustermap, but has more flexibility, but may be slower.
@@ -1206,8 +1207,10 @@ def heatmap(df: pd.DataFrame,
     col_split: bool, optional (default: False)
         Whether to split the heatmap according to the clusters
 
-    shape: str="rectangle", ["rectangle", "circle", "triangle"]
-        The shape of the heatmap elements
+    shape: str="rectangle", ["rectangle", "circle", "triangle", "star", "polygon:n", "star:n:m", "by_category"]
+        The shape of the heatmap elements. For polygon:n, n is an integer of vertices of the polygon (e.g., polygon:5 will be a pentagon).
+        Likewise, star:n:m can specify star's vertices. 'star:5:2' is a classical star shape and equivalent to 'star'. 'by_category' will 
+        produce a variety of shapes to represent categorical values.
 
     edgecolor: str, optional (default: "w")
         The edgecolor of the heatmap elements
@@ -1489,6 +1492,8 @@ def heatmap(df: pd.DataFrame,
             row_colors["kmeans_row"]=_kmeans.labels_.astype(str)
             sortindexr=np.lexsort((X.mean(axis=1),_kmeans.labels_))
             X=X[sortindexr]
+            if type(Xsize)!=None:
+                Xsize=Xsize[sortindexr]
             if len(shape_colors)>0:
                 scX=scX[sortindexr]
             rowlabels=rowlabels[sortindexr]
@@ -1509,6 +1514,9 @@ def heatmap(df: pd.DataFrame,
             row_colors["kmodes_row"]=clusters.astype(str)
             sortindexr=np.argsort(clusters)
             X=X[sortindexr]
+            if type(Xsize)!=None:
+                Xsize=Xsize[sortindexr]
+
             if len(shape_colors)>0:
                 scX=scX[sortindexr]
             rowlabels=rowlabels[sortindexr]
@@ -1541,6 +1549,9 @@ def heatmap(df: pd.DataFrame,
             col_colors["kmeans_column"]=_ckmeans.labels_.astype(str)
             sortindexc=np.lexsort((X.mean(axis=0),_ckmeans.labels_))
             X=X[:,sortindexc]
+            if type(Xsize)!=None:
+                Xsize=Xsize[:, sortindexc]
+
             if len(shape_colors)>0:
                 scX=scX[:, sortindexc]
 
@@ -1562,6 +1573,9 @@ def heatmap(df: pd.DataFrame,
             col_colors["kmodes_column"]=clustersc.astype(str)
             sortindexc=np.argsort(clustersc)
             X=X[:, sortindexc]
+            if type(Xsize)!=None:
+                Xsize=Xsize[:, sortindexc]
+
             if len(shape_colors)>0:
                 scX=scX[:, sortindexc]
             collabels=collabels[sortindexc]
@@ -1739,6 +1753,9 @@ def heatmap(df: pd.DataFrame,
             _y+=_c
 
     #Drawing a heatmap
+    pcolormesh=False
+    if Xshape[0]>1000 and Xshape[1]>1000:
+        pcolormesh=True
     if row_split==True and row_cluster==True:
         
         # print(cnums, _cnums)
@@ -1749,44 +1766,55 @@ def heatmap(df: pd.DataFrame,
             ax=fig.add_axes([hmapx,yori+_y,hmapw,hmaph*_c])
             Xsub=X[_r:_r+c]
             Xsubshape=Xsub.shape
-            _X=Xsub.flatten()
-            if dtype=="numerical":
-                _X=(_X-Xmin)/(Xmax-Xmin)
-                facecolors=cmap(_X)
-            elif dtype=="categorical":
-                if type(shape)==dict:
-                    if len(shape_colors)>0:
-                        Xsub=scX[_r:_r+c]
-                        Xsubshape=scX.shape
-                        _scX=Xsub.flatten()
-                        _scX=(_scX-scXmin)/(scXmax-scXmin)
-                        facecolors=cmap(_X)
-                    else:
-                       facecolors=["black" for u in _X]
-                else:
-                    facecolors=[_color_lut[u] for u in _X]
-            _Xsize=None
-            if type(Xsize)!=type(None):
-                Xsizesub=Xsize[_r:_r+c]
-                _Xsize=Xsizesub.flatten()
-                _Xsize=(_Xsize-Xsizemin)/(Xsizemax-Xsizemin)
-            row_col=[ [j,i] for i in range(Xsub.shape[0]) for j in range(Xsub.shape[1])]
             
-            _add_patches(facecolors, 
-                        Xsubshape, 
-                        shape, 
-                        row_col, 
-                        None, 
-                        Xsize, 
-                        _Xsize,
-                        ax,
-                        row_ticklabels,
-                        rowlabels[_r:_r+c], 
-                        rowrot, 
-                        col_ticklabels, 
-                        collabels, 
-                        colrot,rasterized)
-            ax.margins(x=margin,y=margin)
+            if pcolormesh==True:
+                if dtype=="numerical":
+                    Xsub=(Xsub-Xmin)/(Xmax-Xmin)
+                    ax.pcolormesh(Xsub)
+                elif dtype=="categorical":
+                    ax.pcolormesh(
+                        np.array([_color_lut[u] 
+                    for u in Xsub.flatten()]
+                    ).reshape([Xsubshape[0],Xsubshape[1], -1]))
+            else:
+                _X=Xsub.flatten()
+                if dtype=="numerical":
+                    _X=(_X-Xmin)/(Xmax-Xmin)
+                    facecolors=cmap(_X)
+                elif dtype=="categorical":
+                    if type(shape)==dict:
+                        if len(shape_colors)>0:
+                            Xsub=scX[_r:_r+c]
+                            Xsubshape=scX.shape
+                            _scX=Xsub.flatten()
+                            _scX=(_scX-scXmin)/(scXmax-scXmin)
+                            facecolors=cmap(_scX)
+                        else:
+                            facecolors=["black" for u in _X]
+                    else:
+                        facecolors=[_color_lut[u] for u in _X]
+                _Xsize=None
+                if type(Xsize)!=type(None):
+                    _Xsize=Xsize[_r:_r+c]
+                    _Xsize=(_Xsize-Xsizemin)/(Xsizemax-Xsizemin)
+                    _Xsize=_Xsize.flatten()
+                row_col=[ [j,i] for i in range(Xsub.shape[0]) for j in range(Xsub.shape[1])]
+                
+                _add_patches(facecolors, 
+                            Xsubshape, 
+                            shape, 
+                            row_col, 
+                            None, 
+                            Xsize, 
+                            _Xsize,
+                            ax,
+                            row_ticklabels,
+                            rowlabels[_r:_r+c], 
+                            rowrot, 
+                            col_ticklabels, 
+                            collabels, 
+                            colrot,rasterized, n_jobs=n_jobs)
+                ax.margins(x=margin,y=margin)
             ax.tick_params(pad=1,axis='both', which='both', length=0)
             
             if _y>0:
@@ -1814,44 +1842,54 @@ def heatmap(df: pd.DataFrame,
             
             Xsub=X[:,_r:_r+c]
             Xsubshape=Xsub.shape
-            _X=Xsub.flatten()
-            if dtype=="numerical":
-                _X=(_X-Xmin)/(Xmax-Xmin)
-                facecolors=cmap(_X)
-            elif dtype=="categorical":
-                if type(shape)==dict:
-                    if len(shape_colors)>0:
-                        Xsub=scX[_r:_r+c]
-                        Xsubshape=scX.shape
-                        _scX=Xsub.flatten()
-                        _scX=(_scX-scXmin)/(scXmax-scXmin)
-                        facecolors=cmap(_scX)
+            if pcolormesh==True:
+                if dtype=="numerical":
+                    Xsub=(Xsub-Xmin)/(Xmax-Xmin)
+                    ax.pcolormesh(Xsub)
+                elif dtype=="categorical":
+                    ax.pcolormesh(
+                        np.array([_color_lut[u] 
+                    for u in Xsub.flatten()]
+                    ).reshape([Xsubshape[0],Xsubshape[1], -1]))
+            else:
+                _X=Xsub.flatten()
+                if dtype=="numerical":
+                    _X=(_X-Xmin)/(Xmax-Xmin)
+                    facecolors=cmap(_X)
+                elif dtype=="categorical":
+                    if type(shape)==dict:
+                        if len(shape_colors)>0:
+                            Xsub=scX[_r:_r+c]
+                            Xsubshape=scX.shape
+                            _scX=Xsub.flatten()
+                            _scX=(_scX-scXmin)/(scXmax-scXmin)
+                            facecolors=cmap(_scX)
+                        else:
+                            facecolors=["black" for u in _X]
                     else:
-                       facecolors=["black" for u in _X]
-                else:
-                    facecolors=[_color_lut[u] for u in _X]
-            _Xsize=None
-            if type(Xsize)!=type(None):
-                Xsizesub=Xsize[:, _r:_r+c]
-                _Xsize=Xsizesub.flatten()
-                _Xsize=(_Xsize-Xsizemin)/(Xsizemax-Xsizemin)
-            row_col=[ [j,i] for i in range(Xsub.shape[0]) for j in range(Xsub.shape[1])]
-            
-            _add_patches(facecolors, 
-                        Xsubshape, 
-                        shape, 
-                        row_col, 
-                        None, 
-                        Xsize, 
-                        _Xsize,
-                        ax,
-                        row_ticklabels,
-                        rowlabels, 
-                        rowrot, 
-                        col_ticklabels, 
-                        collabels[_r:_r+c], 
-                        colrot,rasterized)
-            ax.margins(x=margin,y=margin)
+                        facecolors=[_color_lut[u] for u in _X]
+                _Xsize=None
+                if type(Xsize)!=type(None):
+                    Xsizesub=Xsize[:, _r:_r+c]
+                    _Xsize=Xsizesub.flatten()
+                    _Xsize=(_Xsize-Xsizemin)/(Xsizemax-Xsizemin)
+                row_col=[ [j,i] for i in range(Xsub.shape[0]) for j in range(Xsub.shape[1])]
+                
+                _add_patches(facecolors, 
+                            Xsubshape, 
+                            shape, 
+                            row_col, 
+                            None, 
+                            Xsize, 
+                            _Xsize,
+                            ax,
+                            row_ticklabels,
+                            rowlabels, 
+                            rowrot, 
+                            col_ticklabels, 
+                            collabels[_r:_r+c], 
+                            colrot,rasterized, n_jobs=n_jobs)
+                ax.margins(x=margin,y=margin)
             ax.tick_params(pad=1,axis='both', which='both', length=0)
             if i<len(col_cnums)-1:
                 ax.set_yticks([])
@@ -1867,33 +1905,45 @@ def heatmap(df: pd.DataFrame,
 
             axis_dict["heatmap"+str(i)]=ax
     else:
-        _X=X.flatten()
-        _Xsize=None
-        if type(Xsize)!=type(None):
-            _Xsize=Xsize.flatten()
-            _Xsize=(_Xsize-Xsizemin)/(Xsizemax-Xsizemin)
-        if dtype=="numerical":
-            _X=(_X-Xmin)/(Xmax-Xmin)
-            facecolors=cmap(_X)
-        elif dtype=="categorical":
-            if type(shape)==dict:
-                if len(shape_colors)>0:
-
-                    _scX=scX.flatten()
-                    _scX=(_scX-scXmin)/(scXmax-scXmin)
-                    facecolors=cmap(_scX)
-                else:
-                    facecolors=["black" for u in _X]
-            else:
-                facecolors=[_color_lut[u] for u in _X]
-            
-        row_col=[ [j,i] for i in range(X.shape[0]) for j in range(X.shape[1])]
-        
         ax=fig.add_axes([hmapx,yori,hmapw,hmaph])
-        _add_patches(facecolors, Xshape, shape, row_col, edgecolor, Xsize, 
-                    _Xsize,ax,row_ticklabels,rowlabels, rowrot, 
-                    col_ticklabels, collabels, colrot,rasterized,Xflatten=_X)
-        ax.margins(x=margin,y=margin)
+
+        if pcolormesh==True:
+            if dtype=="numerical":
+                X=(X-Xmin)/(Xmax-Xmin)
+                ax.pcolormesh(X)
+            elif dtype=="categorical":
+                ax.pcolormesh(
+                    np.array([_color_lut[u] 
+                for u in X.flatten()]
+                ).reshape([Xshape[0],Xshape[1], -1]))
+        else:
+
+            _X=X.flatten()
+            _Xsize=None
+            if type(Xsize)!=type(None):
+                _Xsize=Xsize.flatten()
+                _Xsize=(_Xsize-Xsizemin)/(Xsizemax-Xsizemin)
+            if dtype=="numerical":
+                _X=(_X-Xmin)/(Xmax-Xmin)
+                facecolors=cmap(_X)
+            elif dtype=="categorical":
+                if type(shape)==dict:
+                    if len(shape_colors)>0:
+
+                        _scX=scX.flatten()
+                        _scX=(_scX-scXmin)/(scXmax-scXmin)
+                        facecolors=cmap(_scX)
+                    else:
+                        facecolors=["black" for u in _X]
+                else:
+                    facecolors=[_color_lut[u] for u in _X]
+                
+            row_col=[ [j,i] for i in range(X.shape[0]) for j in range(X.shape[1])]
+            
+            _add_patches(facecolors, Xshape, shape, row_col, edgecolor, Xsize, 
+                        _Xsize,ax,row_ticklabels,rowlabels, rowrot, 
+                        col_ticklabels, collabels, colrot,rasterized,Xflatten=_X, n_jobs=n_jobs)
+            ax.margins(x=margin,y=margin)
         ax.tick_params(pad=1,axis='both', which='both', length=0)
         axis_dict["heatmap"]=ax
     
@@ -1983,7 +2033,7 @@ def heatmap(df: pd.DataFrame,
 
 def _add_patches(facecolors, Xshape, shape, row_col, edgecolor, Xsize, 
                  _Xsize,ax,row_ticklabels,rowlabels, 
-                 rowrot, col_ticklabels, collabels, colrot,rasterized,Xflatten=None):
+                 rowrot, col_ticklabels, collabels, colrot,rasterized,Xflatten=None,n_jobs=-1):
     
     if type(Xsize)!=type(None):
         _row_col=np.array(row_col)
@@ -1996,18 +2046,27 @@ def _add_patches(facecolors, Xshape, shape, row_col, edgecolor, Xsize,
         print(shape)
         print(Xflatten)
         if type(Xsize)!=type(None):
-            shapes = [_create_polygon(shape[val], x,y, wh)
-                        for (x, y), wh, val in zip(row_col, _Xsize,Xflatten)]
+            # shapes = [_create_polygon(shape[val], x,y, wh)
+            #             for (x, y), wh, val in zip(row_col, _Xsize,Xflatten)]
+            shapes=Parallel(n_jobs=n_jobs)(delayed(_create_polygon)(
+                shape[val], x,y, wh) for (x, y), wh, val in zip(row_col, _Xsize,Xflatten))
+
+
         else:
-            shapes = [_create_polygon(shape[val], x,y, 1)
-                        for (x, y), val in zip(row_col,Xflatten)]
+            # shapes = [_create_polygon(shape[val], x,y, 1)
+            #         for (x, y), val in zip(row_col,Xflatten)]
+            shapes=Parallel(n_jobs=n_jobs)(delayed(_create_polygon)(
+                shape[val], x,y, 1) for (x, y), val in zip(row_col,Xflatten))
     else:
         if type(Xsize)!=type(None):            
             shapes = [_create_polygon(shape, x,y, wh)
                         for (x, y), wh in zip(row_col, _Xsize)]
+            shapes=Parallel(n_jobs=n_jobs)(delayed(_create_polygon)(shape, x,y, wh) for (x, y), wh in zip(row_col, _Xsize))
         else:
-            shapes = [_create_polygon(shape, x,y, 1)
-                        for x, y in row_col]
+            shapes=Parallel(n_jobs=n_jobs)(delayed(_create_polygon)(shape, x,y, 1) for x, y in row_col)
+            
+            # shapes = [_create_polygon(shape, x,y, 1)
+            #             for x, y in row_col]
 
     # Create patch collection with specified colour/alpha
     if edgecolor==None:
@@ -2070,7 +2129,8 @@ def _create_polygon(shape, x, y, r, ry=None, **kwargs):
             for i in range(n):
                 rs.append([x+0.5*r*np.cos(np.pi/2+(m*i)*2*np.pi/n),y+0.5*ry*np.sin(np.pi/2+(m*i)*2*np.pi/n)])
         return Polygon(rs, **kwargs)
-
+    else:
+        raise Exception["Unknown shape! you gave {}, but it only accepts 'rectangle', 'circle', 'star', 'polygon:n', 'star:n:m'".format(shape)]
 def _row_plot(df, leaves, fig, 
               category, lut, row_colors, row_plot, 
               row_scatter, row_bar, 
@@ -2450,7 +2510,7 @@ def _dendrogram(X, Xsize, ax, rowlabels,treepalette ,approx_clusternum, metric,m
         D=squareform(pdist(X,metric=metric))
     elif orientation=="top":
         D=squareform(pdist(X.T,metric=metric))
-    Y = sch.linkage(D, method=method)
+    Y = fcl.linkage(D, method=method)
     Z = sch.dendrogram(Y,orientation=orientation,above_threshold_color=above_threshold_color, no_plot=True)
     t=_dendrogram_threshold(Z,approx_clusternum)
 
