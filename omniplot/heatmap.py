@@ -1492,7 +1492,7 @@ def heatmap(df: pd.DataFrame,
             row_colors["kmeans_row"]=_kmeans.labels_.astype(str)
             sortindexr=np.lexsort((X.mean(axis=1),_kmeans.labels_))
             X=X[sortindexr]
-            if type(Xsize)!=None:
+            if type(Xsize)!=type(None):
                 Xsize=Xsize[sortindexr]
             if len(shape_colors)>0:
                 scX=scX[sortindexr]
@@ -1514,7 +1514,7 @@ def heatmap(df: pd.DataFrame,
             row_colors["kmodes_row"]=clusters.astype(str)
             sortindexr=np.argsort(clusters)
             X=X[sortindexr]
-            if type(Xsize)!=None:
+            if type(Xsize)!=type(None):
                 Xsize=Xsize[sortindexr]
 
             if len(shape_colors)>0:
@@ -1549,7 +1549,7 @@ def heatmap(df: pd.DataFrame,
             col_colors["kmeans_column"]=_ckmeans.labels_.astype(str)
             sortindexc=np.lexsort((X.mean(axis=0),_ckmeans.labels_))
             X=X[:,sortindexc]
-            if type(Xsize)!=None:
+            if type(Xsize)!=type(None):
                 Xsize=Xsize[:, sortindexc]
 
             if len(shape_colors)>0:
@@ -1573,7 +1573,7 @@ def heatmap(df: pd.DataFrame,
             col_colors["kmodes_column"]=clustersc.astype(str)
             sortindexc=np.argsort(clustersc)
             X=X[:, sortindexc]
-            if type(Xsize)!=None:
+            if type(Xsize)!=type(None):
                 Xsize=Xsize[:, sortindexc]
 
             if len(shape_colors)>0:
