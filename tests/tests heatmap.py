@@ -66,8 +66,9 @@ elif test=="complex_clustermap":
 elif test=="heatmap":
     from PIL import Image
     im=Image.open("/home/koh/Pictures/wave128.jpg").convert("LA")
-    op.heatmap(pd.DataFrame(np.array(im)[:,:,0][::-1]), shape="triangle",row_cluster=True, col_cluster=False,
-    ztranform=False, row_ticklabels=False, col_ticklabels=False)
+    df=pd.DataFrame(np.array(im)[:,:,0][::-1])
+    op.heatmap(df, shape="triangle",row_cluster=True, col_cluster=False,
+    ztranform=False, row_plot={"mean": df.mean(axis=1)}, row_ticklabels=False, col_ticklabels=False)
     plt.show()
     
     # df=sns.load_dataset("penguins")

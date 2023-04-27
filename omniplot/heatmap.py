@@ -2177,7 +2177,7 @@ def _row_plot(df, leaves, fig,
             legend_elements_dict[cat]=legend_elements
             row_plot_index+=1
             catnum+=1
-            axis_dict[cat]=ax
+            axis_dict["row_"+cat]=ax
 
     if len(row_colors)!=0:
         for i, (cat, val) in enumerate(row_colors.items()):
@@ -2208,7 +2208,7 @@ def _row_plot(df, leaves, fig,
             legend_elements_dict[cat]=legend_elements
             row_plot_index+=1
             catnum+=1
-            axis_dict[cat]=ax
+            axis_dict["row_"+cat]=ax
     if len(row_plot)!=0:
         if type(row_plot)==list:
             for cat in row_plot:
@@ -2218,7 +2218,7 @@ def _row_plot(df, leaves, fig,
                 set_axis(ax, val, cat, margin, rowplot_format)
 
                 row_plot_index+=1
-                axis_dict[cat]=ax
+                axis_dict["row_"+cat]=ax
         elif type(row_plot)==dict:
             
             for cat, val in row_plot.items():
@@ -2227,7 +2227,7 @@ def _row_plot(df, leaves, fig,
                 ax.plot(val,np.arange(len(val)),**plotkw)
                 set_axis(ax, val, cat, margin, rowplot_format)
                 row_plot_index+=1
-                axis_dict[cat]=ax
+                axis_dict["row_"+cat]=ax
     if len(row_scatter)!=0:
         if type(row_scatter)==list:
             for cat in row_scatter:
@@ -2236,7 +2236,7 @@ def _row_plot(df, leaves, fig,
                 ax.scatter(val,np.arange(len(val)),**scatterkw)
                 set_axis(ax, val, cat, margin, rowplot_format)
                 row_plot_index+=1
-                axis_dict[cat]=ax
+                axis_dict["row_"+cat]=ax
         elif type(row_scatter)==dict:
             
             for cat, val in row_scatter.items():
@@ -2245,7 +2245,7 @@ def _row_plot(df, leaves, fig,
                 ax.scatter(val,np.arange(len(val)),**scatterkw)
                 set_axis(ax, val, cat, margin, rowplot_format)
                 row_plot_index+=1
-                axis_dict[cat]=ax
+                axis_dict["row_"+cat]=ax
     if len(row_bar)!=0:
         if type(row_bar)==list:
             for cat in row_bar:
@@ -2254,7 +2254,7 @@ def _row_plot(df, leaves, fig,
                 ax.barh(np.arange(len(val)), width=val,**barkw)
                 set_axis(ax, val, cat, margin, rowplot_format)
                 row_plot_index+=1
-                axis_dict[cat]=ax
+                axis_dict["row_"+cat]=ax
         elif type(row_bar)==dict:
             
             for cat, val in row_bar.items():
@@ -2263,7 +2263,7 @@ def _row_plot(df, leaves, fig,
                 ax.barh(np.arange(len(val)), width=val,**barkw)
                 set_axis(ax, val, cat, margin, rowplot_format)
                 row_plot_index+=1
-                axis_dict[cat]=ax
+                axis_dict["row_"+cat]=ax
     return legend_elements_dict, catnum, axis_dict
 
 
@@ -2321,7 +2321,7 @@ def _col_plot(leaves, fig, col_colors, col_plot,
             legend_elements_dict[cat]=legend_elements
             row_plot_index+=1
             catnum+=1
-            axis_dict[cat]=ax
+            axis_dict["col_"+cat]=ax
     if len(col_plot)!=0:
         if type(col_plot)==list:
             raise Exception("Currently, 'col_plot' option accepts only dictionary")
@@ -2333,7 +2333,7 @@ def _col_plot(leaves, fig, col_colors, col_plot,
                 ax.plot(val,np.arange(len(val)),**plotkw)
                 set_axis(ax, val, cat, margin, colplot_format)
                 row_plot_index+=1
-                axis_dict[cat]=ax
+                axis_dict["col_"+cat]=ax
     if len(col_scatter)!=0:
         if type(col_scatter)==list:
             raise Exception("Currently, 'col_scatter' option accepts only dictionary")
@@ -2346,7 +2346,7 @@ def _col_plot(leaves, fig, col_colors, col_plot,
                 ax.scatter(val,np.arange(len(val)),**scatterkw)
                 set_axis(ax, val, cat, margin, colplot_format)
                 row_plot_index+=1
-                axis_dict[cat]=ax
+                axis_dict["col_"+cat]=ax
     if len(col_bar)!=0:
         if type(col_bar)==list:
             raise Exception("Currently, 'col_scatter' option accepts only dictionary")
@@ -2359,7 +2359,7 @@ def _col_plot(leaves, fig, col_colors, col_plot,
                 ax.bar(np.arange(len(val)), height=val,**barkw)
                 set_axis(ax, val, cat, margin, colplot_format)
                 row_plot_index+=1
-                axis_dict[cat]=ax
+                axis_dict["col_"+cat]=ax
     return legend_elements_dict, catnum, axis_dict
 
 
