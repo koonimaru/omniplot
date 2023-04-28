@@ -81,15 +81,11 @@ elif test=="heatmap":
                category=["species", "island"],
                col_colors={"colors": ["bill","bill","flipper"]}, 
                row_plot=["body_mass_g"], row_ticklabels=False, approx_clusternum=3)
-    # op.heatmap(df=df, dtype="categorical", variables=["species", "island", "sex"],
-    #            row_plot=["body_mass_g"], row_ticklabels=False, approx_clusternum=3,column_wise_color=True) 
+    op.heatmap(df=df, dtype="categorical", variables=["species", "island", "sex"],
+               row_plot=["body_mass_g"], row_ticklabels=False, approx_clusternum=3,column_wise_color=True) 
     # _df=df.sample(n=25, replace=False, random_state=1)
     # _df=_df.reset_index(drop=True)
     # op.heatmap(df=_df, 
-
-
-
-
     # dtype="categorical", 
     # variables=["species", "island", "sex"],
     #            row_plot=["body_mass_g"], 
@@ -112,8 +108,10 @@ elif test=="heatmap":
                
                edgecolor=None, approx_clusternum=3, ztranform=False)
     print(res.keys())
-    res["axes"]["row_0"].invert_yaxis()
-    res["axes"]["row_0"].violinplot(mat[res["rowsort"]],vert=False,showmedians=True)
+    ax=res["axes"]["row_0"]
+    op.violinplot2(mat[res["rowsort"]], ax=ax,orientation="horizontal")
+    ax.set_xlabel("violin")
+    res["axes"]["row_0"].set_ylim(-0.5, mat.shape[0]-0.5)
     # # op.heatmap(df, shape="circle", sizes=mat, edgecolor=None, approx_clusternum=3, row_split=True, ztranform=False)
     # mat=np.arange(50).reshape([5,10]).astype(np.float)
     # df=pd.DataFrame(mat)

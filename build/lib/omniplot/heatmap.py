@@ -37,6 +37,8 @@ from matplotlib.patches import Rectangle, Circle,Ellipse, RegularPolygon, Polygo
 import copy
 import textwrap
 from matplotlib.artist import Artist
+from matplotlib.transforms import Affine2D
+import mpl_toolkits.axisartist.floating_axes as floating_axes
 
 __all__=["correlation", "triangle_heatmap", "complex_clustermap","dotplot", "heatmap"]
 def correlation(df: pd.DataFrame, 
@@ -1119,11 +1121,13 @@ def heatmap(df: pd.DataFrame,
                 row_scatter: Union[dict, list]={},
                 col_scatter: Union[dict, list]={},
                 scatterkw: dict={},
-
                 row_bar: Union[dict, list]={},
                 col_bar: Union[dict, list]={},
                 barkw: dict={},
-            
+                row_axis: int=0,
+                col_axis: int=0,
+
+
                 approx_clusternum: Union[int, str]=3,
                 approx_clusternum_col: int=3,
 
@@ -1350,9 +1354,11 @@ def heatmap(df: pd.DataFrame,
             clustering_method="kmodes"
             print("Categorical variables are provided. 'kmodes' will be used for the clustering method.")
     
-    rowplot_num=len(category)+len(row_colors)+len(row_plot)+len(row_scatter)+len(row_bar)+\
+    rowplot_num=len(category)+len(row_colors)+\
+        len(row_plot)+len(row_scatter)+len(row_bar)+row_axis+\
         int(clustering_method=="kmeans" and row_cluster==True)+int(clustering_method=="kmodes" and row_cluster==True)
-    colplot_num=len(col_colors)+len(col_plot)+len(col_scatter)+len(col_bar)+\
+    colplot_num=len(col_colors)+len(col_plot)+\
+        len(col_scatter)+len(col_bar)+col_axis+\
         int(clustering_method=="kmeans" and col_cluster==True)+int(clustering_method=="kmodes" and col_cluster==True)
     Xshape=X.shape
     if np.sum(Xshape)>200:
@@ -1602,13 +1608,13 @@ def heatmap(df: pd.DataFrame,
                                            Xshape, 
                                            lcatx,lcatw,
                                            yori,hmaph, margin, 
-                                           plotkw, scatterkw, barkw, catnum, ax_dict)
+                                           plotkw, scatterkw, barkw, catnum, ax_dict,row_axis=row_axis)
     legend_elements_dict, catnum, axis_dict=_col_plot(sortindexc, fig, col_colors, col_plot, 
                                             col_scatter, col_bar, 
                                             colplot_format,
                                             legend_elements_dict, 
                                             Xshape, tcaty,tcath,hmapx,
-                                            hmapw, margin, plotkw, scatterkw, barkw, catnum, axis_dict)
+                                            hmapw, margin, plotkw, scatterkw, barkw, catnum, axis_dict, col_axis=col_axis)
     
     # Creating the heatmap
 
@@ -1754,7 +1760,7 @@ def heatmap(df: pd.DataFrame,
 
     #Drawing a heatmap
     pcolormesh=False
-    if Xshape[0]>1000 and Xshape[1]>1000:
+    if Xshape[0]>1000 or Xshape[1]>1000:
         pcolormesh=True
     if row_split==True and row_cluster==True:
         
@@ -2131,13 +2137,28 @@ def _create_polygon(shape, x, y, r, ry=None, **kwargs):
         return Polygon(rs, **kwargs)
     else:
         raise Exception["Unknown shape! you gave {}, but it only accepts 'rectangle', 'circle', 'star', 'polygon:n', 'star:n:m'".format(shape)]
-def _row_plot(df, leaves, fig, 
-              category, lut, row_colors, row_plot, 
-              row_scatter, row_bar, 
+def _row_plot(df, 
+              leaves, 
+              fig, 
+              category, 
+              lut, 
+              row_colors, 
+              row_plot, 
+              row_scatter, 
+              row_bar, 
               rowplot_format,
                 legend_elements_dict, 
-                Xshape, lcatx,lcatw,yori,
-                hmaph, margin, plotkw, scatterkw, barkw ,catnum,axis_dict):
+                Xshape, 
+                lcatx,
+                lcatw,
+                yori,
+                hmaph, 
+                margin, 
+                plotkw, 
+                scatterkw, 
+                barkw ,
+                catnum,
+                axis_dict, row_axis=0):
     
     def set_axis(_ax, _val, _cat, _margin, _rowplot_format):
         _ax.tick_params(pad=-5)
@@ -2150,6 +2171,7 @@ def _row_plot(df, leaves, fig,
                         _rowplot_format.format(x=vmax)], 
                         rotation=90)
         ax.set_yticks([])
+        
         ax.invert_xaxis()
 
     row_plot_index=0
@@ -2177,7 +2199,7 @@ def _row_plot(df, leaves, fig,
             legend_elements_dict[cat]=legend_elements
             row_plot_index+=1
             catnum+=1
-            axis_dict[cat]=ax
+            axis_dict["row_"+cat]=ax
 
     if len(row_colors)!=0:
         for i, (cat, val) in enumerate(row_colors.items()):
@@ -2208,7 +2230,7 @@ def _row_plot(df, leaves, fig,
             legend_elements_dict[cat]=legend_elements
             row_plot_index+=1
             catnum+=1
-            axis_dict[cat]=ax
+            axis_dict["row_"+cat]=ax
     if len(row_plot)!=0:
         if type(row_plot)==list:
             for cat in row_plot:
@@ -2216,36 +2238,39 @@ def _row_plot(df, leaves, fig,
                 ax=fig.add_axes([lcatx+row_plot_index*lcatw,yori,lcatw,hmaph])
                 ax.plot(val,np.arange(len(val)),**plotkw)
                 set_axis(ax, val, cat, margin, rowplot_format)
-
+                ax.set_ylim(-0.5, val.shape[0]-0.5)
                 row_plot_index+=1
-                axis_dict[cat]=ax
+                axis_dict["row_"+cat]=ax
         elif type(row_plot)==dict:
             
             for cat, val in row_plot.items():
                 val=np.array(val)[leaves]
                 ax=fig.add_axes([lcatx+row_plot_index*lcatw,yori,lcatw,hmaph])
                 ax.plot(val,np.arange(len(val)),**plotkw)
+                ax.set_ylim(-0.5,val.shape[0]-0.5)
                 set_axis(ax, val, cat, margin, rowplot_format)
                 row_plot_index+=1
-                axis_dict[cat]=ax
+                axis_dict["row_"+cat]=ax
     if len(row_scatter)!=0:
         if type(row_scatter)==list:
             for cat in row_scatter:
                 val=_df[cat]
                 ax=fig.add_axes([lcatx+row_plot_index*lcatw,yori,lcatw,hmaph])
                 ax.scatter(val,np.arange(len(val)),**scatterkw)
+                ax.set_ylim(-0.5, val.shape[0]-0.5)
                 set_axis(ax, val, cat, margin, rowplot_format)
                 row_plot_index+=1
-                axis_dict[cat]=ax
+                axis_dict["row_"+cat]=ax
         elif type(row_scatter)==dict:
             
             for cat, val in row_scatter.items():
                 val=np.array(val)[leaves]
                 ax=fig.add_axes([lcatx+row_plot_index*lcatw,yori,lcatw,hmaph])
                 ax.scatter(val,np.arange(len(val)),**scatterkw)
+                ax.set_ylim(-0.5, val.shape[0]-0.5)
                 set_axis(ax, val, cat, margin, rowplot_format)
                 row_plot_index+=1
-                axis_dict[cat]=ax
+                axis_dict["row_"+cat]=ax
     if len(row_bar)!=0:
         if type(row_bar)==list:
             for cat in row_bar:
@@ -2254,7 +2279,7 @@ def _row_plot(df, leaves, fig,
                 ax.barh(np.arange(len(val)), width=val,**barkw)
                 set_axis(ax, val, cat, margin, rowplot_format)
                 row_plot_index+=1
-                axis_dict[cat]=ax
+                axis_dict["row_"+cat]=ax
         elif type(row_bar)==dict:
             
             for cat, val in row_bar.items():
@@ -2263,7 +2288,17 @@ def _row_plot(df, leaves, fig,
                 ax.barh(np.arange(len(val)), width=val,**barkw)
                 set_axis(ax, val, cat, margin, rowplot_format)
                 row_plot_index+=1
-                axis_dict[cat]=ax
+                axis_dict["row_"+cat]=ax
+
+    if row_axis!=0:
+        for i in range(row_axis):
+            ax=fig.add_axes([lcatx+row_plot_index*lcatw,yori,lcatw,hmaph])
+            
+            set_axis(ax, val, cat, margin, rowplot_format)
+            row_plot_index+=1
+            axis_dict["row_"+str(i)]=ax
+
+
     return legend_elements_dict, catnum, axis_dict
 
 
@@ -2274,7 +2309,7 @@ def _col_plot(leaves, fig, col_colors, col_plot,
               colplot_format,
                 legend_elements_dict, 
                 Xshape, tcaty,tcatw,hmapx,
-                hmapw, margin, plotkw, scatterkw, barkw ,catnum, axis_dict):
+                hmapw, margin, plotkw, scatterkw, barkw ,catnum, axis_dict,col_axis=0):
     
     def set_axis(_ax, _val, _cat, _margin, _lowplot_format, pad=-5):
         _ax.tick_params(pad=pad)
@@ -2321,7 +2356,7 @@ def _col_plot(leaves, fig, col_colors, col_plot,
             legend_elements_dict[cat]=legend_elements
             row_plot_index+=1
             catnum+=1
-            axis_dict[cat]=ax
+            axis_dict["col_"+cat]=ax
     if len(col_plot)!=0:
         if type(col_plot)==list:
             raise Exception("Currently, 'col_plot' option accepts only dictionary")
@@ -2333,7 +2368,7 @@ def _col_plot(leaves, fig, col_colors, col_plot,
                 ax.plot(val,np.arange(len(val)),**plotkw)
                 set_axis(ax, val, cat, margin, colplot_format)
                 row_plot_index+=1
-                axis_dict[cat]=ax
+                axis_dict["col_"+cat]=ax
     if len(col_scatter)!=0:
         if type(col_scatter)==list:
             raise Exception("Currently, 'col_scatter' option accepts only dictionary")
@@ -2346,7 +2381,7 @@ def _col_plot(leaves, fig, col_colors, col_plot,
                 ax.scatter(val,np.arange(len(val)),**scatterkw)
                 set_axis(ax, val, cat, margin, colplot_format)
                 row_plot_index+=1
-                axis_dict[cat]=ax
+                axis_dict["col_"+cat]=ax
     if len(col_bar)!=0:
         if type(col_bar)==list:
             raise Exception("Currently, 'col_scatter' option accepts only dictionary")
@@ -2359,7 +2394,17 @@ def _col_plot(leaves, fig, col_colors, col_plot,
                 ax.bar(np.arange(len(val)), height=val,**barkw)
                 set_axis(ax, val, cat, margin, colplot_format)
                 row_plot_index+=1
-                axis_dict[cat]=ax
+                axis_dict["col_"+cat]=ax
+
+    if col_axis!=0:
+        for i in range(col_axis):
+            ax=fig.add_axes([hmapx,tcaty+row_plot_index*tcatw,hmapw,tcatw])
+            set_axis(ax, val, cat, margin, colplot_format)
+            row_plot_index+=1
+            axis_dict["col_"+str(i)]=ax
+
+
+
     return legend_elements_dict, catnum, axis_dict
 
 

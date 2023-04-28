@@ -769,12 +769,12 @@ def complex_clustermap(df: pd.DataFrame,
                             ax=g.ax_row_dendrogram,
                             orientation="left")
         
-        print(np.amax(den["dcoord"]))
+        # print(np.amax(den["dcoord"]))
         g.ax_row_dendrogram.invert_yaxis()
         clusters = _get_cluster_classes(den)
         
         keys=list(clusters.keys())
-        print(keys)
+        # print(keys)
         ckeys={}
         i=1
         for k in keys:
@@ -1424,7 +1424,7 @@ def heatmap(df: pd.DataFrame,
     ttreey=yori+ltreeh+tcath*colplot_num
     legendh=(3/Xshape[0])*hmaph
     
-    print([xori,ltreew,hmapw,legendw])
+    # print([xori,ltreew,hmapw,legendw])
     
 
     size_legend_num=3
@@ -1457,7 +1457,7 @@ def heatmap(df: pd.DataFrame,
                 s=0.1
             sx=s*(hmapw/legendw)/Xshape[1]
             sy=s*(hmaph/legendh)*size_legend_num/Xshape[0]
-            print(sx, sy)
+            # print(sx, sy)
             
             if prev_top==0:
                 _yh=0
@@ -1738,16 +1738,16 @@ def heatmap(df: pd.DataFrame,
         for i, (_c,c) in enumerate(zip(_cnums, cnums)):
             text=", ".join(rowlabels[_r:_r+c])
             word_list = wrapper.wrap(text=text)
-            print(word_list)
+            # print(word_list)
             t=ax.text(0.1,_y+_c-0.01,"\n".join(word_list), fontsize=boxfont,va="top",
                       bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", lw=1, alpha=0.8))
             bb=t.get_window_extent(renderer=render)
-            print("width", rwidth, bb.width)
+            # print("width", rwidth, bb.width)
             if i==0 and bb.width/rwidth> boxwidth:
                 while bb.width/rwidth > boxwidth:
                     Artist.remove(t)
                     boxfont-=0.5
-                    print(boxfont)
+                    # print(boxfont)
                     if boxfont<0:
                         break
                     t=ax.text(0.1,_y+_c-0.01,"\n".join(word_list), fontsize=boxfont, va="top",
@@ -2049,8 +2049,8 @@ def _add_patches(facecolors, Xshape, shape, row_col, edgecolor, Xsize,
         ax.add_collection(_pc)
 
     if type(shape)==dict:
-        print(shape)
-        print(Xflatten)
+        # print(shape)
+        # print(Xflatten)
         if type(Xsize)!=type(None):
             # shapes = [_create_polygon(shape[val], x,y, wh)
             #             for (x, y), wh, val in zip(row_col, _Xsize,Xflatten)]
@@ -2586,9 +2586,9 @@ class _AnyObjectHandler:
         self.shape=shape
     def legend_artist(self, legend, orig_handle, fontsize, handlebox):
         x0, y0 = handlebox.xdescent, handlebox.ydescent
-        print(x0, y0)
+        # print(x0, y0)
         width, height = handlebox.width, handlebox.height
-        print(width, height)
+        # print(width, height)
         patch=_create_polygon(self.shape, 10, 3, 10, facecolor=self.facecolor,
                                    edgecolor='black', lw=1,
                                    transform=handlebox.get_transform())
