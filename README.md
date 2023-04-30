@@ -57,7 +57,9 @@ If you get errors saying "error: invalid command 'bdist_wheel'", please try pip 
 I created jupyter notebooks to demonstrate the usage of omniplot [Link](https://github.com/koonimaru/omniplot/tree/main/ipynb).
 You can open jupyter notebooks with [jupyter lab](https://jupyterlab.readthedocs.io/en/stable/) or [VScode](https://code.visualstudio.com/).
 
-And you may want to visit an auto-generated [API](https://koonimaru.github.io/omniplot/). 
+And, I also write articles in [medium](https://medium.com/@koh.onimaru).
+
+A formal documation is under development, but you may want to visit an auto-generated [API](https://koonimaru.github.io/omniplot/). 
 
 ## Example usage
 ```python

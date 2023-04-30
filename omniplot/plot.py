@@ -572,5 +572,89 @@ def _violinplot(df: Union[pd.DataFrame, np.ndarray],
     elif orientation=="vertical":
         ax.set_xticks(np.arange(len(mat)), labels=xlabels, rotation=90)
         plt.subplots_adjust(bottom=0.2)
+
+def _boxplot(df: Union[pd.DataFrame, np.ndarray], 
+                 x: str="", 
+                 y: str="", 
+                 xlabels: list=[],
+                 order: list=[], 
+                 ax: plt.Axes=None,
+                 orientation: str="vertical",
+                 show_points: bool=True,
+                 point_color: str="blue",
+                 box_color: str="black",
+                 violine_color: Union[str,list, dict]="gray",
+                 point_kw={"s":10},
+                 scale_prop=False):
+    if ax==None:
+        fig, ax=plt.subplots()
+    if type(df)==pd.DataFrame:
+        if len(order)!=0:
+            dfs = {_s: _x[y].values for _s, _x in df.groupby(x)}
+            mat=[dfs[_s] for _s in order]
+            xlabels=order
+        else:
+            mat = []
+            xlabels=[]
+            for _s, _x in df.groupby(x):
+                mat.append(_x[y].values)
+                xlabels.append(_s)
+    else:
+        mat=np.array(df)
+    
+    proportion=np.array([np.sum(mat[i]) for i in range(len(mat))])
+    proportion=proportion/np.sum(proportion)
+    for i in range(len(mat)):
+        X=mat[i]
+        # print(X)
+        kde=stats.gaussian_kde(X)
+        q3, q1=np.quantile(X, 0.75), np.quantile(X, 0.25)
+        q2=np.quantile(X, 0.5)
+        iqr=q3-q1
+
+        minx, maxx=q1-iqr*1.5, q3+iqr*1.5
+        xinterval=np.linspace(minx,maxx, 100)
+        estimate=kde(xinterval)
+        if scale_prop==True:
+            estimate=proportion[i]*estimate/np.amax(estimate)
+        else:
+            estimate=0.5*estimate/np.amax(estimate)
+
+
+        if type(violine_color)==list:
+            vc=violine_color[i]
+        elif type(violine_color)==dict:
+            vc=xlabels[violine_color[i]]
+        elif type(violine_color)==str:
+            vc=violine_color
+        if orientation=="horizontal":
+            ax.fill_between(xinterval,i+estimate, i-estimate, color=vc)
+            ax.fill_between([q1, q3], [i-0.05,i-0.05], [i+0.05,i+0.05],color=box_color)
+            
+            ax.plot([q1-iqr*1.5, q3+iqr*1.5], [i,i], lw=1,color=box_color)
+            ax.plot([q2, q2], [i-0.05,i+0.05], color="w")
+            if show_points==True:
+                ax.scatter(X, i+0.5*np.random.uniform(size=X.shape[0])-0.25, color=point_color, **point_kw)
+            
+        elif orientation=="vertical":
+            _yl=np.concatenate([[minx], xinterval, [maxx]])
+            _yr=np.concatenate([[minx], xinterval, [maxx]])
+            xr=np.concatenate([[i], i+estimate, [i]])
+            xl=np.concatenate([[i], i-estimate, [i]])
+            ax.fill(xl, _yl, xr,_yr, color=vc )
+            #ax.plot([i,i], [q1, q3], lw=10,color=box_color)
+            ax.fill([i, i-0.05, i-0.05, i+0.05, i+0.05,i], [q1, q1, q3, q3,q1,q1], lw=10,color=box_color)
+            
+            ax.plot([i,i], [q1-iqr*1.5, q3+iqr*1.5],  lw=1,color=box_color)
+            ax.plot([i-0.05,i+0.05], [q2, q2],  color="w")
+            if show_points==True:
+                ax.scatter(i+0.5*np.random.uniform(size=X.shape[0])-0.25, X, color=point_color, **point_kw)
+    if orientation=="horizontal":
+        ax.set_yticks(np.arange(len(mat)), labels=xlabels)
+    elif orientation=="vertical":
+        ax.set_xticks(np.arange(len(mat)), labels=xlabels, rotation=90)
+        plt.subplots_adjust(bottom=0.2)
+
+
 if __name__=="__main__":
     pass
