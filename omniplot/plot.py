@@ -560,7 +560,8 @@ def _violinplot(df: Union[pd.DataFrame, np.ndarray],
             xr=np.concatenate([[i], i+estimate, [i]])
             xl=np.concatenate([[i], i-estimate, [i]])
             ax.fill(xl, _yl, xr,_yr, color=vc )
-            ax.plot([i,i], [q1, q3], lw=10,color=box_color)
+            #ax.plot([i,i], [q1, q3], lw=10,color=box_color)
+            ax.fill([i, i-0.05, i-0.05, i+0.05, i+0.05,i], [q1, q1, q3, q3,q1,q1], lw=10,color=box_color)
             
             ax.plot([i,i], [q1-iqr*1.5, q3+iqr*1.5],  lw=1,color=box_color)
             ax.plot([i-0.05,i+0.05], [q2, q2],  color="w")
