@@ -83,7 +83,7 @@ elif test=="heatmap":
                row_plot=["body_mass_g"], row_ticklabels=False, approx_clusternum=3)
     op.heatmap(df=df, dtype="categorical", variables=["species", "island", "sex"],
                row_plot=["body_mass_g"], row_ticklabels=False, approx_clusternum=3,column_wise_color=True) 
-    # _df=df.sample(n=25, replace=False, random_state=1)
+    # _df=df.sample(n=50, replace=False, random_state=1)
     # _df=_df.reset_index(drop=True)
     # op.heatmap(df=_df, 
     # dtype="categorical", 
