@@ -1150,7 +1150,8 @@ def heatmap(df: pd.DataFrame,
                 boxlabels: bool=False,
                 box_textwidth: Optional[int]=None,
                 box_max_lines: Optional[int]=None,
-                n_jobs=-1,
+                n_jobs: int=-1,
+                show_values: bool=False
                 ):
     """
     Drawing a heatmap. The function is mostly overlapping with the complex_clustermap, but has more flexibility, but may be slower.

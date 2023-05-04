@@ -332,6 +332,7 @@ def stacked_barplot(df: pd.DataFrame,
                     yunit: str="",
                     title: str="",
                     hatch: bool=False,
+                    orientation: str="vertical",
                     rotation: int=90,
                     ax: Optional[plt.Axes]=None,
                     show_legend:bool=True,
@@ -529,13 +530,18 @@ def stacked_barplot(df: pd.DataFrame,
     if ncols<1:
         ncols=1
     if len(figsize)==0:
-        figsize=[(4+0.1*meankey_len)*ncols, 6]
+        if orientation=="vertical":
+            figsize=[(4+0.1*meankey_len)*ncols, 6]
+        else:
+            figsize=[6, (3+0.1*meankey_len)*ncols]
     if ax!=None:
         axes=ax
         fig=None
     else:
-        fig, axes=plt.subplots(figsize=figsize,ncols=ncols)
-    
+        if orientation=="vertical":
+            fig, axes=plt.subplots(figsize=figsize,ncols=ncols)
+        else:
+            fig, axes=plt.subplots(figsize=figsize,nrows=ncols)
     if ncols==1:
         axes=[axes]
     else:
@@ -565,82 +571,116 @@ def stacked_barplot(df: pd.DataFrame,
                 heights=np.array([data[_x][_hue][key][i] for key in keys])
                 
                 if type(palette)==dict:
-                    if hatch==True:
-                        ax.bar(keys, heights,width=0.5, bottom=bottom, color=palette[h], label=h, hatch=hatch_list[i])
-                    else:
-                        ax.bar(keys, heights,width=0.5, bottom=bottom, color=palette[h], label=h)
+                    _color=palette[h]
                 else:
-                    if hatch==True:
-                        ax.bar(keys, heights,width=0.5, bottom=bottom, color=cmap(i/len(hues)), label=h, hatch=hatch_list[i])
-                    else:
-                        ax.bar(keys, heights,width=0.5, bottom=bottom, color=cmap(i/len(hues)), label=h)
+                    _color=cmap(i/len(hues))
+                if hatch==True:
+                    _hatch=hatch_list[i]
+                else:
+                    _hatch=None
+                if orientation=="vertical":                    
+                    ax.bar(keys, heights,width=0.5, 
+                        bottom=bottom, 
+                        color=_color, 
+                        label=h, 
+                            hatch=_hatch)
+                elif orientation=="horizontal":
+                    ax.barh(keys, width=heights,height=0.5, 
+                        left=bottom, 
+                        color=_color, 
+                        label=h, 
+                            hatch=_hatch)
+                    
                 if show_values==True:
                     for j in range(len(keys)):
+                        if orientation=="vertical":        
+                            _tmpx, _tmpy=j,bottom[j]+heights[j]/2
+                        elif orientation=="horizontal":
+                            _tmpy, _tmpx=j,bottom[j]+heights[j]/2
+
                         if scale=="absolute":
-                            ax.text(j,bottom[j]+heights[j]/2,"{}{}".format(heights[j],unit), 
+                            ax.text(_tmpx, _tmpy,"{}{}".format(heights[j],unit), 
                                  bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="y", lw=1, alpha=0.8))
                         else:
-                            ax.text(j,bottom[j]+heights[j]/2,"{:.2f}{}".format(heights[j],unit), 
+                            ax.text(_tmpx, _tmpy,"{:.2f}{}".format(heights[j],unit), 
                                  bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="y", lw=1, alpha=0.8))
                 
                 pos[_x][_hue][h]={key: [he, bo] for key, he, bo in zip(keys, heights, bottom)}
                 bottom+=heights
             if len(keys)==1:
-                ax.set_xticks(ax.get_xticks(), labels=keys, rotation=rotation)
-                ax.margins(x=1)
+                if orientation=="vertical":
+                    ax.set_xticks(ax.get_xticks(), labels=keys, rotation=rotation)
+                    ax.margins(x=1)
+                    ax.set_xlabel(_x)
+                elif orientation=="horizontal":
+                    ax.set_xticks(ax.get_yticks(), labels=keys, rotation=0)
+                    ax.margins(y=1)
+                    ax.set_ylabel(_x)
+
             else:
-                ax.set_xticks(ax.get_xticks(), labels=keys, rotation=rotation)
+                if orientation=="vertical":
+
+                    ax.set_xticks(ax.get_xticks(), labels=keys, rotation=rotation)
+                    ax.set_xlabel(_x)
+
+                elif orientation=="horizontal":
+                    ax.set_yticks(ax.get_yticks(), labels=keys, rotation=0)
+                    ax.set_ylabel(_x)
+
             #ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
             if show_legend==True:
                 ax.legend(title=_hue,loc=[1.01,0])
-            ax.set_xlabel(_x)
+            
             if scale=="absolute":
                 ylabel="Counts"
             elif scale=="fraction":
                 ylabel="Fraction"
             elif scale=="percentage":
                 ylabel="Percentage"
-            ax.set_ylabel(ylabel)
+            if orientation=="vertical": 
+                ax.set_ylabel(ylabel)
+            elif orientation=="horizontal":
+                ax.set_xlabel(ylabel)
+            
             axindex+=1
             if len(pvals)>0 and _x in pvals:
                 
-                for _hue in hue:
-                    if _x==_hue:
-                        continue
-                    if not _hue in pos[_x]:
-                        continue
-                    hues=huekeys[_hue]
-                    for i, h in enumerate(hues):
-                        #print(pos)
-                        #print(pos[_x])
-                        _pos=pos[_x][_hue][h]
-                        for idx1, idx2, pval in pvals[_x][_hue][h]:
-                            
-                            he1, bot1=_pos[keys[idx1]]
-                            he2, bot2=_pos[keys[idx2]]
+                # for _hue in hue:
+
+                if _x==_hue:
+                    continue
+                if not _hue in pos[_x]:
+                    continue
+                hues=huekeys[_hue]
+                print(axindex,_hue, hues)
+                for i, h in enumerate(hues):
+                    _pos=pos[_x][_hue][h]
+                    for idx1, idx2, pval in pvals[_x][_hue][h]:
+                        he1, bot1=_pos[keys[idx1]]
+                        he2, bot2=_pos[keys[idx2]]
+                        if orientation=="vertical":
                             line, =ax.plot([idx1,idx2],[he1/2+bot1,he2/2+bot2],color="gray")
-                            # r1=ax.transData.transform([idx1, he1/2+bot1])
-                            # r2=ax.transData.transform([idx2, he2/2+bot2])
-                            r1=np.array([idx1, he1/2+bot1])
-                            r2=np.array([idx2, he2/2+bot2])
-                            r=r2-r1
-                            #print(ax.get_xlim(),ax.get_ylim())
-                            r=np.array([1,3])*r/np.array([ax.get_xlim()[1]-ax.get_xlim()[0],ax.get_ylim()[1]-ax.get_ylim()[0]])
-                            #r=ax.transData.transform(r)
-                            if idx2<idx1:
-                                r=-r
-                            #print(r)
-                            r=r*(r @ r)**(-0.5)
-                            #print(h,r)
-                            angle=np.arccos(r[0])
-                            if r[1]<0:
-                                angle= -angle
-                            #print(angle)
-                            if pval < 0.05:
-                                pval_str=str(np.round(-np.log10(pval), decimals=1))
-                            else:
-                                pval_str="ns"
+                        else:
+                            line, =ax.plot([he1/2+bot1,he2/2+bot2],[idx1,idx2],color="gray")
+                        # r1=np.array([idx1, he1/2+bot1])
+                        # r2=np.array([idx2, he2/2+bot2])
+                        # r=r2-r1
+                        # r=np.array([1,3])*r/np.array([ax.get_xlim()[1]-ax.get_xlim()[0],ax.get_ylim()[1]-ax.get_ylim()[0]])
+                        # if idx2<idx1:
+                        #     r=-r
+                        # r=r*(r @ r)**(-0.5)
+                        # angle=np.arccos(r[0])
+                        # if r[1]<0:
+                        #     angle= -angle
+                        #print(angle)
+                        if pval < 0.05:
+                            pval_str=str(np.round(-np.log10(pval), decimals=1))
+                        else:
+                            pval_str="ns"
+                        if orientation=="vertical":
                             _line_annotate( "mlp="+pval_str, line, (idx1+idx2)/2, color="magenta")
+                        else:
+                            _line_annotate( "mlp="+pval_str, line, (he1/2+bot1+he2/2+bot2)/2, color="magenta")
             if scale=="absolute" and ylim !=None:
                 ax.set_ylim(0, ylim)
 
@@ -673,12 +713,13 @@ def stacked_barplot_num(df: pd.DataFrame,
                     ax: Optional[plt.Axes]=None,
                     show_legend:bool=True,
                     ylim: Optional[int]=None,
+                    orientation: str="vertical",
                     horizontal: bool=False,
                     margins: dict={},
                     gridspec_kw: dict={},
                     legend_row_num: int=2,
-                    bar_width: float=0.75
-                    )-> Dict:
+                    bar_width: float=0.75,
+                    show_ticklabels: bool=True)-> Dict:
     
     """
     Drawing a stacked barplot by taking values as an input with or without the fisher's exact test. 
@@ -747,6 +788,9 @@ def stacked_barplot_num(df: pd.DataFrame,
     Examples
     --------
     """
+    if horizontal==True:
+        orientation="horizontal"
+
     if type(df)==Dict:
         df=pd.DataFrame(df)
    
@@ -770,20 +814,20 @@ def stacked_barplot_num(df: pd.DataFrame,
     
     
     if len(gridspec_kw)==0:
-        if horizontal==True:
+        if orientation=="horizontal":
             gridspec_kw=dict(top=0.75,left=0.25,right=0.9, bottom=0.17)
         else:
             gridspec_kw=dict(top=0.93,left=0.1,right=0.7, bottom=0.17)
 
     if len(margins)==0:
-        if horizontal==True and scale!="absolute":
+        if orientation=="horizontal" and scale!="absolute":
             margins=dict(x=0)
         else:
             margins=dict(x=0.1)
 
 
     if len(figsize)==0:
-        if horizontal==True:
+        if orientation=="horizontal":
             figsize=[6, len(df.index)/2]
         else:
             figsize=[len(df.columns)+1, 6]
@@ -824,7 +868,7 @@ def stacked_barplot_num(df: pd.DataFrame,
         heights=_df[col].values
         # print(heights,bottom)
         originalval=df[col].values
-        if horizontal==True:
+        if orientation=="horizontal":
             if type(palette)==dict:
                 if hatch==True:
                     ax.barh(keys, width=heights,height=bar_width, left=bottom, color=palette[col], label=col, hatch=hatch_list[i])
@@ -860,7 +904,7 @@ def stacked_barplot_num(df: pd.DataFrame,
                     u=unit[j]
                 else:
                     u=unit
-                if horizontal==True:
+                if orientation=="horizontal":
                     if show_values_intact==True:
                         ax.text(bottom[j]+heights[j]/2, j,"{}{}".format(originalval[j],u), va="center",ha="center",
                                 bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="y", lw=1, alpha=0.8))
@@ -881,19 +925,22 @@ def stacked_barplot_num(df: pd.DataFrame,
     
     #ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
     if show_legend==True:
-        if horizontal==True:
+        if orientation=="horizontal":
             ax.legend(loc=[0,1.01], ncols=len(_df.columns)//legend_row_num+int(len(_df.columns)%legend_row_num!=0))
         else:
             ax.legend(loc=[1.01,0])
-    if horizontal==True:
+    if orientation=="horizontal":
         if rotation==None:
             rotation=0
-
-        if len(keys)==1:
-            ax.set_yticks(ax.get_yticks(), labels=keys, rotation=rotation)
-            ax.margins(x=1)
+        if show_ticklabels==True:
+            if len(keys)==1:
+                ax.set_yticks(np.arange(len(keys)), labels=keys, rotation=rotation)
+                ax.margins(x=1)
+            else:
+                print(ax.get_yticks())
+                ax.set_yticks(np.arange(len(keys)), labels=keys, rotation=rotation)
         else:
-            ax.set_yticks(ax.get_yticks(), labels=keys, rotation=rotation)
+            ax.set_yticks([])
         ax.set_ylabel(ylabel)
         if xlabel =="":
             if show_values_intact==False:
@@ -908,11 +955,15 @@ def stacked_barplot_num(df: pd.DataFrame,
     else:
         if rotation==None:
             rotation=90
-        if len(keys)==1:
-            ax.set_xticks(ax.get_xticks(), labels=keys, rotation=rotation)
-            ax.margins(x=1)
+        if show_ticklabels==True:
+
+            if len(keys)==1:
+                ax.set_xticks(np.arange(len(keys)), labels=keys, rotation=rotation)
+                ax.margins(x=1)
+            else:
+                ax.set_xticks(np.arange(len(keys)), labels=keys, rotation=rotation)
         else:
-            ax.set_xticks(ax.get_xticks(), labels=keys, rotation=rotation)
+            ax.set_xticks([])
         ax.set_xlabel(xlabel)
         if ylabel =="":
             if show_values_intact==False:
@@ -965,11 +1016,14 @@ def stacked_barplot_num(df: pd.DataFrame,
     #                 _line_annotate( "mlp="+pval_str, line, (idx1+idx2)/2, color="magenta")
     if scale=="absolute" and ylim !=None:
         ax.set_ylim(0, ylim)
-    if horizontal==True:
+    if orientation=="horizontal":
         ax.invert_yaxis()
 
-    if title !="" and fig !=None:
-        fig.suptitle(title)
+    if title !="":
+        if fig !=None:
+            fig.suptitle(title)
+        else:
+            plt.title(title)
     if show:
         plt.show()
     return {"pval":pvals,"axes":ax}
