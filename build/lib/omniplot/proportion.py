@@ -718,8 +718,8 @@ def stacked_barplot_num(df: pd.DataFrame,
                     margins: dict={},
                     gridspec_kw: dict={},
                     legend_row_num: int=2,
-                    bar_width: float=0.75
-                    )-> Dict:
+                    bar_width: float=0.75,
+                    show_ticklabels: bool=True)-> Dict:
     
     """
     Drawing a stacked barplot by taking values as an input with or without the fisher's exact test. 
@@ -932,13 +932,15 @@ def stacked_barplot_num(df: pd.DataFrame,
     if orientation=="horizontal":
         if rotation==None:
             rotation=0
-
-        if len(keys)==1:
-            ax.set_yticks(np.arange(len(keys)), labels=keys, rotation=rotation)
-            ax.margins(x=1)
+        if show_ticklabels==True:
+            if len(keys)==1:
+                ax.set_yticks(np.arange(len(keys)), labels=keys, rotation=rotation)
+                ax.margins(x=1)
+            else:
+                print(ax.get_yticks())
+                ax.set_yticks(np.arange(len(keys)), labels=keys, rotation=rotation)
         else:
-            print(ax.get_yticks())
-            ax.set_yticks(np.arange(len(keys)), labels=keys, rotation=rotation)
+            ax.set_yticks([])
         ax.set_ylabel(ylabel)
         if xlabel =="":
             if show_values_intact==False:
@@ -953,11 +955,15 @@ def stacked_barplot_num(df: pd.DataFrame,
     else:
         if rotation==None:
             rotation=90
-        if len(keys)==1:
-            ax.set_xticks(np.arange(len(keys)), labels=keys, rotation=rotation)
-            ax.margins(x=1)
+        if show_ticklabels==True:
+
+            if len(keys)==1:
+                ax.set_xticks(np.arange(len(keys)), labels=keys, rotation=rotation)
+                ax.margins(x=1)
+            else:
+                ax.set_xticks(np.arange(len(keys)), labels=keys, rotation=rotation)
         else:
-            ax.set_xticks(np.arange(len(keys)), labels=keys, rotation=rotation)
+            ax.set_xticks([])
         ax.set_xlabel(xlabel)
         if ylabel =="":
             if show_values_intact==False:

@@ -1330,10 +1330,7 @@ def heatmap(df: pd.DataFrame,
     margin=0.00
     sns.set_theme(style="white",font="Arial",font_scale=1.1)
     TBLR=['top','bottom','left','right']
-
-
-    # Separating values into heatmap colors, sizes, ans category
-    
+    # Separating values into heatmap colors, sizes, ans category    
     lut={}
     if dtype=="numerical":
         (df, X, category, rowlabels, collabels, 
@@ -1357,24 +1354,23 @@ def heatmap(df: pd.DataFrame,
     
     rowplot_num=len(category)+len(row_colors)+\
         len(row_plot)+len(row_scatter)+len(row_bar)+row_axis+\
-        int(clustering_method=="kmeans" and row_cluster==True)+int(clustering_method=="kmodes" and row_cluster==True)
+        int(clustering_method=="kmeans" and row_cluster==True)+\
+        int(clustering_method=="kmodes" and row_cluster==True)
     colplot_num=len(col_colors)+len(col_plot)+\
         len(col_scatter)+len(col_bar)+col_axis+\
-        int(clustering_method=="kmeans" and col_cluster==True)+int(clustering_method=="kmodes" and col_cluster==True)
+        int(clustering_method=="kmeans" and col_cluster==True)+\
+        int(clustering_method=="kmodes" and col_cluster==True)
     Xshape=X.shape
     if np.sum(Xshape)>200:
         edgecolor=None
     show_legend=int(rowplot_num>0 or type(Xsize)!=type(None))
-    
 
     if len(figsize)==0:
         figure_height=np.amin([np.amax([X.shape[0]/5, 3]), 10])
         if show_legend>0:
-            # figure_width=np.amax([figure_height*X.shape[1]/X.shape[0], 4])+1
             figure_width=figure_height*X.shape[1]/X.shape[0]+1
             figure_width=np.amin([np.amax([figure_height*X.shape[1]/X.shape[0]+1+int(boxlabels)*6, 5]), 10])
         else:
-            # figure_width=np.amax([figure_height*X.shape[1]/X.shape[0], 4])
             figure_width=figure_height*X.shape[1]/X.shape[0]+int(boxlabels)*6
         figsize=[figure_width,figure_height,]
     print("figsize: ", figsize)
@@ -1386,7 +1382,6 @@ def heatmap(df: pd.DataFrame,
         lmax=np.amin([lmax/150, 0.3])
     else:
         lmax=0
-    # print(lmax)
 
     if boxlabels==True:
         row_ticklabels=False
@@ -1414,7 +1409,9 @@ def heatmap(df: pd.DataFrame,
         ltreeh=0.8-lmax
         ttreeh=0
     if ttreew<0:
-        raise Exception("Too many things to plot. Please reduce the number of row-wise plots.")
+        raise Exception("Too many things to plot. \
+                        Please reduce the number of \
+                        row-wise plots.")
     hmapw=ttreew
     hmaph=ltreeh
     lcatx=xori+ltreew
@@ -1425,9 +1422,6 @@ def heatmap(df: pd.DataFrame,
     ttreey=yori+ltreeh+tcath*colplot_num
     legendh=(3/Xshape[0])*hmaph
     
-    # print([xori,ltreew,hmapw,legendw])
-    
-
     size_legend_num=3
     size_legend_elements=[]
     if type(Xsize)!=type(None):
@@ -1435,7 +1429,7 @@ def heatmap(df: pd.DataFrame,
         smax=np.amax(Xsize)
         _scaled=_scale_size(Xsize,1, smin, smax)
         vmin, vmax=np.amin(_scaled), np.amax(_scaled)
-        print("scaled: ", vmin, vmax)
+        # print("scaled: ", vmin, vmax)
         vinterval=(vmax-vmin)/(size_legend_num-1)
         
         if size_format=="":
@@ -1444,10 +1438,6 @@ def heatmap(df: pd.DataFrame,
             elif 0<np.abs(vmax)<=1 or 1000<np.abs(vmax):
                 size_format="{x:.3E}"
         sx=1
-        _sx=vmax*(hmaph/legendw)*size_legend_num/Xshape[1]
-        _sy=vmax*(hmaph/legendh)*size_legend_num/Xshape[0]
-        _sy=200
-        # print("_sy", _sy)
         size_legend_elements.append(Rectangle((0 -0.5,0-0.5), 1, size_legend_num))
 
         size_labels=[]
@@ -1458,12 +1448,7 @@ def heatmap(df: pd.DataFrame,
                 s=0.1
             sx=s*(hmapw/legendw)/Xshape[1]
             sy=s*(hmaph/legendh)*size_legend_num/Xshape[0]
-            # print(sx, sy)
             
-            if prev_top==0:
-                _yh=0
-            else:
-                _yh=prev_top+sy
             if shape=="by_category":
                 size_legend_elements.append(_create_polygon("circle", 0, _i, sx,ry=sy))
             else:
@@ -1535,6 +1520,7 @@ def heatmap(df: pd.DataFrame,
 
     else:
         sortindexr=np.arange(len(rowlabels))
+
     # Column-wise clustering 
     if col_cluster==True:
         
@@ -1616,16 +1602,14 @@ def heatmap(df: pd.DataFrame,
                                             legend_elements_dict, 
                                             Xshape, tcaty,tcath,hmapx,
                                             hmapw, margin, plotkw, scatterkw, barkw, catnum, axis_dict, col_axis=col_axis)
-    
     # Creating the heatmap
-
     # Calculating the maximum and minum values of the data if the data is numerical.
+    cmap=plt.get_cmap(palette)
+
     if dtype=="numerical":
-        cmap=plt.get_cmap(palette)
         Xmin=np.amin(X)
         Xmax=np.amax(X)
     if len(shape_colors)>0:
-        cmap=plt.get_cmap(palette)
         scXmin=np.amin(scX)
         scXmax=np.amax(scX)
     if type(Xsize)!=type(None):
@@ -1649,9 +1633,6 @@ def heatmap(df: pd.DataFrame,
                     _shape_legend_elements["ao"].append(ao)
                     _shape_legend_elements["labels"].append(_cat)
                     _shape_legend_elements["handeler"][ao]=obshape
-                    # legend_elements.append(Line2D([0], [0], marker="s", linewidth=0, markeredgecolor="darkgray",
-                                        # label=_cat,
-                                        # markerfacecolor=_color))
                 shape_legend_elements["categorical"]=_shape_legend_elements
             else:
                 _uniq_labels=np.unique(X.flatten())
@@ -1668,8 +1649,6 @@ def heatmap(df: pd.DataFrame,
             for i in range(Xshape[1]):
                 __X=X[:,i]
                 _uniq_labels=np.unique(__X)
-                # print(colormap_list[i+int(row_cluster)+int(col_cluster)], _uniq_labels)
-                
                 if shape=="by_category":
                     _shape_legend_elements={"ao":[],"labels":[],"handler":{}}
                     _shape_tmp_lut={u: shape_list[i] for i, u in enumerate(_uniq_labels)}
@@ -1964,11 +1943,24 @@ def heatmap(df: pd.DataFrame,
                                                 loc="center left"))
             axlegend.axis('off')
             axis_dict["legend_"+cat]=axlegend
-    
+
+    if row_axis>0 or col_axis >0:
+        for i in range(row_axis):
+            legendnum+=1            
+            axlegend=fig.add_axes([hmapx+hmapw+boxwidth+0.01,ttreey-legendnum*0.15,legendw,legendh])
+            axlegend.axis('off')
+            axis_dict["row_legend"+str(i)]=axlegend
+        for i in range(col_axis):
+            legendnum+=1            
+            axlegend=fig.add_axes([hmapx+hmapw+boxwidth+0.01,ttreey-legendnum*0.15,legendw,legendh])
+            axlegend.axis('off')
+            axis_dict["col_legend"+str(i)]=axlegend
+
+
     if len(shape_legend_elements) >0:
-        if legendnum>0:
-            legendnum+=1
         for cat, legend_elements in shape_legend_elements.items():
+            legendnum+=1
+
             axlegend=fig.add_axes([hmapx+hmapw+boxwidth+0.01,ttreey-legendnum*0.15,legendw,legendh])
             axlegend.add_artist(axlegend.legend(legend_elements["ao"], 
             legend_elements["labels"],
@@ -1976,12 +1968,8 @@ def heatmap(df: pd.DataFrame,
             title=cat,
             bbox_to_anchor=(0.0,0.5),
             loc="center left"))
-            # axlegend.add_artist(axlegend.legend(handles=legend_elements, 
-            #                                     title=cat,bbox_to_anchor=(0.0,0.5),
-            #                                     loc="center left"))
             axlegend.axis('off')
             axis_dict["legend_"+cat]=axlegend
-            legendnum+=1
 
     #Setting the size legend
     if type(Xsize)!=type(None):
