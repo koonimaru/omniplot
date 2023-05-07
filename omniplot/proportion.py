@@ -1040,7 +1040,8 @@ def nice_piechart(df: pd.DataFrame,
                   figsize: list=[],
                   show_legend:bool=False,
                   bbox_to_anchor: list=[1.1, 1],
-                  right: float=0.7,bottom=0.1) ->Dict:
+                  right: float=0.7,
+                  bottom=0.1) ->Dict:
     """
     Drawing a nice pichart by counting the occurrence of values from pandas dataframe. if you want to draw a pie chart from numerical values, try nice_piechart_num.
     
@@ -1110,8 +1111,12 @@ def nice_piechart(df: pd.DataFrame,
     axes=axes.flatten()
     for cat, ax in zip(category, axes):
         u, c=np.unique(df[cat], return_counts=True)
-        
-        srt=np.argsort(c)[::-1]
+        if order=="largest":
+            srt=np.argsort(c)[::-1]
+        elif order=="smallest":
+            srt=np.argsort(c)
+        else:
+            srt=np.arange(len(c))
         u=u[srt]
         c=c[srt]
         _c=c/np.sum(c)
@@ -1128,30 +1133,50 @@ def nice_piechart(df: pd.DataFrame,
             if show_values==True:
                 u[j]=u[j]+"\n("+str(100*np.round(_c[j],1))+"%)"
         if hatch==True:
-            ax.pie(c, labels=u, 
+            piekw=dict(labels=u, 
                 counterclock=False,
                 startangle=90, 
                 colors=colors,
                 radius=1.25,
                 hatch=hatch_list[:c.shape[0]],
                 labeldistance=None)
-            ax.legend(bbox_to_anchor=[1,1])
+            # ax.pie(c, labels=u, 
+            #     counterclock=False,
+            #     startangle=90, 
+            #     colors=colors,
+            #     radius=1.25,
+            #     hatch=hatch_list[:c.shape[0]],
+            #     labeldistance=None)
+            # ax.legend(bbox_to_anchor=[1,1])
         else:
-            if show_legend==True:
-                ax.pie(c, labels=u, 
+            piekw=dict(labels=u, 
                     counterclock=False,
                     startangle=90, 
                     colors=colors,
                     radius=1.25,
                     labeldistance=None)
-                ax.legend(bbox_to_anchor=[1,1])
-            else:
-                ax.pie(c, labels=u, 
-                    counterclock=False,
-                    startangle=90, 
-                    colors=colors,
-                    labeldistance=0.6,
-                    radius=1.25)
+            # if show_legend==True:
+            #     ax.pie(c, labels=u, 
+            #         counterclock=False,
+            #         startangle=90, 
+            #         colors=colors,
+            #         radius=1.25,
+            #         labeldistance=None)
+            #     ax.legend(bbox_to_anchor=[1,1])
+            # else:
+            #     ax.pie(c, labels=u, 
+            #         counterclock=False,
+            #         startangle=90, 
+            #         colors=colors,
+            #         labeldistance=0.6,
+            #         radius=1.25)
+        ax.pie(c, **piekw)
+        if show_legend==True or hatch==True:
+            ax.legend(bbox_to_anchor=[1,1])
+
+
+
+
         ax.set_title(cat,backgroundcolor='lavender',pad=10)
     
 

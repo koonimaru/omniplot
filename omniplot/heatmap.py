@@ -1302,9 +1302,30 @@ def heatmap(df: pd.DataFrame,
     colplot_format:  str, optional (default: "{x:.1f}")
         The format of y axis values of row plots/scatter/bar
     
+    boxlabels: bool, optional (default: False)
+        Whether to add row labels boxed by clustering groups. 
+    
+    box_textwidth: int, optional
+        The number of charcters in one line of the boxlabels
+    
+    box_max_lines: Optional[int]=None,
+        The maximum number of lines in the boxlabels.
+    
+    n_jobs: int, optional (default: -1)
+        The number of threads to use for adding pathes/shapes to the heatmap.
+
+    show_values: bool, optional (default: False)
+        Whether to show values over the heatmap elements.
+
+    text_color: str="w",
+        The color of texts for value annotation.
+
+    val_format: str="",
+        The format of texts for value annotation. e.g., {x:.2f}
+
     Returns
     -------
-        {"row_clsuter":rclusters,"col_cluster":cclusters, "axes":axis_dict} : dict
+        {"row_clsuter":rclusters,"col_cluster":cclusters, "axes":axis_dict, "colsort":sortindexc,"rowsort":sortindexr} : dict
     Raises
     ------
     Notes
