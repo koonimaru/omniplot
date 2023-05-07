@@ -39,7 +39,7 @@ import textwrap
 from matplotlib.artist import Artist
 from matplotlib.transforms import Affine2D
 import mpl_toolkits.axisartist.floating_axes as floating_axes
-
+import matplotlib.patheffects as patheffects
 __all__=["correlation", "triangle_heatmap", "complex_clustermap","dotplot", "heatmap"]
 def correlation(df: pd.DataFrame, 
                 category: Union[str, list]=[],
@@ -1151,7 +1151,9 @@ def heatmap(df: pd.DataFrame,
                 box_textwidth: Optional[int]=None,
                 box_max_lines: Optional[int]=None,
                 n_jobs: int=-1,
-                show_values: bool=False
+                show_values: bool=False,
+                text_color: str="w",
+                val_format: str="",
                 ):
     """
     Drawing a heatmap. The function is mostly overlapping with the complex_clustermap, but has more flexibility, but may be slower.
@@ -1433,10 +1435,13 @@ def heatmap(df: pd.DataFrame,
         vinterval=(vmax-vmin)/(size_legend_num-1)
         
         if size_format=="":
-            if 1<np.abs(vmax)<=1000:
+            if 1<np.abs(smax)<=1000:
                 size_format="{x:.2f}"
-            elif 0<np.abs(vmax)<=1 or 1000<np.abs(vmax):
+            elif 0<np.abs(smax)<=1 or 1000<np.abs(smax):
                 size_format="{x:.3E}"
+        
+        
+
         sx=1
         size_legend_elements.append(Rectangle((0 -0.5,0-0.5), 1, size_legend_num))
 
@@ -1596,12 +1601,21 @@ def heatmap(df: pd.DataFrame,
                                            lcatx,lcatw,
                                            yori,hmaph, margin, 
                                            plotkw, scatterkw, barkw, catnum, ax_dict,row_axis=row_axis)
-    legend_elements_dict, catnum, axis_dict=_col_plot(sortindexc, fig, col_colors, col_plot, 
-                                            col_scatter, col_bar, 
+    legend_elements_dict, catnum, axis_dict=_col_plot(sortindexc, 
+                                                      fig, 
+                                                      col_colors, 
+                                                      col_plot, 
+                                            col_scatter, 
+                                            col_bar, 
                                             colplot_format,
                                             legend_elements_dict, 
-                                            Xshape, tcaty,tcath,hmapx,
-                                            hmapw, margin, plotkw, scatterkw, barkw, catnum, axis_dict, col_axis=col_axis)
+                                            Xshape, 
+                                            tcaty,
+                                            tcath,
+                                            hmapx,
+                                            hmapw, 
+                                            margin, 
+                                            plotkw, scatterkw, barkw, catnum, axis_dict, col_axis=col_axis)
     # Creating the heatmap
     # Calculating the maximum and minum values of the data if the data is numerical.
     cmap=plt.get_cmap(palette)
@@ -1609,6 +1623,13 @@ def heatmap(df: pd.DataFrame,
     if dtype=="numerical":
         Xmin=np.amin(X)
         Xmax=np.amax(X)
+        if val_format=="":
+            if 1<np.abs(Xmax)<=1000:
+                val_format="{x:.2f}"
+            elif 0<np.abs(Xmax)<=1 or 1000<np.abs(Xmax):
+                val_format="{x:.3E}"
+
+
     if len(shape_colors)>0:
         scXmin=np.amin(scX)
         scXmax=np.amax(scX)
@@ -1800,6 +1821,12 @@ def heatmap(df: pd.DataFrame,
                             col_ticklabels, 
                             collabels, 
                             colrot,rasterized, n_jobs=n_jobs)
+                if show_values==True:
+                    for (_xtmp, _ytmp), text in zip(row_col, Xsub.flatten()):
+                        txt=ax.text(_xtmp, _ytmp, val_format.format(x=text), color=text_color, ha="center",va="center")
+                        txt.set_path_effects([patheffects.withStroke(linewidth=1, foreground='black')])
+
+
                 ax.margins(x=margin,y=margin)
             ax.tick_params(pad=1,axis='both', which='both', length=0)
             
@@ -1875,6 +1902,11 @@ def heatmap(df: pd.DataFrame,
                             col_ticklabels, 
                             collabels[_r:_r+c], 
                             colrot,rasterized, n_jobs=n_jobs)
+                if show_values==True:
+                    for (_xtmp, _ytmp), text in zip(row_col, Xsub.flatten()):
+                        txt=ax.text(_xtmp, _ytmp, val_format.format(x=text), color=text_color, ha="center",va="center")
+                        txt.set_path_effects([patheffects.withStroke(linewidth=1, foreground='black')])
+
                 ax.margins(x=margin,y=margin)
             ax.tick_params(pad=1,axis='both', which='both', length=0)
             if i<len(col_cnums)-1:
@@ -1929,6 +1961,12 @@ def heatmap(df: pd.DataFrame,
             _add_patches(facecolors, Xshape, shape, row_col, edgecolor, Xsize, 
                         _Xsize,ax,row_ticklabels,rowlabels, rowrot, 
                         col_ticklabels, collabels, colrot,rasterized,Xflatten=_X, n_jobs=n_jobs)
+            
+            if show_values==True:
+                for (_xtmp, _ytmp), text in zip(row_col, X.flatten()):
+                    txt=ax.text(_xtmp, _ytmp, val_format.format(x=text), color=text_color, ha="center",va="center")
+                    txt.set_path_effects([patheffects.withStroke(linewidth=1, foreground='black')])
+
             ax.margins(x=margin,y=margin)
         ax.tick_params(pad=1,axis='both', which='both', length=0)
         axis_dict["heatmap"]=ax
@@ -2026,43 +2064,61 @@ def heatmap(df: pd.DataFrame,
 
     return {"row_clsuter":rclusters,"col_cluster":cclusters, "axes":axis_dict, "colsort":sortindexc,"rowsort":sortindexr}
 
-def _add_patches(facecolors, Xshape, shape, row_col, edgecolor, Xsize, 
-                 _Xsize,ax,row_ticklabels,rowlabels, 
-                 rowrot, col_ticklabels, collabels, colrot,rasterized,Xflatten=None,n_jobs=-1):
+def _add_patches(facecolors: Union[List, np.ndarray], 
+                 Xshape: Union[List, tuple, np.ndarray], 
+                 shape: Union[str, dict], 
+                 row_col: list, 
+                 edgecolor, 
+                 Xsize, 
+                 _Xsize,
+                 ax: plt.Axes,
+                 row_ticklabels,
+                 rowlabels, 
+                 rowrot, 
+                 col_ticklabels, 
+                 collabels, 
+                 colrot,
+                 rasterized,
+                 Xflatten=None,
+                 n_jobs=-1):
     
     if type(Xsize)!=type(None):
         _row_col=np.array(row_col)
-        _shapes = [Rectangle((- 0.5,- 0.5), np.amax(_row_col[:,0])+1, np.amax(_row_col[:,1])+1)]
-        _pc = PatchCollection(_shapes, facecolor="w", alpha=1,
+        _shapes = [Rectangle((- 0.5,- 0.5), 
+                             np.amax(_row_col[:,0])+1, 
+                             np.amax(_row_col[:,1])+1)]
+        _pc = PatchCollection(_shapes, 
+                              facecolor="w", 
+                              alpha=1,
                     edgecolor="w")
         ax.add_collection(_pc)
 
     if type(shape)==dict:
-        # print(shape)
-        # print(Xflatten)
         if type(Xsize)!=type(None):
-            # shapes = [_create_polygon(shape[val], x,y, wh)
-            #             for (x, y), wh, val in zip(row_col, _Xsize,Xflatten)]
             shapes=Parallel(n_jobs=n_jobs)(delayed(_create_polygon)(
-                shape[val], x,y, wh) for (x, y), wh, val in zip(row_col, _Xsize,Xflatten))
-
+                shape[val], 
+                x,
+                y, 
+                wh) for (x, y), wh, val in zip(row_col, _Xsize,Xflatten))
 
         else:
-            # shapes = [_create_polygon(shape[val], x,y, 1)
-            #         for (x, y), val in zip(row_col,Xflatten)]
             shapes=Parallel(n_jobs=n_jobs)(delayed(_create_polygon)(
                 shape[val], x,y, 1) for (x, y), val in zip(row_col,Xflatten))
     else:
         if type(Xsize)!=type(None):            
             shapes = [_create_polygon(shape, x,y, wh)
                         for (x, y), wh in zip(row_col, _Xsize)]
-            shapes=Parallel(n_jobs=n_jobs)(delayed(_create_polygon)(shape, x,y, wh) for (x, y), wh in zip(row_col, _Xsize))
+            shapes=Parallel(n_jobs=n_jobs)(delayed(_create_polygon)(
+                shape, 
+                x,
+                y, 
+                wh) for (x, y), wh in zip(row_col, _Xsize))
         else:
-            shapes=Parallel(n_jobs=n_jobs)(delayed(_create_polygon)(shape, x,y, 1) for x, y in row_col)
-            
-            # shapes = [_create_polygon(shape, x,y, 1)
-            #             for x, y in row_col]
-
+            shapes=Parallel(n_jobs=n_jobs)(delayed(_create_polygon)(
+                shape, 
+                x,
+                y, 
+                1) for x, y in row_col)
     # Create patch collection with specified colour/alpha
     if edgecolor==None:
         pc = PatchCollection(shapes, facecolor=facecolors, alpha=1,
@@ -2095,19 +2151,22 @@ def _create_polygon(shape, x, y, r, ry=None, **kwargs):
         vnum=3
         rs=[]
         for i in range(vnum):
-            rs.append([x+0.5*r*np.cos(np.pi/2+i*2*np.pi/vnum),y+0.5*ry*np.sin(np.pi/2+i*2*np.pi/vnum)])
+            rs.append([x+0.5*r*np.cos(np.pi/2+i*2*np.pi/vnum),
+                       y+0.5*ry*np.sin(np.pi/2+i*2*np.pi/vnum)])
         return Polygon(rs, **kwargs)
     elif shape=="star":
         rs=[]
         for i in range(5):
-            rs.append([x+0.5*r*np.cos(np.pi/2+(2*i)*2*np.pi/5),y+0.5*ry*np.sin(np.pi/2+(2*i)*2*np.pi/5)])
+            rs.append([x+0.5*r*np.cos(np.pi/2+(2*i)*2*np.pi/5),
+                       y+0.5*ry*np.sin(np.pi/2+(2*i)*2*np.pi/5)])
         return Polygon(rs, **kwargs)
     elif shape.startswith("polygon:"):
         _, vnum=shape.split(":")
         vnum=int(vnum)
         rs=[]
         for i in range(vnum):
-            rs.append([x+0.5*r*np.cos(np.pi/2+i*2*np.pi/vnum),y+0.5*ry*np.sin(np.pi/2+i*2*np.pi/vnum)])
+            rs.append([x+0.5*r*np.cos(np.pi/2+i*2*np.pi/vnum),
+                       y+0.5*ry*np.sin(np.pi/2+i*2*np.pi/vnum)])
 
         return Polygon(rs, **kwargs)
     elif shape.startswith("star:"):
@@ -2119,10 +2178,12 @@ def _create_polygon(shape, x, y, r, ry=None, **kwargs):
             for _m in range(m):
                 
                 for _l in range(l+1):
-                    rs.append([x+0.5*r*np.cos(np.pi/2+(_l+_m/m)*2*np.pi/l),y+0.5*ry*np.sin(np.pi/2+(_l+_m/m)*2*np.pi/l)])
+                    rs.append([x+0.5*r*np.cos(np.pi/2+(_l+_m/m)*2*np.pi/l),
+                               y+0.5*ry*np.sin(np.pi/2+(_l+_m/m)*2*np.pi/l)])
         else:
             for i in range(n):
-                rs.append([x+0.5*r*np.cos(np.pi/2+(m*i)*2*np.pi/n),y+0.5*ry*np.sin(np.pi/2+(m*i)*2*np.pi/n)])
+                rs.append([x+0.5*r*np.cos(np.pi/2+(m*i)*2*np.pi/n),
+                           y+0.5*ry*np.sin(np.pi/2+(m*i)*2*np.pi/n)])
         return Polygon(rs, **kwargs)
     else:
         raise Exception["Unknown shape! you gave {}, but it only accepts 'rectangle', 'circle', 'star', 'polygon:n', 'star:n:m'".format(shape)]
