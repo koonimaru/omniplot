@@ -1039,9 +1039,10 @@ def nice_piechart(df: pd.DataFrame,
                   hatch: bool=False,
                   figsize: list=[],
                   show_legend:bool=False,
-                  bbox_to_anchor: list=[1.1, 1],
-                  right: float=0.7,
-                  bottom=0.1) ->Dict:
+                  bbox_to_anchor: list=[1, 1],
+                  right: float=0.8,
+                  bottom=0.1,
+                  top=0.9,left=0.1) ->Dict:
     """
     Drawing a nice pichart by counting the occurrence of values from pandas dataframe. if you want to draw a pie chart from numerical values, try nice_piechart_num.
     
@@ -1140,14 +1141,6 @@ def nice_piechart(df: pd.DataFrame,
                 radius=1.25,
                 hatch=hatch_list[:c.shape[0]],
                 labeldistance=None)
-            # ax.pie(c, labels=u, 
-            #     counterclock=False,
-            #     startangle=90, 
-            #     colors=colors,
-            #     radius=1.25,
-            #     hatch=hatch_list[:c.shape[0]],
-            #     labeldistance=None)
-            # ax.legend(bbox_to_anchor=[1,1])
         else:
             piekw=dict(labels=u, 
                     counterclock=False,
@@ -1155,24 +1148,9 @@ def nice_piechart(df: pd.DataFrame,
                     colors=colors,
                     radius=1.25,
                     labeldistance=None)
-            # if show_legend==True:
-            #     ax.pie(c, labels=u, 
-            #         counterclock=False,
-            #         startangle=90, 
-            #         colors=colors,
-            #         radius=1.25,
-            #         labeldistance=None)
-            #     ax.legend(bbox_to_anchor=[1,1])
-            # else:
-            #     ax.pie(c, labels=u, 
-            #         counterclock=False,
-            #         startangle=90, 
-            #         colors=colors,
-            #         labeldistance=0.6,
-            #         radius=1.25)
         ax.pie(c, **piekw)
         if show_legend==True or hatch==True:
-            ax.legend(bbox_to_anchor=[1,1])
+            ax.legend(bbox_to_anchor=bbox_to_anchor)
 
 
 
@@ -1185,7 +1163,7 @@ def nice_piechart(df: pd.DataFrame,
         for i in range(ncols*nrows-len(category)):
             fig.delaxes(axes[-(i+1)])
     # plt.tight_layout(h_pad=1)
-    plt.subplots_adjust(top=0.9,wspace=0.5)
+    plt.subplots_adjust(wspace=0.6, left=left, right=right, bottom=bottom,top=top)
     if title !="":
         fig.suptitle(title)
     return {"axes":ax}

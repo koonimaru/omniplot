@@ -115,12 +115,14 @@ elif test=="heatmap":
     # op.heatmap(df, shape="circle", sizes=mat, edgecolor=None, approx_clusternum=3, row_split=True, ztranform=False)
     mat=np.arange(50).reshape([5,10]).astype(np.float)
     df=pd.DataFrame(mat)
-    op.heatmap(df, shape="circle", show_values=True, 
-               sizes=mat, 
+    op.heatmap(df,
+               shape="circle",
+               show_values=True, 
+               sizes=mat,
                row_cluster=False,
-               col_cluster=False, 
-               edgecolor=None, 
-               approx_clusternum=3, 
-               ztranform=False, 
+               col_cluster=False,
+               edgecolor=None,
+               approx_clusternum=3,
+               ztranform=False,
                row_split=True)
     plt.show()
