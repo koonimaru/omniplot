@@ -1400,50 +1400,21 @@ def heatmap(df: pd.DataFrame,
     fig=plt.figure(figsize=figsize, layout='constrained')
     
     # determining the size and positionn of axes
-    if col_ticklabels==True:
-        lmax = float(np.amax(list(map(len, list(collabels.astype(str)))))) 
-        lmax=np.amin([lmax/150, 0.3])
-    else:
-        lmax=0
-
-    if boxlabels==True:
-        row_ticklabels=False
-
-    xori=0.05
-    yori=0.11+lmax
-    lcatw=0.04
-    
-    legendw=0.15*show_legend
-    if boxlabels==True:
-        boxwidth=0.15
-    else:
-        boxwidth=0.
-    if row_cluster==True:
-        ltreew=0.15
-        ttreew=0.65-lcatw*rowplot_num-legendw-boxwidth
-    else:
-        ltreew=0
-        ttreew=0.75-lcatw*rowplot_num-legendw
-    
-    if col_cluster==True:
-        ltreeh=0.75-lmax
-        ttreeh=0.05
-    else:
-        ltreeh=0.8-lmax
-        ttreeh=0
-    if ttreew<0:
-        raise Exception("Too many things to plot. \
-                        Please reduce the number of \
-                        row-wise plots.")
-    hmapw=ttreew
-    hmaph=ltreeh
-    lcatx=xori+ltreew
-    tcaty=yori+ltreeh
-    tcath=0.025
-
-    hmapx=xori+ltreew+lcatw*rowplot_num
-    ttreey=yori+ltreeh+tcath*colplot_num
-    legendh=(3/Xshape[0])*hmaph
+    (xori, yori, 
+    boxwidth, 
+    legendw, legendh,
+    ltreew, ltreeh,  
+    ttreey, ttreew,  ttreeh, 
+    hmapx, hmapw, hmaph, 
+    lcatx, lcatw, 
+    tcaty, tcath, 
+    row_ticklabels)=_axis_loc_sizes(col_ticklabels, row_ticklabels,
+                    boxlabels, 
+                    row_cluster,col_cluster,
+                    show_legend,
+                    rowplot_num,colplot_num,
+                    collabels,
+                    Xshape)
     
     size_legend_num=3
     size_legend_elements=[]
@@ -2669,3 +2640,75 @@ class _AnyObjectHandler:
         handlebox.add_artist(patch)
         
         return patch
+    
+
+
+def _axis_loc_sizes(col_ticklabels: bool, 
+                    row_ticklabels: bool,
+                    boxlabels: bool, 
+                    row_cluster: bool,
+                    col_cluster: bool,
+                    show_legend: int,
+                    rowplot_num: int,
+                    colplot_num: int,
+                    collabels: np.ndarray,
+                    Xshape: Union[np.ndarray, list, tuple]) -> List:
+    # determining the size and positionn of axes
+
+
+    if col_ticklabels==True:
+        lmax = float(np.amax(list(map(len, list(collabels.astype(str)))))) 
+        lmax=np.amin([lmax/150, 0.3])
+    else:
+        lmax=0
+
+    if boxlabels==True:
+        row_ticklabels=False
+
+    xori=0.05
+    yori=0.11+lmax
+    lcatw=0.04
+    
+    legendw=0.15*show_legend
+    if boxlabels==True:
+        boxwidth=0.15
+    else:
+        boxwidth=0.
+    if row_cluster==True:
+        ltreew=0.15
+        ttreew=0.65-lcatw*rowplot_num-legendw-boxwidth
+    else:
+        ltreew=0
+        ttreew=0.75-lcatw*rowplot_num-legendw
+    
+    if col_cluster==True:
+        ltreeh=0.75-lmax
+        ttreeh=0.05
+    else:
+        ltreeh=0.8-lmax
+        ttreeh=0
+    if ttreew<0:
+        raise Exception("Too many things to plot. \
+                        Please reduce the number of \
+                        row-wise plots.")
+    hmapw=ttreew
+    hmaph=ltreeh
+    lcatx=xori+ltreew
+    tcaty=yori+ltreeh
+    tcath=0.025
+
+    hmapx=xori+ltreew+lcatw*rowplot_num
+    ttreey=yori+ltreeh+tcath*colplot_num
+    legendh=(3/Xshape[0])*hmaph
+
+    return (xori, yori, 
+            boxwidth, 
+            legendw, legendh,
+            ltreew, ltreeh,  
+            ttreey, ttreew,  ttreeh, 
+            hmapx, hmapw, hmaph, 
+            lcatx, lcatw, 
+            tcaty, tcath, 
+            row_ticklabels)
+
+
