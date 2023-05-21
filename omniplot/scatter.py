@@ -1,15 +1,12 @@
 from typing import Union, Optional, Dict, List
-import matplotlib.collections as mc
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 import pandas as pd
-from matplotlib import cm
 from matplotlib.lines import Line2D
 from scipy.cluster.hierarchy import leaves_list
 from scipy.cluster import hierarchy
 from collections import defaultdict
-import matplotlib.colors
 from natsort import natsort_keygen
 from matplotlib.patches import Rectangle
 import scipy.cluster.hierarchy as sch
@@ -27,18 +24,17 @@ from itertools import combinations
 import os
 #script_dir = os.path.dirname( __file__ )
 #sys.path.append( script_dir )
-from omniplot.utils import *
 import scipy.stats as stats
 from joblib import Parallel, delayed
-from omniplot.chipseq_utils import _calc_pearson
 import itertools as it
 from matplotlib.ticker import StrMethodFormatter
 import statsmodels.api as sm
 from sklearn.linear_model import RANSACRegressor
-from matplotlib import colors
-from omniplot._adjustText import adjust_text
 import copy
 from sklearn import metrics
+from omniplot.utils import *
+from omniplot._adjustText import adjust_text
+from omniplot.chipseq_utils import _calc_pearson
 
 
 plt.rcParams['font.family']= 'sans-serif'

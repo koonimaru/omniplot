@@ -1,41 +1,41 @@
 from typing import Union, Optional, Dict, List
-import matplotlib.collections as mc
-import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 import pandas as pd
-from matplotlib import cm
-from matplotlib.lines import Line2D
-from scipy.cluster.hierarchy import leaves_list
-from scipy.cluster import hierarchy
-from collections import defaultdict
-import matplotlib.colors
-from natsort import natsort_keygen, natsorted
-from matplotlib.patches import Rectangle
+import matplotlib.pyplot as plt
+import copy
+# from matplotlib import cm
+# from matplotlib.lines import Line2D
+# from scipy.cluster.hierarchy import leaves_list
+# from scipy.cluster import hierarchy
+# from collections import defaultdict
+# import matplotlib.colors
+# from natsort import natsort_keygen, natsorted
+# from matplotlib.patches import Rectangle
 import scipy.cluster.hierarchy as sch
-import fastcluster as fcl
-
-import sys 
-import matplotlib as mpl
-from sklearn.cluster import KMeans, DBSCAN
-from sklearn.metrics import silhouette_score
+# import fastcluster as fcl
+# import sys 
+# import matplotlib as mpl
+# from sklearn.cluster import KMeans, DBSCAN
+# from sklearn.metrics import silhouette_score
 from scipy.spatial.distance import pdist, squareform
-from sklearn.decomposition import PCA, NMF, LatentDirichletAllocation
-from scipy.stats import fisher_exact
+# from scipy.stats import fisher_exact
 from scipy.stats import zscore
-from itertools import combinations
-import os
+# from itertools import combinations
+# import os
 #script_dir = os.path.dirname( __file__ )
 #sys.path.append( script_dir )
-from omniplot.utils import * #
 import scipy.stats as stats
-from joblib import Parallel, delayed
-from omniplot.chipseq_utils import _calc_pearson
-import itertools as it
+from matplotlib.ticker import StrMethodFormatter
+# from joblib import Parallel, delayed
+# from omniplot.chipseq_utils import _calc_pearson
+# import itertools as it
 from omniplot.scatter import *
 from omniplot.proportion import *
 from omniplot.heatmap import *
 from omniplot.utils import colormap_list, hatch_list, marker_list
+from omniplot.utils import * #
+
 # hatch_list: list = ['//', '\\\\', '||', '--', '++', 'xx', 'oo', 'OO', '..', '**','/o', '\\|', '|*', '-\\', '+o', 'x*', 'o-', 'O|', 'O.', '*-']
 # marker_list: list=['.', '_' , '+','|', 'x', 'v', '^', '<', '>', 's', 'p', '*', 'h', 'D', 'd', 'P', 'X','o', '1', '2', '3', '4','|', '_']
 
@@ -655,6 +655,100 @@ def _boxplot(df: Union[pd.DataFrame, np.ndarray],
         ax.set_xticks(np.arange(len(mat)), labels=xlabels, rotation=90)
         plt.subplots_adjust(bottom=0.2)
 
+def lineplot(df: pd.DataFrame,
+             x: str="", 
+             y: Union[str, list]="", 
+             variables: Union[str, list]="",
+             split: bool=False,
+             ax: plt.Axes=None,
+             palette: Union[str, dict]="tab20b",
+             xlabel: str="",
+             ylabel: str="",
+             xunit: str="",
+             yunit: Union[str, dict]="",
+             xformat: str="",
+             yformat: str="",
+             logscalex: bool=False,
+             logscaley: bool=False,
+             title: str="",
+             plotkw: dict={},
+             show_legend: bool=True,
+             bbox_to_anchor: Union[list, tuple]=[1.05, 1],
+             right=0.75,
+             left=0.15,
+             bottom=0.15,
+             figsize: list=[],
+             rows_cols: list=[]) ->Dict:
+
+    if len(y)==0 and len(variables)==0:
+        raise Exception("Provide y or variables option")
+    elif len(variables)!=0:
+        y=copy.deepcopy(variables)
+
+    if isinstance(y, str):
+        y=[copy.deepcopy(y)]
+
+    if len(x)==0:
+        X=list(df.index)
+        x=df.index.name
+    else:
+        X=df[x]
+
+    
+    if isinstance(palette, str):
+        cmap=plt.get_cmap(palette, len(y))
+        lut={}
+        for i, _y in enumerate(y):
+            lut[_y]=cmap(i)
+    else:
+        lut=copy.deepcopy(palette)
+    if split==False:
+        if len(figsize)==0:
+            figsize=[6,4]
+        if isinstance(ax, type(None)):
+            fig, ax=plt.subplots(figsize=figsize)
+        for _y in y:
+            ax.plot(X, df[_y], color=lut[_y], label=_y, **plotkw)
+        _set_axis(ax,x, xlabel, ylabel, xunit, yunit, xformat, yformat,logscalex,logscaley, title)
+
+        if show_legend==True:
+            plt.legend(bbox_to_anchor=bbox_to_anchor)
+            plt.subplots_adjust(right=right, bottom=bottom, left=left)
+    else:
+        plotnum=len(y)
+        if len(rows_cols)==0:
+            rows_cols=[plotnum//2+int(plotnum%2!=0), 2]
+        if len(figsize)==0:
+            figsize=[6,4*(plotnum//2+int(plotnum%2!=0))]
+        if isinstance(ax, type(None)):
+            fig, ax=plt.subplots(nrows=rows_cols[0], ncols=rows_cols[1], figsize=figsize)
+        axes=ax.flatten()
+        for _ax, _y in zip(axes, y):
+            _ax.plot(X, df[_y], color=lut[_y], **plotkw)
+            _set_axis(_ax,x, xlabel, _y, xunit, yunit, xformat, yformat,logscalex,logscaley, "")
+        fig.suptitle(title)
+        plt.tight_layout()
+def _set_axis(ax,x, xlabel, ylabel, xunit, yunit, xformat, yformat,logscalex,logscaley, title):
+    if xlabel !="":
+        ax.set_xlabel(xlabel)
+    else:
+        ax.set_xlabel(x)
+    if ylabel!="":
+        ax.set_ylabel(ylabel)
+    ax.set_title(title)
+    if yunit!="":
+        ax.text(0, 1, "({})".format(yunit), transform=ax.transAxes, ha="right")
+    if xunit!="":
+        ax.text(1, 0, "({})".format(xunit), transform=ax.transAxes, ha="left",va="top")
+    if xformat!="":
+        
+        ax.xaxis.set_major_formatter(StrMethodFormatter(xformat))
+    if yformat !="":
+        ax.yaxis.set_major_formatter(StrMethodFormatter(yformat))
+    if logscalex==True:
+        ax.set_xscale("log")
+    if logscaley==True:
+        ax.set_yscale("log")
 
 if __name__=="__main__":
     pass
