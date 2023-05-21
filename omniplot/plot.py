@@ -727,7 +727,7 @@ def lineplot(df: pd.DataFrame,
             _ax.plot(X, df[_y], color=lut[_y], **plotkw)
             _set_axis(_ax,x, xlabel, _y, xunit, yunit, xformat, yformat,logscalex,logscaley, "")
         fig.suptitle(title)
-        plt.tight_layout()
+        plt.tight_layout(h_pad=5)
 def _set_axis(ax,x, xlabel, ylabel, xunit, yunit, xformat, yformat,logscalex,logscaley, title):
     if xlabel !="":
         ax.set_xlabel(xlabel)
