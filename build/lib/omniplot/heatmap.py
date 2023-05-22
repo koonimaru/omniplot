@@ -1,4 +1,3 @@
-from typing import Union, Optional, Dict, List
 import matplotlib.collections as mc
 import matplotlib.pyplot as plt
 import numpy as np
@@ -26,11 +25,7 @@ from itertools import combinations
 import os
 #script_dir = os.path.dirname( __file__ )
 #sys.path.append( script_dir )
-from omniplot.utils import * #
-from omniplot.utils import colormap_list, shape_list
 import scipy.stats as stats
-from joblib import Parallel, delayed
-from omniplot.chipseq_utils import _calc_pearson
 import itertools as it
 from matplotlib.collections import PatchCollection
 from matplotlib.patches import Rectangle, Circle,Ellipse, RegularPolygon, Polygon
@@ -40,6 +35,11 @@ from matplotlib.artist import Artist
 from matplotlib.transforms import Affine2D
 import mpl_toolkits.axisartist.floating_axes as floating_axes
 import matplotlib.patheffects as patheffects
+from typing import Union, Optional, Dict, List
+
+from omniplot.utils import * #
+from omniplot.utils import colormap_list, shape_list
+
 __all__=["correlation", "triangle_heatmap", "complex_clustermap","dotplot", "heatmap"]
 def correlation(df: pd.DataFrame, 
                 category: Union[str, list]=[],
@@ -99,26 +99,9 @@ def correlation(df: pd.DataFrame,
     """
     original_index=df.index
     X, category=_separate_data(df, variables=variables, category=category)
-    # if len(category) !=0:
-    #
-    #     if type(category)==str:
-    #         category=[category]
-    #     #df=df.drop(category, axis=1)
-    #     valnames=list(set(df.columns) -set(category)) 
-    #     X = df[valnames].values
-    #     assert X.dtype==float, f"data must contain only float values except {category} column."
-    #
-    # else:    
-    #     X = df.values
-    #     assert X.dtype==float, "data must contain only float values."
-    if ztransform==True:
+    if ztransform is True:
         X=zscore(X, axis=0)
     if method=="pearson":
-        # dmat=Parallel(n_jobs=-1)(delayed(_calc_pearson)(ind, X) for ind in list(it.combinations(range(X.shape[0]), 2)))
-        # dmat=np.array(dmat)
-        # dmat=squareform(dmat)
-        # print(dmat)
-        # dmat+=np.identity(dmat.shape[0])
         dmat=np.corrcoef(X)
     else:
         dmat=squareform(pdist(X, method))
@@ -126,11 +109,14 @@ def correlation(df: pd.DataFrame,
             ctitle="Pearson correlation"
     else:
         ctitle=method+" distance"    
-        
+
+    dfm=pd.DataFrame(data=dmat, columns=original_index,index=original_index)
+
+
+    colnames=dfm.columns
+
         
     if len(category) >0:
-        dfm=pd.DataFrame(data=dmat)
-        colnames=dfm.columns
         for cat in category:
             dfm[cat]=df[cat].values
         res=complex_clustermap(dfm,
@@ -143,11 +129,12 @@ def correlation(df: pd.DataFrame,
                                ctitle=ctitle )
     else:
         
-        res=complex_clustermap(data=dmat,
+        res=complex_clustermap(dfm,
+                         heatmap_col=colnames, 
                          xticklabels=xticklabels,
                          yticklabels=yticklabels,
                    method="ward", 
-                   cmap=palette,
+                   heatmap_palette=palette,
                    col_cluster=True,
                    row_cluster=True,
                    figsize=figsize,
@@ -218,7 +205,7 @@ def triangle_heatmap(df,
     #t_ = np.array([[2**(-0.5), -2**(-0.5)], [2**(-0.5), 2**(-0.5)]])
     
     # -1.0 correlation is blue, 0.0 is white, 1.0 is red.
-    cmap = plt.cm.Reds
+    cmap = plt.get_cmap("Reds")
     #norm = mp.colors.BoundaryNorm(np.linspace(0, 10, 14), cmap.N)
     
     # This MUST be before the call to pl.pcolormesh() to align properly.
@@ -1154,7 +1141,7 @@ def heatmap(df: pd.DataFrame,
                 show_values: bool=False,
                 text_color: str="w",
                 val_format: str="",
-                ):
+                )->Dict:
     """
     Drawing a heatmap. The function is mostly overlapping with the complex_clustermap, but has more flexibility, but may be slower.
     The main difference is this heatmap uses patch collections instead of pcolormech.  
@@ -1348,7 +1335,7 @@ def heatmap(df: pd.DataFrame,
     def _scale_size(x, size_scale, smin, smax):
         return size_scale*((x-smin)/(smax-smin))
     def _reverse_size(x, size_scale, smin, smax):
-        return (x/size_scale-0.01)*(smax-smin)+smin
+        return (x/size_scale)*(smax-smin)+smin
     
     margin=0.00
     sns.set_theme(style="white",font="Arial",font_scale=1.1)
@@ -1400,91 +1387,37 @@ def heatmap(df: pd.DataFrame,
     fig=plt.figure(figsize=figsize, layout='constrained')
     
     # determining the size and positionn of axes
-    if col_ticklabels==True:
-        lmax = float(np.amax(list(map(len, list(collabels.astype(str)))))) 
-        lmax=np.amin([lmax/150, 0.3])
-    else:
-        lmax=0
-
-    if boxlabels==True:
-        row_ticklabels=False
-
-    xori=0.05
-    yori=0.11+lmax
-    lcatw=0.04
-    
-    legendw=0.15*show_legend
-    if boxlabels==True:
-        boxwidth=0.15
-    else:
-        boxwidth=0.
-    if row_cluster==True:
-        ltreew=0.15
-        ttreew=0.65-lcatw*rowplot_num-legendw-boxwidth
-    else:
-        ltreew=0
-        ttreew=0.75-lcatw*rowplot_num-legendw
-    
-    if col_cluster==True:
-        ltreeh=0.75-lmax
-        ttreeh=0.05
-    else:
-        ltreeh=0.8-lmax
-        ttreeh=0
-    if ttreew<0:
-        raise Exception("Too many things to plot. \
-                        Please reduce the number of \
-                        row-wise plots.")
-    hmapw=ttreew
-    hmaph=ltreeh
-    lcatx=xori+ltreew
-    tcaty=yori+ltreeh
-    tcath=0.025
-
-    hmapx=xori+ltreew+lcatw*rowplot_num
-    ttreey=yori+ltreeh+tcath*colplot_num
-    legendh=(3/Xshape[0])*hmaph
+    (xori, yori, 
+    boxwidth, 
+    legendw, legendh,
+    ltreew, ltreeh,  
+    ttreey, ttreew,  ttreeh, 
+    hmapx, hmapw, hmaph, 
+    lcatx, lcatw, 
+    tcaty, tcath, 
+    row_ticklabels)=_axis_loc_sizes(col_ticklabels, row_ticklabels,
+                    boxlabels, 
+                    row_cluster,col_cluster,
+                    show_legend,
+                    rowplot_num,colplot_num,
+                    collabels,
+                    Xshape)
     
     size_legend_num=3
     size_legend_elements=[]
     if type(Xsize)!=type(None):
-        smin=np.amin(Xsize)
-        smax=np.amax(Xsize)
-        _scaled=_scale_size(Xsize,1, smin, smax)
-        vmin, vmax=np.amin(_scaled), np.amax(_scaled)
-        # print("scaled: ", vmin, vmax)
-        vinterval=(vmax-vmin)/(size_legend_num-1)
-        
-        if size_format=="":
-            if 1<np.abs(smax)<=1000:
-                size_format="{x:.2f}"
-            elif 0<np.abs(smax)<=1 or 1000<np.abs(smax):
-                size_format="{x:.3E}"
-        
-        
+        size_legend_elements, size_labels =_create_shape_legend_elements(Xsize, 
+                                                                        Xshape,
+                                                                        hmapw,
+                                                                        hmaph,
+                                                                        legendw,
+                                                                        legendh,
+                                                                        _scale_size,
+                                                                        _reverse_size,
+                                                                        size_legend_num,
+                                                                        shape,
+                                                                        size_format)
 
-        sx=1
-        size_legend_elements.append(Rectangle((0 -0.5,0-0.5), 1, size_legend_num))
-
-        size_labels=[]
-        prev_top=0
-        for _i in range(size_legend_num):
-            s=vmin+_i*vinterval
-            if s <0.1:
-                s=0.1
-            sx=s*(hmapw/legendw)/Xshape[1]
-            sy=s*(hmaph/legendh)*size_legend_num/Xshape[0]
-            
-            if shape=="by_category":
-                size_legend_elements.append(_create_polygon("circle", 0, _i, sx,ry=sy))
-            else:
-                size_legend_elements.append(_create_polygon(shape, 0, _i, sx,ry=sy))
-
-
-            prev_top+=sy+0.1
-            _s=_reverse_size(s, 1, smin, smax)
-            size_labels.append([size_format.format(x=_s), _i])
-    
     # Row-wise clustering 
     legend_elements_dict={} 
     rclusters={}
@@ -1553,10 +1486,15 @@ def heatmap(df: pd.DataFrame,
         if clustering_method=="hierarchical":
             ax1=fig.add_axes([hmapx,ttreey,ttreew,ttreeh])
             X, Xsize, Zt, collabels, cclusters,=_dendrogram(X, 
-                                                                    Xsize, ax1,collabels,
-                                                                    treepalette ,
-                                                                    approx_clusternum_col, 
-                                                                    metric,method,above_threshold_color, "top")     
+                                                            Xsize, 
+                                                            ax1,
+                                                            collabels,
+                                                            treepalette ,
+                                                            approx_clusternum_col, 
+                                                            metric,
+                                                            method,
+                                                            above_threshold_color, 
+                                                            "top")     
             ax1.axis('off')
             ax1.margins(x=margin)
             sortindexc=Zt["leaves"]
@@ -1782,7 +1720,7 @@ def heatmap(df: pd.DataFrame,
 
     #Drawing a heatmap
     pcolormesh=False
-    if Xshape[0]>1000 or Xshape[1]>1000:
+    if Xshape[0]>=512 or Xshape[1]>=512:
         pcolormesh=True
     if row_split==True and row_cluster==True:
         
@@ -2669,3 +2607,130 @@ class _AnyObjectHandler:
         handlebox.add_artist(patch)
         
         return patch
+    
+
+
+def _axis_loc_sizes(col_ticklabels: bool, 
+                    row_ticklabels: bool,
+                    boxlabels: bool, 
+                    row_cluster: bool,
+                    col_cluster: bool,
+                    show_legend: int,
+                    rowplot_num: int,
+                    colplot_num: int,
+                    collabels: np.ndarray,
+                    Xshape: Union[np.ndarray, list, tuple]) -> List:
+    # determining the size and positionn of axes
+
+
+    if col_ticklabels==True:
+        lmax = float(np.amax(list(map(len, list(collabels.astype(str)))))) 
+        lmax=np.amin([lmax/150, 0.3])
+    else:
+        lmax=0
+
+    if boxlabels==True:
+        row_ticklabels=False
+
+    xori=0.05
+    yori=0.11+lmax
+    lcatw=0.04
+    
+    legendw=0.15*show_legend
+    if boxlabels==True:
+        boxwidth=0.15
+    else:
+        boxwidth=0.
+    if row_cluster==True:
+        ltreew=0.15
+        ttreew=0.65-lcatw*rowplot_num-legendw-boxwidth
+    else:
+        ltreew=0
+        ttreew=0.75-lcatw*rowplot_num-legendw
+    
+    if col_cluster==True:
+        ltreeh=0.75-lmax
+        ttreeh=0.05
+    else:
+        ltreeh=0.8-lmax
+        ttreeh=0
+    if ttreew<0:
+        raise Exception("Too many things to plot. \
+                        Please reduce the number of \
+                        row-wise plots.")
+    hmapw=ttreew
+    hmaph=ltreeh
+    lcatx=xori+ltreew
+    tcaty=yori+ltreeh
+    tcath=0.025
+
+    hmapx=xori+ltreew+lcatw*rowplot_num
+    ttreey=yori+ltreeh+tcath*colplot_num
+    legendh=(3/Xshape[0])*hmaph
+
+    return (xori, yori, 
+            boxwidth, 
+            legendw, legendh,
+            ltreew, ltreeh,  
+            ttreey, ttreew,  ttreeh, 
+            hmapx, hmapw, hmaph, 
+            lcatx, lcatw, 
+            tcaty, tcath, 
+            row_ticklabels)
+
+
+def _create_shape_legend_elements(Xsize, 
+                                  Xshape,
+                                  hmapw,
+                                  hmaph,
+                                  legendw,
+                                  legendh,
+                                  _scale_size,
+                                  _reverse_size,
+                                  size_legend_num,
+                                  shape,
+                                  size_format):
+    size_legend_elements=[]
+    smin=np.amin(Xsize)
+    smax=np.amax(Xsize)
+    _scaled=_scale_size(Xsize,1, smin, smax)
+    vmin, vmax=np.amin(_scaled), np.amax(_scaled)
+    # print("scaled: ", vmin, vmax)
+    vinterval=(vmax-vmin)/(size_legend_num-1)
+    
+    if size_format=="":
+        if 1<np.abs(smax)<=1000:
+            size_format="{x:.2f}"
+        elif 0<np.abs(smax)<=1 or 1000<np.abs(smax):
+            size_format="{x:.3E}"
+    
+    
+
+    sx=1
+    size_legend_elements.append(Rectangle((0 -0.5,0-0.5), 1, size_legend_num))
+
+    size_labels=[]
+    prev_top=0
+    for _i in range(size_legend_num):
+        if _i==size_legend_num-1:
+            s=vmax
+        else:
+            s=vmin+_i*vinterval
+        if s <0.1:
+            s=0.1
+        sx=s*(hmapw/legendw)/Xshape[1]
+        sy=s*(hmaph/legendh)*size_legend_num/Xshape[0]
+        
+        if shape=="by_category":
+            size_legend_elements.append(_create_polygon("circle", 0, _i, sx,ry=sy))
+        else:
+            size_legend_elements.append(_create_polygon(shape, 0, _i, sx,ry=sy))
+
+
+        prev_top+=sy+0.1
+
+        _s=_reverse_size(s, 1, smin, smax)
+        size_labels.append([size_format.format(x=_s), _i])
+    
+
+    return size_legend_elements, size_labels

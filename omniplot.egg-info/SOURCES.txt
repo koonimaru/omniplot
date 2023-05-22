@@ -29,3 +29,4 @@ tests/test_chipseq.py
 tests/test_network.py
 tests/tests heatmap.py
 tests/tests.py
+tests/tests_scatter.py
