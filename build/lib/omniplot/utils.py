@@ -748,12 +748,6 @@ def _radialtree2(Z2,fontsize: int=8,
                 #print(start, theta, innerrad, outerrad,10, _colorlist[i])
                 _baumkuchen(ax, start, theta, innerrad, outerrad,10, _colorlist[i] ) #,edgecolor = "gray",linewidth=0.5)
                 
-            # patches, texts =plt.pie(colorpos, colors=_colorlist,
-            #         radius=outerrad,
-            #         counterclock=True,
-            #         startangle=label_coords[0][2]*0.5)
-            # circle=plt.Circle((0,0),innerrad, fc='white')
-            # plt.gca().add_patch(circle)
             labelnames.append(labelname)
             colorlabels_legend[labelname]={}
             colorlabels_legend[labelname]["colors"]=_cmp(np.linspace(0, 1, type_num))
@@ -823,9 +817,9 @@ def _complex_clustermap(df,row_plot=[],col_plot=[],approx_clusternum=10,color_va
     else:
         g=sns.clustermap(df,method=method,**kwargs)
     if color_var>0:
-        cmap = cm.nipy_spectral(np.linspace(0, 1, color_var))
+        cmap = plt.get_cmap("nipy_spectral")(np.linspace(0, 1, color_var))
     else:
-        cmap = cm.nipy_spectral(np.linspace(0, 1, approx_clusternum+5))
+        cmap = plt.get_cmap("nipy_spectral")(np.linspace(0, 1, approx_clusternum+5))
     hierarchy.set_link_color_palette([matplotlib.colors.rgb2hex(rgb[:3]) for rgb in cmap])
     lbranches=np.array(g.dendrogram_row.dendrogram["dcoord"])[:,:2]
     rbranches=np.array(g.dendrogram_row.dendrogram["dcoord"])[:,2:]
@@ -873,7 +867,10 @@ def _calc_r2(X,Y):
     r2 = correlation_coef**2
     return r2
 
-def _ci_pi(X: np.ndarray,Y: np.ndarray, plotline_X: np.ndarray, y_model: np.ndarray) -> list:
+def _ci_pi(X: np.ndarray,
+           Y: np.ndarray, 
+           plotline_X: np.ndarray, 
+           y_model: np.ndarray) -> list:
     x_mean = np.mean(X)
     y_mean = np.mean(Y)
     n = X.shape[0]                        # number of samples
@@ -971,24 +968,26 @@ from sklearn.decomposition import TruncatedSVD
 from sklearn.pipeline import make_pipeline
 from sklearn.random_projection import SparseRandomProjection
 
-def _get_embedding(method="umap",param={}):
+def _get_embedding(method: str="umap",
+                   param: dict={}):
     
-    
-    defaul_params={"tsne": dict(n_components=2,n_iter=500,
-                                n_iter_without_progress=150,
-                                perplexity=10,
-                                n_jobs=2,
-                                random_state=42),
-                "random_projection": dict(n_components=2, random_state=42, eigen_solver="arpack"),
-                "svd": dict(n_components=2),
-                "random_trees": dict(n_estimators=200, max_depth=5, random_state=42),
-                "mds": dict(n_components=2, n_init=1, max_iter=120, n_jobs=2, normalized_stress="auto"),
-                "lle": dict(n_neighbors=5, n_components=2, ),
-                "isomap":dict(n_neighbors=4, n_components=2),
-                "linear_discriminant":dict(n_components=2),
-                "random_projection": dict(n_components=2, random_state=42),
-                "nca": dict(n_components=2, init="pca", random_state=42),
-                "umap": dict(min_dist=0.25,n_neighbors=15)}
+    defaul_params={
+        "tsne": dict(n_components=2,n_iter=500,
+                     n_iter_without_progress=150,
+                     perplexity=10,
+                     n_jobs=2,
+                     random_state=42),
+        "random_projection": dict(n_components=2, random_state=42, eigen_solver="arpack"),
+        "svd": dict(n_components=2),
+        "random_trees": dict(n_estimators=200, max_depth=5, random_state=42),
+        "mds": dict(n_components=2, n_init=1, max_iter=120, n_jobs=2, normalized_stress="auto"),
+        "lle": dict(n_neighbors=5, n_components=2, ),
+        "isomap":dict(n_neighbors=4, n_components=2),
+        "linear_discriminant":dict(n_components=2),
+        "random_projection": dict(n_components=2, random_state=42),
+        "nca": dict(n_components=2, init="pca", random_state=42),
+        "umap": dict(min_dist=0.25,n_neighbors=15)
+        }
     if len(param)!=0:
         params={method: param}
     else:
@@ -1049,12 +1048,13 @@ def _get_embedding(method="umap",param={}):
     return embedding
 
 
-def _separate_data(df, variables=[], 
-                   category=""):
+def _separate_data(df: pd.DataFrame, 
+                   variables: list=[], 
+                   category: str="")->List:
     if len(variables) !=0:
         x = np.array(df[variables].values)
         if len(category) !=0:
-            if type(category)==str:
+            if isinstance(category, str):
                 category=[category]
             #category_val=df[category].values
         
@@ -1062,7 +1062,7 @@ def _separate_data(df, variables=[],
         if np.issubdtype(x.dtype, np.number)==False:
             raise TypeError(f"variables must contain only float values. {x.dtype} was given")
     elif len(category) !=0:
-        if type(category)==str:
+        if isinstance(category, str):
             category=[category]
         #category_val=df[category].values
         df=df.drop(category, axis=1)
@@ -1076,7 +1076,7 @@ def _separate_data(df, variables=[],
         #category_val=[]
         if x.dtype!=float: 
             raise TypeError(f"data must contain only float values. \
-        or you can specify the numeric variables with the option 'variables'.")
+                            or you can specify the numeric variables with the option 'variables'.")
         
     return x, category
 
@@ -1085,11 +1085,11 @@ def _separate_cdata(df, variables=[],
     if len(variables) !=0:
         x = np.array(df[variables].values)
         if len(category) !=0:
-            if type(category)==str:
+            if isinstance(category, str):
                 category=[category]
 
     elif len(category) !=0:
-        if type(category)==str:
+        if isinstance(category, str):
             category=[category]
         #category_val=df[category].values
         df=df.drop(category, axis=1)
@@ -1108,7 +1108,7 @@ def _create_color_markerlut(df, cat, palette, markers=[]):
     if df[cat].isnull().values.any():
         df[cat]=df[cat].fillna("NA")
     uniq_labels=sorted(list(set(df[cat])))
-    if type(palette)==str:
+    if isinstance(palette, str):
         _cmap=plt.get_cmap(palette, len(uniq_labels))
         
         color_lut={u: _cmap(i) for i, u in enumerate(uniq_labels)}
@@ -1118,10 +1118,11 @@ def _create_color_markerlut(df, cat, palette, markers=[]):
                 while len(markers) < len(uniq_labels):
                     markers.extend(markers)
             marker_lut={u: markers[i] for i, u in enumerate(uniq_labels)}
-    elif type(palette)==dict:
+    elif isinstance(palette, dict):
         color_lut=copy.deepcopy(palette)
     else:
-        raise TypeError("Unexpected type of the palette option. It must be either a matplot colormap name or the dictionary of a color look up table")
+        raise TypeError("Unexpected type of the palette option. It must be either a matplot \
+                        colormap name or the dictionary of a color look up table")
 
 
     return color_lut, marker_lut
