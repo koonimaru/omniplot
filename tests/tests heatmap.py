@@ -14,13 +14,14 @@ test="regression"
 test="correlation"
 test="complex_clustermap"
 test="heatmap"
-test="heatmap"
+test="correlation"
 if test=="correlation":
     df=sns.load_dataset("penguins")
     df=df.dropna(axis=0)
     
+    op.correlation(df,variables=["bill_length_mm","bill_depth_mm","flipper_length_mm"], method="pearson", ztransform=True)
         
-    op.correlation(df, category=["species", "island","sex"], method="pearson", ztransform=True)
+    # op.correlation(df, category=["species", "island","sex"], method="pearson", ztransform=True)
     plt.show()
 
 elif test=="dotplot":

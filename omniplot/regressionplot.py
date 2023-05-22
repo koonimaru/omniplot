@@ -7,7 +7,6 @@ import pandas as pd
 from matplotlib import cm
 from matplotlib.lines import Line2D
 from collections import defaultdict
-import matplotlib.colors
 import sys 
 import matplotlib as mpl
 from scipy.spatial.distance import pdist, squareform

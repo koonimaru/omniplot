@@ -1,4 +1,3 @@
-from typing import Union, Optional, Dict, List
 import matplotlib.collections as mc
 import matplotlib.pyplot as plt
 import numpy as np
@@ -26,11 +25,7 @@ from itertools import combinations
 import os
 #script_dir = os.path.dirname( __file__ )
 #sys.path.append( script_dir )
-from omniplot.utils import * #
-from omniplot.utils import colormap_list, shape_list
 import scipy.stats as stats
-from joblib import Parallel, delayed
-from omniplot.chipseq_utils import _calc_pearson
 import itertools as it
 from matplotlib.collections import PatchCollection
 from matplotlib.patches import Rectangle, Circle,Ellipse, RegularPolygon, Polygon
@@ -40,6 +35,11 @@ from matplotlib.artist import Artist
 from matplotlib.transforms import Affine2D
 import mpl_toolkits.axisartist.floating_axes as floating_axes
 import matplotlib.patheffects as patheffects
+from typing import Union, Optional, Dict, List
+
+from omniplot.utils import * #
+from omniplot.utils import colormap_list, shape_list
+
 __all__=["correlation", "triangle_heatmap", "complex_clustermap","dotplot", "heatmap"]
 def correlation(df: pd.DataFrame, 
                 category: Union[str, list]=[],
@@ -99,26 +99,9 @@ def correlation(df: pd.DataFrame,
     """
     original_index=df.index
     X, category=_separate_data(df, variables=variables, category=category)
-    # if len(category) !=0:
-    #
-    #     if type(category)==str:
-    #         category=[category]
-    #     #df=df.drop(category, axis=1)
-    #     valnames=list(set(df.columns) -set(category)) 
-    #     X = df[valnames].values
-    #     assert X.dtype==float, f"data must contain only float values except {category} column."
-    #
-    # else:    
-    #     X = df.values
-    #     assert X.dtype==float, "data must contain only float values."
-    if ztransform==True:
+    if ztransform is True:
         X=zscore(X, axis=0)
     if method=="pearson":
-        # dmat=Parallel(n_jobs=-1)(delayed(_calc_pearson)(ind, X) for ind in list(it.combinations(range(X.shape[0]), 2)))
-        # dmat=np.array(dmat)
-        # dmat=squareform(dmat)
-        # print(dmat)
-        # dmat+=np.identity(dmat.shape[0])
         dmat=np.corrcoef(X)
     else:
         dmat=squareform(pdist(X, method))
@@ -126,11 +109,14 @@ def correlation(df: pd.DataFrame,
             ctitle="Pearson correlation"
     else:
         ctitle=method+" distance"    
-        
+
+    dfm=pd.DataFrame(data=dmat, columns=original_index,index=original_index)
+
+
+    colnames=dfm.columns
+
         
     if len(category) >0:
-        dfm=pd.DataFrame(data=dmat)
-        colnames=dfm.columns
         for cat in category:
             dfm[cat]=df[cat].values
         res=complex_clustermap(dfm,
@@ -143,11 +129,12 @@ def correlation(df: pd.DataFrame,
                                ctitle=ctitle )
     else:
         
-        res=complex_clustermap(data=dmat,
+        res=complex_clustermap(dfm,
+                         heatmap_col=colnames, 
                          xticklabels=xticklabels,
                          yticklabels=yticklabels,
                    method="ward", 
-                   cmap=palette,
+                   heatmap_palette=palette,
                    col_cluster=True,
                    row_cluster=True,
                    figsize=figsize,
@@ -1499,10 +1486,15 @@ def heatmap(df: pd.DataFrame,
         if clustering_method=="hierarchical":
             ax1=fig.add_axes([hmapx,ttreey,ttreew,ttreeh])
             X, Xsize, Zt, collabels, cclusters,=_dendrogram(X, 
-                                                            Xsize, ax1,collabels,
+                                                            Xsize, 
+                                                            ax1,
+                                                            collabels,
                                                             treepalette ,
                                                             approx_clusternum_col, 
-                                                            metric,method,above_threshold_color, "top")     
+                                                            metric,
+                                                            method,
+                                                            above_threshold_color, 
+                                                            "top")     
             ax1.axis('off')
             ax1.margins(x=margin)
             sortindexc=Zt["leaves"]
