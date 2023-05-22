@@ -99,7 +99,7 @@ def correlation(df: pd.DataFrame,
     """
     original_index=df.index
     X, category=_separate_data(df, variables=variables, category=category)
-    if ztransform==True:
+    if ztransform is True:
         X=zscore(X, axis=0)
     if method=="pearson":
         dmat=np.corrcoef(X)
@@ -109,11 +109,14 @@ def correlation(df: pd.DataFrame,
             ctitle="Pearson correlation"
     else:
         ctitle=method+" distance"    
-        
+
+    dfm=pd.DataFrame(data=dmat, columns=original_index,index=original_index)
+
+
+    colnames=dfm.columns
+
         
     if len(category) >0:
-        dfm=pd.DataFrame(data=dmat)
-        colnames=dfm.columns
         for cat in category:
             dfm[cat]=df[cat].values
         res=complex_clustermap(dfm,
@@ -126,11 +129,12 @@ def correlation(df: pd.DataFrame,
                                ctitle=ctitle )
     else:
         
-        res=complex_clustermap(data=dmat,
+        res=complex_clustermap(dfm,
+                         heatmap_col=colnames, 
                          xticklabels=xticklabels,
                          yticklabels=yticklabels,
                    method="ward", 
-                   cmap=palette,
+                   heatmap_palette=palette,
                    col_cluster=True,
                    row_cluster=True,
                    figsize=figsize,
