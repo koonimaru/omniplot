@@ -722,12 +722,14 @@ def lineplot(df: pd.DataFrame,
             figsize=[6,4*(plotnum//2+int(plotnum%2!=0))]
         if isinstance(ax, type(None)):
             fig, ax=plt.subplots(nrows=rows_cols[0], ncols=rows_cols[1], figsize=figsize)
-        axes=ax.flatten()
-        for _ax, _y in zip(axes, y):
+            ax=ax.flatten()
+        for _ax, _y in zip(ax, y):
             _ax.plot(X, df[_y], color=lut[_y], **plotkw)
             _set_axis(_ax,x, xlabel, _y, xunit, yunit, xformat, yformat,logscalex,logscaley, "")
         fig.suptitle(title)
         plt.tight_layout(h_pad=5)
+    return {"axes":ax}
+
 def _set_axis(ax,x, xlabel, ylabel, xunit, yunit, xformat, yformat,logscalex,logscaley, title):
     if xlabel !="":
         ax.set_xlabel(xlabel)
