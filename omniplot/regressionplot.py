@@ -16,7 +16,7 @@ from itertools import combinations
 import os
 script_dir = os.path.dirname( __file__ )
 sys.path.append( script_dir )
-from utils import *
+from omniplot.utils import _calc_r2, _ci_pi, _draw_ci_pi, _save
 import scipy.stats as stats
 
 colormap_list=["nipy_spectral", "terrain","tab20b","gist_rainbow","CMRmap","coolwarm","gnuplot","gist_stern","brg","rainbow"]
@@ -101,7 +101,7 @@ def regression_single(df: pd.DataFrame,
         coef = fitted_model.estimator_.coef_[0]
         intercept=fitted_model.estimator_.intercept_
         inlier_mask = fitted_model.inlier_mask_
-        outlier_mask = ~inlier_mask
+        outlier_mask = np.invert(inlier_mask)
         
                                 # number of samples
         y_model=fitted_model.predict(_X)

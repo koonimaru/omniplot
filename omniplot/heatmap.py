@@ -7,38 +7,38 @@ from matplotlib import cm
 from matplotlib.lines import Line2D
 from scipy.cluster.hierarchy import leaves_list
 from joblib import Parallel, delayed
-from collections import defaultdict
+# from collections import defaultdict
 import matplotlib.colors
 from natsort import natsort_keygen, natsorted
 import scipy.cluster.hierarchy as sch
 import fastcluster as fcl
-from decimal import Decimal
-import sys 
+# from decimal import Decimal
+# import sys 
 import matplotlib as mpl
-from sklearn.cluster import KMeans, DBSCAN
-from sklearn.metrics import silhouette_score
+from sklearn.cluster import KMeans #, DBSCAN
+# from sklearn.metrics import silhouette_score
 from scipy.spatial.distance import pdist, squareform
-from sklearn.decomposition import PCA, NMF, LatentDirichletAllocation
-from scipy.stats import fisher_exact
+# from sklearn.decomposition import PCA, NMF, LatentDirichletAllocation
+# from scipy.stats import fisher_exact
 from scipy.stats import zscore
-from itertools import combinations
-import os
+# from itertools import combinations
+# import os
 #script_dir = os.path.dirname( __file__ )
 #sys.path.append( script_dir )
-import scipy.stats as stats
-import itertools as it
+# import scipy.stats as stats
+# import itertools as it
 from matplotlib.collections import PatchCollection
-from matplotlib.patches import Rectangle, Circle,Ellipse, RegularPolygon, Polygon
+from matplotlib.patches import Rectangle,Ellipse, Polygon #, Circle, RegularPolygon
 import copy
 import textwrap
 from matplotlib.artist import Artist
-from matplotlib.transforms import Affine2D
-import mpl_toolkits.axisartist.floating_axes as floating_axes
+# from matplotlib.transforms import Affine2D
+# import mpl_toolkits.axisartist.floating_axes as floating_axes
 import matplotlib.patheffects as patheffects
 from typing import Union, Optional, Dict, List
 
-from omniplot.utils import * #
-from omniplot.utils import colormap_list, shape_list
+from omniplot.utils import _separate_data, _save, _create_color_markerlut, _get_cluster_classes2, _dendrogram_threshold, _get_cluster_classes, _separate_cdata #
+from omniplot.utils import colormap_list, shape_list, marker_list
 
 __all__=["correlation", "triangle_heatmap", "complex_clustermap","dotplot", "heatmap"]
 def correlation(df: pd.DataFrame, 
@@ -46,12 +46,12 @@ def correlation(df: pd.DataFrame,
                 variables: List=[],
                 method="pearson",
                 palette: str="coolwarm",
-                figsize=[6,6],
-                show_values=False,
-                clustermap_param:dict={},
-                ztransform: bool=True,
-                xticklabels =False,
-                yticklabels=False,
+                figsize: List=[6,6],
+                show_values: bool=False,
+                clustermap_param: dict={},
+                ztransform: bool=False,
+                xticklabels: bool=False,
+                yticklabels: bool=False,
                 title: str="",)->Dict:
     """
     Drawing a heatmap with correlations or distances between observations 
@@ -106,7 +106,7 @@ def correlation(df: pd.DataFrame,
     else:
         dmat=squareform(pdist(X, method))
     if method=="pearson":
-            ctitle="Pearson correlation"
+        ctitle="Pearson correlation"
     else:
         ctitle=method+" distance"    
 
@@ -126,7 +126,7 @@ def correlation(df: pd.DataFrame,
                                xticklabels=xticklabels,
                                yticklabels=yticklabels,
                                figsize=figsize,
-                               ctitle=ctitle )
+                               ctitle=ctitle,**clustermap_param)
     else:
         
         res=complex_clustermap(dfm,
@@ -154,7 +154,8 @@ def triangle_heatmap(df,
                      grid_pos: list=[],
                      grid_labels: list=[],
                      show: bool=False, 
-                     save: str="",title: str="")-> dict:
+                     save: str="",
+                     title: str="")-> dict:
     
     """
     Creating a heatmap with 45 degree rotation.
@@ -373,7 +374,7 @@ def complex_clustermap(df: pd.DataFrame,
     #print(kwargs)
     rnum, cnum=df.shape
     if len(heatmap_col)==0 and len(variables)==0:
-        raise Exception("Please specify the variables option")
+        raise ValueError("Please specify the variables option")
     if len(heatmap_col)!=0:
         variables=heatmap_col
     cnum=len(variables)
@@ -391,7 +392,7 @@ def complex_clustermap(df: pd.DataFrame,
     
     if len(col_plot)!=0 or len(col_scatter)!=0 or len(col_bar)!=0:
         if dfcol==None:
-            raise Exception("if you want to plot along the x axis, you need provide dfcol option containing values to plot.")
+            raise ValueError("if you want to plot along the x axis, you need provide dfcol option containing values to plot.")
     cdata={"Cluster":[],"Index":[],"RGB":[]}
     totalrowplot=0
     if marginalsum==True:
@@ -1604,20 +1605,20 @@ def heatmap(df: pd.DataFrame,
         _shape_lut={}
         _color_lut={}
         if column_wise_color==False:
-            
+            _uniq_labels=np.unique(X.flatten())
             if shape=="by_category":
                 
                 _shape_lut={u: shape_list[i] for i, u in enumerate(_uniq_labels)}
                 _shape_legend_elements={"ao":[],"labels":[],"handler":{}}
                 for _cat, _shape in _shape_lut.items():
                     ao=_AnyObject()
-                    obshape=_AnyObjectHandler(facecolor="black", shape=_shape,label=_cat)
+                    obshape=_AnyObjectHandler(facecolor="black", shape=_shape)
                     _shape_legend_elements["ao"].append(ao)
                     _shape_legend_elements["labels"].append(_cat)
                     _shape_legend_elements["handeler"][ao]=obshape
                 shape_legend_elements["categorical"]=_shape_legend_elements
             else:
-                _uniq_labels=np.unique(X.flatten())
+                
                 _cmap=plt.get_cmap(cpalette, len(_uniq_labels)+2)
                 _color_lut={u: _cmap(i+1) for i, u in enumerate(_uniq_labels)}
                 
@@ -2147,7 +2148,7 @@ def _create_polygon(shape, x, y, r, ry=None, **kwargs):
                            y+0.5*ry*np.sin(np.pi/2+(m*i)*2*np.pi/n)])
         return Polygon(rs, **kwargs)
     else:
-        raise Exception["Unknown shape! you gave {}, but it only accepts 'rectangle', 'circle', 'star', 'polygon:n', 'star:n:m'".format(shape)]
+        raise ValueError("Unknown shape! you gave {}, but it only accepts 'rectangle', 'circle', 'star', 'polygon:n', 'star:n:m'".format(shape))
 def _row_plot(df, 
               leaves, 
               fig, 
@@ -2557,7 +2558,7 @@ def _process_cdata(df, variables,category ,row,  col,rowlabels, sizes, size_titl
     return df, X, category, rowlabels, collabels, Xsize, size_title, cunit, lut
 
 
-def _dendrogram(X, Xsize, ax, rowlabels,treepalette ,approx_clusternum, metric,method,above_threshold_color,orientation):
+def _dendrogram(X: np.ndarray, Xsize: np.ndarray, ax: plt.Axes, rowlabels,treepalette ,approx_clusternum, metric,method,above_threshold_color,orientation):
 
     _tcmap=plt.get_cmap(treepalette)
     tcmap = _tcmap(np.linspace(0, 1, approx_clusternum))

@@ -1,9 +1,12 @@
+"""
+A main plotting module for omniplot. 
+"""
+import copy
 from typing import Union, Optional, Dict, List
 import numpy as np
 import seaborn as sns
 import pandas as pd
 import matplotlib.pyplot as plt
-import copy
 # from matplotlib import cm
 # from matplotlib.lines import Line2D
 # from scipy.cluster.hierarchy import leaves_list
@@ -34,7 +37,8 @@ from omniplot.scatter import *
 from omniplot.proportion import *
 from omniplot.heatmap import *
 from omniplot.utils import colormap_list, hatch_list, marker_list
-from omniplot.utils import * #
+from omniplot.utils import _save, _separate_data,  _dendrogram_threshold, _radialtree2,_get_cluster_classes, _draw_ci_pi #
+from omniplot.scatter import _robust_regression
 
 # hatch_list: list = ['//', '\\\\', '||', '--', '++', 'xx', 'oo', 'OO', '..', '**','/o', '\\|', '|*', '-\\', '+o', 'x*', 'o-', 'O|', 'O.', '*-']
 # marker_list: list=['.', '_' , '+','|', 'x', 'v', '^', '<', '>', 's', 'p', '*', 'h', 'D', 'd', 'P', 'X','o', '1', '2', '3', '4','|', '_']
@@ -413,7 +417,7 @@ def violinplot2(df: Union[pd.DataFrame, np.ndarray],
             if type(df)==pd.DataFrame:
                 p1val, p2val=df[y][df[x]==p1],df[y][df[x]==p2]
             else:
-                p1val, p2val=mat[xlabels.index(p1)],mat[xlabels.index(p2)] 
+                p1val, p2val=df[xlabels.index(p1)],df[xlabels.index(p2)] 
             statstest=getattr(stats, test)
             if test=="wilcoxon" or test=="ttest_rel":
                 _, pval,_=statstest(p1val, p2val,alternative=alternative,**kwargs)
@@ -522,8 +526,8 @@ def _violinplot(df: Union[pd.DataFrame, np.ndarray],
     
     proportion=np.array([np.sum(mat[i]) for i in range(len(mat))])
     proportion=proportion/np.sum(proportion)
-    for i in range(len(mat)):
-        X=mat[i]
+    for i, X in enumerate(mat):
+        # X=mat[i]
         # print(X)
         kde=stats.gaussian_kde(X)
         q3, q1=np.quantile(X, 0.75), np.quantile(X, 0.25)
@@ -604,8 +608,8 @@ def _boxplot(df: Union[pd.DataFrame, np.ndarray],
     
     proportion=np.array([np.sum(mat[i]) for i in range(len(mat))])
     proportion=proportion/np.sum(proportion)
-    for i in range(len(mat)):
-        X=mat[i]
+    for i, X in enumerate(mat):
+        # X=mat[i]
         # print(X)
         kde=stats.gaussian_kde(X)
         q3, q1=np.quantile(X, 0.75), np.quantile(X, 0.25)
@@ -678,10 +682,66 @@ def lineplot(df: pd.DataFrame,
              left=0.15,
              bottom=0.15,
              figsize: list=[],
-             rows_cols: list=[]) ->Dict:
-
+             rows_cols: list=[],
+             estimate: str="",
+             robust_param: dict={}) ->Dict:
+    """
+    Drawing line plots with some extra features.
+    
+    Parameters
+    ----------
+    df: pd.DataFrame
+        Dataframe to be plotted
+    x: str
+        Column name of x-axis
+    y: Union[str, list]
+        Column name of y-axis
+    variables: Union[str, list]
+        Column name of variables
+    split: bool
+        If True, split the dataframe by variables
+    ax: plt.Axes
+        Axes to be plotted
+    palette: Union[str, dict]
+        Color palette
+    xlabel: str
+        Label of x-axis
+    ylabel: str
+        Label of y-axis
+    xunit: str
+        Unit of x-axis
+    yunit: Union[str, dict]
+        Unit of y-axis
+    xformat: str
+        Format of x-axis
+    yformat: str
+        Format of y-axis
+    logscalex: bool
+        If True, x-axis is in log scale
+    logscaley: bool
+        If True, y-axis is in log scale
+    title: str
+        Title of the plot
+    plotkw: dict
+        Keyword arguments for plt.plot
+    show_legend: bool
+        If True, show legend
+    bbox_to_anchor: Union[list, tuple]
+        Bbox_to_anchor for legend
+    right: float
+        Right margin
+    left: float
+        Left margin
+    bottom: float
+        Bottom margin
+    figsize: list
+        Figure size
+    rows_cols: list
+        List of rows and columns for subplots
+    
+    """
     if len(y)==0 and len(variables)==0:
-        raise Exception("Provide y or variables option")
+        raise ValueError("Provide y or variables option")
     elif len(variables)!=0:
         y=copy.deepcopy(variables)
 
@@ -702,6 +762,8 @@ def lineplot(df: pd.DataFrame,
             lut[_y]=cmap(i)
     else:
         lut=copy.deepcopy(palette)
+    stats={}
+
     if split==False:
         if len(figsize)==0:
             figsize=[6,4]
@@ -709,6 +771,22 @@ def lineplot(df: pd.DataFrame,
             fig, ax=plt.subplots(figsize=figsize)
         for _y in y:
             ax.plot(X, df[_y], color=lut[_y], label=_y, **plotkw)
+            if estimate=="moving_average":
+                ax.plot(X, df[_y].rolling(window=int(X.shape[0]/10), center=True).mean(), color="black", linestyle="dashed")
+            elif estimate=="moving_median":
+                ax.plot(X, df[_y].rolling(window=int(X.shape[0]/10), center=True).median(), color="black", linestyle="dashed")
+            elif estimate=="regression":
+                print(X.min(), X.max())
+                plotline_X = np.arange(X.min(), X.max()).reshape(-1, 1)
+                (fitted_model, summary, 
+                 coef, coef_p, intercept, intercept_p, r2, x_line, y_line, ci, pi,std_error, 
+                 MSE)=_robust_regression(X, df[_y].fillna(0), plotline_X, robust_param)
+                stats[_y]={"model": fitted_model, "summary": summary, "coef": coef, 
+                           "coef_pval": coef_p, "intercept": intercept, 
+                           "intercept_pval": intercept_p, "r2": r2, "x_line": x_line, "y_line": y_line, 
+                           "ci": ci, "pi": pi, "std_error": std_error, "MSE": MSE}
+                ax.plot(x_line, y_line, color="black", linestyle="dashed")
+                _draw_ci_pi(ax, ci, pi,x_line, y_line)
         _set_axis(ax,x, xlabel, ylabel, xunit, yunit, xformat, yformat,logscalex,logscaley, title)
 
         if show_legend==True:
@@ -717,17 +795,37 @@ def lineplot(df: pd.DataFrame,
     else:
         plotnum=len(y)
         if len(rows_cols)==0:
-            rows_cols=[plotnum//2+int(plotnum%2!=0), 2]
+            rows_cols=[plotnum//3+int(plotnum%3!=0), 3]
         if len(figsize)==0:
-            figsize=[6,4*(plotnum//2+int(plotnum%2!=0))]
+            figsize=[6,2*(plotnum//3+int(plotnum%3!=0))]
         if isinstance(ax, type(None)):
             fig, ax=plt.subplots(nrows=rows_cols[0], ncols=rows_cols[1], figsize=figsize)
-        axes=ax.flatten()
-        for _ax, _y in zip(axes, y):
+            ax=ax.flatten()
+        
+        for _ax, _y in zip(ax, y):
             _ax.plot(X, df[_y], color=lut[_y], **plotkw)
+            if estimate=="moving_average":
+                _ax.plot(X, df[_y].rolling(window=int(X.shape[0]/10), center=True).mean(), color="black", linestyle="dashed")
+            elif estimate=="moving_median":
+                _ax.plot(X, df[_y].rolling(window=int(X.shape[0]/10), center=True).median(), color="black", linestyle="dashed")
+            elif estimate=="regression":
+                print(X.min(), X.max())
+                plotline_X = np.arange(X.min(), X.max()).reshape(-1, 1)
+                (fitted_model, summary, 
+                 coef, coef_p, intercept, intercept_p, r2, x_line, y_line, ci, pi,std_error, 
+                 MSE)=_robust_regression(X, df[_y].fillna(0), plotline_X, robust_param)
+                stats[_y]={"model": fitted_model, "summary": summary, "coef": coef, 
+                           "coef_pval": coef_p, "intercept": intercept, 
+                           "intercept_pval": intercept_p, "r2": r2, "x_line": x_line, "y_line": y_line, 
+                           "ci": ci, "pi": pi, "std_error": std_error, "MSE": MSE}
+                _ax.plot(x_line, y_line, color="black", linestyle="dashed")
+                _draw_ci_pi(_ax, ci, pi,x_line, y_line)
+                _ax.text(0, 0.8, "coef: {:.3f} ({:.3f})\nR2: {:.3f}".format(coef, coef_p, r2), transform=_ax.transAxes, ha="left", fontsize=8)
             _set_axis(_ax,x, xlabel, _y, xunit, yunit, xformat, yformat,logscalex,logscaley, "")
         fig.suptitle(title)
-        plt.tight_layout(h_pad=5)
+        plt.tight_layout(h_pad=0, w_pad=0)
+    return {"axes":ax, "stats":stats}
+
 def _set_axis(ax,x, xlabel, ylabel, xunit, yunit, xformat, yformat,logscalex,logscaley, title):
     if xlabel !="":
         ax.set_xlabel(xlabel)

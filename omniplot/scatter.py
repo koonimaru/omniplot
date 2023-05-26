@@ -32,10 +32,11 @@ import statsmodels.api as sm
 from sklearn.linear_model import RANSACRegressor
 import copy
 from sklearn import metrics
-from omniplot.utils import *
+from omniplot.utils import (_save,_dendrogram_threshold, _get_cluster_classes, _get_cluster_classes2,_create_color_markerlut,
+                            _separate_data,_draw_ci_pi, marker_list,_get_embedding, _calc_curveture, _baumkuchen_xy, _calc_r2, _ci_pi)
 from omniplot._adjustText import adjust_text
 from omniplot.chipseq_utils import _calc_pearson
-
+import matplotlib.colors as mcolors
 
 plt.rcParams['font.family']= 'sans-serif'
 plt.rcParams['font.sans-serif'] = ['Arial']
@@ -416,12 +417,12 @@ def scatterplot(df: pd.DataFrame,
         elif totalnum>1 and  type(ax)==list:
             axes=ax
         elif totalnum>1 and ax==plt.Axes:
-            raise Exception("If you provide the ax option, the number of plots and axes must be equal. \
+            raise ValueError("If you provide the ax option, the number of plots and axes must be equal. \
                             The total number of plots will be the sum of category and colors plus whether or not c and kmeans options provided")
         plt.subplots_adjust(**gridspec_kw)
         totalnum=1
         if marginal_dist==True and fig==None:
-            raise Exception("if you pass an axis opject and want to draw marginal distribution, you also need to give a figure object")
+            raise ValueError("if you pass an axis opject and want to draw marginal distribution, you also need to give a figure object")
 
     elif len(rows_cols)==0:
         
@@ -3144,7 +3145,7 @@ def _ransac(X,Y,plotline_X,random_state, ransac_param):
     coef = fitted_model.estimator_.coef_[0]
     intercept=fitted_model.estimator_.intercept_
     inlier_mask = fitted_model.inlier_mask_
-    outlier_mask = ~inlier_mask
+    outlier_mask =np.invert(inlier_mask)
     
                             # number of samples
     y_model=fitted_model.predict(_X)
@@ -3197,7 +3198,7 @@ def _regression(df, x, y, ax, cat="", _clut={}, robust_param={}, newkey="", colo
          intercept, intercept_p, r2, 
          x_line, y_line, ci, pi,std_error, MSE)=_robust_regression(rX, rY, plotline_X, robust_param)
         if color !="":
-            _tmpcolor=np.array(colors.to_rgb(color))
+            _tmpcolor=np.array(mcolors.to_rgb(color))
         else:
             _tmpcolor=np.array([0,0.75,0])
         _draw_ci_pi(ax, ci, pi,x_line, y_line, pi_color=_tmpcolor, ci_color=_tmpcolor+(1-_tmpcolor)*0.5, alpha=0.75)
@@ -3299,9 +3300,9 @@ def volcanoplot(df: pd.DataFrame,
     sig=sig.reset_index()
     sigm=df.loc[df["updown"]=="down"]
     sigm=sigm.reset_index()
-    palette={"ns": colors.to_rgb(base_color),
-             "up": colors.to_rgb(highlight_color),
-             "down": colors.to_rgb(highlight_color)}
+    palette={"ns": mcolors.to_rgb(base_color),
+             "up": mcolors.to_rgb(highlight_color),
+             "down": mcolors.to_rgb(highlight_color)}
     
     if sizes!="":
         
