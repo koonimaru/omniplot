@@ -1,3 +1,6 @@
+"""
+Heatmap functions
+"""
 import matplotlib.collections as mc
 import matplotlib.pyplot as plt
 import numpy as np
@@ -49,7 +52,7 @@ def correlation(df: pd.DataFrame,
                 figsize: List=[6,6],
                 show_values: bool=False,
                 clustermap_param: dict={},
-                ztransform: bool=False,
+                ztransform: bool=True,
                 xticklabels: bool=False,
                 yticklabels: bool=False,
                 title: str="",)->Dict:

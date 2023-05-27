@@ -1,3 +1,7 @@
+"""
+Scatter plot functions
+"""
+
 from typing import Union, Optional, Dict, List
 import matplotlib.pyplot as plt
 import numpy as np
