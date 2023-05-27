@@ -14,12 +14,15 @@ test="regression"
 test="correlation"
 test="complex_clustermap"
 test="heatmap"
-test="correlation"
+test="heatmap"
 if test=="correlation":
     df=sns.load_dataset("penguins")
     df=df.dropna(axis=0)
     
     op.correlation(df,variables=["bill_length_mm","bill_depth_mm","flipper_length_mm"], method="pearson", ztransform=True)
+    df=df[['bill_length_mm', 'bill_depth_mm', 'flipper_length_mm', 'body_mass_g']].T
+    print(df)
+    op.correlation(df,variables=df.columns, method="pearson", ztransform=True)
         
     # op.correlation(df, category=["species", "island","sex"], method="pearson", ztransform=True)
     plt.show()

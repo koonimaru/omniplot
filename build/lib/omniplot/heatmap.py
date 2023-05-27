@@ -37,7 +37,7 @@ import mpl_toolkits.axisartist.floating_axes as floating_axes
 import matplotlib.patheffects as patheffects
 from typing import Union, Optional, Dict, List
 
-from omniplot.utils import * #
+from omniplot.utils import _separate_data, _save #
 from omniplot.utils import colormap_list, shape_list
 
 __all__=["correlation", "triangle_heatmap", "complex_clustermap","dotplot", "heatmap"]
@@ -49,7 +49,7 @@ def correlation(df: pd.DataFrame,
                 figsize=[6,6],
                 show_values=False,
                 clustermap_param:dict={},
-                ztransform: bool=True,
+                ztransform: bool=False,
                 xticklabels =False,
                 yticklabels=False,
                 title: str="",)->Dict:
@@ -106,7 +106,7 @@ def correlation(df: pd.DataFrame,
     else:
         dmat=squareform(pdist(X, method))
     if method=="pearson":
-            ctitle="Pearson correlation"
+        ctitle="Pearson correlation"
     else:
         ctitle=method+" distance"    
 
@@ -126,7 +126,7 @@ def correlation(df: pd.DataFrame,
                                xticklabels=xticklabels,
                                yticklabels=yticklabels,
                                figsize=figsize,
-                               ctitle=ctitle )
+                               ctitle=ctitle,**clustermap_param)
     else:
         
         res=complex_clustermap(dfm,
@@ -373,7 +373,7 @@ def complex_clustermap(df: pd.DataFrame,
     #print(kwargs)
     rnum, cnum=df.shape
     if len(heatmap_col)==0 and len(variables)==0:
-        raise Exception("Please specify the variables option")
+        raise ValueError("Please specify the variables option")
     if len(heatmap_col)!=0:
         variables=heatmap_col
     cnum=len(variables)
@@ -391,7 +391,7 @@ def complex_clustermap(df: pd.DataFrame,
     
     if len(col_plot)!=0 or len(col_scatter)!=0 or len(col_bar)!=0:
         if dfcol==None:
-            raise Exception("if you want to plot along the x axis, you need provide dfcol option containing values to plot.")
+            raise ValueError("if you want to plot along the x axis, you need provide dfcol option containing values to plot.")
     cdata={"Cluster":[],"Index":[],"RGB":[]}
     totalrowplot=0
     if marginalsum==True:

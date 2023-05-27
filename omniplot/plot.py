@@ -1,54 +1,31 @@
+"""
+A main plotting module for omniplot. 
+"""
+import copy
 from typing import Union, Optional, Dict, List
 import numpy as np
 import seaborn as sns
 import pandas as pd
 import matplotlib.pyplot as plt
-import copy
-# from matplotlib import cm
-# from matplotlib.lines import Line2D
-# from scipy.cluster.hierarchy import leaves_list
-# from scipy.cluster import hierarchy
-# from collections import defaultdict
-# import matplotlib.colors
-# from natsort import natsort_keygen, natsorted
-# from matplotlib.patches import Rectangle
 import scipy.cluster.hierarchy as sch
-# import fastcluster as fcl
-# import sys 
-# import matplotlib as mpl
-# from sklearn.cluster import KMeans, DBSCAN
-# from sklearn.metrics import silhouette_score
 from scipy.spatial.distance import pdist, squareform
-# from scipy.stats import fisher_exact
 from scipy.stats import zscore
-# from itertools import combinations
-# import os
-#script_dir = os.path.dirname( __file__ )
-#sys.path.append( script_dir )
 import scipy.stats as stats
 from matplotlib.ticker import StrMethodFormatter
-# from joblib import Parallel, delayed
-# from omniplot.chipseq_utils import _calc_pearson
-# import itertools as it
 from omniplot.scatter import *
 from omniplot.proportion import *
 from omniplot.heatmap import *
 from omniplot.utils import colormap_list, hatch_list, marker_list
-from omniplot.utils import * #
+from omniplot.utils import _save, _separate_data,  _dendrogram_threshold, _radialtree2,_get_cluster_classes, _draw_ci_pi #
+from omniplot.scatter import _robust_regression
 
 # hatch_list: list = ['//', '\\\\', '||', '--', '++', 'xx', 'oo', 'OO', '..', '**','/o', '\\|', '|*', '-\\', '+o', 'x*', 'o-', 'O|', 'O.', '*-']
 # marker_list: list=['.', '_' , '+','|', 'x', 'v', '^', '<', '>', 's', 'p', '*', 'h', 'D', 'd', 'P', 'X','o', '1', '2', '3', '4','|', '_']
-
-
-
 
 plt.rcParams['font.family']= 'sans-serif'
 plt.rcParams['font.sans-serif'] = ['Arial']
 plt.rcParams['svg.fonttype'] = 'none'
 sns.set_theme(font="Arial")
-
-#test2
-
 
 def radialtree(df: pd.DataFrame,
                n_clusters: int=3,
@@ -60,7 +37,9 @@ def radialtree(df: pd.DataFrame,
                distance_method="euclidean",
                tree_method="ward",
                title: str="",
-               y: list=[],linewidth: float=1,figsize: Optional[list]=None,
+               y: list=[],
+               linewidth: float=1,
+               figsize: Optional[list]=None,
                **kwargs) -> Dict:
     """
     Drawing a radial dendrogram with color labels.
@@ -119,33 +98,10 @@ def radialtree(df: pd.DataFrame,
 
     X, category=_separate_data(df, variables=variables, category=category)
     category_df=df[category]
-    # if len(variables)!=0 and len(category)!=0:
-    #     if type(category)==str:
-    #         category=[category]
-    #     category_df=df[category]
-    #     df=df[variables]
-    #     X = df.values
-    #     #print(X)
-    #     assert X.dtype==float, f"{x} columns must contain only float values."
-    #
-    #
-    # elif len(category) !=0:
-    #     if type(category)==str:
-    #         category=[category]
-    #     category_df=df[category]
-    #     df=df.drop(category, axis=1)
-    #     X = df.values
-    #     #print(X)
-    #     assert X.dtype==float, f"data must contain only float values except {category} column."
-    #
-    # else:    
-    #     X = df.values
-    #     assert X.dtype==float, "data must contain only float values."
-    
-    
-    
+
     if ztransform==True:
         X=zscore(X, axis=0)
+
     D=squareform(pdist(X,metric=distance_method))
     Y = sch.linkage(D, method=tree_method)
     
@@ -245,8 +201,8 @@ def violinplot(df: pd.DataFrame,
     """
     tests=["ttest_ind","ttest_rel","kruskal","mannwhitneyu","wilcoxon","brunnermunzel","median_test"]
     if not test in tests:
-        raise Exception("Available tests are "+", ".join(tests))
-    import scipy.stats as stats
+        raise ValueError("Available tests are "+", ".join(tests))
+    
     if len(xorder)==0:
         xorder=sorted(list(set(df[x])))
     pvals=[]
@@ -401,9 +357,9 @@ def violinplot2(df: Union[pd.DataFrame, np.ndarray],
     if len(order)!=0:
         xorder=order
     tests=["ttest_ind","ttest_rel","kruskal","mannwhitneyu","wilcoxon","brunnermunzel","median_test"]
-    if not test in tests:
-        raise Exception("Available tests are "+", ".join(tests))
-    import scipy.stats as stats
+    if test not in tests:
+        raise ValueError("Available tests are "+", ".join(tests))
+    
     if type(df)==pd.DataFrame and len(xorder)==0:
         xorder=sorted(list(set(df[x])))
     
@@ -413,7 +369,7 @@ def violinplot2(df: Union[pd.DataFrame, np.ndarray],
             if type(df)==pd.DataFrame:
                 p1val, p2val=df[y][df[x]==p1],df[y][df[x]==p2]
             else:
-                p1val, p2val=mat[xlabels.index(p1)],mat[xlabels.index(p2)] 
+                p1val, p2val=df[xlabels.index(p1)],df[xlabels.index(p2)] 
             statstest=getattr(stats, test)
             if test=="wilcoxon" or test=="ttest_rel":
                 _, pval,_=statstest(p1val, p2val,alternative=alternative,**kwargs)
@@ -504,9 +460,9 @@ def _violinplot(df: Union[pd.DataFrame, np.ndarray],
                  violine_color: Union[str,list, dict]="gray",
                  point_kw={"s":10},
                  scale_prop=False):
-    if ax==None:
+    if isinstance(ax, type(None)):
         fig, ax=plt.subplots()
-    if type(df)==pd.DataFrame:
+    if isinstance(df, pd.DataFrame):
         if len(order)!=0:
             dfs = {_s: _x[y].values for _s, _x in df.groupby(x)}
             mat=[dfs[_s] for _s in order]
@@ -522,8 +478,8 @@ def _violinplot(df: Union[pd.DataFrame, np.ndarray],
     
     proportion=np.array([np.sum(mat[i]) for i in range(len(mat))])
     proportion=proportion/np.sum(proportion)
-    for i in range(len(mat)):
-        X=mat[i]
+    for i, X in enumerate(mat):
+        # X=mat[i]
         # print(X)
         kde=stats.gaussian_kde(X)
         q3, q1=np.quantile(X, 0.75), np.quantile(X, 0.25)
@@ -533,25 +489,26 @@ def _violinplot(df: Union[pd.DataFrame, np.ndarray],
         minx, maxx=q1-iqr*1.5, q3+iqr*1.5
         xinterval=np.linspace(minx,maxx, 100)
         estimate=kde(xinterval)
-        if scale_prop==True:
+        if scale_prop is True:
             estimate=proportion[i]*estimate/np.amax(estimate)
         else:
             estimate=0.5*estimate/np.amax(estimate)
 
 
-        if type(violine_color)==list:
+        if isinstance(violine_color, list):
             vc=violine_color[i]
-        elif type(violine_color)==dict:
+        elif isinstance(violine_color, dict):
             vc=xlabels[violine_color[i]]
-        elif type(violine_color)==str:
+        elif isinstance(violine_color, str):
             vc=violine_color
+
         if orientation=="horizontal":
             ax.fill_between(xinterval,i+estimate, i-estimate, color=vc)
             ax.fill_between([q1, q3], [i-0.05,i-0.05], [i+0.05,i+0.05],color=box_color)
             
             ax.plot([q1-iqr*1.5, q3+iqr*1.5], [i,i], lw=1,color=box_color)
             ax.plot([q2, q2], [i-0.05,i+0.05], color="w")
-            if show_points==True:
+            if show_points is True:
                 ax.scatter(X, i+0.5*np.random.uniform(size=X.shape[0])-0.25, color=point_color, **point_kw)
             
         elif orientation=="vertical":
@@ -586,9 +543,9 @@ def _boxplot(df: Union[pd.DataFrame, np.ndarray],
                  violine_color: Union[str,list, dict]="gray",
                  point_kw={"s":10},
                  scale_prop=False):
-    if ax==None:
+    if isinstance(ax, type(None)):
         fig, ax=plt.subplots()
-    if type(df)==pd.DataFrame:
+    if isinstance(df, pd.DataFrame):
         if len(order)!=0:
             dfs = {_s: _x[y].values for _s, _x in df.groupby(x)}
             mat=[dfs[_s] for _s in order]
@@ -604,8 +561,8 @@ def _boxplot(df: Union[pd.DataFrame, np.ndarray],
     
     proportion=np.array([np.sum(mat[i]) for i in range(len(mat))])
     proportion=proportion/np.sum(proportion)
-    for i in range(len(mat)):
-        X=mat[i]
+    for i, X in enumerate(mat):
+        # X=mat[i]
         # print(X)
         kde=stats.gaussian_kde(X)
         q3, q1=np.quantile(X, 0.75), np.quantile(X, 0.25)
@@ -615,17 +572,17 @@ def _boxplot(df: Union[pd.DataFrame, np.ndarray],
         minx, maxx=q1-iqr*1.5, q3+iqr*1.5
         xinterval=np.linspace(minx,maxx, 100)
         estimate=kde(xinterval)
-        if scale_prop==True:
+        if scale_prop is True:
             estimate=proportion[i]*estimate/np.amax(estimate)
         else:
             estimate=0.5*estimate/np.amax(estimate)
 
 
-        if type(violine_color)==list:
+        if isinstance(violine_color, list):
             vc=violine_color[i]
-        elif type(violine_color)==dict:
+        elif isinstance(violine_color, dict):
             vc=xlabels[violine_color[i]]
-        elif type(violine_color)==str:
+        elif isinstance(violine_color, str):
             vc=violine_color
         if orientation=="horizontal":
             ax.fill_between(xinterval,i+estimate, i-estimate, color=vc)
@@ -633,7 +590,7 @@ def _boxplot(df: Union[pd.DataFrame, np.ndarray],
             
             ax.plot([q1-iqr*1.5, q3+iqr*1.5], [i,i], lw=1,color=box_color)
             ax.plot([q2, q2], [i-0.05,i+0.05], color="w")
-            if show_points==True:
+            if show_points is True:
                 ax.scatter(X, i+0.5*np.random.uniform(size=X.shape[0])-0.25, color=point_color, **point_kw)
             
         elif orientation=="vertical":
@@ -647,7 +604,7 @@ def _boxplot(df: Union[pd.DataFrame, np.ndarray],
             
             ax.plot([i,i], [q1-iqr*1.5, q3+iqr*1.5],  lw=1,color=box_color)
             ax.plot([i-0.05,i+0.05], [q2, q2],  color="w")
-            if show_points==True:
+            if show_points is True:
                 ax.scatter(i+0.5*np.random.uniform(size=X.shape[0])-0.25, X, color=point_color, **point_kw)
     if orientation=="horizontal":
         ax.set_yticks(np.arange(len(mat)), labels=xlabels)
@@ -678,10 +635,66 @@ def lineplot(df: pd.DataFrame,
              left=0.15,
              bottom=0.15,
              figsize: list=[],
-             rows_cols: list=[]) ->Dict:
-
+             rows_cols: list=[],
+             estimate: str="",
+             robust_param: dict={}) ->Dict:
+    """
+    Drawing line plots with some extra features.
+    
+    Parameters
+    ----------
+    df: pd.DataFrame
+        Dataframe to be plotted
+    x: str
+        Column name of x-axis
+    y: Union[str, list]
+        Column name of y-axis
+    variables: Union[str, list]
+        Column name of variables
+    split: bool
+        If True, split the dataframe by variables
+    ax: plt.Axes
+        Axes to be plotted
+    palette: Union[str, dict]
+        Color palette
+    xlabel: str
+        Label of x-axis
+    ylabel: str
+        Label of y-axis
+    xunit: str
+        Unit of x-axis
+    yunit: Union[str, dict]
+        Unit of y-axis
+    xformat: str
+        Format of x-axis
+    yformat: str
+        Format of y-axis
+    logscalex: bool
+        If True, x-axis is in log scale
+    logscaley: bool
+        If True, y-axis is in log scale
+    title: str
+        Title of the plot
+    plotkw: dict
+        Keyword arguments for plt.plot
+    show_legend: bool
+        If True, show legend
+    bbox_to_anchor: Union[list, tuple]
+        Bbox_to_anchor for legend
+    right: float
+        Right margin
+    left: float
+        Left margin
+    bottom: float
+        Bottom margin
+    figsize: list
+        Figure size
+    rows_cols: list
+        List of rows and columns for subplots
+    
+    """
     if len(y)==0 and len(variables)==0:
-        raise Exception("Provide y or variables option")
+        raise ValueError("Provide y or variables option")
     elif len(variables)!=0:
         y=copy.deepcopy(variables)
 
@@ -702,6 +715,8 @@ def lineplot(df: pd.DataFrame,
             lut[_y]=cmap(i)
     else:
         lut=copy.deepcopy(palette)
+    stats={}
+
     if split==False:
         if len(figsize)==0:
             figsize=[6,4]
@@ -709,26 +724,60 @@ def lineplot(df: pd.DataFrame,
             fig, ax=plt.subplots(figsize=figsize)
         for _y in y:
             ax.plot(X, df[_y], color=lut[_y], label=_y, **plotkw)
+            if estimate=="moving_average":
+                ax.plot(X, df[_y].rolling(window=int(X.shape[0]/10), center=True).mean(), color="black", linestyle="dashed")
+            elif estimate=="moving_median":
+                ax.plot(X, df[_y].rolling(window=int(X.shape[0]/10), center=True).median(), color="black", linestyle="dashed")
+            elif estimate=="regression":
+                print(X.min(), X.max())
+                plotline_X = np.arange(X.min(), X.max()).reshape(-1, 1)
+                (fitted_model, summary, 
+                 coef, coef_p, intercept, intercept_p, r2, x_line, y_line, ci, pi,std_error, 
+                 MSE)=_robust_regression(X, df[_y].fillna(0), plotline_X, robust_param)
+                stats[_y]={"model": fitted_model, "summary": summary, "coef": coef, 
+                           "coef_pval": coef_p, "intercept": intercept, 
+                           "intercept_pval": intercept_p, "r2": r2, "x_line": x_line, "y_line": y_line, 
+                           "ci": ci, "pi": pi, "std_error": std_error, "MSE": MSE}
+                ax.plot(x_line, y_line, color="black", linestyle="dashed")
+                _draw_ci_pi(ax, ci, pi,x_line, y_line)
         _set_axis(ax,x, xlabel, ylabel, xunit, yunit, xformat, yformat,logscalex,logscaley, title)
 
-        if show_legend==True:
+        if show_legend is True:
             plt.legend(bbox_to_anchor=bbox_to_anchor)
             plt.subplots_adjust(right=right, bottom=bottom, left=left)
     else:
         plotnum=len(y)
         if len(rows_cols)==0:
-            rows_cols=[plotnum//2+int(plotnum%2!=0), 2]
+            rows_cols=[plotnum//3+int(plotnum%3!=0), 3]
         if len(figsize)==0:
-            figsize=[6,4*(plotnum//2+int(plotnum%2!=0))]
+            figsize=[6,2*(plotnum//3+int(plotnum%3!=0))]
         if isinstance(ax, type(None)):
             fig, ax=plt.subplots(nrows=rows_cols[0], ncols=rows_cols[1], figsize=figsize)
             ax=ax.flatten()
+        
         for _ax, _y in zip(ax, y):
             _ax.plot(X, df[_y], color=lut[_y], **plotkw)
+            if estimate=="moving_average":
+                _ax.plot(X, df[_y].rolling(window=int(X.shape[0]/10), center=True).mean(), color="black", linestyle="dashed")
+            elif estimate=="moving_median":
+                _ax.plot(X, df[_y].rolling(window=int(X.shape[0]/10), center=True).median(), color="black", linestyle="dashed")
+            elif estimate=="regression":
+                print(X.min(), X.max())
+                plotline_X = np.arange(X.min(), X.max()).reshape(-1, 1)
+                (fitted_model, summary, 
+                 coef, coef_p, intercept, intercept_p, r2, x_line, y_line, ci, pi,std_error, 
+                 MSE)=_robust_regression(X, df[_y].fillna(0), plotline_X, robust_param)
+                stats[_y]={"model": fitted_model, "summary": summary, "coef": coef, 
+                           "coef_pval": coef_p, "intercept": intercept, 
+                           "intercept_pval": intercept_p, "r2": r2, "x_line": x_line, "y_line": y_line, 
+                           "ci": ci, "pi": pi, "std_error": std_error, "MSE": MSE}
+                _ax.plot(x_line, y_line, color="black", linestyle="dashed")
+                _draw_ci_pi(_ax, ci, pi,x_line, y_line)
+                _ax.text(0, 0.8, "coef: {:.3f} ({:.3f})\nR2: {:.3f}".format(coef, coef_p, r2), transform=_ax.transAxes, ha="left", fontsize=8)
             _set_axis(_ax,x, xlabel, _y, xunit, yunit, xformat, yformat,logscalex,logscaley, "")
         fig.suptitle(title)
-        plt.tight_layout(h_pad=5)
-    return {"axes":ax}
+        plt.tight_layout(h_pad=0, w_pad=0)
+    return {"axes":ax, "stats":stats}
 
 def _set_axis(ax,x, xlabel, ylabel, xunit, yunit, xformat, yformat,logscalex,logscaley, title):
     if xlabel !="":
@@ -751,6 +800,6 @@ def _set_axis(ax,x, xlabel, ylabel, xunit, yunit, xformat, yformat,logscalex,log
         ax.set_xscale("log")
     if logscaley==True:
         ax.set_yscale("log")
-
+    ax.tick_params(pad=1,axis='both', which='both', length=0)
 if __name__=="__main__":
     pass

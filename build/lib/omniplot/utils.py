@@ -893,7 +893,7 @@ def _draw_ci_pi(ax: plt.Axes,
                ci: np.ndarray, 
                pi: np.ndarray,
                x_line: np.ndarray, 
-               y_line: np.ndarray, pi_color: str='lightcyan',ci_color: str='skyblue', alpha: float=0.5):
+               y_line: np.ndarray, pi_color: str='lightcyan',ci_color: str='skyblue', alpha: float=0.75):
     """
     Drawing a confidence interval and a prediction interval 
     """
