@@ -14,7 +14,7 @@ test="regression"
 test="correlation"
 test="complex_clustermap"
 test="heatmap"
-test="correlation"
+test="heatmap"
 if test=="correlation":
     df=sns.load_dataset("penguins")
     df=df.dropna(axis=0)
