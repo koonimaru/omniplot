@@ -645,29 +645,29 @@ def lineplot(df: pd.DataFrame,
     ----------
     df: pd.DataFrame
         Dataframe to be plotted
-    x: str
+    x: str, optional (default="")
         Column name of x-axis
-    y: Union[str, list]
+    y: Union[str, list], optional (default="")
         Column name of y-axis
-    variables: Union[str, list]
+    variables: Union[str, list], optional (default="")
         Column name of variables
-    split: bool
+    split: bool, optional (default=False)
         If True, split the dataframe by variables
-    ax: plt.Axes
+    ax: plt.Axes, optional (default=None)
         Axes to be plotted
-    palette: Union[str, dict]
+    palette: Union[str, dict], optional (default="tab20b")
         Color palette
-    xlabel: str
+    xlabel: str, optional (default="")
         Label of x-axis
-    ylabel: str
+    ylabel: str, optional (default="")
         Label of y-axis
-    xunit: str
+    xunit: str, optional (default="")
         Unit of x-axis
-    yunit: Union[str, dict]
+    yunit: Union[str, dict], optional (default="")
         Unit of y-axis
-    xformat: str
+    xformat: str, optional (default="")
         Format of x-axis
-    yformat: str
+    yformat: str, optional (default="")
         Format of y-axis
     logscalex: bool
         If True, x-axis is in log scale
@@ -691,7 +691,14 @@ def lineplot(df: pd.DataFrame,
         Figure size
     rows_cols: list
         List of rows and columns for subplots
+    estimate: str="", optional (default=""), ["moving_average", "moving_median", "regression"]
+        Estimate method for lineplot
+    robust_param: dict={}
+        Parameters for robust regression
     
+    Returns
+    -------
+        {"axes":ax, "stats":stats}: dict
     """
     if len(y)==0 and len(variables)==0:
         raise ValueError("Provide y or variables option")
@@ -762,7 +769,7 @@ def lineplot(df: pd.DataFrame,
             elif estimate=="moving_median":
                 _ax.plot(X, df[_y].rolling(window=int(X.shape[0]/10), center=True).median(), color="black", linestyle="dashed")
             elif estimate=="regression":
-                print(X.min(), X.max())
+                # print(X.min(), X.max())
                 plotline_X = np.arange(X.min(), X.max()).reshape(-1, 1)
                 (fitted_model, summary, 
                  coef, coef_p, intercept, intercept_p, r2, x_line, y_line, ci, pi,std_error, 
@@ -773,7 +780,14 @@ def lineplot(df: pd.DataFrame,
                            "ci": ci, "pi": pi, "std_error": std_error, "MSE": MSE}
                 _ax.plot(x_line, y_line, color="black", linestyle="dashed")
                 _draw_ci_pi(_ax, ci, pi,x_line, y_line)
-                _ax.text(0, 0.8, "coef: {:.3f} ({:.3f})\nR2: {:.3f}".format(coef, coef_p, r2), transform=_ax.transAxes, ha="left", fontsize=8)
+                # print(coef_p)
+                if np.isnan(coef_p):
+                    mlog10=np.nan
+                elif coef_p<=10**(-320):
+                    mlog10=np.inf
+                elif coef_p>10**(-320):
+                    mlog10=-1*np.log10(coef_p)
+                _ax.text(0, 0.8, "coef: {:.3f} (-log10p: {:.1f})\nR2: {:.3f}".format(coef, mlog10, r2), transform=_ax.transAxes, ha="left", fontsize=8)
             _set_axis(_ax,x, xlabel, _y, xunit, yunit, xformat, yformat,logscalex,logscaley, "")
         fig.suptitle(title)
         plt.tight_layout(h_pad=0, w_pad=0)

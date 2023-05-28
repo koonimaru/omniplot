@@ -1239,12 +1239,6 @@ def clusterplot(df: pd.DataFrame,
             ax[0].set_xlabel(x)
             ax[0].set_ylabel(y)
 
-            # _tmp=dfnew.iloc[entropy_srt]
-            
-            # res=scatterplot(df=_tmp, ax=ax[0], x=x, y=y,c=colors,axlabel="each",fig=fig,**sp_kw)
-            # fig=res["fig"]
-            # ax[0]=res["axes"][0]
-            #sns.scatterplot(data=dfnew,x=x,y=y,hue=hue, ax=ax[0], palette=palette[0],**kwargs)
             if method=="fuzzy":
                 _title="Fuzzy c-means. Cluster num="+str(K)
             elif method=="hdbscan":
@@ -1269,46 +1263,20 @@ def clusterplot(df: pd.DataFrame,
             if len(category)!=0:
                 for i, cat in enumerate(category):
                     dfnew[cat]=df[cat]
-                    #sns.scatterplot(data=dfnew,x=x,y=y,hue=cat, ax=ax[i+2], palette=palette[1], s=size,**kwargs)
                     if dfnew[cat].dtype==float :
-                        # res=scatterplot(df=dfnew, ax=ax[i+2],fig=fig, x=x, y=y,colors=cat,axlabel="non",show_legend=False,**sp_kw)
-                        # fig=res["fig"]
                         sc=ax[i+2].scatter(dfnew[x], dfnew[y], c=dfnew[cat], s=size)
                         plt.colorbar(sc,ax=ax[i+2], label=cat, shrink=0.3,aspect=5,orientation="vertical")
                     elif barrierfree==True:
-                        # res=scatterplot(df=dfnew, 
-                        #                 ax=ax[i+2],
-                        #                 fig=fig, 
-                        #                 x=x, 
-                        #                 y=y,
-                        #                 category=cat, 
-                        #                 palette=palette[1],
-                        #                 axlabel="non",
-                        #                 markers=True,
-                        #                 show_legend=False,**sp_kw)
-                        # fig=res["fig"]
                         for key in lut[cat]["colorlut"].keys():
                             _dfnew=dfnew.loc[dfnew[cat]==key]
                             
                             ax[i+2].scatter(_dfnew[x], _dfnew[y], color=lut[cat]["colorlut"][key], marker=lut[cat]["markerlut"][key], label=key)
                         ax[i+2].legend(title=cat)
                     else:
-                        # res=scatterplot(df=dfnew, 
-                        #                 ax=ax[i+2],
-                        #                 fig=fig, 
-                        #                 x=x, 
-                        #                 y=y,
-                        #                 category=cat, 
-                        #                 palette=palette[1],
-                        #                 axlabel="non",
-                        #                 show_legend=False,**sp_kw)
-                        # fig=res["fig"]
                         for key in lut[cat]["colorlut"].keys():
                             _dfnew=dfnew.loc[dfnew[cat]==key]
                             ax[i+2].scatter(_dfnew[x], _dfnew[y], color=lut[cat]["colorlut"][key], label=key, s=size)
                         ax[i+2].legend(title=cat)
-
-
 
             _dfnews[K]=dfnew 
     else:
