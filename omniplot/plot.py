@@ -234,9 +234,9 @@ def violinplot(df: pd.DataFrame,
         fig, ax=plt.subplots(**plotkw)
     else:
         fig=None
-    sns.violinplot(data=df, x=x,y=y,inner=inner, ax=ax)
+    sns.violinplot(data=df, x=x,y=y, order=xorder,inner=inner, ax=ax)
     if swarm==True:
-        sns.swarmplot(data=df, x=x,y=y,color="black",alpha=0.75, ax=ax)
+        sns.swarmplot(data=df, x=x,y=y, order=xorder,color="black",alpha=0.75, ax=ax)
     ymax=np.amax(df[y])
     ymin=np.amin(df[y])
     newpvals={}
