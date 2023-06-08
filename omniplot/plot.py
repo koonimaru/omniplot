@@ -241,7 +241,7 @@ def violinplot(df: pd.DataFrame,
     ymin=np.amin(df[y])
     newpvals={}
     for i, pval in enumerate(pvals):
-        ax.plot([pval[1],pval[2]], [ymax+(ymax-ymin)*(0.05+i*0.05),ymax+(ymax-ymin)*(0.05+i*0.05)], color="black")
+        ax.plot([pval[1],pval[2]], [ymax+(ymax-ymin)*(0.05+i*0.051),ymax+(ymax-ymin)*(0.05+i*0.051)], color="black")
         p=np.round(pval[-1],2)
         
         newpvals[xorder[pval[1]]+"_"+xorder[pval[2]]]=p
@@ -264,7 +264,7 @@ def violinplot(df: pd.DataFrame,
                         break
             if annotate=="NA":
                 annotate=keys[-1]
-        plt.text((pval[1]+pval[2])/2, ymax+(ymax-ymin)*(0.06+i*0.05), annotate)
+        plt.text((pval[1]+pval[2])/2, ymax+(ymax-ymin)*(0.06+i*0.051), annotate)
     if significance=="symbol":
         ax.annotate("\n".join(["{}: p < {:.2E}".format(k, 10**(-significance_ranges[k])) for k in keys]),
             xy=(0.9,0.9), xycoords='axes fraction',
@@ -430,7 +430,7 @@ def violinplot2(df: Union[pd.DataFrame, np.ndarray],
                 for j in range(len(keys)):
                     if j==0:
                         if p <= significance_ranges[keys[j]]:
-                            annotate=""
+                            annotate="n.s."
                             break
                     else:
                         if significance_ranges[keys[j-1]] < p <=significance_ranges[keys[j]]:
