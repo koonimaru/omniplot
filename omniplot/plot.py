@@ -15,7 +15,7 @@ from matplotlib.ticker import StrMethodFormatter
 from omniplot.scatter import *
 from omniplot.proportion import *
 from omniplot.heatmap import *
-from omniplot.utils import colormap_list, hatch_list, marker_list
+from omniplot.utils import colormap_list, hatch_list, marker_list, linestyle_list
 from omniplot.utils import _save, _separate_data,  _dendrogram_threshold, _radialtree2,_get_cluster_classes, _draw_ci_pi #
 from omniplot.scatter import _robust_regression
 
@@ -140,7 +140,10 @@ def violinplot(df: pd.DataFrame,
                yunit: str="",
                title: str="",
                save: str="",
-               ax: Optional[plt.Axes]=None,**kwargs):
+               inner: str="quartile",
+               ax: Optional[plt.Axes]=None,
+               plotkw: dict={},
+               **kwargs):
     """
     Draw a boxplot with a statistical test 
     
@@ -227,27 +230,33 @@ def violinplot(df: pd.DataFrame,
             pval=-np.log10(pval)
         pvals.append([np.abs(p2ind-p1ind), np.amin([p2ind, p1ind]),np.amax([p2ind, p1ind]), pval])
     pvals = sorted(pvals, key = lambda x: (x[0], x[1]))
-        
-    fig, ax=plt.subplots()
-    sns.violinplot(data=df, x=x,y=y,inner="quartile")
+    if isinstance(ax, type(None)):
+        fig, ax=plt.subplots(**plotkw)
+    else:
+        fig=None
+    sns.violinplot(data=df, x=x,y=y,inner=inner, ax=ax)
     if swarm==True:
-        sns.swarmplot(data=df, x=x,y=y,color="black",alpha=0.5)
+        sns.swarmplot(data=df, x=x,y=y,color="black",alpha=0.75, ax=ax)
     ymax=np.amax(df[y])
+    ymin=np.amin(df[y])
     newpvals={}
     for i, pval in enumerate(pvals):
-        plt.plot([pval[1],pval[2]], [ymax*(1.05+i*0.05),ymax*(1.05+i*0.05)], color="black")
+        ax.plot([pval[1],pval[2]], [ymax+(ymax-ymin)*(0.05+i*0.05),ymax+(ymax-ymin)*(0.05+i*0.05)], color="black")
         p=np.round(pval[-1],2)
         
         newpvals[xorder[pval[1]]+"_"+xorder[pval[2]]]=p
         if significance=="numeric":
-            annotate="-log10(p)="+str(p)
+            if p<=-1*np.log10(0.05):
+                annotate="n.s."
+            else:
+                annotate="-log10(p)="+str(p)
         elif significance=="symbol":
             keys=sorted(significance_ranges.keys())
             annotate="NA"
             for j in range(len(keys)):
                 if j==0:
                     if p <= significance_ranges[keys[j]]:
-                        annotate=""
+                        annotate="n.s."
                         break
                 else:
                     if significance_ranges[keys[j-1]] < p <=significance_ranges[keys[j]]:
@@ -255,7 +264,7 @@ def violinplot(df: pd.DataFrame,
                         break
             if annotate=="NA":
                 annotate=keys[-1]
-        plt.text((pval[1]+pval[2])/2, ymax*(1.055+i*0.05), annotate)
+        plt.text((pval[1]+pval[2])/2, ymax+(ymax-ymin)*(0.06+i*0.05), annotate)
     if significance=="symbol":
         ax.annotate("\n".join(["{}: p < {:.2E}".format(k, 10**(-significance_ranges[k])) for k in keys]),
             xy=(0.9,0.9), xycoords='axes fraction',
@@ -268,7 +277,10 @@ def violinplot(df: pd.DataFrame,
         ax.text(0, 1, "({})".format(yunit), transform=ax.transAxes, ha="right")
     
     if title!="":
-        fig.suptitle(title)
+        if isinstance(fig, type(None)):
+            ax.set_title(title)
+        else:
+            fig.suptitle(title)
 
     _save(save, "violin")
     
@@ -637,7 +649,8 @@ def lineplot(df: pd.DataFrame,
              figsize: list=[],
              rows_cols: list=[],
              estimate: str="",
-             robust_param: dict={}) ->Dict:
+             robust_param: dict={},
+             linestyle: Union[bool, dict, list, str]=False) ->Dict:
     """
     Drawing line plots with some extra features.
     
@@ -722,7 +735,25 @@ def lineplot(df: pd.DataFrame,
             lut[_y]=cmap(i)
     else:
         lut=copy.deepcopy(palette)
-    stats={}
+
+    line_lut={}
+    if isinstance(linestyle, str):
+        for _y in y:
+            line_lut[_y]=linestyle
+    elif isinstance(linestyle, bool):
+        if linestyle is True:
+            for _l, _y in zip(linestyle_list, y):
+                line_lut[_y]=_l
+        else:
+            for _y in y:
+                line_lut[_y]="-"
+    elif isinstance(linestyle, dict):
+        line_lut=linestyle
+    elif isinstance(linestyle, list):
+        for _l, _y in zip(linestyle_list, y):
+            line_lut[_y]=_l
+
+    _stats={}
 
     if split==False:
         if len(figsize)==0:
@@ -730,7 +761,7 @@ def lineplot(df: pd.DataFrame,
         if isinstance(ax, type(None)):
             fig, ax=plt.subplots(figsize=figsize)
         for _y in y:
-            ax.plot(X, df[_y], color=lut[_y], label=_y, **plotkw)
+            ax.plot(X, df[_y], color=lut[_y], label=_y, linestyle=line_lut[_y], **plotkw)
             if estimate=="moving_average":
                 ax.plot(X, df[_y].rolling(window=int(X.shape[0]/10), center=True).mean(), color="black", linestyle="dashed")
             elif estimate=="moving_median":
@@ -741,12 +772,12 @@ def lineplot(df: pd.DataFrame,
                 (fitted_model, summary, 
                  coef, coef_p, intercept, intercept_p, r2, x_line, y_line, ci, pi,std_error, 
                  MSE)=_robust_regression(X, df[_y].fillna(0), plotline_X, robust_param)
-                stats[_y]={"model": fitted_model, "summary": summary, "coef": coef, 
+                _stats[_y]={"model": fitted_model, "summary": summary, "coef": coef, 
                            "coef_pval": coef_p, "intercept": intercept, 
                            "intercept_pval": intercept_p, "r2": r2, "x_line": x_line, "y_line": y_line, 
                            "ci": ci, "pi": pi, "std_error": std_error, "MSE": MSE}
                 ax.plot(x_line, y_line, color="black", linestyle="dashed")
-                _draw_ci_pi(ax, ci, pi,x_line, y_line)
+                _draw_ci_pi(ax, ci, pi,x_line, y_line, label=False)
         _set_axis(ax,x, xlabel, ylabel, xunit, yunit, xformat, yformat,logscalex,logscaley, title)
 
         if show_legend is True:
@@ -763,7 +794,7 @@ def lineplot(df: pd.DataFrame,
             ax=ax.flatten()
         
         for _ax, _y in zip(ax, y):
-            _ax.plot(X, df[_y], color=lut[_y], **plotkw)
+            _ax.plot(X, df[_y], color=lut[_y], linestyle=line_lut[_y], **plotkw)
             if estimate=="moving_average":
                 _ax.plot(X, df[_y].rolling(window=int(X.shape[0]/10), center=True).mean(), color="black", linestyle="dashed")
             elif estimate=="moving_median":
@@ -774,7 +805,7 @@ def lineplot(df: pd.DataFrame,
                 (fitted_model, summary, 
                  coef, coef_p, intercept, intercept_p, r2, x_line, y_line, ci, pi,std_error, 
                  MSE)=_robust_regression(X, df[_y].fillna(0), plotline_X, robust_param)
-                stats[_y]={"model": fitted_model, "summary": summary, "coef": coef, 
+                _stats[_y]={"model": fitted_model, "summary": summary, "coef": coef, 
                            "coef_pval": coef_p, "intercept": intercept, 
                            "intercept_pval": intercept_p, "r2": r2, "x_line": x_line, "y_line": y_line, 
                            "ci": ci, "pi": pi, "std_error": std_error, "MSE": MSE}
@@ -791,7 +822,7 @@ def lineplot(df: pd.DataFrame,
             _set_axis(_ax,x, xlabel, _y, xunit, yunit, xformat, yformat,logscalex,logscaley, "")
         fig.suptitle(title)
         plt.tight_layout(h_pad=0, w_pad=0)
-    return {"axes":ax, "stats":stats}
+    return {"axes":ax, "stats":_stats}
 
 def _set_axis(ax,x, xlabel, ylabel, xunit, yunit, xformat, yformat,logscalex,logscaley, title):
     if xlabel !="":
