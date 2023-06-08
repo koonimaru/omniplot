@@ -21,9 +21,17 @@ from matplotlib.transforms import Affine2D
 import os
 import copy
 # colormap_list: list=["nipy_spectral", "terrain","tab20b","tab20c","gist_rainbow","hsv","CMRmap","coolwarm","gnuplot","gist_stern","brg","rainbow","jet"]
-hatch_list: list = ['//', '\\\\', '||', '--', '++', 'xx', 'oo', 'OO', '..', '**','/o', '\\|', '|*', '-\\', '+o', 'x*', 'o-', 'O|', 'O.', '*-']
-marker_list: list=[ "o",'_' , '+','|', 'x', 'v', '^', '<', '>', 's', 'p', '*', 'h', 'D', 'd', 'P', 'X','.', '1', '2', '3', '4','|', '_']
+hatch_list: list = ['//', '\\\\', '||', '--', '++', 'xx', 'oo', 'OO', '..', 
+                    '**','/o', '\\|', '|*', '-\\', '+o', 'x*', 'o-', 'O|', 'O.', '*-']
+marker_list: list=[ "o",'_' , '+','|', 'x', 'v', '^', '<', '>', 's', 'p', 
+                   '*', 'h', 'D', 'd', 'P', 'X','.', '1', '2', '3', '4','|', '_']
 shape_list: list=["rectangle", "circle", "triangle","star","polygon:4","polygon:5","polygon:6","star:7:3"]
+linestyle_list: list=["-", 
+                 (0, (1, 1)), 
+                 (0, (1, 3)), (0, (1, 1)), (0, (1, 1)), 
+                 (5, (10, 3)),(0, (5, 10)),(0, (5, 5)),
+                 (0, (5, 1)), (0, (3, 10, 1, 10)), (0, (3, 5, 1, 5)),
+                 (0, (3, 1, 1, 1)), (0, (3, 5, 1, 5, 1, 5)),(0, (3, 1, 1, 1, 1, 1))]
 __all__=["_create_color_markerlut", 
          "_separate_data","_separate_cdata", "_line_annotate", "_dendrogram_threshold", "_radialtree2",
          "_get_cluster_classes","_calc_curveture", "_draw_ci_pi","_calc_r2",
@@ -893,20 +901,28 @@ def _draw_ci_pi(ax: plt.Axes,
                ci: np.ndarray, 
                pi: np.ndarray,
                x_line: np.ndarray, 
-               y_line: np.ndarray, pi_color: str='lightcyan',ci_color: str='skyblue', alpha: float=0.75):
+               y_line: np.ndarray, pi_color: str='lightcyan',ci_color: str='skyblue', alpha: float=0.75, label=True):
     """
     Drawing a confidence interval and a prediction interval 
     """
-    ax.fill_between(x_line, y_line + ci, 
-                    y_line - ci, color = ci_color, 
-                    label = '95% confidence interval',
-                    alpha=alpha)
-    
-    ax.fill_between(x_line, y_line + pi, y_line - pi, 
-                color = pi_color, 
-                label = '95% prediction interval',
-                alpha=alpha*0.5)
-    
+    if label==True:
+        ax.fill_between(x_line, y_line + ci, 
+                        y_line - ci, color = ci_color, 
+                        label = '95% confidence interval',
+                        alpha=alpha)
+        
+        ax.fill_between(x_line, y_line + pi, y_line - pi, 
+                    color = pi_color, 
+                    label = '95% prediction interval',
+                    alpha=alpha*0.5)
+    else:
+        ax.fill_between(x_line, y_line + ci, 
+                        y_line - ci, color = ci_color, 
+                        alpha=alpha)
+        
+        ax.fill_between(x_line, y_line + pi, y_line - pi, 
+                    color = pi_color, 
+                    alpha=alpha*0.5)
     
 from sklearn.cluster import KMeans
 def _optimal_kmeans(X: Union[np.ndarray, list], testrange: list, topn: int=2)-> List[int]:
