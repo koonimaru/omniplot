@@ -143,6 +143,7 @@ def violinplot(df: pd.DataFrame,
                inner: str="quartile",
                ax: Optional[plt.Axes]=None,
                plotkw: dict={},
+               color: str="lightgray",
                **kwargs):
     """
     Draw a boxplot with a statistical test 
@@ -203,7 +204,7 @@ def violinplot(df: pd.DataFrame,
     --------
     """
     tests=["ttest_ind","ttest_rel","kruskal","mannwhitneyu","wilcoxon","brunnermunzel","median_test"]
-    if not test in tests:
+    if test not in tests:
         raise ValueError("Available tests are "+", ".join(tests))
     
     if len(xorder)==0:
@@ -234,8 +235,8 @@ def violinplot(df: pd.DataFrame,
         fig, ax=plt.subplots(**plotkw)
     else:
         fig=None
-    sns.violinplot(data=df, x=x,y=y, order=xorder,inner=inner, ax=ax)
-    if swarm==True:
+    sns.violinplot(data=df, x=x,y=y, order=xorder,inner=inner, ax=ax, color=color)
+    if swarm is True:
         sns.swarmplot(data=df, x=x,y=y, order=xorder,color="black",alpha=0.75, ax=ax)
     ymax=np.amax(df[y])
     ymin=np.amin(df[y])
@@ -406,7 +407,7 @@ def violinplot2(df: Union[pd.DataFrame, np.ndarray],
         pvals = sorted(pvals, key = lambda x: (x[0], x[1]))
     if ax==None:
         fig, ax=plt.subplots()
-    _violinplot(df=df, x=x,y=y,ax=ax, orientation=orientation, show_points=swarm, scale_prop=scale_prop)
+    _violinplot(df=df, x=x,y=y,ax=ax,order=xorder, orientation=orientation, show_points=swarm, scale_prop=scale_prop)
     if type(df)==pd.DataFrame:
         ymax=np.amax(df[y])
     else:
@@ -498,7 +499,8 @@ def _violinplot(df: Union[pd.DataFrame, np.ndarray],
         q2=np.quantile(X, 0.5)
         iqr=q3-q1
 
-        minx, maxx=q1-iqr*1.5, q3+iqr*1.5
+        # minx, maxx=q1-iqr*1.5, q3+iqr*1.5
+        minx, maxx=np.min(X)-iqr, np.max(X)+iqr
         xinterval=np.linspace(minx,maxx, 100)
         estimate=kde(xinterval)
         if scale_prop is True:
