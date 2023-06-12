@@ -74,7 +74,7 @@ def _scatter(_df,
         
         for key in lut[cat]["colorlut"].keys():
             _dfnew=_df.loc[_df[cat]==key]
-            if type(size) !=float:
+            if isinstance(size, np.ndarray):
                 _size=size[_df[cat]==key]
                 sc=ax.scatter(_dfnew[x], _dfnew[y], 
                         c=lut[cat]["colorlut"][key], 
@@ -2339,10 +2339,11 @@ def decomplot(df: pd.DataFrame,
             x=zscore(x, axis=0)
         pca = PCA(n_components=component,**pcaparam)
         pccomp = pca.fit_transform(x)
+        exp_var_pca = pca.explained_variance_ratio_
         loadings = pca.components_.T * np.sqrt(pca.explained_variance_)
         combnum=0
         for axi, (i, j) in enumerate(comb):
-            xlabel, ylabel='pc'+str(i+1), 'pc'+str(j+1)
+            xlabel, ylabel='pc{} ({:.01f}%)'.format(i+1, 100*exp_var_pca[i]), 'pc{} ({:.01f}%)'.format(j+1, 100*exp_var_pca[j])
             dfpc = pd.DataFrame(data = np.array([pccomp[:,i],pccomp[:,j]]).T, columns = [xlabel, ylabel],index=original_index)
             _loadings=np.array([loadings[:,i],loadings[:,j]]).T
             a=np.sum(_loadings**2, axis=1)
@@ -2364,13 +2365,14 @@ def decomplot(df: pd.DataFrame,
                         figures[cat]["axes"][axi].arrow(0, 0, _loadings[k, 0],_loadings[k, 1],color=arrow_color,width=0.005,head_width=0.1)
                         figures[cat]["axes"][axi].text(_loadings[k, 0],_loadings[k, 1],feature,color=arrow_text_color)
             else:
-                sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, ax=figures["nocat"][axi],palette=palette)
+
+                sns.scatterplot(x=dfpc[xlabel], y=dfpc[ylabel], ax=figures["nocat"]["axes"][axi],palette=palette)
                 # cat=None
                 # _scatter(dfpc, xlabel,ylabel, cat, figures["nocat"][axi], lut, barrierfree, size)
                 for k, feature in enumerate(_features):
                     #ax.plot([0,_loadings[k, 0] ], [0,_loadings[k, 1] ],color=arrow_color)
-                    figures["nocat"][axi].arrow(0, 0, _loadings[k, 0],_loadings[k, 1],color=arrow_color,width=0.005,head_width=0.1)
-                    figures["nocat"][axi].text(_loadings[k, 0],_loadings[k, 1],feature,color=arrow_text_color)
+                    figures["nocat"]["axes"][axi].arrow(0, 0, _loadings[k, 0],_loadings[k, 1],color=arrow_color,width=0.005,head_width=0.1)
+                    figures["nocat"]["axes"][axi].text(_loadings[k, 0],_loadings[k, 1],feature,color=arrow_text_color)
     
             dfpc_list.append(dfpc)
             combnum+=1
@@ -2428,7 +2430,7 @@ def decomplot(df: pd.DataFrame,
                         figures[cat]["axes"][axi].legend(bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0)
 
             else:
-                sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=category, ax=figures["nocat"][axi],palette=palette)
+                sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=category, ax=figures["nocat"]["axes"][axi],palette=palette)
                 # cat=None
                 # _scatter(dfpc, xlabel,ylabel, cat, figures["nocat"][axi], lut, barrierfree, size)
             dfpc_list.append(dfpc)

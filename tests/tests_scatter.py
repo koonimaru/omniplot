@@ -26,14 +26,14 @@ test="stackedlines"
 test="correlation"
 test="cluster"
 test="radialtree"
-test="scatterplot"
+test="decomp"
 
 if test=="decomp":
     df=sns.load_dataset("penguins")
     df=df.dropna(axis=0)
     variables=["bill_length_mm","bill_depth_mm","flipper_length_mm","body_mass_g"]
 
-    op.decomplot(df, variables=variables,category=["species","sex"],method="pca",markers=True)
+    op.decomplot(df, variables=variables,category="",method="pca",markers=False)
     plt.show()
 elif test=="manifold":
     df=sns.load_dataset("penguins")
