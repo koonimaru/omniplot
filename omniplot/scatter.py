@@ -2253,8 +2253,11 @@ def decomplot(df: pd.DataFrame,
     size: int, optional (default: 10)
         scatter point size
 
-    show : bool
+    show: bool
         Whether or not to show the figure.
+    
+    show_labels: bool, optional (default: False)
+        Whether to show labels on points 
     
     Returns
     -------
@@ -2439,6 +2442,9 @@ def decomplot(df: pd.DataFrame,
                 sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=category, ax=figures["nocat"]["axes"][axi],palette=palette)
                 # cat=None
                 # _scatter(dfpc, xlabel,ylabel, cat, figures["nocat"][axi], lut, barrierfree, size)
+            if show_labels is True:
+                for s, __x, __y in zip(sample_labels, W[:,i],W[:,j]):
+                    ax.text(__x, __y, s)
             dfpc_list.append(dfpc)
             combnum+=1
         if len(category)!=0:
