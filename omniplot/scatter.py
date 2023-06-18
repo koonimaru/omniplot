@@ -2186,7 +2186,8 @@ def decomplot(df: pd.DataFrame,
               saveparam: dict={},
               ax: Optional[plt.Axes]=None,
               palette: str="tab20b",
-              size: int=10) -> Dict:
+              size: int=10,
+              show_labels: bool=False) -> Dict:
     
     """
     Decomposing data and drawing a scatter plot and some plots for explained variables. 
@@ -2252,8 +2253,11 @@ def decomplot(df: pd.DataFrame,
     size: int, optional (default: 10)
         scatter point size
 
-    show : bool
+    show: bool
         Whether or not to show the figure.
+    
+    show_labels: bool, optional (default: False)
+        Whether to show labels on points 
     
     Returns
     -------
@@ -2273,7 +2277,7 @@ def decomplot(df: pd.DataFrame,
     --------
     """
     x, category=_separate_data(df, variables=variables, category=category)
-
+    sample_labels=list(df.index)
     barrierfree=False
     if type(markers)==bool:
             
@@ -2350,30 +2354,35 @@ def decomplot(df: pd.DataFrame,
             srtindx=np.argsort(a)[::-1][:arrow_num]
             _loadings=_loadings[srtindx]
             _features=np.array(features)[srtindx]
-            
+                    
             if len(category)!=0:
+                ax=figures[cat]["axes"][axi]
                 for cat in category:
                     dfpc[cat]=df[cat]
                     
-                    _scatter(dfpc, xlabel,ylabel, cat, figures[cat]["axes"][axi], lut, barrierfree, size,legend=False)
+                    _scatter(dfpc, xlabel,ylabel, cat, ax, lut, barrierfree, size,legend=False)
 
                     # sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=cat, ax=figures[cat]["axes"][axi],palette=palette)
                     # sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=cat, ax=figures[cat]["axes"][axi],legend=False,palette=palette)
                     if combnum==1:
-                        figures[cat]["axes"][axi].legend(bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0)
+                        ax[axi].legend(bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0)
                     for k, feature in enumerate(_features):
-                        figures[cat]["axes"][axi].arrow(0, 0, _loadings[k, 0],_loadings[k, 1],color=arrow_color,width=0.005,head_width=0.1)
-                        figures[cat]["axes"][axi].text(_loadings[k, 0],_loadings[k, 1],feature,color=arrow_text_color)
+                        ax.arrow(0, 0, _loadings[k, 0],_loadings[k, 1],color=arrow_color,width=0.005,head_width=0.1)
+                        ax[axi].text(_loadings[k, 0],_loadings[k, 1],feature,color=arrow_text_color)
             else:
-
-                sns.scatterplot(x=dfpc[xlabel], y=dfpc[ylabel], ax=figures["nocat"]["axes"][axi],palette=palette)
+                ax=figures["nocat"]["axes"][axi]
+                sns.scatterplot(x=dfpc[xlabel], y=dfpc[ylabel], ax=ax,palette=palette)
                 # cat=None
                 # _scatter(dfpc, xlabel,ylabel, cat, figures["nocat"][axi], lut, barrierfree, size)
                 for k, feature in enumerate(_features):
                     #ax.plot([0,_loadings[k, 0] ], [0,_loadings[k, 1] ],color=arrow_color)
-                    figures["nocat"]["axes"][axi].arrow(0, 0, _loadings[k, 0],_loadings[k, 1],color=arrow_color,width=0.005,head_width=0.1)
-                    figures["nocat"]["axes"][axi].text(_loadings[k, 0],_loadings[k, 1],feature,color=arrow_text_color)
-    
+                    ax.arrow(0, 0, _loadings[k, 0],_loadings[k, 1],color=arrow_color,width=0.005,head_width=0.1)
+                    ax.text(_loadings[k, 0],_loadings[k, 1],feature,color=arrow_text_color)
+
+            if show_labels is True:
+                for s, __x, __y in zip(sample_labels, pccomp[:,i],pccomp[:,j]):
+                    ax.text(__x, __y, s)
+
             dfpc_list.append(dfpc)
             combnum+=1
         
@@ -2433,6 +2442,9 @@ def decomplot(df: pd.DataFrame,
                 sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=category, ax=figures["nocat"]["axes"][axi],palette=palette)
                 # cat=None
                 # _scatter(dfpc, xlabel,ylabel, cat, figures["nocat"][axi], lut, barrierfree, size)
+            if show_labels is True:
+                for s, __x, __y in zip(sample_labels, W[:,i],W[:,j]):
+                    ax.text(__x, __y, s)
             dfpc_list.append(dfpc)
             combnum+=1
         if len(category)!=0:
