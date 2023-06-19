@@ -2397,7 +2397,7 @@ def decomplot(df: pd.DataFrame,
             _save(save, "PCA")
         
         if explained_variance==True:
-            fig, ax2=plt.subplots()
+            fig, ax2=plt.subplots(nrows=2)
             exp_var_pca = pca.explained_variance_ratio_
             #
             # Cumulative sum of eigenvalues; This will be used to create step plot
@@ -2408,11 +2408,28 @@ def decomplot(df: pd.DataFrame,
             # Create the visualization plot
             #
             xlabel=["pc"+str(i+1) for i in range(0,len(exp_var_pca))]
-            plt.bar(xlabel, exp_var_pca, alpha=0.5, align='center', label='Individual explained variance')
-            plt.step(range(0,len(cum_sum_eigenvalues)), cum_sum_eigenvalues, where='mid',label='Cumulative explained variance')
-            plt.ylabel('Explained variance ratio')
-            plt.xlabel('Principal component index')
+            ax2[0].bar(xlabel, exp_var_pca, alpha=0.5, align='center', label='Individual explained variance')
+            ax2[0].step(range(0,len(cum_sum_eigenvalues)), cum_sum_eigenvalues, where='mid',label='Cumulative explained variance')
+            ax2[0].set_ylabel('Explained variance ratio')
+            ax2[0].set_xlabel('Principal component index')
+
+            components = pca.components_.T
+            imy=np.amin([10, len(_features)])
+            components=components[:imy]
+            vmax = np.abs(components).max()
+            pos=ax2[1].imshow(components, cmap="coolwarm", vmax=vmax, vmin=-vmax, aspect="auto")
+            ax2[1].set_yticks(np.arange(imy))
+            ax2[1].set_yticklabels(_features[:imy])
+            ax2[1].set_title(str("Loadings"))
+            ax2[1].set_xticks(np.arange(len(xlabel)))
+            ax2[1].set_xticklabels(xlabel)
+            ax2[1].grid(False)
+            fig.colorbar(pos, ax=ax2[1])
+            plt.tight_layout(h_pad=1)
             _save(save, "ExplainedVar")
+            
+
+
         else:
             ax2=None
         if show==True:

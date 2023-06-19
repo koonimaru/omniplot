@@ -126,7 +126,10 @@ def radialtree(df: pd.DataFrame,
     return {"axes":ax, "clusters":clusters}
 
 
-def violinplot(df: pd.DataFrame, 
+def violinplot(*args, **kwargs):
+    catplot(*args, **kwargs)
+
+def catplot(df: pd.DataFrame, 
                x: str, 
                y: str,
                pairs: list=[], 
@@ -143,8 +146,11 @@ def violinplot(df: pd.DataFrame,
                inner: str="quartile",
                ax: Optional[plt.Axes]=None,
                plotkw: dict={},
+               violinkw: dict={},
                color: str="lightgray",
-               **kwargs):
+               kind: str="violin",
+               points: str="",
+               **kwargs)->Dict:
     """
     Draw a boxplot with a statistical test 
     
@@ -185,6 +191,10 @@ def violinplot(df: pd.DataFrame,
         The order of x axis labels
     equal_var: bool, optional
         Related to ttest_ind method. The default is True, which will produce a p value equal to t-test in R.
+    kind: str ["violin", "box", lines], optional (defalt: violin)
+        The kind of the plot to draw.
+    points: str ["swarm", "strip"], optional (defalt: swarm)
+        The style of the swarm plot.
     kwargs: any options accepted by scipy statistical test functions
     
      
@@ -235,9 +245,27 @@ def violinplot(df: pd.DataFrame,
         fig, ax=plt.subplots(**plotkw)
     else:
         fig=None
-    sns.violinplot(data=df, x=x,y=y, order=xorder,inner=inner, ax=ax, color=color)
-    if swarm is True:
-        sns.swarmplot(data=df, x=x,y=y, order=xorder,color="black",alpha=0.75, ax=ax)
+    if kind=="violin":
+        sns.violinplot(data=df, x=x,y=y, order=xorder,inner=inner, ax=ax, color=color, **violinkw)
+    elif kind=="box":
+        sns.boxenplot(data=df, x=x,y=y, order=xorder, ax=ax, color=color, **violinkw)
+    elif kind=="lines":
+        for i, _x in enumerate(xorder):
+            val=df[y][df[x]==_x].values
+            q95, q75, q50, q25, q5=np.quantile(val, [0.95, 0.75, 0.5, 0.25, 0.05])
+            ax.plot([i,i],[q5, q95], color="black")
+            ax.plot([i-0.125,i+0.125],[q5, q5], color="black")
+            ax.plot([i-0.125,i+0.125],[q95, q95], color="black")
+            ax.plot([i-0.25,i+0.25],[q25, q25], color="black")
+            ax.plot([i-0.25,i+0.25],[q75, q75], color="black")
+            ax.plot([i-0.45,i+0.45],[q50, q50], color="black")
+
+    if swarm is True or points=="swarm":
+        sns.swarmplot(data=df, x=x,y=y, order=xorder,color="black",alpha=0.5, ax=ax)
+    elif points=="strip":
+        sns.stripplot(data=df, x=x,y=y, order=xorder,color="black",alpha=0.5, ax=ax)
+
+
     ymax=np.amax(df[y])
     ymin=np.amin(df[y])
     newpvals={}
