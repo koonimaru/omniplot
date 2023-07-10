@@ -1147,6 +1147,7 @@ def heatmap(df: pd.DataFrame,
                 show_values: bool=False,
                 text_color: str="w",
                 val_format: str="",
+                font: str="Arial"
                 )->Dict:
     """
     Drawing a heatmap. The function is mostly overlapping with the complex_clustermap, but has more flexibility, but may be slower.
@@ -1344,7 +1345,7 @@ def heatmap(df: pd.DataFrame,
         return (x/size_scale)*(smax-smin)+smin
     
     margin=0.00
-    sns.set_theme(style="white",font="Arial",font_scale=1.1)
+    sns.set_theme(style="white",font=font,font_scale=1.1)
     TBLR=['top','bottom','left','right']
     # Separating values into heatmap colors, sizes, ans category    
     lut={}
