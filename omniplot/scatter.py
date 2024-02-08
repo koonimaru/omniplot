@@ -2365,10 +2365,10 @@ def decomplot(df: pd.DataFrame,
                     # sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=cat, ax=figures[cat]["axes"][axi],palette=palette)
                     # sns.scatterplot(data=dfpc, x=xlabel, y=ylabel, hue=cat, ax=figures[cat]["axes"][axi],legend=False,palette=palette)
                     if combnum==1:
-                        ax[axi].legend(bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0)
+                        ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0)
                     for k, feature in enumerate(_features):
                         ax.arrow(0, 0, _loadings[k, 0],_loadings[k, 1],color=arrow_color,width=0.005,head_width=0.1)
-                        ax[axi].text(_loadings[k, 0],_loadings[k, 1],feature,color=arrow_text_color)
+                        ax.text(_loadings[k, 0],_loadings[k, 1],feature,color=arrow_text_color)
             else:
                 ax=figures["nocat"]["axes"][axi]
                 sns.scatterplot(x=dfpc[xlabel], y=dfpc[ylabel], ax=ax,palette=palette)

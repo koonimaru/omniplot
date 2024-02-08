@@ -884,7 +884,7 @@ def _ci_pi(X: np.ndarray,
     n = X.shape[0]                        # number of samples
     m = 2                             # number of parameters
     dof = n - m                       # degrees of freedom
-    t = stats.t.ppf(0.975, dof)       # Students statistic of interval confidence
+    t = stats.t.ppf(0.95, dof)       # Students statistic of interval confidence
     residual = Y - y_model
         
     std_error = (np.sum(residual**2) / dof)**.5   # Standard deviation of the error

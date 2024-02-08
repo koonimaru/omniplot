@@ -284,9 +284,9 @@ def triangle_heatmap(df,
     
     
 def complex_clustermap(df: pd.DataFrame,
-                       variables: list=[],
+                       variables: tuple=(),
                        dfcol: Optional[pd.DataFrame]=None, 
-                       row_colors: list=[],
+                       row_colors: tuple=(),
                        col_colors: list=[],
                        row_plot: list=[],
                        col_plot: list=[],
@@ -1070,8 +1070,8 @@ def dotplot(df: pd.DataFrame,
 
 
 def heatmap(df: pd.DataFrame,
-                variables: list=[],
-                category: list=[],
+                variables: tuple=(),
+                category: tuple=(),
 
                 row: str="",
                 col: str="",
@@ -1099,15 +1099,17 @@ def heatmap(df: pd.DataFrame,
                 edgecolor: str="w",
                 
                 rowlabels: str="",
-                row_ticklabels: bool=True,
+                row_ticklabels: Union[bool, str]=True,
                 rowrot: int=0,
-                col_ticklabels: bool=True,
+                col_ticklabels: Union[bool, str]=True,
                 colrot: int=90,
                 
                 palette:str="coolwarm",
                 cpalette:str="tab20b",
                 row_colors: Union[dict, list]={},
                 col_colors: Union[dict, list]={},
+                row_heatmap: Union[dict, list]={},
+                col_heatmap: Union[dict, list]={},
                 row_plot: Union[dict, list]={},
                 col_plot: Union[dict, list]={},
                 plotkw: dict={},
@@ -1147,6 +1149,7 @@ def heatmap(df: pd.DataFrame,
                 show_values: bool=False,
                 text_color: str="w",
                 val_format: str="",
+                font: str="Arial"
                 )->Dict:
     """
     Drawing a heatmap. The function is mostly overlapping with the complex_clustermap, but has more flexibility, but may be slower.
@@ -1344,7 +1347,7 @@ def heatmap(df: pd.DataFrame,
         return (x/size_scale)*(smax-smin)+smin
     
     margin=0.00
-    sns.set_theme(style="white",font="Arial",font_scale=1.1)
+    sns.set_theme(style="white",font=font,font_scale=1.1)
     TBLR=['top','bottom','left','right']
     # Separating values into heatmap colors, sizes, ans category    
     lut={}
@@ -2097,10 +2100,14 @@ def _add_patches(facecolors: Union[List, np.ndarray],
     if row_ticklabels==True:
         ax.yaxis.tick_right()
         _=ax.set_yticks(np.arange(Xshape[0]), labels=rowlabels, rotation=rowrot)
+    elif row_ticklabels=="sparse":
+        _=ax.set_yticks(np.arange(Xshape[0])[::Xshape[0]//10], labels=rowlabels[::Xshape[0]//10], rotation=rowrot)
     else:
         ax.set_yticks([])
-    if col_ticklabels==True:
+    if col_ticklabels is True:
         _=ax.set_xticks(np.arange(Xshape[1]), labels=collabels, rotation=colrot)
+    elif col_ticklabels=="sparse":
+        _=ax.set_xticks(np.arange(Xshape[1])[::Xshape[1]//10], labels=collabels[::Xshape[1]//10], rotation=colrot)
     else:
         ax.set_xticks([])
 
