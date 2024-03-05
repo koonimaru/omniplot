@@ -18,7 +18,30 @@ Classifier: Topic :: Scientific/Engineering :: Bio-Informatics
 Classifier: Topic :: Scientific/Engineering :: Visualization
 Requires-Python: >=3.8
 License-File: LICENSE
+Requires-Dist: numpy
+Requires-Dist: matplotlib
+Requires-Dist: scipy
+Requires-Dist: seaborn
+Requires-Dist: pandas
+Requires-Dist: igraph
+Requires-Dist: umap-learn
+Requires-Dist: tensorflow
+Requires-Dist: fastcluster
+Requires-Dist: cvxopt
+Requires-Dist: statsmodels
+Requires-Dist: natsort
+Requires-Dist: joblib
+Requires-Dist: pyranges
+Requires-Dist: ray
+Requires-Dist: intervaltree
+Requires-Dist: networkx
+Requires-Dist: datashader
+Requires-Dist: python-louvain
+Requires-Dist: scikit-fuzzy
+Requires-Dist: scikit-image
+Requires-Dist: adjustText
+Requires-Dist: bioframe
 
 
 omniplot is a python module to draw a scientific plot with hassle free. It mainly focuses on bioinfomatics data.
-It is intended to be used in jupyter lab environment. 
+It is intended to be used in jupyter lab environment.
