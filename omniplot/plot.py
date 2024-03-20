@@ -2,7 +2,7 @@
 A main plotting module for omniplot.
 """
 import copy
-from typing import Union, Optional, Dict, List
+from typing import Union, Optional, Dict
 import numpy as np
 import seaborn as sns
 import pandas as pd
@@ -15,7 +15,7 @@ from matplotlib.ticker import StrMethodFormatter
 from omniplot.scatter import *
 from omniplot.proportion import *
 from omniplot.heatmap import *
-from omniplot.utils import colormap_list, hatch_list, marker_list, linestyle_list
+from omniplot.utils import linestyle_list
 from omniplot.utils import (
     _save,
     _separate_data,
@@ -109,7 +109,7 @@ def radialtree(
     X, category = _separate_data(df, variables=variables, category=category)
     category_df = df[category]
 
-    if ztransform == True:
+    if ztransform is True:
         X = zscore(X, axis=0)
 
     D = squareform(pdist(X, metric=distance_method))
@@ -526,7 +526,7 @@ def violinplot2(
                 ]
             )
         pvals = sorted(pvals, key=lambda x: (x[0], x[1]))
-    if ax == None:
+    if ax is None:
         fig, ax = plt.subplots()
     _violinplot(
         df=df,
@@ -658,7 +658,17 @@ def _violinplot(
         q3, q1 = np.quantile(X, 0.75), np.quantile(X, 0.25)
         q2 = np.quantile(X, 0.5)
         iqr = q3 - q1
-        
+
+        # top and bottom limits of whisker
+        _X = np.sort(X)
+        _top = q3 + iqr * 1.5
+        _bottom = q1 - iqr * 1.5
+        __X = _X[_X >= _bottom]
+        _bottom_limit = __X[0]
+
+        __X = _X[_X <= _top]
+        _top_limit = __X[-1]
+
         # minx, maxx=q1-iqr*1.5, q3+iqr*1.5
         minx, maxx = np.min(X) - iqr, np.max(X) + iqr
         xinterval = np.linspace(minx, maxx, 100)
@@ -681,7 +691,7 @@ def _violinplot(
                 [q1, q3], [i - 0.05, i - 0.05], [i + 0.05, i + 0.05], color=box_color
             )
 
-            ax.plot([q1 - iqr * 1.5, q3 + iqr * 1.5], [i, i], lw=1, color=box_color)
+            ax.plot([_bottom_limit, _top_limit], [i, i], lw=1, color=box_color)
             ax.plot([q2, q2], [i - 0.05, i + 0.05], color="w")
             if show_points is True:
                 ax.scatter(
@@ -705,9 +715,9 @@ def _violinplot(
                 color=box_color,
             )
 
-            ax.plot([i, i], [q1 - iqr * 1.5, q3 + iqr * 1.5], lw=1, color=box_color)
+            ax.plot([i, i], [_bottom_limit, _top_limit], lw=1, color=box_color)
             ax.plot([i - 0.05, i + 0.05], [q2, q2], color="w")
-            if show_points == True:
+            if show_points is True:
                 ax.scatter(
                     i + 0.5 * np.random.uniform(size=X.shape[0]) - 0.25,
                     X,
@@ -955,7 +965,7 @@ def lineplot(
 
     _stats = {}
 
-    if split == False:
+    if split is False:
         if len(figsize) == 0:
             figsize = [6, 4]
         if isinstance(ax, type(None)):
@@ -1147,9 +1157,9 @@ def _set_axis(
         ax.xaxis.set_major_formatter(StrMethodFormatter(xformat))
     if yformat != "":
         ax.yaxis.set_major_formatter(StrMethodFormatter(yformat))
-    if logscalex == True:
+    if logscalex is True:
         ax.set_xscale("log")
-    if logscaley == True:
+    if logscaley is True:
         ax.set_yscale("log")
     ax.tick_params(pad=1, axis="both", which="both", length=0)
 
