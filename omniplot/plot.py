@@ -658,7 +658,7 @@ def _violinplot(
         q3, q1 = np.quantile(X, 0.75), np.quantile(X, 0.25)
         q2 = np.quantile(X, 0.5)
         iqr = q3 - q1
-
+        
         # minx, maxx=q1-iqr*1.5, q3+iqr*1.5
         minx, maxx = np.min(X) - iqr, np.max(X) + iqr
         xinterval = np.linspace(minx, maxx, 100)
