@@ -1,5 +1,7 @@
+import os
+import copy
 
-import numpy as np 
+import numpy as np
 from collections import defaultdict
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -11,32 +13,130 @@ from scipy.cluster.hierarchy import leaves_list
 from matplotlib import cm
 from scipy.cluster import hierarchy
 import scipy.stats as stats
-colormap_list=["tab20b","tab20c", "terrain","nipy_spectral","cubehelix","PiYG","gnuplot","gnuplot2","gist_stern","CMRmap","RdYlGn","gist_rainbow"]
-plt.rcParams['font.family']= 'sans-serif'
-plt.rcParams['font.sans-serif'] = ['Arial']
-plt.rcParams['svg.fonttype'] = 'none'
-sns.set_theme()
+from sklearn.decomposition import TruncatedSVD
+from sklearn.pipeline import make_pipeline
+from sklearn.random_projection import SparseRandomProjection
 from matplotlib.text import Annotation
 from matplotlib.transforms import Affine2D
-import os
-import copy
+
+from matplotlib.backends.backend_pdf import PdfPages
+
+colormap_list = [
+    "tab20b",
+    "tab20c",
+    "terrain",
+    "nipy_spectral",
+    "cubehelix",
+    "PiYG",
+    "gnuplot",
+    "gnuplot2",
+    "gist_stern",
+    "CMRmap",
+    "RdYlGn",
+    "gist_rainbow",
+]
+plt.rcParams["font.family"] = "sans-serif"
+plt.rcParams["font.sans-serif"] = ["Arial"]
+plt.rcParams["svg.fonttype"] = "none"
+sns.set_theme()
+
 # colormap_list: list=["nipy_spectral", "terrain","tab20b","tab20c","gist_rainbow","hsv","CMRmap","coolwarm","gnuplot","gist_stern","brg","rainbow","jet"]
-hatch_list: list = ['//', '\\\\', '||', '--', '++', 'xx', 'oo', 'OO', '..', 
-                    '**','/o', '\\|', '|*', '-\\', '+o', 'x*', 'o-', 'O|', 'O.', '*-']
-marker_list: list=[ "o",'_' , '+','|', 'x', 'v', '^', '<', '>', 's', 'p', 
-                   '*', 'h', 'D', 'd', 'P', 'X','.', '1', '2', '3', '4','|', '_']
-shape_list: list=["rectangle", "circle", "triangle","star","polygon:4","polygon:5","polygon:6","star:7:3"]
-linestyle_list: list=["-", 
-                 (0, (1, 1)), 
-                 (0, (1, 3)), (0, (1, 1)), (0, (1, 1)), 
-                 (5, (10, 3)),(0, (5, 10)),(0, (5, 5)),
-                 (0, (5, 1)), (0, (3, 10, 1, 10)), (0, (3, 5, 1, 5)),
-                 (0, (3, 1, 1, 1)), (0, (3, 5, 1, 5, 1, 5)),(0, (3, 1, 1, 1, 1, 1))]
-__all__=["_create_color_markerlut", 
-         "_separate_data","_separate_cdata", "_line_annotate", "_dendrogram_threshold", "_radialtree2",
-         "_get_cluster_classes","_calc_curveture", "_draw_ci_pi","_calc_r2",
-         "_ci_pi", "_save","_baumkuchen", "_baumkuchen_xy", "_get_embedding", "_get_cluster_classes2",
-         "colormap_list", "hatch_list","marker_list"]
+hatch_list: list = [
+    "//",
+    "\\\\",
+    "||",
+    "--",
+    "++",
+    "xx",
+    "oo",
+    "OO",
+    "..",
+    "**",
+    "/o",
+    "\\|",
+    "|*",
+    "-\\",
+    "+o",
+    "x*",
+    "o-",
+    "O|",
+    "O.",
+    "*-",
+]
+marker_list: list = [
+    "o",
+    "_",
+    "+",
+    "|",
+    "x",
+    "v",
+    "^",
+    "<",
+    ">",
+    "s",
+    "p",
+    "*",
+    "h",
+    "D",
+    "d",
+    "P",
+    "X",
+    ".",
+    "1",
+    "2",
+    "3",
+    "4",
+    "|",
+    "_",
+]
+shape_list: list = [
+    "rectangle",
+    "circle",
+    "triangle",
+    "star",
+    "polygon:4",
+    "polygon:5",
+    "polygon:6",
+    "star:7:3",
+]
+linestyle_list: list = [
+    "-",
+    (0, (1, 1)),
+    (0, (1, 3)),
+    (0, (1, 1)),
+    (0, (1, 1)),
+    (5, (10, 3)),
+    (0, (5, 10)),
+    (0, (5, 5)),
+    (0, (5, 1)),
+    (0, (3, 10, 1, 10)),
+    (0, (3, 5, 1, 5)),
+    (0, (3, 1, 1, 1)),
+    (0, (3, 5, 1, 5, 1, 5)),
+    (0, (3, 1, 1, 1, 1, 1)),
+]
+__all__ = [
+    "_create_color_markerlut",
+    "_separate_data",
+    "_separate_cdata",
+    "_line_annotate",
+    "_dendrogram_threshold",
+    "_radialtree2",
+    "_get_cluster_classes",
+    "_calc_curveture",
+    "_draw_ci_pi",
+    "_calc_r2",
+    "_ci_pi",
+    "_save",
+    "_baumkuchen",
+    "_baumkuchen_xy",
+    "_get_embedding",
+    "_get_cluster_classes2",
+    "colormap_list",
+    "hatch_list",
+    "marker_list",
+]
+
 
 class LineAnnotation(Annotation):
     """A sloped annotation to *line* at position *x* with *text*
@@ -90,16 +190,16 @@ class LineAnnotation(Annotation):
         xs, ys = line.get_data()
 
         def neighbours(x, xs, ys, try_invert=True):
-            inds, = np.where((xs <= x)[:-1] & (xs > x)[1:])
+            (inds,) = np.where((xs <= x)[:-1] & (xs > x)[1:])
             if len(inds) == 0:
                 assert try_invert, "line must cross x"
                 return neighbours(x, xs[::-1], ys[::-1], try_invert=False)
 
             i = inds[0]
-            return np.asarray([(xs[i], ys[i]), (xs[i+1], ys[i+1])])
-        
+            return np.asarray([(xs[i], ys[i]), (xs[i + 1], ys[i + 1])])
+
         self.neighbours = n1, n2 = neighbours(x, xs, ys)
-        
+
         # Calculate y by interpolating neighbouring points
         y = n1[1] + ((x - n1[0]) * (n2[1] - n1[1]) / (n2[0] - n1[0]))
 
@@ -111,8 +211,7 @@ class LineAnnotation(Annotation):
         super().__init__(text, (x, y), xytext=xytext, textcoords=textcoords, **kwargs)
 
     def get_rotation(self):
-        """Determines angle of the slope of the neighbours in display coordinate system
-        """
+        """Determines angle of the slope of the neighbours in display coordinate system"""
         transData = self.line.get_transform()
         dx, dy = np.diff(transData.transform(self.neighbours), axis=0).squeeze()
         return np.rad2deg(np.arctan2(dy, dx))
@@ -151,113 +250,161 @@ def _line_annotate(text, line, x, *args, **kwargs):
     ax.add_artist(a)
     return a
 
-def _baumkuchen(ax, start, theta, rin, rout,res, _color,edgecolor="", linewidth=2,hatch=None):
-    move=np.linspace(0, theta,res)
-    xf=np.concatenate([rin*np.cos(start+move),[rin*np.cos(start+theta),rout*np.cos(start+theta)],rout*np.cos(start+move)[::-1],[rin*np.cos(start),rout*np.cos(start)][::-1]])
-    yf=np.concatenate([rin*np.sin(start+move),[rin*np.sin(start+theta),rout*np.sin(start+theta)],rout*np.sin(start+move)[::-1],[rin*np.sin(start),rout*np.sin(start)][::-1]])
-    if edgecolor!="":
-        ax.plot(xf, yf, zorder=2, color=edgecolor)
-    ax.fill(xf, yf, color=_color, linewidth=linewidth,hatch=hatch)
 
-def _baumkuchen_xy(ax, x,y, start, theta, rin, rout,res, _color, edgecolor=""):
-    move=np.linspace(0, theta,res)
-    xf=np.concatenate([rin*np.cos(start+move),[rin*np.cos(start+theta),rout*np.cos(start+theta)],rout*np.cos(start+move)[::-1],[rin*np.cos(start),rout*np.cos(start)][::-1]])
-    yf=np.concatenate([rin*np.sin(start+move),[rin*np.sin(start+theta),rout*np.sin(start+theta)],rout*np.sin(start+move)[::-1],[rin*np.sin(start),rout*np.sin(start)][::-1]])
-    if edgecolor!="":
-        ax.plot(xf+x, yf+y, zorder=2, color=edgecolor)
-    ax.fill(xf+x, yf+y, color=_color, zorder=2)
+def _baumkuchen(
+    ax, start, theta, rin, rout, res, _color, edgecolor="", linewidth=2, hatch=None
+):
+    move = np.linspace(0, theta, res)
+    xf = np.concatenate(
+        [
+            rin * np.cos(start + move),
+            [rin * np.cos(start + theta), rout * np.cos(start + theta)],
+            rout * np.cos(start + move)[::-1],
+            [rin * np.cos(start), rout * np.cos(start)][::-1],
+        ]
+    )
+    yf = np.concatenate(
+        [
+            rin * np.sin(start + move),
+            [rin * np.sin(start + theta), rout * np.sin(start + theta)],
+            rout * np.sin(start + move)[::-1],
+            [rin * np.sin(start), rout * np.sin(start)][::-1],
+        ]
+    )
+    if edgecolor != "":
+        ax.plot(xf, yf, zorder=2, color=edgecolor)
+    ax.fill(xf, yf, color=_color, linewidth=linewidth, hatch=hatch)
+
+
+def _baumkuchen_xy(ax, x, y, start, theta, rin, rout, res, _color, edgecolor=""):
+    move = np.linspace(0, theta, res)
+    xf = np.concatenate(
+        [
+            rin * np.cos(start + move),
+            [rin * np.cos(start + theta), rout * np.cos(start + theta)],
+            rout * np.cos(start + move)[::-1],
+            [rin * np.cos(start), rout * np.cos(start)][::-1],
+        ]
+    )
+    yf = np.concatenate(
+        [
+            rin * np.sin(start + move),
+            [rin * np.sin(start + theta), rout * np.sin(start + theta)],
+            rout * np.sin(start + move)[::-1],
+            [rin * np.sin(start), rout * np.sin(start)][::-1],
+        ]
+    )
+    if edgecolor != "":
+        ax.plot(xf + x, yf + y, zorder=2, color=edgecolor)
+    ax.fill(xf + x, yf + y, color=_color, zorder=2)
+
 
 def _calc_curveture(normx, normy):
-    perp=[]
+    perp = []
     for i, (nx, ny) in enumerate(zip(normx, normy)):
-        if i==0:
+        if i == 0:
             perp.append(0)
             continue
-        r=(nx**2+ny**2)**0.5
-        sina=ny/r
-        cosa=nx/r
-        sinamb=sina*np.cos(np.pi*0.25)-cosa*np.sin(np.pi*0.25)
-        perp.append(r*sinamb)
-    perp=np.array(perp)
+        r = (nx**2 + ny**2) ** 0.5
+        sina = ny / r
+        cosa = nx / r
+        sinamb = sina * np.cos(np.pi * 0.25) - cosa * np.sin(np.pi * 0.25)
+        perp.append(r * sinamb)
+    perp = np.array(perp)
     return perp
 
-def _get_cluster_classes2(den,above_threshold_color, label='ivl'):
-    cluster_idxs = defaultdict(list)
-    _cnums_dict={}
-    ccolor_unique=[]
-    ab=0
 
-    icoord, dcoord, color_list=zip(*sorted(zip(den["icoord"], den["dcoord"], den["color_list"])))
+def _get_cluster_classes2(den, above_threshold_color, label="ivl"):
+    cluster_idxs = defaultdict(list)
+    _cnums_dict = {}
+    ccolor_unique = []
+    ab = 0
+
+    icoord, dcoord, color_list = zip(
+        *sorted(zip(den["icoord"], den["dcoord"], den["color_list"]))
+    )
 
     for _color, pi, pj in zip(color_list, icoord, dcoord):
-        for leg, bottom in zip(pi[1:3], [pj[0],pj[3]]):
-            l, r=str(leg).split(".")
+        for leg, bottom in zip(pi[1:3], [pj[0], pj[3]]):
+            l, r = str(leg).split(".")
             # print(leg, l, r)
             # i = (leg - 5.0) / 10.0
             # if abs(i - int(i)) < 1e-5:
-            if l.endswith("5") and r=="0" and bottom==0:
-                if _color==above_threshold_color:
-                    _color=_color+"_"+str(ab)
-                    ab+=1
+            if l.endswith("5") and r == "0" and bottom == 0:
+                if _color == above_threshold_color:
+                    _color = _color + "_" + str(ab)
+                    ab += 1
                 if not _color in ccolor_unique:
                     ccolor_unique.append(_color)
-                    _cnums_dict[_color]=0
-                _cnums_dict[_color]+=1
+                    _cnums_dict[_color] = 0
+                _cnums_dict[_color] += 1
     return _cnums_dict, ccolor_unique
 
-def _get_cluster_classes(den, label='ivl', above_threshold_color="C0", original_rows=[]):
-    original_rows=list(original_rows)
+
+def _get_cluster_classes(
+    den, label="ivl", above_threshold_color="C0", original_rows=[]
+):
+    original_rows = list(original_rows)
     cluster_idxs = defaultdict(list)
-    ab=0
-    for _color, pi, pj in zip(den['color_list'], den['icoord'], den['dcoord']):
-        for leg, bottom in zip(pi[1:3], [pj[0],pj[3]]):
-            l, r=str(leg).split(".")
+    ab = 0
+    for _color, pi, pj in zip(den["color_list"], den["icoord"], den["dcoord"]):
+        for leg, bottom in zip(pi[1:3], [pj[0], pj[3]]):
+            l, r = str(leg).split(".")
             # print(leg, l, r)
             # i = (leg - 5.0) / 10.0
             # if abs(i - int(i)) < 1e-5:
-            if l.endswith("5") and r=="0" and bottom==0:
-                if _color==above_threshold_color:
-                    _color=_color+"_"+str(ab)
-                    ab+=1
-                if l[:-1]=="":
-                    indx=0
+            if l.endswith("5") and r == "0" and bottom == 0:
+                if _color == above_threshold_color:
+                    _color = _color + "_" + str(ab)
+                    ab += 1
+                if l[:-1] == "":
+                    indx = 0
                 else:
-                    indx=int(l[:-1])
+                    indx = int(l[:-1])
                 cluster_idxs[_color].append(indx)
 
     cluster_classes = {}
-    label_classes=["" for _ in  range(len(den[label]))]
-        
+    label_classes = ["" for _ in range(len(den[label]))]
+
     for c, l in cluster_idxs.items():
         i_l = [den[label][i] for i in l]
         cluster_classes[c] = i_l
-        if len(original_rows)>0:
+        if len(original_rows) > 0:
             for i in i_l:
-                label_classes[original_rows.index(i)]=c
-    if len(original_rows)>0:
+                label_classes[original_rows.index(i)] = c
+    if len(original_rows) > 0:
         return cluster_classes, label_classes
     else:
         return cluster_classes
 
+
 def _dendrogram_threshold(Z, approx_clusternum):
-    lbranches=np.array(Z["dcoord"])[:,:2]
-    rbranches=np.array(Z["dcoord"])[:,2:]
-    thre=np.linspace(0, np.amax(Z["dcoord"]), 100)[::-1]
+    lbranches = np.array(Z["dcoord"])[:, :2]
+    rbranches = np.array(Z["dcoord"])[:, 2:]
+    thre = np.linspace(0, np.amax(Z["dcoord"]), 100)[::-1]
     for t in thre:
-        crossbranches=np.sum(lbranches[:,1]>t)+np.sum(rbranches[:,0]>t)-np.sum(lbranches[:,0]>t)-np.sum(rbranches[:,1]>t)
-        if crossbranches>=approx_clusternum:
-            break 
+        crossbranches = (
+            np.sum(lbranches[:, 1] > t)
+            + np.sum(rbranches[:, 0] > t)
+            - np.sum(lbranches[:, 0] > t)
+            - np.sum(rbranches[:, 1] > t)
+        )
+        if crossbranches >= approx_clusternum:
+            break
     return t
 
-def _radialtree(Z2,fontsize: int=8,
-               figsize: Optional[list]=None,
-               palette: str="gist_rainbow", 
-               addlabels: bool=True, 
-               show: bool=False,
-               sample_classes: Optional[dict]=None,
-               colorlabels: Optional[dict]=None,
-         colorlabels_legend: Optional[dict]=None
-         ) -> plt.Axes:
+
+def _radialtree(
+    Z2,
+    fontsize: int = 8,
+    figsize: Optional[list] = None,
+    palette: str = "gist_rainbow",
+    addlabels: bool = True,
+    show: bool = False,
+    sample_classes: Optional[dict] = None,
+    colorlabels: Optional[dict] = None,
+    colorlabels_legend: Optional[dict] = None,
+) -> plt.Axes:
     """
     Drawing a radial dendrogram from a scipy dendrogram output.
     Parameters
@@ -273,19 +420,19 @@ def _radialtree(Z2,fontsize: int=8,
     palette : string
         Matlab colormap name.
     sample_classes : dict
-        A dictionary that contains lists of sample subtypes or classes. These classes appear 
-        as color labels of each leaf. Colormaps are automatically assigned. Not compatible 
+        A dictionary that contains lists of sample subtypes or classes. These classes appear
+        as color labels of each leaf. Colormaps are automatically assigned. Not compatible
         with options "colorlabels" and "colorlabels_legend".
-        e.g., {"color1":["Class1","Class2","Class1","Class3", ....]} 
+        e.g., {"color1":["Class1","Class2","Class1","Class3", ....]}
     colorlabels : dict
-        A dictionary to set color labels to leaves. The key is the name of the color label. 
-        The value is the list of RGB color codes, each corresponds to the color of a leaf. 
-        e.g., {"color1":[[1,0,0,1], ....]}   
+        A dictionary to set color labels to leaves. The key is the name of the color label.
+        The value is the list of RGB color codes, each corresponds to the color of a leaf.
+        e.g., {"color1":[[1,0,0,1], ....]}
     colorlabels_legend : dict
-        A nested dictionary to generate the legends of color labels. The key is the name of 
-        the color label. The value is a dictionary that has two keys "colors" and "labels". 
-        The value of "colors" is the list of RGB color codes, each corresponds to the class of a leaf. 
-        e.g., {"color1":{"colors":[[1,0,0,1], ....], "labels":["label1","label2",...]}}   
+        A nested dictionary to generate the legends of color labels. The key is the name of
+        the color label. The value is a dictionary that has two keys "colors" and "labels".
+        The value of "colors" is the list of RGB color codes, each corresponds to the class of a leaf.
+        e.g., {"color1":{"colors":[[1,0,0,1], ....], "labels":["label1","label2",...]}}
     show : bool
         Whether or not to show the figure.
     Returns
@@ -301,205 +448,281 @@ def _radialtree(Z2,fontsize: int=8,
     Examples
     --------
     """
-    if figsize==None and colorlabels != None:
-        figsize=[7,5]
-    elif figsize==None and sample_classes != None:
-        figsize=[7,5]
-    elif figsize==None :
-        figsize=[5,5]
-    linewidth=0.5
-    R=1
-    width=R*0.1
-    space=R*0.05
+    if figsize == None and colorlabels != None:
+        figsize = [7, 5]
+    elif figsize == None and sample_classes != None:
+        figsize = [7, 5]
+    elif figsize == None:
+        figsize = [5, 5]
+    linewidth = 0.5
+    R = 1
+    width = R * 0.1
+    space = R * 0.05
     if colorlabels != None:
-        offset=width*len(colorlabels)/R+space*(len(colorlabels)-1)/R+0.05
+        offset = (
+            width * len(colorlabels) / R + space * (len(colorlabels) - 1) / R + 0.05
+        )
         print(offset)
     elif sample_classes != None:
-        offset=width*len(sample_classes)/R+space*(len(sample_classes)-1)/R+0.05
+        offset = (
+            width * len(sample_classes) / R
+            + space * (len(sample_classes) - 1) / R
+            + 0.05
+        )
         print(offset)
     else:
-        offset=0
-    
-    xmax=np.amax(Z2['icoord'])
-    ymax=np.amax(Z2['dcoord'])
-    
-    ucolors=sorted(set(Z2["color_list"]))
-    #cmap = cm.gist_rainbow(np.linspace(0, 1, len(ucolors)))
-    cmp=plt.get_cmap(palette, len(ucolors))
-    #print(cmp)
+        offset = 0
+
+    xmax = np.amax(Z2["icoord"])
+    ymax = np.amax(Z2["dcoord"])
+
+    ucolors = sorted(set(Z2["color_list"]))
+    # cmap = cm.gist_rainbow(np.linspace(0, 1, len(ucolors)))
+    cmp = plt.get_cmap(palette, len(ucolors))
+    # print(cmp)
     if type(cmp) == matplotlib.colors.LinearSegmentedColormap:
         cmap = cmp(np.linspace(0, 1, len(ucolors)))
     else:
-        cmap=cmp.colors
-    fig, ax=plt.subplots(figsize=figsize)
-    i=0
-    label_coords=[]
-    for x, y, c in sorted(zip(Z2['icoord'], Z2['dcoord'],Z2["color_list"])):
-    #x, y = Z2['icoord'][0], Z2['dcoord'][0]
-        _color=cmap[ucolors.index(c)]
-        if c=="C0": #np.abs(_xr1)<0.000000001 and np.abs(_yr1) <0.000000001:
-            _color="black"
-        
-        # transforming original x coordinates into relative circumference positions and y into radius
-        # the rightmost leaf is going to [1, 0] 
-        r=R*(1-np.array(y)/ymax)
-        _x=np.cos(2*np.pi*np.array([x[0],x[2]])/xmax) # transforming original x coordinates into x circumference positions
-        _xr0=_x[0]*r[0]
-        _xr1=_x[0]*r[1]
-        _xr2=_x[1]*r[2]
-        _xr3=_x[1]*r[3]
-        _y=np.sin(2*np.pi*np.array([x[0],x[2]])/xmax) # transforming original x coordinates into y circumference positions
-        _yr0=_y[0]*r[0]
-        _yr1=_y[0]*r[1]
-        _yr2=_y[1]*r[2]
-        _yr3=_y[1]*r[3]
-        #plt.scatter([_xr0, _xr1, _xr2, _xr3],[_yr0, _yr1, _yr2,_yr3], c="b")
-        
-        
-        #if y[0]>0 and y[3]>0:
-            #_color="black"
-        #plotting radial lines
-        plt.plot([_xr0, _xr1], [_yr0, _yr1], c=_color,linewidth=linewidth, rasterized=True)
-        plt.plot([_xr2, _xr3], [_yr2,_yr3], c=_color,linewidth=linewidth, rasterized=True)
-        
-        #plotting circular links between nodes
-        if _yr1> 0 and _yr2>0:
-            link=np.sqrt(r[1]**2-np.linspace(_xr1, _xr2, 100)**2)
-            plt.plot(np.linspace(_xr1, _xr2, 100), link, c=_color,linewidth=linewidth, rasterized=True)
-        elif _yr1 <0 and _yr2 <0:
-            link=-np.sqrt(r[1]**2-np.linspace(_xr1, _xr2, 100)**2)
-            
-            plt.plot(np.linspace(_xr1, _xr2, 100), link, c=_color,linewidth=linewidth, rasterized=True)
-        elif _yr1> 0 and _yr2 < 0:
-            _r=r[1]
-            if _xr1 <0 or _xr2 <0:
-                _r=-_r
-            link=np.sqrt(r[1]**2-np.linspace(_xr1, _r, 100)**2)
-            plt.plot(np.linspace(_xr1, _r, 100), link, c=_color,linewidth=linewidth, rasterized=True)
-            link=-np.sqrt(r[1]**2-np.linspace(_r, _xr2, 100)**2)
-            plt.plot(np.linspace(_r, _xr2, 100), link, c=_color,linewidth=linewidth, rasterized=True)
-        
-        #Calculating the x, y coordinates and rotation angles of labels
-        
-        if y[0]==0:
-            label_coords.append([(1.05+offset)*_xr0, (1.05+offset)*_yr0,360*x[0]/xmax])
-            #plt.text(1.05*_xr0, 1.05*_yr0, Z2['ivl'][i],{'va': 'center'},rotation_mode='anchor', rotation=360*x[0]/xmax)
-            i+=1
-        if y[3]==0:
-            label_coords.append([(1.05+offset)*_xr3, (1.05+offset)*_yr3,360*x[2]/xmax])
-            #plt.text(1.05*_xr3, 1.05*_yr3, Z2['ivl'][i],{'va': 'center'},rotation_mode='anchor', rotation=360*x[2]/xmax)
-            i+=1
-    
+        cmap = cmp.colors
+    fig, ax = plt.subplots(figsize=figsize)
+    i = 0
+    label_coords = []
+    for x, y, c in sorted(zip(Z2["icoord"], Z2["dcoord"], Z2["color_list"])):
+        # x, y = Z2['icoord'][0], Z2['dcoord'][0]
+        _color = cmap[ucolors.index(c)]
+        if c == "C0":  # np.abs(_xr1)<0.000000001 and np.abs(_yr1) <0.000000001:
+            _color = "black"
 
-    if addlabels==True:
-        assert len(Z2['ivl'])==len(label_coords), "Internal error, label numbers "+str(len(Z2['ivl'])) +" and "+str(len(label_coords))+" must be equal!" 
-        
-        #Adding labels
-        for (_x, _y,_rot), label in zip(label_coords, Z2['ivl']):
-            plt.text(_x, _y, label,{'va': 'center'},rotation_mode='anchor', rotation=_rot,fontsize=fontsize)
-    
-    
-    
+        # transforming original x coordinates into relative circumference positions and y into radius
+        # the rightmost leaf is going to [1, 0]
+        r = R * (1 - np.array(y) / ymax)
+        _x = np.cos(
+            2 * np.pi * np.array([x[0], x[2]]) / xmax
+        )  # transforming original x coordinates into x circumference positions
+        _xr0 = _x[0] * r[0]
+        _xr1 = _x[0] * r[1]
+        _xr2 = _x[1] * r[2]
+        _xr3 = _x[1] * r[3]
+        _y = np.sin(
+            2 * np.pi * np.array([x[0], x[2]]) / xmax
+        )  # transforming original x coordinates into y circumference positions
+        _yr0 = _y[0] * r[0]
+        _yr1 = _y[0] * r[1]
+        _yr2 = _y[1] * r[2]
+        _yr3 = _y[1] * r[3]
+        # plt.scatter([_xr0, _xr1, _xr2, _xr3],[_yr0, _yr1, _yr2,_yr3], c="b")
+
+        # if y[0]>0 and y[3]>0:
+        # _color="black"
+        # plotting radial lines
+        plt.plot(
+            [_xr0, _xr1], [_yr0, _yr1], c=_color, linewidth=linewidth, rasterized=True
+        )
+        plt.plot(
+            [_xr2, _xr3], [_yr2, _yr3], c=_color, linewidth=linewidth, rasterized=True
+        )
+
+        # plotting circular links between nodes
+        if _yr1 > 0 and _yr2 > 0:
+            link = np.sqrt(r[1] ** 2 - np.linspace(_xr1, _xr2, 100) ** 2)
+            plt.plot(
+                np.linspace(_xr1, _xr2, 100),
+                link,
+                c=_color,
+                linewidth=linewidth,
+                rasterized=True,
+            )
+        elif _yr1 < 0 and _yr2 < 0:
+            link = -np.sqrt(r[1] ** 2 - np.linspace(_xr1, _xr2, 100) ** 2)
+
+            plt.plot(
+                np.linspace(_xr1, _xr2, 100),
+                link,
+                c=_color,
+                linewidth=linewidth,
+                rasterized=True,
+            )
+        elif _yr1 > 0 and _yr2 < 0:
+            _r = r[1]
+            if _xr1 < 0 or _xr2 < 0:
+                _r = -_r
+            link = np.sqrt(r[1] ** 2 - np.linspace(_xr1, _r, 100) ** 2)
+            plt.plot(
+                np.linspace(_xr1, _r, 100),
+                link,
+                c=_color,
+                linewidth=linewidth,
+                rasterized=True,
+            )
+            link = -np.sqrt(r[1] ** 2 - np.linspace(_r, _xr2, 100) ** 2)
+            plt.plot(
+                np.linspace(_r, _xr2, 100),
+                link,
+                c=_color,
+                linewidth=linewidth,
+                rasterized=True,
+            )
+
+        # Calculating the x, y coordinates and rotation angles of labels
+
+        if y[0] == 0:
+            label_coords.append(
+                [(1.05 + offset) * _xr0, (1.05 + offset) * _yr0, 360 * x[0] / xmax]
+            )
+            # plt.text(1.05*_xr0, 1.05*_yr0, Z2['ivl'][i],{'va': 'center'},rotation_mode='anchor', rotation=360*x[0]/xmax)
+            i += 1
+        if y[3] == 0:
+            label_coords.append(
+                [(1.05 + offset) * _xr3, (1.05 + offset) * _yr3, 360 * x[2] / xmax]
+            )
+            # plt.text(1.05*_xr3, 1.05*_yr3, Z2['ivl'][i],{'va': 'center'},rotation_mode='anchor', rotation=360*x[2]/xmax)
+            i += 1
+
+    if addlabels == True:
+        assert len(Z2["ivl"]) == len(label_coords), (
+            "Internal error, label numbers "
+            + str(len(Z2["ivl"]))
+            + " and "
+            + str(len(label_coords))
+            + " must be equal!"
+        )
+
+        # Adding labels
+        for (_x, _y, _rot), label in zip(label_coords, Z2["ivl"]):
+            plt.text(
+                _x,
+                _y,
+                label,
+                {"va": "center"},
+                rotation_mode="anchor",
+                rotation=_rot,
+                fontsize=fontsize,
+            )
+
     if colorlabels != None:
-        assert len(Z2['ivl'])==len(label_coords), "Internal error, label numbers "+str(len(Z2['ivl'])) +" and "+str(len(label_coords))+" must be equal!" 
-        
-        j=0
-        outerrad=R*1.05+width*len(colorlabels)+space*(len(colorlabels)-1)
+        assert len(Z2["ivl"]) == len(label_coords), (
+            "Internal error, label numbers "
+            + str(len(Z2["ivl"]))
+            + " and "
+            + str(len(label_coords))
+            + " must be equal!"
+        )
+
+        j = 0
+        outerrad = R * 1.05 + width * len(colorlabels) + space * (len(colorlabels) - 1)
         print(outerrad)
-        #sort_index=np.argsort(Z2['icoord'])
-        #print(sort_index)
-        intervals=[]
+        # sort_index=np.argsort(Z2['icoord'])
+        # print(sort_index)
+        intervals = []
         for i in range(len(label_coords)):
-            _xl,_yl,_rotl =label_coords[i-1]
-            _x,_y,_rot =label_coords[i]
-            if i==len(label_coords)-1:
-                _xr,_yr,_rotr =label_coords[0]
+            _xl, _yl, _rotl = label_coords[i - 1]
+            _x, _y, _rot = label_coords[i]
+            if i == len(label_coords) - 1:
+                _xr, _yr, _rotr = label_coords[0]
             else:
-                _xr,_yr,_rotr =label_coords[i+1]
-            d=((_xr-_xl)**2+(_yr-_yl)**2)**0.5
+                _xr, _yr, _rotr = label_coords[i + 1]
+            d = ((_xr - _xl) ** 2 + (_yr - _yl) ** 2) ** 0.5
             intervals.append(d)
-        colorpos=intervals#np.ones([len(label_coords)])
-        labelnames=[]
+        colorpos = intervals  # np.ones([len(label_coords)])
+        labelnames = []
         for labelname, colorlist in colorlabels.items():
-            colorlist=np.array(colorlist)[Z2['leaves']]
-            if j!=0:
-                outerrad=outerrad-width-space
-            innerrad=outerrad-width
-            patches, texts =plt.pie(colorpos, colors=colorlist,
-                    radius=outerrad,
-                    counterclock=True,
-                    startangle=label_coords[0][2]*0.5)
-            circle=plt.Circle((0,0),innerrad, fc='white')
+            colorlist = np.array(colorlist)[Z2["leaves"]]
+            if j != 0:
+                outerrad = outerrad - width - space
+            innerrad = outerrad - width
+            patches, texts = plt.pie(
+                colorpos,
+                colors=colorlist,
+                radius=outerrad,
+                counterclock=True,
+                startangle=label_coords[0][2] * 0.5,
+            )
+            circle = plt.Circle((0, 0), innerrad, fc="white")
             plt.gca().add_patch(circle)
             labelnames.append(labelname)
-            j+=1
-        
-        if colorlabels_legend!=None:
+            j += 1
+
+        if colorlabels_legend != None:
             for i, labelname in enumerate(labelnames):
                 print(colorlabels_legend[labelname]["colors"])
-                colorlines=[]
+                colorlines = []
                 for c in colorlabels_legend[labelname]["colors"]:
                     colorlines.append(Line2D([0], [0], color=c, lw=4))
-                leg=plt.legend(colorlines,
-                           colorlabels_legend[labelname]["labels"],
-                       bbox_to_anchor=(1.5+0.3*i, 1.0),
-                       title=labelname)
-                plt.gca().add_artist(leg)   
-    elif sample_classes!=None:
-        assert len(Z2['ivl'])==len(label_coords), "Internal error, label numbers "+str(len(Z2['ivl'])) +" and "+str(len(label_coords))+" must be equal!" 
-        
-        j=0
-        outerrad=R*1.05+width*len(sample_classes)+space*(len(sample_classes)-1)
-        print(outerrad)
-        #sort_index=np.argsort(Z2['icoord'])
-        #print(sort_index)
-        intervals=[]
-        for i in range(len(label_coords)):
-            _xl,_yl,_rotl =label_coords[i-1]
-            _x,_y,_rot =label_coords[i]
-            if i==len(label_coords)-1:
-                _xr,_yr,_rotr =label_coords[0]
-            else:
-                _xr,_yr,_rotr =label_coords[i+1]
-            d=((_xr-_xl)**2+(_yr-_yl)**2)**0.5
-            intervals.append(d)
-        colorpos=intervals#np.ones([len(label_coords)])
-        labelnames=[]
-        colorlabels_legend={}
-        for labelname, colorlist in sample_classes.items():
-            ucolors=sorted(list(np.unique(colorlist)))
-            type_num=len(ucolors)
-            _cmp=plt.get_cmap(colormap_list[j])
-            _colorlist=[_cmp(ucolors.index(c)/(type_num-1)) for c in colorlist]
-            _colorlist=np.array(_colorlist)[Z2['leaves']]
-            if j!=0:
-                outerrad=outerrad-width-space
-            innerrad=outerrad-width
-            print(outerrad, innerrad)
-            patches, texts =plt.pie(colorpos, colors=_colorlist,
-                    radius=outerrad,
-                    counterclock=True,
-                    startangle=label_coords[0][2]*0.5)
-            circle=plt.Circle((0,0),innerrad, fc='white')
-            plt.gca().add_patch(circle)
-            labelnames.append(labelname)
-            colorlabels_legend[labelname]={}
-            colorlabels_legend[labelname]["colors"]=_cmp(np.linspace(0, 1, type_num))
-            colorlabels_legend[labelname]["labels"]=ucolors
-            j+=1
-        
-        if colorlabels_legend!=None:
-            for i, labelname in enumerate(labelnames):
-                print(colorlabels_legend[labelname]["colors"])
-                colorlines=[]
-                for c in colorlabels_legend[labelname]["colors"]:
-                    colorlines.append(Line2D([0], [0], color=c, lw=4))
-                leg=plt.legend(colorlines,
-                           colorlabels_legend[labelname]["labels"],
-                       bbox_to_anchor=(1.1, 1.0-0.3*i),
-                       title=labelname)
+                leg = plt.legend(
+                    colorlines,
+                    colorlabels_legend[labelname]["labels"],
+                    bbox_to_anchor=(1.5 + 0.3 * i, 1.0),
+                    title=labelname,
+                )
                 plt.gca().add_artist(leg)
-            #break
+    elif sample_classes != None:
+        assert len(Z2["ivl"]) == len(label_coords), (
+            "Internal error, label numbers "
+            + str(len(Z2["ivl"]))
+            + " and "
+            + str(len(label_coords))
+            + " must be equal!"
+        )
+
+        j = 0
+        outerrad = (
+            R * 1.05 + width * len(sample_classes) + space * (len(sample_classes) - 1)
+        )
+        print(outerrad)
+        # sort_index=np.argsort(Z2['icoord'])
+        # print(sort_index)
+        intervals = []
+        for i in range(len(label_coords)):
+            _xl, _yl, _rotl = label_coords[i - 1]
+            _x, _y, _rot = label_coords[i]
+            if i == len(label_coords) - 1:
+                _xr, _yr, _rotr = label_coords[0]
+            else:
+                _xr, _yr, _rotr = label_coords[i + 1]
+            d = ((_xr - _xl) ** 2 + (_yr - _yl) ** 2) ** 0.5
+            intervals.append(d)
+        colorpos = intervals  # np.ones([len(label_coords)])
+        labelnames = []
+        colorlabels_legend = {}
+        for labelname, colorlist in sample_classes.items():
+            ucolors = sorted(list(np.unique(colorlist)))
+            type_num = len(ucolors)
+            _cmp = plt.get_cmap(colormap_list[j])
+            _colorlist = [_cmp(ucolors.index(c) / (type_num - 1)) for c in colorlist]
+            _colorlist = np.array(_colorlist)[Z2["leaves"]]
+            if j != 0:
+                outerrad = outerrad - width - space
+            innerrad = outerrad - width
+            print(outerrad, innerrad)
+            patches, texts = plt.pie(
+                colorpos,
+                colors=_colorlist,
+                radius=outerrad,
+                counterclock=True,
+                startangle=label_coords[0][2] * 0.5,
+            )
+            circle = plt.Circle((0, 0), innerrad, fc="white")
+            plt.gca().add_patch(circle)
+            labelnames.append(labelname)
+            colorlabels_legend[labelname] = {}
+            colorlabels_legend[labelname]["colors"] = _cmp(np.linspace(0, 1, type_num))
+            colorlabels_legend[labelname]["labels"] = ucolors
+            j += 1
+
+        if colorlabels_legend != None:
+            for i, labelname in enumerate(labelnames):
+                print(colorlabels_legend[labelname]["colors"])
+                colorlines = []
+                for c in colorlabels_legend[labelname]["colors"]:
+                    colorlines.append(Line2D([0], [0], color=c, lw=4))
+                leg = plt.legend(
+                    colorlines,
+                    colorlabels_legend[labelname]["labels"],
+                    bbox_to_anchor=(1.1, 1.0 - 0.3 * i),
+                    title=labelname,
+                )
+                plt.gca().add_artist(leg)
+            # break
     ax.spines.right.set_visible(False)
     ax.spines.top.set_visible(False)
     ax.spines.left.set_visible(False)
@@ -507,33 +730,38 @@ def _radialtree(Z2,fontsize: int=8,
     ax.set_rasterization_zorder(None)
     plt.xticks([])
     plt.yticks([])
-    
-    if colorlabels!=None:
-        maxr=R*1.05+width*len(colorlabels)+space*(len(colorlabels)-1)
-    elif sample_classes !=None:
-        maxr=R*1.05+width*len(sample_classes)+space*(len(sample_classes)-1)
+
+    if colorlabels != None:
+        maxr = R * 1.05 + width * len(colorlabels) + space * (len(colorlabels) - 1)
+    elif sample_classes != None:
+        maxr = (
+            R * 1.05 + width * len(sample_classes) + space * (len(sample_classes) - 1)
+        )
     else:
-        maxr=R*1.05
-    plt.xlim(-maxr,maxr)
-    plt.ylim(-maxr,maxr)
+        maxr = R * 1.05
+    plt.xlim(-maxr, maxr)
+    plt.ylim(-maxr, maxr)
     plt.subplots_adjust(left=0.05, right=0.85)
-    if show==True:
+    if show == True:
         plt.show()
     else:
         return ax
 
 
-def _radialtree2(Z2,fontsize: int=8,
-               figsize: Optional[list]=None,
-               palette: str="gist_rainbow", 
-               addlabels: bool=True, 
-               show: bool=False,
-               sample_classes: Optional[dict]=None,
-               colorlabels: Optional[dict]=None,
-         colorlabels_legend: Optional[dict]=None,
-         xticks=set(),ax: Optional[plt.Axes]=None,
-         linewidth: float=1,
-         ) -> plt.Axes:
+def _radialtree2(
+    Z2,
+    fontsize: int = 8,
+    figsize: Optional[list] = None,
+    palette: str = "gist_rainbow",
+    addlabels: bool = True,
+    show: bool = False,
+    sample_classes: Optional[dict] = None,
+    colorlabels: Optional[dict] = None,
+    colorlabels_legend: Optional[dict] = None,
+    xticks=set(),
+    ax: Optional[plt.Axes] = None,
+    linewidth: float = 1,
+) -> plt.Axes:
     """
     Drawing a radial dendrogram from a scipy dendrogram output.
     Parameters
@@ -549,19 +777,19 @@ def _radialtree2(Z2,fontsize: int=8,
     palette : string
         Matlab colormap name.
     sample_classes : dict
-        A dictionary that contains lists of sample subtypes or classes. These classes appear 
-        as color labels of each leaf. Colormaps are automatically assigned. Not compatible 
+        A dictionary that contains lists of sample subtypes or classes. These classes appear
+        as color labels of each leaf. Colormaps are automatically assigned. Not compatible
         with options "colorlabels" and "colorlabels_legend".
-        e.g., {"color1":["Class1","Class2","Class1","Class3", ....]} 
+        e.g., {"color1":["Class1","Class2","Class1","Class3", ....]}
     colorlabels : dict
-        A dictionary to set color labels to leaves. The key is the name of the color label. 
-        The value is the list of RGB color codes, each corresponds to the color of a leaf. 
-        e.g., {"color1":[[1,0,0,1], ....]}   
+        A dictionary to set color labels to leaves. The key is the name of the color label.
+        The value is the list of RGB color codes, each corresponds to the color of a leaf.
+        e.g., {"color1":[[1,0,0,1], ....]}
     colorlabels_legend : dict
-        A nested dictionary to generate the legends of color labels. The key is the name of 
-        the color label. The value is a dictionary that has two keys "colors" and "labels". 
-        The value of "colors" is the list of RGB color codes, each corresponds to the class of a leaf. 
-        e.g., {"color1":{"colors":[[1,0,0,1], ....], "labels":["label1","label2",...]}}   
+        A nested dictionary to generate the legends of color labels. The key is the name of
+        the color label. The value is a dictionary that has two keys "colors" and "labels".
+        The value of "colors" is the list of RGB color codes, each corresponds to the class of a leaf.
+        e.g., {"color1":{"colors":[[1,0,0,1], ....], "labels":["label1","label2",...]}}
     show : bool
         Whether or not to show the figure.
     Returns
@@ -577,92 +805,129 @@ def _radialtree2(Z2,fontsize: int=8,
     Examples
     --------
     """
-    xticks=set(xticks)
-    if figsize==None and colorlabels != None:
-        figsize=[7,6]
-    elif figsize==None and sample_classes != None:
-        figsize=[7,6]
-    elif figsize==None :
-        figsize=[5,5]
-    linewidth=linewidth
-    R=1
-    width=R*0.1
-    space=R*0.05
+    xticks = set(xticks)
+    if figsize == None and colorlabels != None:
+        figsize = [7, 6]
+    elif figsize == None and sample_classes != None:
+        figsize = [7, 6]
+    elif figsize == None:
+        figsize = [5, 5]
+    linewidth = linewidth
+    R = 1
+    width = R * 0.1
+    space = R * 0.05
     if colorlabels != None:
-        offset=width*len(colorlabels)/R+space*(len(colorlabels)-1)/R+0.05
-        #print(offset)
+        offset = (
+            width * len(colorlabels) / R + space * (len(colorlabels) - 1) / R + 0.05
+        )
+        # print(offset)
     elif sample_classes != None:
-        offset=width*len(sample_classes)/R+space*(len(sample_classes)-1)/R+0.05
-        #print(offset)
+        offset = (
+            width * len(sample_classes) / R
+            + space * (len(sample_classes) - 1) / R
+            + 0.05
+        )
+        # print(offset)
     else:
-        offset=0
-    
-    xmax=np.amax(Z2['icoord'])
+        offset = 0
+
+    xmax = np.amax(Z2["icoord"])
     xmin = np.amin(Z2["icoord"])
-    ymax=np.amax(Z2['dcoord'])
-    
-    ucolors=sorted(set(Z2["color_list"]))
-    #cmap = cm.gist_rainbow(np.linspace(0, 1, len(ucolors)))
-    cmp=plt.get_cmap(palette, len(ucolors))
-    #print(cmp)
+    ymax = np.amax(Z2["dcoord"])
+
+    ucolors = sorted(set(Z2["color_list"]))
+    # cmap = cm.gist_rainbow(np.linspace(0, 1, len(ucolors)))
+    cmp = plt.get_cmap(palette, len(ucolors))
+    # print(cmp)
     if type(cmp) == matplotlib.colors.LinearSegmentedColormap:
         cmap = cmp(np.linspace(0, 1, len(ucolors)))
     else:
-        cmap=cmp.colors
-    if ax ==None:
-        fig, ax=plt.subplots(figsize=figsize)
-    i=0
-    label_coords=[]
-    _lineres=1000
-    for x, y, c in sorted(zip(Z2['icoord'], Z2['dcoord'],Z2["color_list"])):
-    #x, y = Z2['icoord'][0], Z2['dcoord'][0]
-        _color=cmap[ucolors.index(c)]
-        if c=="C0": #np.abs(_xr1)<0.000000001 and np.abs(_yr1) <0.000000001:
-            _color="black"
-        
+        cmap = cmp.colors
+    if ax == None:
+        fig, ax = plt.subplots(figsize=figsize)
+    i = 0
+    label_coords = []
+    _lineres = 1000
+    for x, y, c in sorted(zip(Z2["icoord"], Z2["dcoord"], Z2["color_list"])):
+        # x, y = Z2['icoord'][0], Z2['dcoord'][0]
+        _color = cmap[ucolors.index(c)]
+        if c == "C0":  # np.abs(_xr1)<0.000000001 and np.abs(_yr1) <0.000000001:
+            _color = "black"
+
         # transforming original x coordinates into relative circumference positions and y into radius
         # the rightmost leaf is going to [1, 0]
-        xinterval=np.array([x[0],x[2]])/xmax
-        
-        r=R*(1-np.array(y)/ymax)
-        _x=np.cos(2*np.pi*xinterval) # transforming original x coordinates into x circumference positions
-        _xr0=_x[0]*r[0]
-        _xr1=_x[0]*r[1]
-        _xr2=_x[1]*r[2]
-        _xr3=_x[1]*r[3]
-        _y=np.sin(2*np.pi*xinterval) # transforming original x coordinates into y circumference positions
-        _yr0=_y[0]*r[0]
-        _yr1=_y[0]*r[1]
-        _yr2=_y[1]*r[2]
-        _yr3=_y[1]*r[3]
-        #plt.scatter([_xr0, _xr1, _xr2, _xr3],[_yr0, _yr1, _yr2,_yr3], c="b")
-        
-        
-        #if y[0]>0 and y[3]>0:
-            #_color="black"
-        #plotting radial lines
-        ax.plot([_xr0, _xr1], [_yr0, _yr1], c=_color,linewidth=linewidth, rasterized=True)
-        ax.plot([_xr2, _xr3], [_yr2,_yr3], c=_color,linewidth=linewidth, rasterized=True)
-        
-        #plotting circular links between nodes
-        lineres=np.amax([int(np.abs(xinterval[0]-xinterval[1])*_lineres),10])
-        if _yr1> 0 and _yr2>0:
-            link=np.sqrt(r[1]**2-np.linspace(_xr1, _xr2, lineres)**2)
-            ax.plot(np.linspace(_xr1, _xr2, lineres), link, c=_color,linewidth=linewidth, rasterized=True)
-        elif _yr1 <0 and _yr2 <0:
-            link=-np.sqrt(r[1]**2-np.linspace(_xr1, _xr2, lineres)**2)
-            
-            ax.plot(np.linspace(_xr1, _xr2, lineres), link, c=_color,linewidth=linewidth, rasterized=True)
-        elif _yr1> 0 and _yr2 < 0:
-            _r=r[1]
-            if _xr1 <0 or _xr2 <0:
-                _r=-_r
-            link=np.sqrt(r[1]**2-np.linspace(_xr1, _r, lineres)**2)
-            ax.plot(np.linspace(_xr1, _r, lineres), link, c=_color,linewidth=linewidth, rasterized=True)
-            link=-np.sqrt(r[1]**2-np.linspace(_r, _xr2, lineres)**2)
-            ax.plot(np.linspace(_r, _xr2, lineres), link, c=_color,linewidth=linewidth, rasterized=True)
-        
-        #Calculating the x, y coordinates and rotation angles of labels
+        xinterval = np.array([x[0], x[2]]) / xmax
+
+        r = R * (1 - np.array(y) / ymax)
+        _x = np.cos(
+            2 * np.pi * xinterval
+        )  # transforming original x coordinates into x circumference positions
+        _xr0 = _x[0] * r[0]
+        _xr1 = _x[0] * r[1]
+        _xr2 = _x[1] * r[2]
+        _xr3 = _x[1] * r[3]
+        _y = np.sin(
+            2 * np.pi * xinterval
+        )  # transforming original x coordinates into y circumference positions
+        _yr0 = _y[0] * r[0]
+        _yr1 = _y[0] * r[1]
+        _yr2 = _y[1] * r[2]
+        _yr3 = _y[1] * r[3]
+        # plt.scatter([_xr0, _xr1, _xr2, _xr3],[_yr0, _yr1, _yr2,_yr3], c="b")
+
+        # if y[0]>0 and y[3]>0:
+        # _color="black"
+        # plotting radial lines
+        ax.plot(
+            [_xr0, _xr1], [_yr0, _yr1], c=_color, linewidth=linewidth, rasterized=True
+        )
+        ax.plot(
+            [_xr2, _xr3], [_yr2, _yr3], c=_color, linewidth=linewidth, rasterized=True
+        )
+
+        # plotting circular links between nodes
+        lineres = np.amax([int(np.abs(xinterval[0] - xinterval[1]) * _lineres), 10])
+        if _yr1 > 0 and _yr2 > 0:
+            link = np.sqrt(r[1] ** 2 - np.linspace(_xr1, _xr2, lineres) ** 2)
+            ax.plot(
+                np.linspace(_xr1, _xr2, lineres),
+                link,
+                c=_color,
+                linewidth=linewidth,
+                rasterized=True,
+            )
+        elif _yr1 < 0 and _yr2 < 0:
+            link = -np.sqrt(r[1] ** 2 - np.linspace(_xr1, _xr2, lineres) ** 2)
+
+            ax.plot(
+                np.linspace(_xr1, _xr2, lineres),
+                link,
+                c=_color,
+                linewidth=linewidth,
+                rasterized=True,
+            )
+        elif _yr1 > 0 and _yr2 < 0:
+            _r = r[1]
+            if _xr1 < 0 or _xr2 < 0:
+                _r = -_r
+            link = np.sqrt(r[1] ** 2 - np.linspace(_xr1, _r, lineres) ** 2)
+            ax.plot(
+                np.linspace(_xr1, _r, lineres),
+                link,
+                c=_color,
+                linewidth=linewidth,
+                rasterized=True,
+            )
+            link = -np.sqrt(r[1] ** 2 - np.linspace(_r, _xr2, lineres) ** 2)
+            ax.plot(
+                np.linspace(_r, _xr2, lineres),
+                link,
+                c=_color,
+                linewidth=linewidth,
+                rasterized=True,
+            )
+
+        # Calculating the x, y coordinates and rotation angles of labels
 
         # _append=False
         # if len(xticks)==0:
@@ -698,166 +963,216 @@ def _radialtree2(Z2,fontsize: int=8,
                 np.sin(place * np.pi) * (1.05 + offset),  # _y
                 place * 180,  # _rot
             ]
-        )    
+        )
 
-    if addlabels==True:
-        assert len(Z2['ivl'])==len(label_coords), "Internal error, label numbers "+str(len(Z2['ivl'])) +" and "+str(len(label_coords))+" must be equal!" 
-        
-        #Adding labels
-        for (_x, _y,_rot), label in zip(label_coords, Z2['ivl']):
-            ax.text(_x, 
-                    _y, 
-                    label,
-                    {'va': 'center'},
-                    rotation_mode='anchor', 
-                    rotation=_rot,
-                    fontsize=fontsize)
-    
-    
-    
-    if sample_classes!=None:
-        assert len(Z2['ivl'])==len(label_coords), \
-            "Internal error, label numbers "+str(len(Z2['ivl'])) +\
-                " and "+str(len(label_coords))+" must be equal!" 
-        
-        classcounter=0
-        outerrad=R*1.05+width*len(sample_classes)+space*(len(sample_classes)-1)
-        intervals=[]
+    if addlabels == True:
+        assert len(Z2["ivl"]) == len(label_coords), (
+            "Internal error, label numbers "
+            + str(len(Z2["ivl"]))
+            + " and "
+            + str(len(label_coords))
+            + " must be equal!"
+        )
 
-        labelnames=[]
-        colorlabels_legend={}
+        # Adding labels
+        for (_x, _y, _rot), label in zip(label_coords, Z2["ivl"]):
+            ax.text(
+                _x,
+                _y,
+                label,
+                {"va": "center"},
+                rotation_mode="anchor",
+                rotation=_rot,
+                fontsize=fontsize,
+            )
+
+    if sample_classes != None:
+        assert len(Z2["ivl"]) == len(label_coords), (
+            "Internal error, label numbers "
+            + str(len(Z2["ivl"]))
+            + " and "
+            + str(len(label_coords))
+            + " must be equal!"
+        )
+
+        classcounter = 0
+        outerrad = (
+            R * 1.05 + width * len(sample_classes) + space * (len(sample_classes) - 1)
+        )
+
+        labelnames = []
+        colorlabels_legend = {}
         for labelname, colorlist in sample_classes.items():
-            ucolors=sorted(list(np.unique(colorlist)))
-            type_num=len(ucolors)
-            _cmp=plt.get_cmap(colormap_list[classcounter], len(colorlist))
-            _colorlist=[_cmp(ucolors.index(c)/(type_num-1)) for c in colorlist]
-            #_colorlist=_cmp.colors
+            ucolors = sorted(list(np.unique(colorlist)))
+            type_num = len(ucolors)
+            _cmp = plt.get_cmap(colormap_list[classcounter], len(colorlist))
+            _colorlist = [_cmp(ucolors.index(c) / (type_num - 1)) for c in colorlist]
+            # _colorlist=_cmp.colors
             print(len(_colorlist), len(colorlist))
-            _colorlist=np.array(_colorlist)[Z2['leaves']]
-            if classcounter!=0:
-                outerrad=outerrad-width-space
-            innerrad=outerrad-width
-            #print(outerrad, innerrad,_colorlist[:10])
-            
+            _colorlist = np.array(_colorlist)[Z2["leaves"]]
+            if classcounter != 0:
+                outerrad = outerrad - width - space
+            innerrad = outerrad - width
+            # print(outerrad, innerrad,_colorlist[:10])
+
             for i in range(len(label_coords)):
-                _xl,_yl,_rotl =label_coords[i-1]
-                if i==0:
-                    _rotl-=360
-                _x,_y,_rot =label_coords[i]
-                if i==len(label_coords)-1:
-                    _xr,_yr,_rotr =label_coords[0]
-                    _rotr+=360
+                _xl, _yl, _rotl = label_coords[i - 1]
+                if i == 0:
+                    _rotl -= 360
+                _x, _y, _rot = label_coords[i]
+                if i == len(label_coords) - 1:
+                    _xr, _yr, _rotr = label_coords[0]
+                    _rotr += 360
                 else:
-                    _xr,_yr,_rotr =label_coords[i+1]
-                
-                start=(2*np.pi/360)*_rotl*0.5+(2*np.pi/360)*_rot*0.5
-                theta=(2*np.pi/360)*((_rotr*0.5+_rot*0.5)-(_rotl*0.5+_rot*0.5))
-                #print(start, theta,_rotl, _rotr)
-                #print(start, theta, innerrad, outerrad,10, _colorlist[i])
-                _baumkuchen(ax, start, theta, innerrad, outerrad,10, _colorlist[i] ) #,edgecolor = "gray",linewidth=0.5)
-                
+                    _xr, _yr, _rotr = label_coords[i + 1]
+
+                start = (2 * np.pi / 360) * _rotl * 0.5 + (2 * np.pi / 360) * _rot * 0.5
+                theta = (2 * np.pi / 360) * (
+                    (_rotr * 0.5 + _rot * 0.5) - (_rotl * 0.5 + _rot * 0.5)
+                )
+                # print(start, theta,_rotl, _rotr)
+                # print(start, theta, innerrad, outerrad,10, _colorlist[i])
+                _baumkuchen(
+                    ax, start, theta, innerrad, outerrad, 10, _colorlist[i]
+                )  # ,edgecolor = "gray",linewidth=0.5)
+
             labelnames.append(labelname)
-            colorlabels_legend[labelname]={}
-            colorlabels_legend[labelname]["colors"]=_cmp(np.linspace(0, 1, type_num))
-            colorlabels_legend[labelname]["labels"]=ucolors
-            classcounter+=1
-        
-        if colorlabels_legend!=None:
-            for i, labelname in enumerate(labelnames):
-                #print(colorlabels_legend[labelname]["colors"])
-                colorlines=[]
-                for c in colorlabels_legend[labelname]["colors"]:
-                    colorlines.append(Line2D([0], [0], color=c, lw=4))
-                leg=plt.legend(colorlines,
-                           colorlabels_legend[labelname]["labels"],
-                       bbox_to_anchor=(1.0, 1.0-0.3*i),
-                       title=labelname)
-                plt.gca().add_artist(leg)
-            #break
+            colorlabels_legend[labelname] = {}
+            colorlabels_legend[labelname]["colors"] = _cmp(np.linspace(0, 1, type_num))
+            colorlabels_legend[labelname]["labels"] = ucolors
+            classcounter += 1
+
+    if colorlabels_legend != None:
+        for i, labelname in enumerate(labelnames):
+            # print(colorlabels_legend[labelname]["colors"])
+            colorlines = []
+            for c in colorlabels_legend[labelname]["colors"]:
+                colorlines.append(Line2D([0], [0], color=c, lw=4))
+            leg = plt.legend(
+                colorlines,
+                colorlabels_legend[labelname]["labels"],
+                bbox_to_anchor=(1.0, 1.0 - 0.3 * i),
+                title=labelname,
+            )
+            plt.gca().add_artist(leg)
+            # break
     ax.spines.right.set_visible(False)
     ax.spines.top.set_visible(False)
     ax.spines.left.set_visible(False)
     ax.spines.bottom.set_visible(False)
-    #ax.set_rasterization_zorder(None)
+    # ax.set_rasterization_zorder(None)
     ax.set_xticks([])
     ax.set_yticks([])
-    
-    if colorlabels!=None:
-        maxr=R*1.1+width*len(colorlabels)+space*(len(colorlabels)-1)
-    elif sample_classes !=None:
-        maxr=R*1.1+width*len(sample_classes)+space*(len(sample_classes)-1)
+
+    if colorlabels != None:
+        maxr = R * 1.1 + width * len(colorlabels) + space * (len(colorlabels) - 1)
+    elif sample_classes != None:
+        maxr = R * 1.1 + width * len(sample_classes) + space * (len(sample_classes) - 1)
     else:
-        maxr=R*1.1
-    ax.set_xlim(-maxr,maxr)
-    ax.set_ylim(-maxr,maxr)
+        maxr = R * 1.1
+    ax.set_xlim(-maxr, maxr)
+    ax.set_ylim(-maxr, maxr)
     plt.subplots_adjust(left=0.05, right=0.75)
-    if show==True:
+    if show == True:
         plt.show()
     return ax
 
 
-def _complex_clustermap(df,row_plot=[],col_plot=[],approx_clusternum=10,color_var=0,merginalsum=False,show=True,method="ward", **kwargs):
-    rnum, cnum=df.shape
+def _complex_clustermap(
+    df,
+    row_plot=[],
+    col_plot=[],
+    approx_clusternum=10,
+    color_var=0,
+    merginalsum=False,
+    show=True,
+    method="ward",
+    **kwargs,
+):
+    rnum, cnum = df.shape
     sns.set(font_scale=1)
-    
+
     if merginalsum:
-        white_bgr=np.ones([rnum, 4])
-        white_bgc=np.ones([cnum, 4])
-        g=sns.clustermap(df,col_colors=white_bgc, row_colors=white_bgr,method=method,**kwargs)
-        mat=df.to_numpy()
-        r=np.sum(mat, axis=1)
-        g.ax_row_colors.barh(np.arange(r.shape[0])+0.5, r[leaves_list(g.dendrogram_row.linkage)]/np.amax(r))
+        white_bgr = np.ones([rnum, 4])
+        white_bgc = np.ones([cnum, 4])
+        g = sns.clustermap(
+            df, col_colors=white_bgc, row_colors=white_bgr, method=method, **kwargs
+        )
+        mat = df.to_numpy()
+        r = np.sum(mat, axis=1)
+        g.ax_row_colors.barh(
+            np.arange(r.shape[0]) + 0.5,
+            r[leaves_list(g.dendrogram_row.linkage)] / np.amax(r),
+        )
         g.ax_row_colors.invert_xaxis()
-        
-        c=np.sum(mat, axis=0)
-        #print(leaves_list(g.dendrogram_col.linkage))
-        g.ax_col_colors.bar(np.arange(c.shape[0])+0.5,c[leaves_list(g.dendrogram_col.linkage)]/np.amax(c))
+
+        c = np.sum(mat, axis=0)
+        # print(leaves_list(g.dendrogram_col.linkage))
+        g.ax_col_colors.bar(
+            np.arange(c.shape[0]) + 0.5,
+            c[leaves_list(g.dendrogram_col.linkage)] / np.amax(c),
+        )
         g.ax_col_colors.invert_yaxis()
-    
-    elif len(row_plot)>0:
-        
-        white_bg=[np.ones([rnum, 4]) for _ in range(len(row_plot))]
-        g=sns.clustermap(df, row_colors=white_bg,method=method,**kwargs)#hot(cbenign))
+
+    elif len(row_plot) > 0:
+
+        white_bg = [np.ones([rnum, 4]) for _ in range(len(row_plot))]
+        g = sns.clustermap(
+            df, row_colors=white_bg, method=method, **kwargs
+        )  # hot(cbenign))
         for i, r in enumerate(row_plot):
-            g.ax_row_colors.plot(r[leaves_list(g.dendrogram_row.linkage)]/np.amax(r)+i, np.arange(r.shape[0])+0.5)
+            g.ax_row_colors.plot(
+                r[leaves_list(g.dendrogram_row.linkage)] / np.amax(r) + i,
+                np.arange(r.shape[0]) + 0.5,
+            )
         g.ax_row_colors.invert_xaxis()
-        
+
     else:
-        g=sns.clustermap(df,method=method,**kwargs)
-    if color_var>0:
+        g = sns.clustermap(df, method=method, **kwargs)
+    if color_var > 0:
         cmap = plt.get_cmap("nipy_spectral")(np.linspace(0, 1, color_var))
     else:
-        cmap = plt.get_cmap("nipy_spectral")(np.linspace(0, 1, approx_clusternum+5))
-    hierarchy.set_link_color_palette([matplotlib.colors.rgb2hex(rgb[:3]) for rgb in cmap])
-    lbranches=np.array(g.dendrogram_row.dendrogram["dcoord"])[:,:2]
-    rbranches=np.array(g.dendrogram_row.dendrogram["dcoord"])[:,2:]
-    thre=np.linspace(0, np.amax(g.dendrogram_row.dendrogram["dcoord"]), 100)[::-1]
+        cmap = plt.get_cmap("nipy_spectral")(np.linspace(0, 1, approx_clusternum + 5))
+    hierarchy.set_link_color_palette(
+        [matplotlib.colors.rgb2hex(rgb[:3]) for rgb in cmap]
+    )
+    lbranches = np.array(g.dendrogram_row.dendrogram["dcoord"])[:, :2]
+    rbranches = np.array(g.dendrogram_row.dendrogram["dcoord"])[:, 2:]
+    thre = np.linspace(0, np.amax(g.dendrogram_row.dendrogram["dcoord"]), 100)[::-1]
     for t in thre:
-        #print(np.sum(lbranches[:,1]>t),np.sum(rbranches[:,0]>t),np.sum(lbranches[:,0]>t),np.sum(rbranches[:,1]>t))
-        crossbranches=np.sum(lbranches[:,1]>t)+np.sum(rbranches[:,0]>t)-np.sum(lbranches[:,0]>t)-np.sum(rbranches[:,1]>t)
-        #print(crossbranches)
-        
-        if crossbranches>approx_clusternum:
+        # print(np.sum(lbranches[:,1]>t),np.sum(rbranches[:,0]>t),np.sum(lbranches[:,0]>t),np.sum(rbranches[:,1]>t))
+        crossbranches = (
+            np.sum(lbranches[:, 1] > t)
+            + np.sum(rbranches[:, 0] > t)
+            - np.sum(lbranches[:, 0] > t)
+            - np.sum(rbranches[:, 1] > t)
+        )
+        # print(crossbranches)
+
+        if crossbranches > approx_clusternum:
             break
-    
-    den=hierarchy.dendrogram(g.dendrogram_row.linkage,
-                                             labels = g.data.index,
-                                             color_threshold=t,ax=g.ax_row_dendrogram,
-                        orientation="left")  
+
+    den = hierarchy.dendrogram(
+        g.dendrogram_row.linkage,
+        labels=g.data.index,
+        color_threshold=t,
+        ax=g.ax_row_dendrogram,
+        orientation="left",
+    )
     g.ax_row_dendrogram.invert_yaxis()
     clusters = _get_cluster_classes(den)
-    cdata={"Cluster":[],"Index":[],"RGB":[]}
-    keys=list(clusters.keys())
-    ckeys={}
-    i=1
+    cdata = {"Cluster": [], "Index": [], "RGB": []}
+    keys = list(clusters.keys())
+    ckeys = {}
+    i = 1
     for k in keys:
-        if k=="C0":
-            ckeys[k]="C0"
+        if k == "C0":
+            ckeys[k] = "C0"
         else:
-            ckeys[k]="C"+str(i)
-            i+=1
+            ckeys[k] = "C" + str(i)
+            i += 1
     for c, v in clusters.items():
-        _c=ckeys[c]
+        _c = ckeys[c]
         for _v in v:
             cdata["Cluster"].append(_c)
             cdata["Index"].append(_v)
@@ -866,148 +1181,202 @@ def _complex_clustermap(df,row_plot=[],col_plot=[],approx_clusternum=10,color_va
         plt.show()
     return pd.DataFrame(cdata), g
 
-def _calc_r2(X,Y):
+
+def _calc_r2(X, Y):
     x_mean = np.mean(X)
     y_mean = np.mean(Y)
-    numerator = np.sum((X - x_mean)*(Y - y_mean))
-    denominator = ( np.sum((X - x_mean)**2) * np.sum((Y - y_mean)**2) )**.5
+    numerator = np.sum((X - x_mean) * (Y - y_mean))
+    denominator = (np.sum((X - x_mean) ** 2) * np.sum((Y - y_mean) ** 2)) ** 0.5
     correlation_coef = numerator / denominator
     r2 = correlation_coef**2
     return r2
 
-def _ci_pi(X: np.ndarray,
-           Y: np.ndarray, 
-           plotline_X: np.ndarray, 
-           y_model: np.ndarray) -> list:
+
+def _ci_pi(
+    X: np.ndarray, Y: np.ndarray, plotline_X: np.ndarray, y_model: np.ndarray
+) -> list:
     x_mean = np.mean(X)
     y_mean = np.mean(Y)
-    n = X.shape[0]                        # number of samples
-    m = 2                             # number of parameters
-    dof = n - m                       # degrees of freedom
-    t = stats.t.ppf(0.975, dof)       # Students statistic of interval confidence
+    n = X.shape[0]  # number of samples
+    m = 2  # number of parameters
+    dof = n - m  # degrees of freedom
+    t = stats.t.ppf(0.95, dof)  # Students statistic of interval confidence
     residual = Y - y_model
-        
-    std_error = (np.sum(residual**2) / dof)**.5   # Standard deviation of the error
+
+    std_error = (np.sum(residual**2) / dof) ** 0.5  # Standard deviation of the error
     # to plot the adjusted model
     x_line = plotline_X.flatten()
     y_line = y_model
-    
+
     # confidence interval
-    ci = t * std_error * (1/n + (x_line - x_mean)**2 / np.sum((X - x_mean)**2))**.5
+    ci = (
+        t
+        * std_error
+        * (1 / n + (x_line - x_mean) ** 2 / np.sum((X - x_mean) ** 2)) ** 0.5
+    )
     # predicting interval
-    pi = t * std_error * (1 + 1/n + (x_line - x_mean)**2 / np.sum((X - x_mean)**2))**.5
-    return ci, pi,std_error
-def _draw_ci_pi(ax: plt.Axes, 
-               ci: np.ndarray, 
-               pi: np.ndarray,
-               x_line: np.ndarray, 
-               y_line: np.ndarray, pi_color: str='lightcyan',ci_color: str='skyblue', alpha: float=0.75, label=True):
+    pi = (
+        t
+        * std_error
+        * (1 + 1 / n + (x_line - x_mean) ** 2 / np.sum((X - x_mean) ** 2)) ** 0.5
+    )
+    return ci, pi, std_error
+
+
+def _draw_ci_pi(
+    ax: plt.Axes,
+    ci: np.ndarray,
+    pi: np.ndarray,
+    x_line: np.ndarray,
+    y_line: np.ndarray,
+    pi_color: str = "lightcyan",
+    ci_color: str = "skyblue",
+    alpha: float = 0.75,
+    label=True,
+):
     """
-    Drawing a confidence interval and a prediction interval 
+    Drawing a confidence interval and a prediction interval
     """
-    if label==True:
-        ax.fill_between(x_line, y_line + ci, 
-                        y_line - ci, color = ci_color, 
-                        label = '95% confidence interval',
-                        alpha=alpha)
-        
-        ax.fill_between(x_line, y_line + pi, y_line - pi, 
-                    color = pi_color, 
-                    label = '95% prediction interval',
-                    alpha=alpha*0.5)
+    if label is True:
+        ax.fill_between(
+            x_line,
+            y_line + ci,
+            y_line - ci,
+            color=ci_color,
+            label="95% confidence interval",
+            alpha=alpha,
+        )
+
+        ax.fill_between(
+            x_line,
+            y_line + pi,
+            y_line - pi,
+            color=pi_color,
+            label="95% prediction interval",
+            alpha=alpha * 0.5,
+        )
     else:
-        ax.fill_between(x_line, y_line + ci, 
-                        y_line - ci, color = ci_color, 
-                        alpha=alpha)
-        
-        ax.fill_between(x_line, y_line + pi, y_line - pi, 
-                    color = pi_color, 
-                    alpha=alpha*0.5)
-    
+        ax.fill_between(x_line, y_line + ci, y_line - ci, color=ci_color, alpha=alpha)
+
+        ax.fill_between(
+            x_line, y_line + pi, y_line - pi, color=pi_color, alpha=alpha * 0.5
+        )
+
+
 from sklearn.cluster import KMeans
-def _optimal_kmeans(X: Union[np.ndarray, list], testrange: list, topn: int=2)-> List[int]:
+
+
+def _optimal_kmeans(
+    X: Union[np.ndarray, list], testrange: list, topn: int = 2
+) -> List[int]:
     Sum_of_squared_distances = []
     K = list(range(*testrange))
     for k in K:
-        km = KMeans(n_clusters=k,n_init=10)
+        km = KMeans(n_clusters=k, n_init=10)
         km = km.fit(X)
         Sum_of_squared_distances.append(km.inertia_)
-    normy=np.array(Sum_of_squared_distances)/np.amax(Sum_of_squared_distances)
-    normy=1-normy
-    normx=np.linspace(0,1, len(K))
-    perp=_calc_curveture(normx, normy)
-    srtindex=np.argsort(perp)[::-1]
+    normy = np.array(Sum_of_squared_distances) / np.amax(Sum_of_squared_distances)
+    normy = 1 - normy
+    normx = np.linspace(0, 1, len(K))
+    perp = _calc_curveture(normx, normy)
+    srtindex = np.argsort(perp)[::-1]
     plt.subplots()
-    plt.plot(K, Sum_of_squared_distances, '-', label='Sum of squared distances')
-    plt.plot(K, perp*np.amax(Sum_of_squared_distances), label="curveture")
-    
-    plt.plot([K[srtindex[0]],K[srtindex[0]]],[0,np.amax(Sum_of_squared_distances)], "--", color="r")
-    plt.text(K[srtindex[0]], np.amax(Sum_of_squared_distances)*0.95, "N="+str(K[srtindex[0]]))
-    plt.plot([K[srtindex[1]],K[srtindex[1]]],[0,np.amax(Sum_of_squared_distances)], "--", color="r")
-    plt.text(K[srtindex[1]], np.amax(Sum_of_squared_distances)*0.95, "N="+str(K[srtindex[1]]))
+    plt.plot(K, Sum_of_squared_distances, "-", label="Sum of squared distances")
+    plt.plot(K, perp * np.amax(Sum_of_squared_distances), label="curveture")
+
+    plt.plot(
+        [K[srtindex[0]], K[srtindex[0]]],
+        [0, np.amax(Sum_of_squared_distances)],
+        "--",
+        color="r",
+    )
+    plt.text(
+        K[srtindex[0]],
+        np.amax(Sum_of_squared_distances) * 0.95,
+        "N=" + str(K[srtindex[0]]),
+    )
+    plt.plot(
+        [K[srtindex[1]], K[srtindex[1]]],
+        [0, np.amax(Sum_of_squared_distances)],
+        "--",
+        color="r",
+    )
+    plt.text(
+        K[srtindex[1]],
+        np.amax(Sum_of_squared_distances) * 0.95,
+        "N=" + str(K[srtindex[1]]),
+    )
     plt.xticks(K)
-    plt.xlabel('K')
-    plt.ylabel('Sum of squared distances')
-    plt.title('Elbow method for optimal cluster number')    
+    plt.xlabel("K")
+    plt.ylabel("Sum of squared distances")
+    plt.title("Elbow method for optimal cluster number")
     plt.legend()
-    print("Top two optimal cluster No are: {}, {}".format(K[srtindex[0]],K[srtindex[1]]))
-    n_clusters=[K[srtindex[i]] for i in range(topn)]
+    print(
+        "Top two optimal cluster No are: {}, {}".format(K[srtindex[0]], K[srtindex[1]])
+    )
+    n_clusters = [K[srtindex[i]] for i in range(topn)]
     return n_clusters
 
-from matplotlib.backends.backend_pdf import PdfPages
+
+
 
 def _multipage(filename, figs=None, dpi=200):
     pp = PdfPages(filename)
     if figs is None:
         figs = [plt.figure(n) for n in plt.get_fignums()]
     for fig in figs:
-        fig.savefig(pp, format='pdf')
+        fig.savefig(pp, format="pdf")
     pp.close()
-    
+
+
 def _save(save, suffix, fig=None):
-    if save !="":
+    if save != "":
         if save.endswith(".pdf") or save.endswith(".png") or save.endswith(".svg"):
-            h, t=os.path.splitext(save)
-            if fig!=None:
-                fig.savefig(h+"_"+suffix+t)
+            h, t = os.path.splitext(save)
+            if fig is not None:
+                fig.savefig(h + "_" + suffix + t)
             else:
-                plt.savefig(h+"_"+suffix+t)
+                plt.savefig(h + "_" + suffix + t)
         else:
-            if fig!=None:
-                fig.savefig(h+"_"+suffix+t)
+            if fig is not None:
+                fig.savefig(h + "_" + suffix + t)
             else:
-                
-                plt.savefig(save+"_"+suffix+".pdf")
+
+                plt.savefig(save + "_" + suffix + ".pdf")
 
 
-from sklearn.decomposition import TruncatedSVD
-from sklearn.pipeline import make_pipeline
-from sklearn.random_projection import SparseRandomProjection
+def _get_embedding(method: str = "umap", param: dict = {}):
 
-def _get_embedding(method: str="umap",
-                   param: dict={}):
-    
-    defaul_params={
-        "tsne": dict(n_components=2,n_iter=500,
-                     n_iter_without_progress=150,
-                     perplexity=10,
-                     n_jobs=2,
-                     random_state=42),
-        "random_projection": dict(n_components=2, random_state=42, eigen_solver="arpack"),
+    defaul_params = {
+        "tsne": dict(
+            n_components=2,
+            n_iter=500,
+            n_iter_without_progress=150,
+            perplexity=10,
+            n_jobs=2,
+            random_state=42,
+        ),
+        "random_projection": dict(
+            n_components=2, random_state=42, eigen_solver="arpack"
+        ),
         "svd": dict(n_components=2),
         "random_trees": dict(n_estimators=200, max_depth=5, random_state=42),
-        "mds": dict(n_components=2, n_init=1, max_iter=120, n_jobs=2, normalized_stress="auto"),
-        "lle": dict(n_neighbors=5, n_components=2, ),
-        "isomap":dict(n_neighbors=4, n_components=2),
-        "linear_discriminant":dict(n_components=2),
-        "random_projection": dict(n_components=2, random_state=42),
+        "mds": dict(
+            n_components=2, n_init=1, max_iter=120, n_jobs=2, normalized_stress="auto"
+        ),
+        "lle": dict(
+            n_neighbors=5,
+            n_components=2,
+        ),
+        "isomap": dict(n_neighbors=4, n_components=2),
+        "linear_discriminant": dict(n_components=2),
         "nca": dict(n_components=2, init="pca", random_state=42),
-        "umap": dict(min_dist=0.25,n_neighbors=15)
-        }
-    if len(param)!=0:
-        params={method: param}
+        "umap": dict(min_dist=0.25, n_neighbors=15),
+    }
+    if len(param) != 0:
+        params = {method: param}
     else:
-        params=defaul_params
+        params = defaul_params
     from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
     from sklearn.ensemble import RandomTreesEmbedding
     from sklearn.manifold import (
@@ -1015,131 +1384,139 @@ def _get_embedding(method: str="umap",
         LocallyLinearEmbedding,
         MDS,
         SpectralEmbedding,
-        TSNE,)
+        TSNE,
+    )
     from sklearn.neighbors import NeighborhoodComponentsAnalysis
-    
-    if method=="random_projection": 
-        embedding=SparseRandomProjection(**params[method]
-        )
-    elif method=="linear_discriminant": 
-        embedding=LinearDiscriminantAnalysis(**params[method])
-    elif method=="isomap": 
-        embedding=Isomap(**params[method])
-    
-    elif method=="lle": 
-        embedding=LocallyLinearEmbedding(method="standard", **params[method]
-        )
-    elif method=="modlle": 
-        embedding=LocallyLinearEmbedding(method="modified",**params["lle"] 
-        )
-    elif method=="hessian_lle": 
-        embedding=LocallyLinearEmbedding(method="hessian", **params["lle"] 
-        )
-    elif method=="ltsa_lle": 
-        embedding=LocallyLinearEmbedding( method="ltsa", **params["lle"] 
-        )
-    elif method=="mds": 
-        embedding=MDS(**params[method]
-        )
-    elif method=="random_trees": 
-        embedding=make_pipeline(
+
+    if method == "random_projection":
+        embedding = SparseRandomProjection(**params[method])
+    elif method == "linear_discriminant":
+        embedding = LinearDiscriminantAnalysis(**params[method])
+    elif method == "isomap":
+        embedding = Isomap(**params[method])
+
+    elif method == "lle":
+        embedding = LocallyLinearEmbedding(method="standard", **params[method])
+    elif method == "modlle":
+        embedding = LocallyLinearEmbedding(method="modified", **params["lle"])
+    elif method == "hessian_lle":
+        embedding = LocallyLinearEmbedding(method="hessian", **params["lle"])
+    elif method == "ltsa_lle":
+        embedding = LocallyLinearEmbedding(method="ltsa", **params["lle"])
+    elif method == "mds":
+        embedding = MDS(**params[method])
+    elif method == "random_trees":
+        embedding = make_pipeline(
             RandomTreesEmbedding(**params[method]),
-            TruncatedSVD(**params["svd"], ),
+            TruncatedSVD(
+                **params["svd"],
+            ),
         )
-    elif method=="spectral": 
-        embedding=SpectralEmbedding(**params[method],
+    elif method == "spectral":
+        embedding = SpectralEmbedding(
+            **params[method],
         )
-    elif method=="tsne": 
-        embedding=TSNE(**params[method], 
+    elif method == "tsne":
+        embedding = TSNE(
+            **params[method],
         )
-    elif method=="nca": 
-        embedding=NeighborhoodComponentsAnalysis(
-            **params[method]
-        )
-    elif method=="umap":
-        import umap 
-        embedding=umap.UMAP(**params[method])
+    elif method == "nca":
+        embedding = NeighborhoodComponentsAnalysis(**params[method])
+    elif method == "umap":
+        import umap
+
+        embedding = umap.UMAP(**params[method])
     else:
         raise Exception(f"Medthod {method} does not exist.")
     return embedding
 
 
-def _separate_data(df: pd.DataFrame, 
-                   variables: list=[], 
-                   category: str="")->List:
-    if len(variables) !=0:
+def _separate_data(df: pd.DataFrame, variables: list = [], category: str = "") -> List:
+    if len(variables) != 0:
         x = np.array(df[variables].values)
-        if len(category) !=0:
+        if len(category) != 0:
             if isinstance(category, str):
-                category=[category]
-            #category_val=df[category].values
-        
-        #if x.dtype!=np.number: 
-        if np.issubdtype(x.dtype, np.number)==False:
-            raise TypeError(f"variables must contain only float values. {x.dtype} was given")
-    elif len(category) !=0:
+                category = [category]
+            # category_val=df[category].values
+
+        # if x.dtype!=np.number:
+        if np.issubdtype(x.dtype, np.number) is not False:
+            raise TypeError(
+                f"variables must contain only float values. {x.dtype} was given"
+            )
+    elif len(category) != 0:
         if isinstance(category, str):
-            category=[category]
-        #category_val=df[category].values
-        df=df.drop(category, axis=1)
+            category = [category]
+        # category_val=df[category].values
+        df = df.drop(category, axis=1)
         x = np.array(df.values)
-        if x.dtype!=np.number: 
-            raise TypeError(f"data must contain only float values except {category} column. \
-        or you can specify the numeric variables with the option 'variables'.")
-        
-    else:    
+        if x.dtype != np.number:
+            raise TypeError(
+                f"data must contain only float values except {category} column. \
+        or you can specify the numeric variables with the option 'variables'."
+            )
+
+    else:
         x = df.values
-        #category_val=[]
-        if x.dtype!=float: 
-            raise TypeError(f"data must contain only float values. \
-                            or you can specify the numeric variables with the option 'variables'.")
-        
+        # category_val=[]
+        if x.dtype != float:
+            raise TypeError(
+                "data must contain only float values. or you can specify the numeric variables with the option 'variables'."
+            )
+
     return x, category
 
-def _separate_cdata(df, variables=[], 
-                   category=""):
-    if len(variables) !=0:
-        x = np.array(df[variables].values)
-        if len(category) !=0:
-            if isinstance(category, str):
-                category=[category]
 
-    elif len(category) !=0:
+def _separate_cdata(df, variables=[], category=""):
+    if len(variables) != 0:
+        x = np.array(df[variables].values)
+        if len(category) != 0:
+            if isinstance(category, str):
+                category = [category]
+
+    elif len(category) != 0:
         if isinstance(category, str):
-            category=[category]
-        #category_val=df[category].values
-        df=df.drop(category, axis=1)
+            category = [category]
+        # category_val=df[category].values
+        df = df.drop(category, axis=1)
         x = np.array(df.values)
-        
-    else:    
+
+    else:
         x = df.values
-        #category_val=[]
-        
+        # category_val=[]
+
     return x, category
+
 
 def _create_color_markerlut(df, cat, palette, markers=[]):
     # print(type(palette))
-    color_lut={}
-    marker_lut={}
+    color_lut = {}
+    marker_lut = {}
     if df[cat].isnull().values.any():
-        df[cat]=df[cat].fillna("NA")
-    uniq_labels=sorted(list(set(df[cat])))
+        df[cat] = df[cat].fillna("NA")
+    uniq_labels = sorted(list(set(df[cat])))
     if isinstance(palette, str):
-        _cmap=plt.get_cmap(palette, len(uniq_labels))
-        
-        color_lut={u: _cmap(i) for i, u in enumerate(uniq_labels)}
-        
-        if len(markers)!=0:
+        _cmap = plt.get_cmap(palette, len(uniq_labels))
+
+        color_lut = {u: _cmap(i) for i, u in enumerate(uniq_labels)}
+
+        if len(markers) != 0:
             if len(markers) < len(uniq_labels):
                 while len(markers) < len(uniq_labels):
                     markers.extend(markers)
-            marker_lut={u: markers[i] for i, u in enumerate(uniq_labels)}
+            marker_lut = {u: markers[i] for i, u in enumerate(uniq_labels)}
     elif isinstance(palette, dict):
-        color_lut=copy.deepcopy(palette)
+        color_lut = copy.deepcopy(palette)
     else:
-        raise TypeError("Unexpected type of the palette option. It must be either a matplot \
-                        colormap name or the dictionary of a color look up table")
-
+        raise TypeError(
+            "Unexpected type of the palette option. It must be either a matplot \
+                        colormap name or the dictionary of a color look up table"
+        )
 
     return color_lut, marker_lut
 
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod()
