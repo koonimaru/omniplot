@@ -63,14 +63,14 @@ A formal documation is under development, but you may want to visit an auto-gene
 
 ## Example usage
 ```python
-import pandas as pd
 from omniplot import plot as op
 import seaborn as  sns
 import matplotlib.pyplot as plt
 
 df=sns.load_dataset("titanic")
-df=df[["class","embark_town","sex"]].fillna("NA")
-op.nested_piechart(df, category=["class","embark_town","sex"], title="Titanic", ignore=0.01, show_legend=True,show_values=False,hatch=True,ncols=3)
+df["class"]=df["class"].astype(str)
+df["embark_town"]=df["embark_town"].astype(str)
+op.nested_piechart(df, category=["class","embark_town","sex"], title="Titanic", ignore=0.01, show_legend=True,show_values=False,hatch=True)
 plt.show()
 
 ```
