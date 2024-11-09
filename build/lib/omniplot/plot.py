@@ -2,7 +2,7 @@
 A main plotting module for omniplot.
 """
 import copy
-from typing import Union, Optional, Dict, List
+from typing import Union, Optional, Dict
 import numpy as np
 import seaborn as sns
 import pandas as pd
@@ -15,7 +15,7 @@ from matplotlib.ticker import StrMethodFormatter
 from omniplot.scatter import *
 from omniplot.proportion import *
 from omniplot.heatmap import *
-from omniplot.utils import colormap_list, hatch_list, marker_list, linestyle_list
+from omniplot.utils import linestyle_list
 from omniplot.utils import (
     _save,
     _separate_data,
@@ -26,8 +26,10 @@ from omniplot.utils import (
 )  #
 from omniplot.scatter import _robust_regression
 
-# hatch_list: list = ['//', '\\\\', '||', '--', '++', 'xx', 'oo', 'OO', '..', '**','/o', '\\|', '|*', '-\\', '+o', 'x*', 'o-', 'O|', 'O.', '*-']
-# marker_list: list=['.', '_' , '+','|', 'x', 'v', '^', '<', '>', 's', 'p', '*', 'h', 'D', 'd', 'P', 'X','o', '1', '2', '3', '4','|', '_']
+# hatch_list: list = ['//', '\\\\', '||', '--', '++', 'xx', 'oo', 'OO', '..',
+# '**','/o', '\\|', '|*', '-\\', '+o', 'x*', 'o-', 'O|', 'O.', '*-']
+# marker_list: list=['.', '_' , '+','|', 'x', 'v', '^', '<', '>', 's', 'p', '*', 'h',
+# 'D', 'd', 'P', 'X','o', '1', '2', '3', '4','|', '_']
 
 plt.rcParams["font.family"] = "sans-serif"
 plt.rcParams["font.sans-serif"] = ["Arial"]
@@ -39,16 +41,16 @@ def radialtree(
     df: pd.DataFrame,
     n_clusters: int = 3,
     x: str = "",
-    variables: List = [],
-    category: Union[str, List[str]] = [],
+    variables: Optional[list] = None,
+    category: Optional[Union[str, list[str]]] = None,
     ztransform: bool = True,
     save: str = "",
     distance_method="euclidean",
     tree_method="ward",
     title: str = "",
-    y: list = [],
+    y: Optional[list] = None,
     linewidth: float = 1,
-    figsize: Optional[list] = None,
+    figsize: Optional[tuple] = None,
     **kwargs
 ) -> Dict:
     """
@@ -109,7 +111,7 @@ def radialtree(
     X, category = _separate_data(df, variables=variables, category=category)
     category_df = df[category]
 
-    if ztransform == True:
+    if ztransform is True:
         X = zscore(X, axis=0)
 
     D = squareform(pdist(X, metric=distance_method))
@@ -145,7 +147,7 @@ def catplot(
     df: pd.DataFrame,
     x: str,
     y: str,
-    pairs: tuple = (),
+    pairs: Optional[list] = None,
     test: str = "ttest_ind",
     alternative: str = "two-sided",
     significance: str = "numeric",
@@ -242,6 +244,8 @@ def catplot(
     if len(xorder) == 0:
         xorder = sorted(list(set(df[x])))
     pvals = []
+    if isinstance(pairs, type(None)):
+        pairs = []
     for p1, p2 in pairs:
 
         statstest = getattr(stats, test)
@@ -394,7 +398,7 @@ def violinplot2(
     y: str = "",
     xlabels: tuple = (),
     order: tuple = (),
-    pairs: tuple = (),
+    pairs: Optional[list] = None,
     test: str = "ttest_ind",
     alternative: str = "two-sided",
     significance: str = "numeric",
@@ -408,6 +412,7 @@ def violinplot2(
     save: str = "",
     ax: Optional[plt.Axes] = None,
     scale_prop=False,
+    cut_negatives: bool = False,
     **kwargs
 ):
     """
@@ -486,7 +491,7 @@ def violinplot2(
         xorder = sorted(list(set(df[x])))
 
     pvals = []
-    if len(pairs) != 0:
+    if isinstance(pairs, list):
         for p1, p2 in pairs:
             if type(df) == pd.DataFrame:
                 p1val, p2val = df[y][df[x] == p1], df[y][df[x] == p2]
@@ -525,7 +530,7 @@ def violinplot2(
                 ]
             )
         pvals = sorted(pvals, key=lambda x: (x[0], x[1]))
-    if ax == None:
+    if ax is None:
         fig, ax = plt.subplots()
     _violinplot(
         df=df,
@@ -536,6 +541,7 @@ def violinplot2(
         orientation=orientation,
         show_points=swarm,
         scale_prop=scale_prop,
+        cut_negatives=cut_negatives,
     )
     if type(df) == pd.DataFrame:
         ymax = np.amax(df[y])
@@ -543,7 +549,7 @@ def violinplot2(
         ymax = np.amax(df)
     newpvals = {}
 
-    if len(pairs) != 0:
+    if isinstance(pairs, list):
         for i, pval in enumerate(pvals):
             if orientation == "vertical":
                 ax.plot(
@@ -619,21 +625,22 @@ def _violinplot(
     df: Union[pd.DataFrame, np.ndarray],
     x: str = "",
     y: str = "",
-    xlabels: list = [],
-    order: list = [],
-    ax: plt.Axes = None,
+    xlabels: Optional[list] = None,
+    order: Optional[list] = None,
+    ax: Optional[plt.Axes] = None,
     orientation: str = "vertical",
     show_points: bool = True,
     point_color: str = "blue",
     box_color: str = "black",
     violine_color: Union[str, list, dict] = "gray",
     point_kw={"s": 10},
-    scale_prop=False,
+    scale_prop: bool = False,
+    cut_negatives: bool = False,
 ):
     if isinstance(ax, type(None)):
         fig, ax = plt.subplots()
     if isinstance(df, pd.DataFrame):
-        if len(order) != 0:
+        if isinstance(order, list) and len(order) != 0:
             dfs = {_s: _x[y].values for _s, _x in df.groupby(x)}
             mat = [dfs[_s] for _s in order]
             xlabels = order
@@ -656,9 +663,22 @@ def _violinplot(
         q2 = np.quantile(X, 0.5)
         iqr = q3 - q1
 
+        # top and bottom limits of whisker
+        _X = np.sort(X)
+        _top = q3 + iqr * 1.5
+        _bottom = q1 - iqr * 1.5
+        __X = _X[_X >= _bottom]
+        _bottom_limit = __X[0]
+
+        __X = _X[_X <= _top]
+        _top_limit = __X[-1]
+
         # minx, maxx=q1-iqr*1.5, q3+iqr*1.5
         minx, maxx = np.min(X) - iqr, np.max(X) + iqr
+        if cut_negatives is True:
+            minx = 0
         xinterval = np.linspace(minx, maxx, 100)
+
         estimate = kde(xinterval)
         if scale_prop is True:
             estimate = proportion[i] * estimate / np.amax(estimate)
@@ -678,7 +698,7 @@ def _violinplot(
                 [q1, q3], [i - 0.05, i - 0.05], [i + 0.05, i + 0.05], color=box_color
             )
 
-            ax.plot([q1 - iqr * 1.5, q3 + iqr * 1.5], [i, i], lw=1, color=box_color)
+            ax.plot([_bottom_limit, _top_limit], [i, i], lw=1, color=box_color)
             ax.plot([q2, q2], [i - 0.05, i + 0.05], color="w")
             if show_points is True:
                 ax.scatter(
@@ -702,9 +722,9 @@ def _violinplot(
                 color=box_color,
             )
 
-            ax.plot([i, i], [q1 - iqr * 1.5, q3 + iqr * 1.5], lw=1, color=box_color)
+            ax.plot([i, i], [_bottom_limit, _top_limit], lw=1, color=box_color)
             ax.plot([i - 0.05, i + 0.05], [q2, q2], color="w")
-            if show_points == True:
+            if show_points is True:
                 ax.scatter(
                     i + 0.5 * np.random.uniform(size=X.shape[0]) - 0.25,
                     X,
@@ -713,6 +733,7 @@ def _violinplot(
                 )
     if orientation == "horizontal":
         ax.set_yticks(np.arange(len(mat)), labels=xlabels)
+
     elif orientation == "vertical":
         ax.set_xticks(np.arange(len(mat)), labels=xlabels, rotation=90)
         plt.subplots_adjust(bottom=0.2)
@@ -838,12 +859,12 @@ def lineplot(
     title: str = "",
     plotkw: dict = {},
     show_legend: bool = True,
-    bbox_to_anchor: Union[list, tuple] = [1.05, 1],
+    bbox_to_anchor: Union[list, tuple] = (1.05, 1),
     right=0.75,
     left=0.15,
     bottom=0.15,
-    figsize: list = [],
-    rows_cols: list = [],
+    figsize: tuple = (),
+    rows_cols: tuple = (),
     estimate: str = "",
     robust_param: dict = {},
     linestyle: Union[bool, dict, list, str] = False,
@@ -951,7 +972,7 @@ def lineplot(
 
     _stats = {}
 
-    if split == False:
+    if split is False:
         if len(figsize) == 0:
             figsize = [6, 4]
         if isinstance(ax, type(None)):
@@ -1143,12 +1164,15 @@ def _set_axis(
         ax.xaxis.set_major_formatter(StrMethodFormatter(xformat))
     if yformat != "":
         ax.yaxis.set_major_formatter(StrMethodFormatter(yformat))
-    if logscalex == True:
+    if logscalex is True:
         ax.set_xscale("log")
-    if logscaley == True:
+    if logscaley is True:
         ax.set_yscale("log")
     ax.tick_params(pad=1, axis="both", which="both", length=0)
 
 
 if __name__ == "__main__":
-    pass
+    df = sns.load_dataset("penguins")
+    df = df.dropna(axis=0)
+    res = radialtree(df, category=["species", "island", "sex"])
+    plt.show()

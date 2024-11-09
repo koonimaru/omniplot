@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 import matplotlib
-from typing import Optional, List, Dict, Union
+from typing import Optional, List, Union
 from matplotlib.lines import Line2D
 from scipy.cluster.hierarchy import leaves_list
 from matplotlib import cm
@@ -16,6 +16,8 @@ import scipy.stats as stats
 from sklearn.decomposition import TruncatedSVD
 from sklearn.pipeline import make_pipeline
 from sklearn.random_projection import SparseRandomProjection
+from sklearn.cluster import KMeans
+
 from matplotlib.text import Annotation
 from matplotlib.transforms import Affine2D
 
@@ -315,7 +317,7 @@ def _calc_curveture(normx, normy):
 
 
 def _get_cluster_classes2(den, above_threshold_color, label="ivl"):
-    cluster_idxs = defaultdict(list)
+    _ = defaultdict(list)
     _cnums_dict = {}
     ccolor_unique = []
     ab = 0
@@ -334,7 +336,7 @@ def _get_cluster_classes2(den, above_threshold_color, label="ivl"):
                 if _color == above_threshold_color:
                     _color = _color + "_" + str(ab)
                     ab += 1
-                if not _color in ccolor_unique:
+                if _color not in ccolor_unique:
                     ccolor_unique.append(_color)
                     _cnums_dict[_color] = 0
                 _cnums_dict[_color] += 1
@@ -448,22 +450,22 @@ def _radialtree(
     Examples
     --------
     """
-    if figsize == None and colorlabels != None:
+    if figsize is None and colorlabels is not None:
         figsize = [7, 5]
-    elif figsize == None and sample_classes != None:
+    elif figsize is None and sample_classes is not None:
         figsize = [7, 5]
-    elif figsize == None:
+    elif figsize is None:
         figsize = [5, 5]
     linewidth = 0.5
     R = 1
     width = R * 0.1
     space = R * 0.05
-    if colorlabels != None:
+    if colorlabels is not None:
         offset = (
             width * len(colorlabels) / R + space * (len(colorlabels) - 1) / R + 0.05
         )
         print(offset)
-    elif sample_classes != None:
+    elif sample_classes is not None:
         offset = (
             width * len(sample_classes) / R
             + space * (len(sample_classes) - 1) / R
@@ -578,7 +580,7 @@ def _radialtree(
             # plt.text(1.05*_xr3, 1.05*_yr3, Z2['ivl'][i],{'va': 'center'},rotation_mode='anchor', rotation=360*x[2]/xmax)
             i += 1
 
-    if addlabels == True:
+    if addlabels is True:
         assert len(Z2["ivl"]) == len(label_coords), (
             "Internal error, label numbers "
             + str(len(Z2["ivl"]))
@@ -599,7 +601,7 @@ def _radialtree(
                 fontsize=fontsize,
             )
 
-    if colorlabels != None:
+    if colorlabels is not None:
         assert len(Z2["ivl"]) == len(label_coords), (
             "Internal error, label numbers "
             + str(len(Z2["ivl"]))
@@ -642,7 +644,7 @@ def _radialtree(
             labelnames.append(labelname)
             j += 1
 
-        if colorlabels_legend != None:
+        if colorlabels_legend is not None:
             for i, labelname in enumerate(labelnames):
                 print(colorlabels_legend[labelname]["colors"])
                 colorlines = []
@@ -655,7 +657,7 @@ def _radialtree(
                     title=labelname,
                 )
                 plt.gca().add_artist(leg)
-    elif sample_classes != None:
+    elif sample_classes is not None:
         assert len(Z2["ivl"]) == len(label_coords), (
             "Internal error, label numbers "
             + str(len(Z2["ivl"]))
@@ -709,7 +711,7 @@ def _radialtree(
             colorlabels_legend[labelname]["labels"] = ucolors
             j += 1
 
-        if colorlabels_legend != None:
+        if colorlabels_legend is not None:
             for i, labelname in enumerate(labelnames):
                 print(colorlabels_legend[labelname]["colors"])
                 colorlines = []
@@ -731,9 +733,9 @@ def _radialtree(
     plt.xticks([])
     plt.yticks([])
 
-    if colorlabels != None:
+    if colorlabels is not None:
         maxr = R * 1.05 + width * len(colorlabels) + space * (len(colorlabels) - 1)
-    elif sample_classes != None:
+    elif sample_classes is not None:
         maxr = (
             R * 1.05 + width * len(sample_classes) + space * (len(sample_classes) - 1)
         )
@@ -742,7 +744,7 @@ def _radialtree(
     plt.xlim(-maxr, maxr)
     plt.ylim(-maxr, maxr)
     plt.subplots_adjust(left=0.05, right=0.85)
-    if show == True:
+    if show is True:
         plt.show()
     else:
         return ax
@@ -806,22 +808,22 @@ def _radialtree2(
     --------
     """
     xticks = set(xticks)
-    if figsize == None and colorlabels != None:
+    if figsize is None and colorlabels is not None:
         figsize = [7, 6]
-    elif figsize == None and sample_classes != None:
+    elif figsize is None and sample_classes is not None:
         figsize = [7, 6]
-    elif figsize == None:
+    elif figsize is None:
         figsize = [5, 5]
     linewidth = linewidth
     R = 1
     width = R * 0.1
     space = R * 0.05
-    if colorlabels != None:
+    if colorlabels is not None:
         offset = (
             width * len(colorlabels) / R + space * (len(colorlabels) - 1) / R + 0.05
         )
         # print(offset)
-    elif sample_classes != None:
+    elif sample_classes is not None:
         offset = (
             width * len(sample_classes) / R
             + space * (len(sample_classes) - 1) / R
@@ -832,7 +834,7 @@ def _radialtree2(
         offset = 0
 
     xmax = np.amax(Z2["icoord"])
-    xmin = np.amin(Z2["icoord"])
+    _ = np.amin(Z2["icoord"])
     ymax = np.amax(Z2["dcoord"])
 
     ucolors = sorted(set(Z2["color_list"]))
@@ -843,7 +845,7 @@ def _radialtree2(
         cmap = cmp(np.linspace(0, 1, len(ucolors)))
     else:
         cmap = cmp.colors
-    if ax == None:
+    if ax is None:
         fig, ax = plt.subplots(figsize=figsize)
     i = 0
     label_coords = []
@@ -965,7 +967,7 @@ def _radialtree2(
             ]
         )
 
-    if addlabels == True:
+    if addlabels is True:
         assert len(Z2["ivl"]) == len(label_coords), (
             "Internal error, label numbers "
             + str(len(Z2["ivl"]))
@@ -986,7 +988,7 @@ def _radialtree2(
                 fontsize=fontsize,
             )
 
-    if sample_classes != None:
+    if sample_classes is not None:
         assert len(Z2["ivl"]) == len(label_coords), (
             "Internal error, label numbers "
             + str(len(Z2["ivl"]))
@@ -1042,7 +1044,7 @@ def _radialtree2(
             colorlabels_legend[labelname]["labels"] = ucolors
             classcounter += 1
 
-    if colorlabels_legend != None:
+    if colorlabels_legend is not None:
         for i, labelname in enumerate(labelnames):
             # print(colorlabels_legend[labelname]["colors"])
             colorlines = []
@@ -1064,16 +1066,16 @@ def _radialtree2(
     ax.set_xticks([])
     ax.set_yticks([])
 
-    if colorlabels != None:
+    if colorlabels is not None:
         maxr = R * 1.1 + width * len(colorlabels) + space * (len(colorlabels) - 1)
-    elif sample_classes != None:
+    elif sample_classes is not None:
         maxr = R * 1.1 + width * len(sample_classes) + space * (len(sample_classes) - 1)
     else:
         maxr = R * 1.1
     ax.set_xlim(-maxr, maxr)
     ax.set_ylim(-maxr, maxr)
     plt.subplots_adjust(left=0.05, right=0.75)
-    if show == True:
+    if show is True:
         plt.show()
     return ax
 
@@ -1196,7 +1198,7 @@ def _ci_pi(
     X: np.ndarray, Y: np.ndarray, plotline_X: np.ndarray, y_model: np.ndarray
 ) -> list:
     x_mean = np.mean(X)
-    y_mean = np.mean(Y)
+    _ = np.mean(Y)
     n = X.shape[0]  # number of samples
     m = 2  # number of parameters
     dof = n - m  # degrees of freedom
@@ -1206,7 +1208,7 @@ def _ci_pi(
     std_error = (np.sum(residual**2) / dof) ** 0.5  # Standard deviation of the error
     # to plot the adjusted model
     x_line = plotline_X.flatten()
-    y_line = y_model
+    _ = y_model
 
     # confidence interval
     ci = (
@@ -1263,9 +1265,6 @@ def _draw_ci_pi(
         )
 
 
-from sklearn.cluster import KMeans
-
-
 def _optimal_kmeans(
     X: Union[np.ndarray, list], testrange: list, topn: int = 2
 ) -> List[int]:
@@ -1316,8 +1315,6 @@ def _optimal_kmeans(
     )
     n_clusters = [K[srtindex[i]] for i in range(topn)]
     return n_clusters
-
-
 
 
 def _multipage(filename, figs=None, dpi=200):
@@ -1431,8 +1428,10 @@ def _get_embedding(method: str = "umap", param: dict = {}):
     return embedding
 
 
-def _separate_data(df: pd.DataFrame, variables: list = [], category: str = "") -> List:
-    if len(variables) != 0:
+def _separate_data(
+    df: pd.DataFrame, variables: Optional[list] = None, category: str = ""
+) -> List:
+    if variables is not None and len(variables) != 0:
         x = np.array(df[variables].values)
         if len(category) != 0:
             if isinstance(category, str):

@@ -39,14 +39,14 @@ def radialtree(
     df: pd.DataFrame,
     n_clusters: int = 3,
     x: str = "",
-    variables: tuple = (),
-    category: Union[str, tuple[str]] = (),
+    variables: Optional[list] = None,
+    category: Optional[Union[str, list[str]]] = None,
     ztransform: bool = True,
     save: str = "",
     distance_method="euclidean",
     tree_method="ward",
     title: str = "",
-    y: tuple = (),
+    y: Optional[list] = None,
     linewidth: float = 1,
     figsize: Optional[tuple] = None,
     **kwargs
@@ -97,7 +97,7 @@ def radialtree(
     Examples
     --------
     """
-    if len(y) != 0:
+    if y is not None and len(y) != 0:
         variables = y
 
     if x != "":
@@ -145,7 +145,7 @@ def catplot(
     df: pd.DataFrame,
     x: str,
     y: str,
-    pairs: tuple = (),
+    pairs: Optional[list] = None,
     test: str = "ttest_ind",
     alternative: str = "two-sided",
     significance: str = "numeric",
@@ -242,6 +242,8 @@ def catplot(
     if len(xorder) == 0:
         xorder = sorted(list(set(df[x])))
     pvals = []
+    if isinstance(pairs, type(None)):
+        pairs = []
     for p1, p2 in pairs:
 
         statstest = getattr(stats, test)
@@ -351,7 +353,7 @@ def catplot(
                         < p
                         <= significance_ranges[keys[j]]
                     ):
-                        annotate = keys[i]
+                        annotate = keys[j]
                         break
             if annotate == "NA":
                 annotate = keys[-1]
@@ -394,7 +396,7 @@ def violinplot2(
     y: str = "",
     xlabels: tuple = (),
     order: tuple = (),
-    pairs: tuple = (),
+    pairs: Optional[list] = None,
     test: str = "ttest_ind",
     alternative: str = "two-sided",
     significance: str = "numeric",
@@ -487,7 +489,7 @@ def violinplot2(
         xorder = sorted(list(set(df[x])))
 
     pvals = []
-    if len(pairs) != 0:
+    if isinstance(pairs, list):
         for p1, p2 in pairs:
             if type(df) == pd.DataFrame:
                 p1val, p2val = df[y][df[x] == p1], df[y][df[x] == p2]
@@ -545,7 +547,7 @@ def violinplot2(
         ymax = np.amax(df)
     newpvals = {}
 
-    if len(pairs) != 0:
+    if isinstance(pairs, list):
         for i, pval in enumerate(pvals):
             if orientation == "vertical":
                 ax.plot(
@@ -578,7 +580,7 @@ def violinplot2(
                             < p
                             <= significance_ranges[keys[j]]
                         ):
-                            annotate = keys[i]
+                            annotate = keys[j]
                             break
                 if annotate == "NA":
                     annotate = keys[-1]
@@ -621,9 +623,9 @@ def _violinplot(
     df: Union[pd.DataFrame, np.ndarray],
     x: str = "",
     y: str = "",
-    xlabels: list = [],
-    order: list = [],
-    ax: plt.Axes = None,
+    xlabels: Optional[list] = None,
+    order: Optional[list] = None,
+    ax: Optional[plt.Axes] = None,
     orientation: str = "vertical",
     show_points: bool = True,
     point_color: str = "blue",
@@ -636,7 +638,7 @@ def _violinplot(
     if isinstance(ax, type(None)):
         fig, ax = plt.subplots()
     if isinstance(df, pd.DataFrame):
-        if len(order) != 0:
+        if isinstance(order, list) and len(order) != 0:
             dfs = {_s: _x[y].values for _s, _x in df.groupby(x)}
             mat = [dfs[_s] for _s in order]
             xlabels = order
@@ -671,7 +673,10 @@ def _violinplot(
 
         # minx, maxx=q1-iqr*1.5, q3+iqr*1.5
         minx, maxx = np.min(X) - iqr, np.max(X) + iqr
+        if cut_negatives is True:
+            minx = 0
         xinterval = np.linspace(minx, maxx, 100)
+
         estimate = kde(xinterval)
         if scale_prop is True:
             estimate = proportion[i] * estimate / np.amax(estimate)
