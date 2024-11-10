@@ -1439,7 +1439,7 @@ def _separate_data(
             # category_val=df[category].values
 
         # if x.dtype!=np.number:
-        if np.issubdtype(x.dtype, np.number) is not False:
+        if np.issubdtype(x.dtype, np.number) is False:
             raise TypeError(
                 f"variables must contain only float values. {x.dtype} was given"
             )
