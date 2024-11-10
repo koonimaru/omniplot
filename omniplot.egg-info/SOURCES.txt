@@ -1,4 +1,5 @@
 .gitignore
+.pre-commit-config.yaml
 .project
 .pydevproject
 LICENSE
