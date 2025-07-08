@@ -334,7 +334,7 @@ def triangle_heatmap(
                 color="w",
             )
 
-    cb = plt.colorbar(caxes, ax=ax, shrink=0.75)
+    _ = plt.colorbar(caxes, ax=ax, shrink=0.75)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     ax.spines["bottom"].set_visible(False)
@@ -454,28 +454,28 @@ def complex_clustermap(
         xsize = np.amax([xsize, 5])
         figsize = [xsize, 10]
     scatterpointsize = 5
-    sns.set(font_scale=1)
+    sns.set_theme(font_scale=1)
     original = df[variables].values
-    if ztranform == True:
+    if ztranform is True:
         df[variables] = df[variables].apply(zscore)
         if ctitle == "":
             ctitle = "zscore"
 
     if len(col_plot) != 0 or len(col_scatter) != 0 or len(col_bar) != 0:
-        if dfcol == None:
+        if dfcol is None:
             raise ValueError(
                 "if you want to plot along the x axis, you need provide dfcol option containing values to plot."
             )
     cdata = {"Cluster": [], "Index": [], "RGB": []}
     totalrowplot = 0
-    if marginalsum == True:
+    if marginalsum is True:
         totalrowplot += 1
     totalrowplot += len(row_plot)
     totalrowplot += len(row_colors)
     totalrowplot += len(row_scatter)
     totalrowplot += len(row_bar)
     totalcolplot = 0
-    if marginalsum == True:
+    if marginalsum is True:
         totalcolplot += 1
     totalcolplot += len(col_plot)
     totalcolplot += len(col_colors)
@@ -616,7 +616,7 @@ def complex_clustermap(
             row_cluster = True
             if "row_cluster" in kwargs:
                 row_cluster = kwargs["row_cluster"]
-            if row_cluster == True:
+            if row_cluster is True:
                 g.ax_row_colors.barh(
                     np.arange(r.shape[0]) + 0.5,
                     r[leaves_list(g.dendrogram_row.linkage)] / np.amax(r),
@@ -633,7 +633,7 @@ def complex_clustermap(
             col_cluster = True
             if "col_cluster" in kwargs:
                 col_cluster = kwargs["col_cluster"]
-            if col_cluster == True:
+            if col_cluster is True:
 
                 # print(leaves_list(g.dendrogram_col.linkage))
                 g.ax_col_colors.bar(
@@ -669,7 +669,7 @@ def complex_clustermap(
                 r = r - np.amin(r)
                 r = r / np.amax(r)
                 r = 0.9 * r
-                if row_cluster == True:
+                if row_cluster is True:
                     tmpindx = leaves_list(g.dendrogram_row.linkage)
                     r = r[tmpindx]
 
@@ -693,7 +693,7 @@ def complex_clustermap(
                 r = r - np.amin(r)
                 r = r / np.amax(r)
                 r = 0.9 * r
-                if col_cluster == True:
+                if col_cluster is True:
                     g.ax_col_colors.plot(
                         np.arange(r.shape[0]) + 0.5,
                         r[leaves_list(g.dendrogram_col.linkage)] + colplotcount,
@@ -717,7 +717,7 @@ def complex_clustermap(
                 r = r - np.amin(r)
                 r = r / np.amax(r)
                 r = 0.9 * r
-                if row_cluster == True:
+                if row_cluster is True:
                     tmpindx = leaves_list(g.dendrogram_row.linkage)
                     r = r[tmpindx]
                     g.ax_row_colors.scatter(
@@ -747,7 +747,7 @@ def complex_clustermap(
                 r = r - np.amin(r)
                 r = r / np.amax(r)
                 r = 0.9 * r
-                if col_cluster == True:
+                if col_cluster is True:
                     g.ax_col_colors.bar(
                         np.arange(r.shape[0]) + 0.5,
                         r[leaves_list(g.dendrogram_col.linkage)] + colplotcount,
@@ -777,7 +777,7 @@ def complex_clustermap(
                 r = r - np.amin(r)
                 r = r / np.amax(r)
                 r = 0.9 * r
-                if row_cluster == True:
+                if row_cluster is True:
                     g.ax_row_colors.barh(
                         y=np.arange(r.shape[0]) + 0.5,
                         width=r[leaves_list(g.dendrogram_row.linkage)],
@@ -800,7 +800,7 @@ def complex_clustermap(
                 col_ticks.append(colplotcount)
                 col_ticks.append(colplotcount + tickpos)
 
-                if col_cluster == True:
+                if col_cluster is True:
                     g.ax_col_colors.scatter(
                         np.arange(r.shape[0]) + 0.5,
                         r[leaves_list(g.dendrogram_col.linkage)] / (np.amax(r) * 1.1)
@@ -813,24 +813,24 @@ def complex_clustermap(
                     )
 
                 colplotcount += 1
-        if g.ax_row_colors != None:
+        if g.ax_row_colors is not None:
 
             g.ax_row_colors.set_xticks(np.arange(len(_row_colors_title)) + 0.5)
             g.ax_row_colors.set_xticklabels(_row_colors_title, rotation=90)
-        if g.ax_col_colors != None:
+        if g.ax_col_colors is not None:
             colax_otherside = g.ax_col_colors.twinx()
             colax_otherside.set_yticks(
                 0.5 * (np.arange(len(_col_colors_title)) + 0.5),
                 labels=_col_colors_title,
             )
             colax_otherside.grid(False)
-        if g.ax_col_dendrogram != None:
+        if g.ax_col_dendrogram is not None:
             col = g.ax_col_dendrogram.get_position()
             g.ax_col_dendrogram.set_position(
                 [col.x0, col.y0, col.width * 0.5, col.height * 0.5]
             )
 
-        if show_plot_labels == True:
+        if show_plot_labels is True:
 
             rowax_otherside = g.ax_row_colors.twiny()
             rowax_otherside.invert_xaxis()
@@ -896,7 +896,7 @@ def complex_clustermap(
 
     """coloring the row dendrogram based on branch numbers crossed with the threshold"""
 
-    if g.dendrogram_row != None:
+    if g.dendrogram_row is not None:
         t = _dendrogram_threshold(g.dendrogram_row.dendrogram, approx_clusternum)
 
         den = sch.dendrogram(
@@ -934,7 +934,7 @@ def complex_clustermap(
 
     """coloring the col dendrogram based on branch numbers crossed with the threshold"""
     col_cdata = {"Cluster": [], "Index": [], "RGB": []}
-    if g.dendrogram_col != None:
+    if g.dendrogram_col is not None:
         t = _dendrogram_threshold(g.dendrogram_col.dendrogram, approx_clusternum_col)
         den = sch.dendrogram(
             g.dendrogram_col.linkage,
@@ -1088,7 +1088,7 @@ def dotplot(
                 dfh = dfh.sort_index(axis=0, key=natsort_keygen())
             dfh = dfh.fillna(0)
 
-        if row_clustering == True:
+        if row_clustering is True:
             Y = fcl.linkage(_df.to_numpy().T, method="ward", metric="euclidean")
             Z1 = sch.dendrogram(Y, no_plot=True)
             idx1 = Z1["leaves"]
@@ -1217,7 +1217,7 @@ def dotplot(
     if title != "":
         fig.suptitle(title)
     _save(save, "dotplot")
-    if show == True:
+    if show is True:
         plt.show()
     return {"axes1": ax1, "axes2": ax2, "axes3": ax3}
 
@@ -1478,7 +1478,7 @@ def heatmap(
     row_colors = copy.deepcopy(row_colors)
     col_colors = copy.deepcopy(col_colors)
 
-    if col_split == True and row_split == True:
+    if col_split is True and row_split is True:
         raise Exception("Splitting both columns and rows may not be a good idea...")
 
     def _scale_size(x, size_scale, smin, smax):
@@ -1548,11 +1548,14 @@ def heatmap(
                 scX = np.array(list(shape_colors.values())[0])
             else:
                 scX = np.array(shape_colors)
-        if row_cluster == True or col_cluster == True:
+        if row_cluster is True or col_cluster is True:
             clustering_method = "kmodes"
             print(
                 "Categorical variables are provided. 'kmodes' will be used for the clustering method."
             )
+    else:
+        print("dtype should be numerical or catgorical")
+        return
 
     rowplot_num = (
         len(category)
@@ -1561,8 +1564,8 @@ def heatmap(
         + len(row_scatter)
         + len(row_bar)
         + row_axis
-        + int(clustering_method == "kmeans" and row_cluster == True)
-        + int(clustering_method == "kmodes" and row_cluster == True)
+        + int(clustering_method == "kmeans" and row_cluster is True)
+        + int(clustering_method == "kmodes" and row_cluster is True)
     )
     colplot_num = (
         len(col_colors)
@@ -1570,13 +1573,13 @@ def heatmap(
         + len(col_scatter)
         + len(col_bar)
         + col_axis
-        + int(clustering_method == "kmeans" and col_cluster == True)
-        + int(clustering_method == "kmodes" and col_cluster == True)
+        + int(clustering_method == "kmeans" and col_cluster is True)
+        + int(clustering_method == "kmodes" and col_cluster is True)
     )
     Xshape = X.shape
     if np.sum(Xshape) > 200:
         edgecolor = None
-    show_legend = int(rowplot_num > 0 or type(Xsize) != type(None))
+    show_legend = int(rowplot_num > 0 or Xsize)
 
     if len(figsize) == 0:
         figure_height = np.amin([np.amax([X.shape[0] / 5, 3]), 10])
@@ -1639,7 +1642,7 @@ def heatmap(
 
     size_legend_num = 3
     size_legend_elements = []
-    if type(Xsize) != type(None):
+    if Xsize is not None:
         size_legend_elements, size_labels = _create_shape_legend_elements(
             Xsize,
             Xshape,
@@ -1658,7 +1661,7 @@ def heatmap(
     legend_elements_dict = {}
     rclusters = {}
     cclusters = {}
-    if row_cluster == True:
+    if row_cluster is True:
         if clustering_method == "hierarchical":
             # Drawing the left dendrogram
             ax0 = fig.add_axes([xori, yori, ltreew, ltreeh])
@@ -1688,14 +1691,14 @@ def heatmap(
             row_colors["kmeans_row"] = _kmeans.labels_.astype(str)
             sortindexr = np.lexsort((X.mean(axis=1), _kmeans.labels_))
             X = X[sortindexr]
-            if type(Xsize) != type(None):
+            if Xsize:
                 Xsize = Xsize[sortindexr]
             if len(shape_colors) > 0:
                 scX = scX[sortindexr]
             rowlabels = rowlabels[sortindexr]
             _klabels = _kmeans.labels_[sortindexr]
             for i, (kclass, label) in enumerate(zip(_klabels, rowlabels)):
-                if not kclass in rclusters:
+                if kclass not in rclusters:
                     rclusters[kclass] = []
                 rclusters[kclass].append(label)
         elif clustering_method == "kmodes":
@@ -1711,7 +1714,7 @@ def heatmap(
             row_colors["kmodes_row"] = clusters.astype(str)
             sortindexr = np.argsort(clusters)
             X = X[sortindexr]
-            if type(Xsize) != type(None):
+            if Xsize:
                 Xsize = Xsize[sortindexr]
 
             if len(shape_colors) > 0:
@@ -1719,7 +1722,7 @@ def heatmap(
             rowlabels = rowlabels[sortindexr]
             _klabels = clusters[sortindexr]
             for i, (kclass, label) in enumerate(zip(_klabels, rowlabels)):
-                if not kclass in rclusters:
+                if kclass not in rclusters:
                     rclusters[kclass] = []
                 rclusters[kclass].append(label)
 
@@ -1727,7 +1730,7 @@ def heatmap(
         sortindexr = np.arange(len(rowlabels))
 
     # Column-wise clustering
-    if col_cluster == True:
+    if col_cluster is True:
 
         if clustering_method == "hierarchical":
             ax1 = fig.add_axes([hmapx, ttreey, ttreew, ttreeh])
@@ -1756,7 +1759,7 @@ def heatmap(
             col_colors["kmeans_column"] = _ckmeans.labels_.astype(str)
             sortindexc = np.lexsort((X.mean(axis=0), _ckmeans.labels_))
             X = X[:, sortindexc]
-            if type(Xsize) != type(None):
+            if Xsize is not None:
                 Xsize = Xsize[:, sortindexc]
 
             if len(shape_colors) > 0:
@@ -1765,7 +1768,7 @@ def heatmap(
             collabels = collabels[sortindexc]
             _cklabels = _ckmeans.labels_[sortindexc]
             for i, (kclass, label) in enumerate(zip(_cklabels, collabels)):
-                if not kclass in cclusters:
+                if kclass not in cclusters:
                     cclusters[kclass] = []
                 cclusters[kclass].append(label)
         elif clustering_method == "kmodes":
@@ -1781,7 +1784,7 @@ def heatmap(
             col_colors["kmodes_column"] = clustersc.astype(str)
             sortindexc = np.argsort(clustersc)
             X = X[:, sortindexc]
-            if type(Xsize) != type(None):
+            if Xsize is not None:
                 Xsize = Xsize[:, sortindexc]
 
             if len(shape_colors) > 0:
@@ -1790,7 +1793,7 @@ def heatmap(
             _cklabels = clustersc[sortindexc]
             # print(_cklabels,collabels )
             for i, (kclass, label) in enumerate(zip(_cklabels, collabels)):
-                if not kclass in cclusters:
+                if kclass not in cclusters:
                     cclusters[kclass] = []
                 cclusters[kclass].append(label)
     else:
@@ -1859,7 +1862,7 @@ def heatmap(
     if len(shape_colors) > 0:
         scXmin = np.amin(scX)
         scXmax = np.amax(scX)
-    if type(Xsize) != type(None):
+    if Xsize is not None:
         Xsizemin = np.amin(Xsize)
         Xsizemax = np.amax(Xsize)
 
@@ -1868,7 +1871,7 @@ def heatmap(
     if dtype == "categorical":
         _shape_lut = {}
         _color_lut = {}
-        if column_wise_color == False:
+        if column_wise_color is False:
             _uniq_labels = np.unique(X.flatten())
             if shape == "by_category":
 
@@ -1943,7 +1946,7 @@ def heatmap(
     if shape == "by_category":
         shape = _shape_lut
     # the number of members in row clusters
-    if row_cluster == True:
+    if row_cluster is True:
         if clustering_method == "hierarchical":
             _cnums_dict, ccolor_unique = _get_cluster_classes2(Z, above_threshold_color)
             # print("_cnums_dict", "ccolor_unique", _cnums_dict, ccolor_unique)
@@ -1954,7 +1957,7 @@ def heatmap(
         _cnums = cnums / np.sum(cnums)
 
     # the number of members in column clusters
-    if col_cluster == True:
+    if col_cluster is True:
         if clustering_method == "hierarchical":
             _col_cnums_dict, col_ccolor_unique = _get_cluster_classes2(
                 Zt, above_threshold_color
@@ -1969,12 +1972,13 @@ def heatmap(
     # Boxed row labels by clusters
     render = fig.canvas.get_renderer()
     rwidth = render.width
-    if row_cluster == True and boxlabels == True:
+    if row_cluster is True and boxlabels is True:
         rownum = len("".join(rowlabels))
-        if box_textwidth == None:
+        linenum = 10
+        if box_textwidth is None:
             box_textwidth = 20
             linenum = rownum // box_textwidth + int(rownum % box_textwidth != 0)
-        if box_max_lines == None:
+        if box_max_lines is None:
             box_max_lines = np.amin([10, linenum])
         wrapper = textwrap.TextWrapper(width=20, max_lines=box_max_lines)
         _r = 0
@@ -2028,7 +2032,7 @@ def heatmap(
     pcolormesh = False
     if Xshape[0] >= 512 or Xshape[1] >= 512:
         pcolormesh = True
-    if row_split == True and row_cluster == True:
+    if row_split is True and row_cluster is True:
 
         # print(cnums, _cnums)
         _y = 0
@@ -2039,7 +2043,7 @@ def heatmap(
             Xsub = X[_r : _r + c]
             Xsubshape = Xsub.shape
 
-            if pcolormesh == True:
+            if pcolormesh is True:
                 if dtype == "numerical":
                     Xsub = (Xsub - Xmin) / (Xmax - Xmin)
                     ax.pcolormesh(Xsub)
@@ -2067,7 +2071,7 @@ def heatmap(
                     else:
                         facecolors = [_color_lut[u] for u in _X]
                 _Xsize = None
-                if type(Xsize) != type(None):
+                if Xsize is not None:
                     _Xsize = Xsize[_r : _r + c]
                     _Xsize = (_Xsize - Xsizemin) / (Xsizemax - Xsizemin)
                     _Xsize = _Xsize.flatten()
@@ -2093,7 +2097,7 @@ def heatmap(
                     rasterized,
                     n_jobs=n_jobs,
                 )
-                if show_values == True:
+                if show_values is True:
                     for (_xtmp, _ytmp), text in zip(row_col, Xsub.flatten()):
                         txt = ax.text(
                             _xtmp,
@@ -2124,7 +2128,7 @@ def heatmap(
 
             axis_dict["heatmap" + str(i)] = ax
 
-    elif col_split == True and col_cluster == True:
+    elif col_split is True and col_cluster is True:
 
         # print(cnums, _cnums)
         _y = 0
@@ -2135,7 +2139,7 @@ def heatmap(
 
             Xsub = X[:, _r : _r + c]
             Xsubshape = Xsub.shape
-            if pcolormesh == True:
+            if pcolormesh is True:
                 if dtype == "numerical":
                     Xsub = (Xsub - Xmin) / (Xmax - Xmin)
                     ax.pcolormesh(Xsub)
@@ -2163,7 +2167,7 @@ def heatmap(
                     else:
                         facecolors = [_color_lut[u] for u in _X]
                 _Xsize = None
-                if type(Xsize) != type(None):
+                if Xsize is not None:
                     Xsizesub = Xsize[:, _r : _r + c]
                     _Xsize = Xsizesub.flatten()
                     _Xsize = (_Xsize - Xsizemin) / (Xsizemax - Xsizemin)
@@ -2189,7 +2193,7 @@ def heatmap(
                     rasterized,
                     n_jobs=n_jobs,
                 )
-                if show_values == True:
+                if show_values is True:
                     for (_xtmp, _ytmp), text in zip(row_col, Xsub.flatten()):
                         txt = ax.text(
                             _xtmp,
@@ -2221,7 +2225,7 @@ def heatmap(
     else:
         ax = fig.add_axes([hmapx, yori, hmapw, hmaph])
 
-        if pcolormesh == True:
+        if pcolormesh is True:
             if dtype == "numerical":
                 X = (X - Xmin) / (Xmax - Xmin)
                 ax.pcolormesh(X)
@@ -2235,7 +2239,7 @@ def heatmap(
 
             _X = X.flatten()
             _Xsize = None
-            if type(Xsize) != type(None):
+            if Xsize is not None:
                 _Xsize = Xsize.flatten()
                 _Xsize = (_Xsize - Xsizemin) / (Xsizemax - Xsizemin)
             if dtype == "numerical":
@@ -2275,7 +2279,7 @@ def heatmap(
                 n_jobs=n_jobs,
             )
 
-            if show_values == True:
+            if show_values is True:
                 for (_xtmp, _ytmp), text in zip(row_col, X.flatten()):
                     txt = ax.text(
                         _xtmp,
@@ -2370,7 +2374,7 @@ def heatmap(
             axis_dict["legend_" + cat] = axlegend
 
     # Setting the size legend
-    if type(Xsize) != type(None):
+    if Xsize is not None:
         if legendnum > 0:
             legendnum += 1
         axlegend = fig.add_axes([hmapx + hmapw + 0.02, 0.14, legendw, legendh])
@@ -2401,7 +2405,7 @@ def heatmap(
         )
         if cbar_title != "":
             axc.set_title(cbar_title)
-        if ztranform == True:
+        if ztranform is True:
             cb1.set_label("z-score")
         elif cunit != "":
             cb1.set_label(cunit)
@@ -2421,7 +2425,7 @@ def heatmap(
     fig.suptitle(title)
     # plt.subplots_adjust(**gridspec_kw)
     _save(save, "heatmap")
-    if show == True:
+    if show is True:
         plt.show()
 
     return {
@@ -2453,7 +2457,7 @@ def _add_patches(
     n_jobs=-1,
 ):
 
-    if type(Xsize) != type(None):
+    if Xsize is not None:
         _row_col = np.array(row_col)
         _shapes = [
             Rectangle(
@@ -2464,7 +2468,7 @@ def _add_patches(
         ax.add_collection(_pc)
 
     if type(shape) == dict:
-        if type(Xsize) != type(None):
+        if Xsize is not None:
             shapes = Parallel(n_jobs=n_jobs)(
                 delayed(_create_polygon)(shape[val], x, y, wh)
                 for (x, y), wh, val in zip(row_col, _Xsize, Xflatten)
@@ -2476,7 +2480,7 @@ def _add_patches(
                 for (x, y), val in zip(row_col, Xflatten)
             )
     else:
-        if type(Xsize) != type(None):
+        if Xsize is not None:
             shapes = [
                 _create_polygon(shape, x, y, wh) for (x, y), wh in zip(row_col, _Xsize)
             ]
@@ -2489,7 +2493,7 @@ def _add_patches(
                 delayed(_create_polygon)(shape, x, y, 1) for x, y in row_col
             )
     # Create patch collection with specified colour/alpha
-    if edgecolor == None:
+    if edgecolor is None:
         pc = PatchCollection(
             shapes, facecolor=facecolors, alpha=1, edgecolor=facecolors
         )
@@ -2522,7 +2526,7 @@ def _add_patches(
 
 
 def _create_polygon(shape, x, y, r, ry=None, **kwargs):
-    if ry == None:
+    if ry is None:
         ry = r
     if shape == "rectangle":
         return Rectangle((x - r / 2, y - r / 2), r, ry, **kwargs)
@@ -2568,10 +2572,10 @@ def _create_polygon(shape, x, y, r, ry=None, **kwargs):
         n, m = int(n), int(m)
         rs = []
         if n % m == 0:
-            l = n // m
+            _n = n // m
             for _m in range(m):
 
-                for _l in range(l + 1):
+                for _l in range(_n + 1):
                     rs.append(
                         [
                             x
@@ -2938,7 +2942,7 @@ def _process_vdata(
             if size_title == "":
                 try:
                     size_title = sizes.name
-                except:
+                except Exception:
                     size_title = ""
         elif type(sizes) == dict:
             size_title, Xsize, = (
@@ -2989,7 +2993,7 @@ def _process_vdata(
     else:
         raise Exception("")
     rowlabels = rowlabels.astype(str)
-    if ztranform == True:
+    if ztranform is True:
         X = zscore(X, axis=0)
         if cunit == "":
             cunit = "zscore"
@@ -3024,7 +3028,7 @@ def _process_cdata(
             if size_title == "":
                 try:
                     size_title = sizes.name
-                except:
+                except Exception:
                     size_title = ""
         elif type(sizes) == dict:
             size_title, Xsize, = (
@@ -3120,11 +3124,11 @@ def _dendrogram(
     # Sorting the row values of X.
     if orientation == "left":
         X = X[Z["leaves"]]
-        if type(Xsize) != type(None):
+        if Xsize is not None:
             Xsize = Xsize[Z["leaves"]]
     elif orientation == "top":
         X = X[:, Z["leaves"]]
-        if type(Xsize) != type(None):
+        if Xsize is not None:
             Xsize = Xsize[:, Z["leaves"]]
     rclusters = _get_cluster_classes(Z, original_rows=[])
     # print(_rlabels)
@@ -3142,9 +3146,9 @@ class _AnyObjectHandler:
         self.shape = shape
 
     def legend_artist(self, legend, orig_handle, fontsize, handlebox):
-        x0, y0 = handlebox.xdescent, handlebox.ydescent
+        # x0, y0 = handlebox.xdescent, handlebox.ydescent
         # print(x0, y0)
-        width, height = handlebox.width, handlebox.height
+        # width, height = handlebox.width, handlebox.height
         # print(width, height)
         patch = _create_polygon(
             self.shape,
@@ -3178,13 +3182,13 @@ def _axis_loc_sizes(
 ) -> List:
     # determining the size and positionn of axes
 
-    if col_ticklabels == True:
+    if col_ticklabels is True:
         lmax = float(np.amax(list(map(len, list(collabels.astype(str))))))
         lmax = np.amin([lmax / 150, 0.3])
     else:
         lmax = 0
 
-    if boxlabels == True:
+    if boxlabels is True:
         row_ticklabels = False
 
     xori = 0.05
@@ -3192,18 +3196,18 @@ def _axis_loc_sizes(
     lcatw = 0.04
 
     legendw = 0.15 * show_legend
-    if boxlabels == True:
+    if boxlabels is True:
         boxwidth = 0.15
     else:
         boxwidth = 0.0
-    if row_cluster == True:
+    if row_cluster is True:
         ltreew = 0.15
         ttreew = 0.65 - lcatw * rowplot_num - legendw - boxwidth
     else:
         ltreew = 0
         ttreew = 0.75 - lcatw * rowplot_num - legendw
 
-    if col_cluster == True:
+    if col_cluster is True:
         ltreeh = 0.75 - lmax
         ttreeh = 0.05
     else:
