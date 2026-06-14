@@ -7,7 +7,7 @@
    (   O L  O    )8
     (   <--->   )
      `---------'
-     
+
 """
 import matplotlib.collections as mc
 import matplotlib.pyplot as plt
@@ -46,7 +46,7 @@ def dotplot(df,
         _df=df.pivot_table(index=col,columns=row,values=size_val)
         _df=_df.sort_index(axis=0,key=natsort_keygen())
         _df=_df.fillna(0)
-            
+
         if color_val!="":
             dfc=df.pivot_table(index=col,columns=row,values=color_val)
             dfc=dfc.sort_index(axis=0,key=natsort_keygen())
@@ -55,7 +55,7 @@ def dotplot(df,
             dfh=df.pivot_table(index=col,columns=row,values=highlight)
             dfh=dfh.sort_index(axis=0,key=natsort_keygen())
             dfh=dfh.fillna(0)
-        
+
         if row_clustering==True:
             Y = fcl.linkage(_df.to_numpy().T, method='ward', metric='euclidean')
             Z1 = sch.dendrogram(Y,no_plot=True)
@@ -80,7 +80,7 @@ def dotplot(df,
     #if minsize==0:
         #mat=mat+maxsize*0.01
     #minsize=np.amin(mat)
-    
+
     maxsize=np.round(maxsize)
     middle0=np.round((minsize+maxsize)/3)
     middle1=np.round(2*(minsize+maxsize)/3)
@@ -96,7 +96,7 @@ def dotplot(df,
     if highlight !="":
         hmat=dfh.to_numpy()
         hvals = [hmat[i,j]*scaling for i in range(len(_x)) for j in range(len(_y))]
-       
+
         for s in hvals:
             if s>=threshold*scaling:
                 edge_colors.append("magenta")
@@ -108,7 +108,7 @@ def dotplot(df,
                 edge_colors.append("magenta")
             else:
                 edge_colors.append("gray")
-    
+
     if len(dfc) !=0:
         viridis = cm.get_cmap('viridis', 12)
         cmat=dfc.to_numpy()
@@ -121,7 +121,7 @@ def dotplot(df,
     #xy = 10 * np.random.random((num, 2))
     #xy=XY
     #patches = [plt.Circle(center, size) for center, size in zip(xy, sizes)]
-    
+
     #fig, ax = plt.subplots(ncols=2, gridspec_kw={'width_ratios': [8, 2]})
     fig = plt.figure()
     fig.set_figheight(6)
@@ -129,11 +129,11 @@ def dotplot(df,
     ax1 = plt.subplot2grid(shape=(6, 6), loc=(0, 0), colspan=4, rowspan=6)
     ax2 = plt.subplot2grid(shape=(6, 6), loc=(0, 4), colspan=2, rowspan=2)
     ax3 = plt.subplot2grid(shape=(6, 6), loc=(2, 4), colspan=2, rowspan=1)
- 
+
     collection = mc.CircleCollection(sizes,
-                                     edgecolors=edge_colors, 
-                                     offsets=xy, 
-                                     transOffset=ax1.transData, 
+                                     edgecolors=edge_colors,
+                                     offsets=xy,
+                                     transOffset=ax1.transData,
                                      facecolors=_colors,
                                      linewidths=2)
     ax1.add_collection(collection)
@@ -144,13 +144,13 @@ def dotplot(df,
     ax1.set_yticklabels(_y, rotation=0)
     if len(dfc) !=0:
         norm = mpl.colors.Normalize(vmin=np.min(cmat), vmax=np.amax(cmat))
-        
+
         cb1 = mpl.colorbar.ColorbarBase(ax3, cmap=viridis,
                                         norm=norm,
                                         orientation='horizontal')
         cb1.set_label(color_title)
     #ax[1]=fig.add_axes([1,0.3,0.1,1])
-    
+
     lxy=[[0.5, i*1] for i in range(3)]
     collection2 = mc.CircleCollection([middle0*scaling,middle1*scaling, maxsize*scaling], offsets=lxy, transOffset=ax2.transData, facecolors='gray',edgecolors="black")
     ax2.add_collection(collection2)
@@ -187,20 +187,20 @@ def radialtree(Z2,fontsize=8,figsize=None, pallete="gist_rainbow", addlabels=Tru
     pallete : string
         Matlab colormap name.
     sample_classes : dict
-        A dictionary that contains lists of sample subtypes or classes. These classes appear 
-        as color labels of each leaf. Colormaps are automatically assigned. Not compatible 
+        A dictionary that contains lists of sample subtypes or classes. These classes appear
+        as color labels of each leaf. Colormaps are automatically assigned. Not compatible
         with options "colorlabels" and "colorlabels_legend".
-        e.g., {"color1":["Class1","Class2","Class1","Class3", ....]} 
+        e.g., {"color1":["Class1","Class2","Class1","Class3", ....]}
     colorlabels : dict
-        A dictionary to set color labels to leaves. The key is the name of the color label. 
-        The value is the list of RGB color codes, each corresponds to the color of a leaf. 
-        e.g., {"color1":[[1,0,0,1], ....]}   
+        A dictionary to set color labels to leaves. The key is the name of the color label.
+        The value is the list of RGB color codes, each corresponds to the color of a leaf.
+        e.g., {"color1":[[1,0,0,1], ....]}
     colorlabels_legend : dict
-        A nested dictionary to generate the legends of color labels. The key is the name of 
-        the color label. The value is a dictionary that has two keys "colors" and "labels". 
-        The value of "colors" is the list of RGB color codes, each corresponds to the class of a leaf. 
-        e.g., {"color1":{"colors":[[1,0,0,1], ....], "labels":["label1","label2",...]}}   
-    
+        A nested dictionary to generate the legends of color labels. The key is the name of
+        the color label. The value is a dictionary that has two keys "colors" and "labels".
+        The value of "colors" is the list of RGB color codes, each corresponds to the class of a leaf.
+        e.g., {"color1":{"colors":[[1,0,0,1], ....], "labels":["label1","label2",...]}}
+
     Returns
     -------
     Raises
@@ -237,7 +237,7 @@ def radialtree(Z2,fontsize=8,figsize=None, pallete="gist_rainbow", addlabels=Tru
     plt.rcParams['svg.fonttype'] = 'none'
     xmax=np.amax(Z2['icoord'])
     ymax=np.amax(Z2['dcoord'])
-    
+
     ucolors=sorted(set(Z2["color_list"]))
     #cmap = cm.gist_rainbow(np.linspace(0, 1, len(ucolors)))
     cmp=cm.get_cmap(pallete, len(ucolors))
@@ -254,9 +254,9 @@ def radialtree(Z2,fontsize=8,figsize=None, pallete="gist_rainbow", addlabels=Tru
         _color=cmap[ucolors.index(c)]
         if c=="C0": #np.abs(_xr1)<0.000000001 and np.abs(_yr1) <0.000000001:
             _color="black"
-        
+
         # transforming original x coordinates into relative circumference positions and y into radius
-        # the rightmost leaf is going to [1, 0] 
+        # the rightmost leaf is going to [1, 0]
         r=R*(1-np.array(y)/ymax)
         _x=np.cos(2*np.pi*np.array([x[0],x[2]])/xmax) # transforming original x coordinates into x circumference positions
         _xr0=_x[0]*r[0]
@@ -269,21 +269,21 @@ def radialtree(Z2,fontsize=8,figsize=None, pallete="gist_rainbow", addlabels=Tru
         _yr2=_y[1]*r[2]
         _yr3=_y[1]*r[3]
         #plt.scatter([_xr0, _xr1, _xr2, _xr3],[_yr0, _yr1, _yr2,_yr3], c="b")
-        
-        
+
+
         #if y[0]>0 and y[3]>0:
             #_color="black"
         #plotting radial lines
         plt.plot([_xr0, _xr1], [_yr0, _yr1], c=_color,linewidth=linewidth)
         plt.plot([_xr2, _xr3], [_yr2,_yr3], c=_color,linewidth=linewidth)
-        
+
         #plotting circular links between nodes
         if _yr1> 0 and _yr2>0:
             link=np.sqrt(r[1]**2-np.linspace(_xr1, _xr2, 100)**2)
             plt.plot(np.linspace(_xr1, _xr2, 100), link, c=_color,linewidth=linewidth)
         elif _yr1 <0 and _yr2 <0:
             link=-np.sqrt(r[1]**2-np.linspace(_xr1, _xr2, 100)**2)
-            
+
             plt.plot(np.linspace(_xr1, _xr2, 100), link, c=_color,linewidth=linewidth)
         elif _yr1> 0 and _yr2 < 0:
             _r=r[1]
@@ -293,9 +293,9 @@ def radialtree(Z2,fontsize=8,figsize=None, pallete="gist_rainbow", addlabels=Tru
             plt.plot(np.linspace(_xr1, _r, 100), link, c=_color,linewidth=linewidth)
             link=-np.sqrt(r[1]**2-np.linspace(_r, _xr2, 100)**2)
             plt.plot(np.linspace(_r, _xr2, 100), link, c=_color,linewidth=linewidth)
-        
+
         #Calculating the x, y coordinates and rotation angles of labels
-        
+
         if y[0]==0:
             label_coords.append([(1.05+offset)*_xr0, (1.05+offset)*_yr0,360*x[0]/xmax])
             #plt.text(1.05*_xr0, 1.05*_yr0, Z2['ivl'][i],{'va': 'center'},rotation_mode='anchor', rotation=360*x[0]/xmax)
@@ -304,20 +304,20 @@ def radialtree(Z2,fontsize=8,figsize=None, pallete="gist_rainbow", addlabels=Tru
             label_coords.append([(1.05+offset)*_xr3, (1.05+offset)*_yr3,360*x[2]/xmax])
             #plt.text(1.05*_xr3, 1.05*_yr3, Z2['ivl'][i],{'va': 'center'},rotation_mode='anchor', rotation=360*x[2]/xmax)
             i+=1
-    
+
 
     if addlabels==True:
-        assert len(Z2['ivl'])==len(label_coords), "Internal error, label numbers "+str(len(Z2['ivl'])) +" and "+str(len(label_coords))+" must be equal!" 
-        
+        assert len(Z2['ivl'])==len(label_coords), "Internal error, label numbers "+str(len(Z2['ivl'])) +" and "+str(len(label_coords))+" must be equal!"
+
         #Adding labels
         for (_x, _y,_rot), label in zip(label_coords, Z2['ivl']):
             plt.text(_x, _y, label,{'va': 'center'},rotation_mode='anchor', rotation=_rot,fontsize=fontsize)
-    
-    
-    
+
+
+
     if colorlabels != None:
-        assert len(Z2['ivl'])==len(label_coords), "Internal error, label numbers "+str(len(Z2['ivl'])) +" and "+str(len(label_coords))+" must be equal!" 
-        
+        assert len(Z2['ivl'])==len(label_coords), "Internal error, label numbers "+str(len(Z2['ivl'])) +" and "+str(len(label_coords))+" must be equal!"
+
         j=0
         outerrad=R*1.05+width*len(colorlabels)+space*(len(colorlabels)-1)
         print(outerrad)
@@ -347,7 +347,7 @@ def radialtree(Z2,fontsize=8,figsize=None, pallete="gist_rainbow", addlabels=Tru
             plt.gca().add_patch(circle)
             labelnames.append(labelname)
             j+=1
-        
+
         if colorlabels_legend!=None:
             for i, labelname in enumerate(labelnames):
                 print(colorlabels_legend[labelname]["colors"])
@@ -358,10 +358,10 @@ def radialtree(Z2,fontsize=8,figsize=None, pallete="gist_rainbow", addlabels=Tru
                            colorlabels_legend[labelname]["labels"],
                        bbox_to_anchor=(1.5+0.3*i, 1.0),
                        title=labelname)
-                plt.gca().add_artist(leg)   
+                plt.gca().add_artist(leg)
     elif sample_classes!=None:
-        assert len(Z2['ivl'])==len(label_coords), "Internal error, label numbers "+str(len(Z2['ivl'])) +" and "+str(len(label_coords))+" must be equal!" 
-        
+        assert len(Z2['ivl'])==len(label_coords), "Internal error, label numbers "+str(len(Z2['ivl'])) +" and "+str(len(label_coords))+" must be equal!"
+
         j=0
         outerrad=R*1.05+width*len(sample_classes)+space*(len(sample_classes)-1)
         print(outerrad)
@@ -399,7 +399,7 @@ def radialtree(Z2,fontsize=8,figsize=None, pallete="gist_rainbow", addlabels=Tru
             colorlabels_legend[labelname]["colors"]=_cmp(np.linspace(0, 1, type_num))
             colorlabels_legend[labelname]["labels"]=ucolors
             j+=1
-        
+
         if colorlabels_legend!=None:
             for i, labelname in enumerate(labelnames):
                 print(colorlabels_legend[labelname]["colors"])
@@ -430,7 +430,7 @@ def radialtree(Z2,fontsize=8,figsize=None, pallete="gist_rainbow", addlabels=Tru
         plt.show()
     else:
         return ax
-    
+
 def _get_cluster_classes(den, label='ivl'):
     cluster_idxs = defaultdict(list)
     for c, pi in zip(den['color_list'], den['icoord']):
@@ -449,7 +449,7 @@ def _get_cluster_classes(den, label='ivl'):
 def _complex_clustermap(df,row_plot=[],col_plot=[],approx_clusternum=10,color_var=0,merginalsum=False,show=True,method="ward", **kwargs):
     rnum, cnum=df.shape
     sns.set(font_scale=1)
-    
+
     if merginalsum:
         white_bgr=np.ones([rnum, 4])
         white_bgc=np.ones([cnum, 4])
@@ -458,20 +458,20 @@ def _complex_clustermap(df,row_plot=[],col_plot=[],approx_clusternum=10,color_va
         r=np.sum(mat, axis=1)
         g.ax_row_colors.barh(np.arange(r.shape[0])+0.5, r[leaves_list(g.dendrogram_row.linkage)]/np.amax(r))
         g.ax_row_colors.invert_xaxis()
-        
+
         c=np.sum(mat, axis=0)
         #print(leaves_list(g.dendrogram_col.linkage))
         g.ax_col_colors.bar(np.arange(c.shape[0])+0.5,c[leaves_list(g.dendrogram_col.linkage)]/np.amax(c))
         g.ax_col_colors.invert_yaxis()
-    
+
     elif len(row_plot)>0:
-        
+
         white_bg=[np.ones([rnum, 4]) for _ in range(len(row_plot))]
         g=sns.clustermap(df, row_colors=white_bg,method=method,**kwargs)#hot(cbenign))
         for i, r in enumerate(row_plot):
             g.ax_row_colors.plot(r[leaves_list(g.dendrogram_row.linkage)]/np.amax(r)+i, np.arange(r.shape[0])+0.5)
         g.ax_row_colors.invert_xaxis()
-        
+
     else:
         g=sns.clustermap(df,method=method,**kwargs)
     if color_var>0:
@@ -486,14 +486,14 @@ def _complex_clustermap(df,row_plot=[],col_plot=[],approx_clusternum=10,color_va
         #print(np.sum(lbranches[:,1]>t),np.sum(rbranches[:,0]>t),np.sum(lbranches[:,0]>t),np.sum(rbranches[:,1]>t))
         crossbranches=np.sum(lbranches[:,1]>t)+np.sum(rbranches[:,0]>t)-np.sum(lbranches[:,0]>t)-np.sum(rbranches[:,1]>t)
         #print(crossbranches)
-        
+
         if crossbranches>approx_clusternum:
             break
-    
+
     den=hierarchy.dendrogram(g.dendrogram_row.linkage,
                                              labels = g.data.index,
                                              color_threshold=t,ax=g.ax_row_dendrogram,
-                        orientation="left")  
+                        orientation="left")
     g.ax_row_dendrogram.invert_yaxis()
     clusters = _get_cluster_classes(den)
     cdata={"Cluster":[],"Index":[],"RGB":[]}
@@ -520,7 +520,7 @@ def complex_clustermap(df,row_plot={},col_plot={},approx_clusternum=10,color_var
     print(kwargs)
     rnum, cnum=df.shape
     sns.set(font_scale=1)
-    
+
     totalrowplot=0
     if merginalsum==True:
         totalrowplot+=1
@@ -537,38 +537,38 @@ def complex_clustermap(df,row_plot={},col_plot={},approx_clusternum=10,color_var
         if totalrowplot >0 and totalcolplot >0:
             white_bgr=[np.ones([rnum, 4]) for _ in range(totalrowplot)]
             white_bgc=[np.ones([cnum, 4]) for _ in range(totalcolplot)]
-            
+
             g=sns.clustermap(df,col_colors=white_bgc, row_colors=white_bgr,method=method,**kwargs)
             g.ax_col_colors.invert_yaxis()
             g.ax_row_colors.invert_xaxis()
         elif totalcolplot >0:
             white_bgc=[np.ones([cnum, 4]) for _ in range(totalcolplot)]
-            
+
             g=sns.clustermap(df,col_colors=white_bgc,method=method,**kwargs)
             g.ax_col_colors.invert_yaxis()
         elif totalrowplot >0:
             white_bgr=[np.ones([rnum, 4]) for _ in range(totalrowplot)]
-            
+
             g=sns.clustermap(df,row_colors=white_bgr,method=method,**kwargs)
             g.ax_row_colors.invert_xaxis()
         if merginalsum:
             mat=df.to_numpy()
             r=np.sum(mat, axis=1)
             g.ax_row_colors.barh(np.arange(r.shape[0])+0.5, r[leaves_list(g.dendrogram_row.linkage)]/np.amax(r))
-            
-            
+
+
             c=np.sum(mat, axis=0)
             #print(leaves_list(g.dendrogram_col.linkage))
             g.ax_col_colors.bar(np.arange(c.shape[0])+0.5,c[leaves_list(g.dendrogram_col.linkage)]/np.amax(c))
-            
+
             rowplotcount=1
             colplotcount=1
-        
+
         if len(row_plot)>0:
             row_cluster=True
             if "row_cluster" in kwargs:
                 row_cluster=kwargs["row_cluster"]
-            
+
             for i, (lname, r) in enumerate(row_plot.items()):
                 r=np.array(r)
                 if row_cluster==True:
@@ -603,14 +603,14 @@ def complex_clustermap(df,row_plot={},col_plot={},approx_clusternum=10,color_var
         #print(np.sum(lbranches[:,1]>t),np.sum(rbranches[:,0]>t),np.sum(lbranches[:,0]>t),np.sum(rbranches[:,1]>t))
         crossbranches=np.sum(lbranches[:,1]>t)+np.sum(rbranches[:,0]>t)-np.sum(lbranches[:,0]>t)-np.sum(rbranches[:,1]>t)
         #print(crossbranches)
-        
+
         if crossbranches>approx_clusternum:
             break
-    
+
     den=hierarchy.dendrogram(g.dendrogram_row.linkage,
                                              labels = g.data.index,
                                              color_threshold=t,ax=g.ax_row_dendrogram,
-                        orientation="left")  
+                        orientation="left")
     g.ax_row_dendrogram.invert_yaxis()
     clusters = _get_cluster_classes(den)
     cdata={"Cluster":[],"Index":[],"RGB":[]}
@@ -641,29 +641,29 @@ def triangle_heatmap(df, grid_pos=[],grid_labels=[]):
     D = dmat
     N = dmat.shape[0]
     a=np.tril(np.zeros([N,N])-1000000, k=-1)
-    # Get the lower triangle of the matrix. 
+    # Get the lower triangle of the matrix.
     C = np.triu(D)+a
-    
+
     # Mask the upper triangle.
     C = np.ma.masked_array(C, C == -1000000)
     # Set the diagonal to zero.
     for i in range(N):
         C[i, i] = 0
-    
+
     # Transformation matrix for rotating the heatmap.
     A = np.array([(y, x) for x in range(N, -1, -1) for y in range(N + 1)])
     t = np.array([[2**(-0.5), 2**(-0.5)], [-2**(-0.5), 2**(-0.5)]])
     A = np.dot(A, t)
     #t_ = np.array([[2**(-0.5), -2**(-0.5)], [2**(-0.5), 2**(-0.5)]])
-    
+
     # -1.0 correlation is blue, 0.0 is white, 1.0 is red.
     cmap = plt.cm.Reds
     #norm = mp.colors.BoundaryNorm(np.linspace(0, 10, 14), cmap.N)
-    
+
     # This MUST be before the call to pl.pcolormesh() to align properly.
     ax.set_xticks([])
     ax.set_yticks([])
-    
+
     X = A[:, 1].reshape(N + 1, N + 1)
     Y = A[:, 0].reshape(N + 1, N + 1)
     caxes = plt.pcolormesh(X, Y, np.flipud(C), axes=ax, cmap=cmap, rasterized=True)
@@ -678,10 +678,10 @@ def triangle_heatmap(df, grid_pos=[],grid_labels=[]):
             ax.plot([(grid)*(2**0.5), (grid)*(2**0.5)+(N-grid)/(2**(0.5))], [0, (N-grid)/(2**(0.5))], color='gray', linewidth=1)
             x1s.append(x1)
     x1s.append(N*2**0.5)
-    
-    
 
-    if len(genes) >0: 
+
+
+    if len(genes) >0:
         leng=0
         for i, g in enumerate(genes):
             #ax.plot([(i+0.5)*(2**0.5), (i+0.5)*(2**0.5)], [-2**0.5, -(N/10)*2**0.5/2],color='b', linewidth=0.5)
@@ -691,15 +691,15 @@ def triangle_heatmap(df, grid_pos=[],grid_labels=[]):
     else:
         leng=0
     spacing=(N/10)*leng*0.4
-    
-    
+
+
     rect=Rectangle([0, -spacing],N*(2**0.5), spacing, color='whitesmoke' , alpha=1, linewidth=0)
     ax.add_patch(rect)
-    
-    
+
+
     rect=Rectangle([0, -(N/10)*2**0.5/2],N*(2**0.5), (N/10)*2**0.5/2, color='dimgray' , alpha=1, linewidth=0)
     ax.add_patch(rect)
-    
+
     if len(grid_labels)>0:
         for i in range(len(x1s)-1):
             if i%2==1:
@@ -710,10 +710,10 @@ def triangle_heatmap(df, grid_pos=[],grid_labels=[]):
                 ax.add_patch(rect)
             x=(x1s[i]+x1s[i+1])/2
             ax.text(x,-(N/10)*2**0.5/4, grid_labels[i], rotation=90,ha='center', va='center', color="w")
-    
 
-    
-    
+
+
+
     cb = plt.colorbar(caxes, ax=ax, shrink=0.75)
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
@@ -723,14 +723,14 @@ def triangle_heatmap(df, grid_pos=[],grid_labels=[]):
 
 
 if __name__=="__main__":
-    
-    
+
+
     test="radialtree"
-    
+
     test="complex_clustermap"
     test="dotplot"
     #test="triangle_heatmap"
-    
+
     if test=="dotplot":
         # df=pd.read_csv("/home/koh/ews/idr_revision/clustering_analysis/cellloc_pval_co.csv",index_col=0)
         # dfc=pd.read_csv("/home/koh/ews/idr_revision/clustering_analysis/cellloc_odds_co.csv",index_col=0)

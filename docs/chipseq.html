@@ -32,17 +32,17 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-import os 
+import os
 import scipy.stats
 from scipy.spatial.distance import squareform, pdist
 from scipy.spatial import distance
 from joblib import Parallel, delayed
 import itertools as it
 from joblib.externals.loky import get_reusable_executor
-from omniplot.chipseq_utils import (_stitching_for_pyrange, 
-                                    gff_parser, 
-                                    _read_peaks, 
-                                    _read_bw, 
+from omniplot.chipseq_utils import (_stitching_for_pyrange,
+                                    gff_parser,
+                                    _read_peaks,
+                                    _read_bw,
                                     _calc_pearson,
                                     _stitching,
                                     _read_tss,
@@ -78,22 +78,22 @@ except Exception as err:
     print(f&#34;Unexpected {err=}, {type(err)=}&#34;)
     raise
 
-def plot_bigwig(files: dict, 
-                bed: Union[str, list], 
+def plot_bigwig(files: dict,
+                bed: Union[str, list],
                 gff: str,
                 step: int=100,
-                stack_regions: str=&#34;horizontal&#34;, 
+                stack_regions: str=&#34;horizontal&#34;,
                 highlight: Union[str, list]=[],
                 highlightname=&#34;&#34;,
                 n_jobs=-1,
                 save: str=&#34;&#34;)-&gt;dict:
     &#34;&#34;&#34;
-    Plotting bigwig files in specified genomic regions in the bed file.  
-    
+    Plotting bigwig files in specified genomic regions in the bed file.
+
     Parameters
     ----------
     files : dict
-        A dictionary whose keys are sample names and values are file names 
+        A dictionary whose keys are sample names and values are file names
     bed : str
         A bed file name containing the list of genomic regions
     gff : str
@@ -116,7 +116,7 @@ def plot_bigwig(files: dict,
     --------
     Examples
     --------
-    &#34;&#34;&#34; 
+    &#34;&#34;&#34;
     for k, v in files.items():
         assert type(v)==str, &#34;filenames must be str, but {} was give.&#34;.format(type(v))
         if not os.path.isfile(v)==True:
@@ -125,15 +125,15 @@ def plot_bigwig(files: dict,
         posrange=[]
         pos=[]
         with open(bed) as fin:
-            
+
             for l in fin:
                 l=l.split()
                 chrom, s, e=l[0],l[1],l[2]
                 posrange.append(pr.from_dict({&#34;Chromosome&#34;: [chrom], &#34;Start&#34;: [int(s.replace(&#34;,&#34;,&#34;&#34;))], &#34;End&#34;: [int(e.replace(&#34;,&#34;,&#34;&#34;))]}))
-                pos.append([chrom,int(s.replace(&#34;,&#34;,&#34;&#34;)),int(e.replace(&#34;,&#34;,&#34;&#34;))])  
+                pos.append([chrom,int(s.replace(&#34;,&#34;,&#34;&#34;)),int(e.replace(&#34;,&#34;,&#34;&#34;))])
     else:
         pos=bed
-        
+
     if type(highlight)==str:
         _highlight=[]
         with open(bed) as fin:
@@ -142,7 +142,7 @@ def plot_bigwig(files: dict,
                 chrom, s, e=l[0],l[1],l[2]
                 _highlight.append([chrom,int(s.replace(&#34;,&#34;,&#34;&#34;)),int(e.replace(&#34;,&#34;,&#34;&#34;))])
         highlight=_highlight
-    
+
     time_start=time.time()
     if gff.endswith(&#34;gff&#34;) or gff.endswith(&#34;gff3&#34;):
         gff_dict=_readgff2(gff, &#34;gene&#34;, others=[&#34;gene_name&#34;, &#34;Strand&#34;])
@@ -151,7 +151,7 @@ def plot_bigwig(files: dict,
     else:
         raise Exception(&#34;The gff/gtf file name is required to have either gff, gff3, or gtf extension.&#34;)
     gff_ob=pr.from_dict(gff_dict)
-    
+
     #
     # if gff.endswith(&#34;gff&#34;) or gff.endswith(&#34;gff3&#34;):
     #     gff_ob=pr.read_gff3(gff)
@@ -180,7 +180,7 @@ def plot_bigwig(files: dict,
             #     gr2=gr2[gr2.Feature==&#34;gene&#34;]
             # elif gffformat==&#34;gtf&#34;:
             #     gr2=gr2[gr2.Feature==&#34;transcript&#34;]
-                
+
             tmp=[]
             for gene_name, start, end, ori in zip(gr2.gene_name, gr2.Start, gr2.End, gr2.Strand):
                 tmp.append([gene_name, start, end, ori])
@@ -188,7 +188,7 @@ def plot_bigwig(files: dict,
     #print(geneset)
     #geneset=Parallel(n_jobs=-1)(delayed(gff_ob.get_genes)(chrom, start, end) for chrom, start, end in pos)
     print(&#34;Obtaining genes took&#34;, time.time()-time_start)
-            
+
     time_start=time.time()
     mat={}
     for samplename, f in files.items():
@@ -196,16 +196,16 @@ def plot_bigwig(files: dict,
         #h, t=os.path.split(f)
         #samplename=t.replace(prefix, &#34;&#34;).replace(suffix_set, &#34;&#34;)
         mat[samplename]=[]
-        
+
         for chrom, s, e in pos:
             val=bw.values(chrom, s, e)
-            
+
             mat[samplename].append(val)
-    
-    
-    
+
+
+
     print(&#34;Reading bigwig files took&#34;, time.time()-time_start)
-    
+
     if stack_regions==&#34;vertical&#34;:
         fig, axes=plt.subplots(nrows=len(pos)*2,ncols=len(files),figsize=[10,10],gridspec_kw={
                            &#39;height_ratios&#39;: [2,1]*len(pos),&#34;hspace&#34;:0},
@@ -215,7 +215,7 @@ def plot_bigwig(files: dict,
         sample_order=sorted(mat.keys())
         ticks_labels=[]
         for si, sample in enumerate(sample_order):
-            
+
             vals=mat[sample]
             ymax=0
             for posi, (genes, val) in enumerate(zip(geneset, vals)):
@@ -237,17 +237,17 @@ def plot_bigwig(files: dict,
                     hchrom, hs, he=highlight[posi]
                     ax.fill_between([hs, he], [_ymax, _ymax], alpha=0.5, color=&#34;r&#34;)
                 ax.fill_between(x, val,edgecolor=&#39;face&#39;)
-                
-                
+
+
                 if si==0:
                     ax.set_title(sample+&#34; &#34;+chrom+&#34;:&#34;+str(s)+&#34;-&#34;+str(e))
                     ticks_labels.append([[np.amin(x),np.amax(x)],ax.get_xticks(), ax.get_xticklabels()])
                 ax.set_xticks([],labels=[])
             occupied=[[] for i in range(8)]
-        
-        
 
-        
+
+
+
         for posi in range(len(pos)):
             interval=pos[posi][2]-pos[posi][1]
             axes[posi*2+1,si].plot(ticks_labels[posi][0],[0,0],alpha=0)
@@ -277,7 +277,7 @@ def plot_bigwig(files: dict,
                     axes[posi*2+1,si].plot([ge-interval/32, ge], [slot*1+1,slot*1], color=&#34;gray&#34;)
                 elif ori==&#34;-&#34;:
                     axes[posi*2+1,si].plot([gs, gs+interval/32], [slot*1,slot*1+1], color=&#34;gray&#34;)
-                
+
                 axes[posi*2+1,si].text((gs+ge)/2, slot*1, genename, ha=&#34;center&#34;)
             for oi, ol in enumerate(occupied):
                 if len(ol)==0:
@@ -297,7 +297,7 @@ def plot_bigwig(files: dict,
     else:
         fig, axes=plt.subplots(nrows=len(files)+1,ncols=len(pos),gridspec_kw={
                            &#39;height_ratios&#39;: [2]*len(files)+[1]})
-        
+
         if len(axes.shape)==1:
             axes=axes.reshape([-1,1])
         sample_order=sorted(mat.keys())
@@ -315,7 +315,7 @@ def plot_bigwig(files: dict,
                 remains=vallen%step
                 _e=e-remains
                 x=np.arange(s, _e,step)
-                
+
                 #print(s, e, _e, vallen, step)
                 val=val[:vallen-remains].reshape(-1, step).mean(axis=1)
                 _ymax=np.amax(val)
@@ -326,18 +326,18 @@ def plot_bigwig(files: dict,
 
                 if posi==0:
                     ax.set_ylabel(sample)
-    
+
                 ax.set_xticks([],labels=[])
                 if si==0:
                     ax.set_title(chrom+&#34;:&#34;+str(s)+&#34;-&#34;+str(e))
                 ax.grid(False)
-                    
+
             occupied=[[] for i in range(8)]
             for posi in range(len(pos)):
                 axes[si,posi].set_ylim(0,ymax*1.01)
                 if posi &gt;0:
                     axes[si,posi].set_yticks([],labels=[])
-        
+
         for posi in range(len(pos)):
             interval=pos[posi][2]-pos[posi][1]
             for genename, gs, ge,ori in geneset[posi]:
@@ -366,7 +366,7 @@ def plot_bigwig(files: dict,
                     axes[si+1,posi].plot([ge-interval/32, ge], [slot*1+0.1,slot*1], color=&#34;gray&#34;)
                 elif ori==&#34;-&#34;:
                     axes[si+1,posi].plot([gs, gs+interval/32], [slot*1,slot*1+0.1], color=&#34;gray&#34;)
-                
+
                 axes[si+1,posi].text((gs+ge)/2, slot*1, genename, ha=&#34;center&#34;)
                 #axes[si+1,posi].grid(False)
             for oi, ol in enumerate(occupied):
@@ -376,15 +376,15 @@ def plot_bigwig(files: dict,
             axes[si+1,posi].set_ylim(-0.5,maxslot+0.5)
             axes[si+1,posi].ticklabel_format(useOffset=False)
             axes[si+1,posi].set_yticks([],labels=[])
-            
-        
+
+
         plt.tight_layout(h_pad=-1,w_pad=-1)
         _save(save, &#34;plot&#34;)
-        
+
     return {&#34;ax&#34;:axes,&#34;values&#34;:mat,&#34;genes&#34;:geneset,&#34;positions&#34;:pos}
 
 
-def plot_bigwig_correlation(files: dict, 
+def plot_bigwig_correlation(files: dict,
                             chrom: str=&#34;chr1&#34;,
                             step: int=1000,
                             palette: str=&#34;coolwarm&#34;,
@@ -395,14 +395,14 @@ def plot_bigwig_correlation(files: dict,
                             #show_val: bool=False,
                             show: bool=False,
                             n_jobs: int=-1, save: str=&#34;&#34;) -&gt; Dict:
-    
+
     &#34;&#34;&#34;
-    Calculate pearson correlations and draw a heatmap for bigwig files.  
-    
+    Calculate pearson correlations and draw a heatmap for bigwig files.
+
     Parameters
     ----------
     files : dict
-        A dictionary whose keys are sample names and values are bigwig file names 
+        A dictionary whose keys are sample names and values are bigwig file names
     chrom : str, optional
         A chromsome to cal
     step: int, optional
@@ -415,7 +415,7 @@ def plot_bigwig_correlation(files: dict,
     show : bool, optional
         Whether or not to show the figure.
     n_jobs : int, optional
-        The number of threads to use. It will use all available threads by default. 
+        The number of threads to use. It will use all available threads by default.
     Returns
     -------
     {&#34;ax&#34;:axes,&#34;values&#34;:mat,&#34;genes&#34;:geneset,&#34;positions&#34;:pos} : dict
@@ -435,15 +435,15 @@ def plot_bigwig_correlation(files: dict,
         assert type(v)==str, &#34;filenames must be str, but {} was give.&#34;.format(type(v))
         if not os.path.isfile(v)==True:
             raise Exception(&#34;{} does not exist.&#34;.format(v))
-    
+
     mat=[]
     samples=[]
     bw=pwg.open(list(files.values())[0])
     chrom_sizes=bw.chroms()
-    
-    
-        
-    
+
+
+
+
     if peakfile!=&#34;&#34;:
         # peaks=read_peaks(peakfile)
         # for k, f in files.items():
@@ -460,14 +460,14 @@ def plot_bigwig_correlation(files: dict,
         peaks=_read_peaks(peakfile)
         for k, f in files.items():
             bw=pwg.open(f)
-            
+
             tmp=Parallel(n_jobs=n_jobs)(delayed(_read_bw_stats)(chrom, s, e, f) for chrom, s, e in peaks)
             mat.append(tmp)
             samples.append(k)
-        
+
     elif chrom !=&#34;all&#34;:
         chrom_size=chrom_sizes[chrom]
-        
+
         samples=[]
         mat=[]
         #samples=list(files.keys())
@@ -486,7 +486,7 @@ def plot_bigwig_correlation(files: dict,
     elif chrom==&#34;all&#34;:
         chroms=chrom_sizes.keys()
         for k, f in files.items():
-            
+
             #tmp=Parallel(n_jobs=n_jobs)(delayed(read_bw)(f, chrom, 0, chrom_sizes[chrom], f) for chrom, s, e in chroms)
             bw=pwg.open(f)
             tmp=[]
@@ -498,12 +498,12 @@ def plot_bigwig_correlation(files: dict,
                 val=np.nan_to_num(val)
                 val=val.reshape([-1,step]).mean(axis=1)
                 tmp.append(val/np.sum(val))
-            
+
             samples.append(k)
             mat.append(np.concatenate(tmp))
     else:
         raise Exception(&#34;please specify chrom or peakfile options.&#34;)
-    
+
     mat=np.array(mat)
     dmat=Parallel(n_jobs=-1)(delayed(_calc_pearson)(ind, mat) for ind in list(it.combinations(range(mat.shape[0]), 2)))
     dmat=np.array(dmat)
@@ -517,20 +517,20 @@ def plot_bigwig_correlation(files: dict,
                row_cluster=True,
                figsize=figsize,
                rasterized=True,
-               #cbar_kws={&#34;label&#34;:&#34;Pearson correlation&#34;}, 
+               #cbar_kws={&#34;label&#34;:&#34;Pearson correlation&#34;},
                annot=show_val,
                **clustermap_param)
     g.cax.set_ylabel(&#34;Pearson correlation&#34;, rotation=-90,va=&#34;bottom&#34;)
     plt.setp(g.ax_heatmap.get_yticklabels(), rotation=0)  # For y axis
     plt.setp(g.ax_heatmap.get_xticklabels(), rotation=90) # For x axis
-    
-    
+
+
     _save(save, &#34;correlation&#34;)
     if show:
         plt.show()
     return {&#34;correlation&#34;: dmat,&#34;samples&#34;:samples}
-    
-def call_superenhancer(bigwig: str, 
+
+def call_superenhancer(bigwig: str,
                        bed: str,
                        stitch=25000,
                        tss_dist: int=0,
@@ -544,8 +544,8 @@ def call_superenhancer(bigwig: str,
                        n_jobs: int=12,
                        save: str=&#34;&#34;)-&gt;Dict:
     &#34;&#34;&#34;
-    Find super enhancers and plot an enhancer rank.  
-    
+    Find super enhancers and plot an enhancer rank.
+
     Parameters
     ----------
     bigwig : str
@@ -559,23 +559,23 @@ def call_superenhancer(bigwig: str,
     plot_signals : bool, optional
         Drawing super enhancer regions +- 10kb
     gff: str, optional (required when tss_dist is provided)
-        A gff or gtf file that contains gene annotations. You need to chose a correct genome version of a gff/gtf file 
-    
+        A gff or gtf file that contains gene annotations. You need to chose a correct genome version of a gff/gtf file
+
     closest_genes: bool=False,
-        If this is True, closest genes of SE will be shown, instead of genomic regions. You can specify the number 
+        If this is True, closest genes of SE will be shown, instead of genomic regions. You can specify the number
         of closest genes by &#34;nearest_k&#34; option.
     nearest_k: int, optional
         The number of closest genes to be included. Default: 1.
-        
+
     go_analysis: bool, optional
         GSEA analysis based on the rank of SEs.
-        
+
     gonames: list=[&#34;GO_Biological_Process_2021&#34;,&#34;Reactome_2022&#34;,&#34;WikiPathways_2019_Human&#34;]
         Gene sets for GSEA analysis.
-    
+
     sample: str,optional
         The sample name to appear in the signal plot
-    
+
     Returns
     -------
         dict {&#34;ax&#34;: ax, &#34;positions&#34;:pos, &#34;signals&#34;:y,&#34;nearest_genes&#34;:_nearestgenes}
@@ -589,18 +589,18 @@ def call_superenhancer(bigwig: str,
     --------
     Examples
     --------
-    &#34;&#34;&#34; 
-    
+    &#34;&#34;&#34;
+
     bw=pwg.open(bigwig)
     chrom_sizes=bw.chroms()
     peaks=_read_peaks(bed)
     #stitched=stitching(peaks, stitch)
-    
-    
+
+
     if tss_dist != 0:
         start_time=time.time()
         stitched=pr.from_dict(_stitching_for_pyrange(peaks, stitch))
-        
+
         if gff.endswith(&#34;gff&#34;) or gff.endswith(&#34;gff3&#34;):
             gff_dict=_readgff(gff, &#34;transcript&#34;,tss_dist)
         elif gff.endswith(&#34;gtf&#34;):
@@ -608,7 +608,7 @@ def call_superenhancer(bigwig: str,
         else:
             raise Exception(&#34;The gff/gtf file name is required to have either gff, gff3, or gtf extension.&#34;)
         gffr=pr.from_dict(gff_dict)
-        
+
         _stitched=stitched.subtract(gffr, nb_cpu=n_jobs)
         stitched={}
         for chrom, s, e in zip(_stitched.Chromosome, _stitched.Start, _stitched.End):
@@ -620,8 +620,8 @@ def call_superenhancer(bigwig: str,
         # stitched=remove_close_to_tss(stitched, tss_pos)
     else:
         stitched=_stitching(peaks, stitch)
-        
-        
+
+
     &#34;&#34;&#34;Obtaining closest genes&#34;&#34;&#34;
     _nearestgenes=[]
     if closest_genes==True:
@@ -651,7 +651,7 @@ def call_superenhancer(bigwig: str,
                 grlist[&#34;Chromosome&#34;].append(chrom)
                 grlist[&#34;Start&#34;].append(int(s))
                 grlist[&#34;End&#34;].append(int(e))
-                
+
         gr=pr.from_dict(grlist)
         _nearestgenes_gr=gr.k_nearest(gffr, k=nearest_k, nb_cpu=n_jobs)
         # _nearestgenes=[]
@@ -665,7 +665,7 @@ def call_superenhancer(bigwig: str,
         #         tmp=[]
         # _nearestgenes.append(tmp)
         print(&#34;Finding the nearest genes took &#34;, time.time()-start_time)
-        
+
     start_time=time.time()
     mat=[]
     pos=[]
@@ -677,21 +677,21 @@ def call_superenhancer(bigwig: str,
                 val=0
             mat.append(val)
             pos.append(chrom+&#34;:&#34;+str(s)+&#34;-&#34;+str(e))
-            
+
     x, y, pos, sindex, srt=_find_extremes(mat, pos)
     b=-x[sindex]*np.amax(y) +y[sindex]
     print(&#34;Finding super enhancer took &#34;, time.time()-start_time, &#34;sec&#34;)
-    
+
     # print(len(_nearestgenes), _nearestgenes[:10])
     # print(srt.shape, srt[:10])
     _nearestgenes=[stiched_dit[chromse] for chromse in pos]
-    
-        
+
+
     fig, ax=plt.subplots(figsize=[6,4])
     ax.scatter(x[:sindex], y[:sindex],s=5,rasterized=True)
     ax.scatter(x[sindex:], y[sindex:], color=&#34;r&#34;,s=5,rasterized=True)
     ax.plot(x,x*np.amax(y)+b, color=&#34;gray&#34;)
-    
+
     if closest_genes==True:
         for j in range(5):
             ax.text(x[-j-1],y[-j-1], &#34;,&#34;.join(_nearestgenes[-j-1]))
@@ -702,7 +702,7 @@ def call_superenhancer(bigwig: str,
     ax.set_xlabel(&#34;Enhancers&#34;)
     ax.set_ylabel(&#34;Signal sum&#34;)
     ax.set_ylim(0,max(y)*1.05)
-    
+
     tick_=x.shape[0]//3
     if 100&lt;tick_&lt;=1000:
         tick_=500
@@ -714,15 +714,15 @@ def call_superenhancer(bigwig: str,
         tick_=10000
     ax.set_xticks(np.arange(0,x.shape[0], tick_)/x.shape[0],labels=np.arange(0,x.shape[0], tick_))
     plt.ticklabel_format(axis=&#34;y&#34;, style=&#34;sci&#34;, scilimits=(0,0))
-    
+
     _save(save, &#34;rank&#34;)
-    
+
     plt.subplots_adjust(right=0.620, bottom=0.130)
-    
-    
+
+
     stitched_out=os.path.splitext(bed)[0]+&#34;_SE.bed&#34;
     with open(stitched_out, &#34;w&#34;) as fout:
-        
+
         if closest_genes==True:
             rank=1
             for _pos, _sig, _gr in zip(reversed(pos[sindex:]), reversed(y[sindex:]),reversed(_nearestgenes[sindex:])):
@@ -730,7 +730,7 @@ def call_superenhancer(bigwig: str,
                 s, e=se.split(&#34;-&#34;)
                 fout.write(&#34;\t&#34;.join([chrom,str(s),str(e), &#34;,&#34;.join(_gr), str(_sig),str(rank)+&#34;\n&#34;]))
                 rank+=1
-        
+
         else:
             rank=1
             for _pos, _sig in zip(reversed(pos[sindex:]), reversed(y[sindex:])):
@@ -778,7 +778,7 @@ def call_superenhancer(bigwig: str,
                              )
         print(&#34;GO analysis took &#34;, time.time()-start_time)
     if plot_signals:
-        
+
         if gff==&#34;&#34;:
             raise Exception(&#34;Please provide a gff file to draw signals.&#34;)
         letters = string.ascii_lowercase
@@ -794,9 +794,9 @@ def call_superenhancer(bigwig: str,
                 rank+=1
                 if rank==6:
                     break
-                    
-        plot_bigwig(files={sample: bigwig}, 
-                    bed=tmpfile, gff=gff, 
+
+        plot_bigwig(files={sample: bigwig},
+                    bed=tmpfile, gff=gff,
                     step=100,
                     stack_regions=&#34;vertical&#34;,
                     highlight=highlights,n_jobs=n_jobs, save=save)
@@ -804,9 +804,9 @@ def call_superenhancer(bigwig: str,
     return {&#34;ax&#34;: ax, &#34;positions&#34;:pos, &#34;signals&#34;:y,&#34;nearest_genes&#34;:_nearestgenes}
 
 
-def plot_average(files: dict, 
-                 bed: Union[str,list], 
-                 order: list=[], extend: int=500, 
+def plot_average(files: dict,
+                 bed: Union[str,list],
+                 order: list=[], extend: int=500,
                  palette: str=&#34;coolwarm&#34;,
                  binsize: int=10,
                  clustering: str=&#34;&#34;,
@@ -816,16 +816,16 @@ def plot_average(files: dict,
                  save=&#34;&#34;,
                  n_jobs: int=-1):
     &#34;&#34;&#34;
-    Plotting bigwig files centered at peak regions.  
-    
+    Plotting bigwig files centered at peak regions.
+
     Parameters
     ----------
     files : dict
-        A dictionary whose keys are sample names and values are file names 
+        A dictionary whose keys are sample names and values are file names
     bed : str
         A bed file name containing the list of genomic regions
     order : list
-        A sample order to plot. if a clustering option (except kmeans_all) is chosen, the first sample is the target of clustering analysis. 
+        A sample order to plot. if a clustering option (except kmeans_all) is chosen, the first sample is the target of clustering analysis.
     binsize: int
         A bin size to reduce the bigwig signal resolution.
     clustering : str
@@ -838,7 +838,7 @@ def plot_average(files: dict,
         values: dictionary containing sample names as the keys and signals as the values
         positions: genomic positions sorted by signals displayed in the plot
         labels: list of clustering labels if kmean clustering was performed
-        
+
     Raises
     ------
     Notes
@@ -856,14 +856,14 @@ def plot_average(files: dict,
         assert type(v)==str, &#34;filenames must be str, but {} was give.&#34;.format(type(v))
         if not os.path.isfile(v)==True:
             raise Exception(&#34;{} does not exist.&#34;.format(v))
-            
-    
-    
+
+
+
     bw=pwg.open(files[order[0]])
     chrom_sizes=bw.chroms()
-    
+
     if type(bed)==str:
-        
+
         pos=[]
         bedchroms=set()
         with open(bed) as fin:
@@ -872,12 +872,12 @@ def plot_average(files: dict,
                     continue
                 l=l.split()
                 chrom, s, e=l[0],l[1],l[2]
-                
+
                 if not chrom in chrom_sizes:
                     raise Exception(&#34;There may be mismatches in chromosome names between the bed file and bigwig files.\n\
                 the chromosome names in the bed file are: {}\n\
-                those in the bigwig files are: {}&#34;.format(chrom, chrom_sizes.keys())) 
-                
+                those in the bigwig files are: {}&#34;.format(chrom, chrom_sizes.keys()))
+
                 s, e=int(s.replace(&#34;,&#34;,&#34;&#34;)),int(e.replace(&#34;,&#34;,&#34;&#34;))
                 center=(s+e)//2
                 cs=center-extend
@@ -888,17 +888,17 @@ def plot_average(files: dict,
                 bedchroms.add(chrom)
     else:
         pos=bed
-    
-    
+
+
     data={}
     data_mean=[]
-    
+
     for i, sample in enumerate(order):
         bigwig=files[sample]
         data[sample]=[]
         vals, mean=zip(*Parallel(n_jobs=n_jobs, prefer=&#34;threads&#34;)(delayed(_read_and_reshape_bw)(chrom, s, e, bigwig, binsize) for chrom, s, e in pos))
-        
-        
+
+
         data[sample]=np.nan_to_num(vals)
         if i==0:
             data_mean=mean
@@ -939,7 +939,7 @@ def plot_average(files: dict,
         kmean = KMeans(n_clusters=n_clusters, random_state=0,n_init=10)
         kmX=kmean.fit(mat)
         labels=kmX.labels_
-        
+
     sortindex=np.argsort(data_mean)[::-1]
     pos=np.array(pos)[sortindex]
 
@@ -954,7 +954,7 @@ def plot_average(files: dict,
 
         vals=vals[sortindex]
         if clustering!=&#34;&#34;:
-            
+
             _labels=np.array(labels)[sortindex]
             sortindex2=np.argsort(_labels)
             vals=vals[sortindex2]
@@ -976,24 +976,24 @@ def plot_average(files: dict,
             im=ax.imshow(vals,aspect=&#34;auto&#34;, cmap=palette, interpolation=&#34;none&#34;,norm=LogNorm(vmin=minval))
         else:
             im=ax.imshow(vals,aspect=&#34;auto&#34;, cmap=palette, interpolation=&#34;none&#34;,norm=LogNorm(vmin=1))
-        
-        
-        
-        cbaxes = fig.add_axes([0.8*(i+1)/len(order), 0.93, 0.03, 0.06]) 
+
+
+
+        cbaxes = fig.add_axes([0.8*(i+1)/len(order), 0.93, 0.03, 0.06])
         cb = plt.colorbar(im, cax = cbaxes)
-        
-            
+
+
         # print(np.arange(0, vals.shape[1]+vals.shape[1]//4, vals.shape[1]//4))
         # print(np.arange(-extend, extend+extend//2, extend//2))
         ax.set_xticks(np.arange(0, vals.shape[1]+vals.shape[1]//4, vals.shape[1]//4),labels=np.arange(-extend, extend+extend//2, extend//2))
         ax.set_xlabel(&#34;Peak range [bp]&#34;)
         ax.set_title(sample)
-        
+
         if clustering!=&#34;&#34;:
             total=0
             isep=0
             for label, count in zip(ulabel, clabel):
-                
+
                 total+=count
                 if isep==ulabel.shape[0]-1:
                     break
@@ -1009,11 +1009,11 @@ def plot_average(files: dict,
     for i, (sample, ax) in enumerate(zip(order, axes2)):
         vals=data[sample]
         vals=np.array(vals)
-        
+
         labels=np.array(labels)
         if clustering !=&#34;&#34;:
             for label, count in zip(ulabel, clabel):
-                
+
                 _vals=np.mean(vals[labels==label],axis=0)
                 #print(_vals.shape)
                 #print(vals.shape)
@@ -1027,7 +1027,7 @@ def plot_average(files: dict,
             ax.plot(np.arange(-extend, extend, 2*extend//(vals.shape[0])),vals)
             _maxval=np.max(vals)
             if maxval &lt; _maxval:
-                maxval=_maxval 
+                maxval=_maxval
         if i==0:
             ax.set_ylabel(&#34;Mean signal value&#34;)
         # print(np.arange(0, vals.shape[1]+vals.shape[1]//4, vals.shape[1]//4))
@@ -1035,12 +1035,12 @@ def plot_average(files: dict,
         #ax.set_xticks(np.arange(0, vals.shape[1]+vals.shape[1]//4, vals.shape[1]//4),labels=np.arange(-extend, extend+extend//2, extend//2))
         ax.set_xlabel(&#34;Peak range [bp]&#34;)
         ax.set_title(sample)
-    
+
     for ax in axes2:
         ax.set_ylim(0, maxval*1.05)
-    
+
     _save(save, &#34;average&#34;)
-    
+
     return {&#34;values&#34;:data,&#34;potisons&#34;:_pos,&#34;labels&#34;:labels, &#34;axes&#34;:axes,&#34;axes2&#34;:axes2}
 
 
@@ -1049,26 +1049,26 @@ def _plot_genebody(files: dict,
                 files_minus: Optional[dict]=None,
                  bed: Union[list, str]=&#34;&#34;,
                  gff: str=&#34;&#34;,
-                 centered_at: str=&#34;TSS&#34;, 
-                 order: list=[], 
-                 extend: int=3000, 
+                 centered_at: str=&#34;TSS&#34;,
+                 order: list=[],
+                 extend: int=3000,
                  palette: str=&#34;coolwarm&#34;,
                  binsize: int=10,
                  clustering: str=&#34;&#34;,
                  n_clusters: int=5,
                  save: str=&#34;&#34;,lognorm=True,n_jobs=-1)-&gt; Dict:
-    
+
     &#34;&#34;&#34;
-    Plotting bigwig files around gene bodies.  
-    
+    Plotting bigwig files around gene bodies.
+
     Parameters
     ----------
     files : dict
-        A dictionary whose keys are sample names and values are file names 
+        A dictionary whose keys are sample names and values are file names
     bed : str
         A bed file name containing the list of genomic regions
     order : list
-        A sample order to plot. if a clustering option (except kmeans_all) is chosen, the first sample is the target of clustering analysis. 
+        A sample order to plot. if a clustering option (except kmeans_all) is chosen, the first sample is the target of clustering analysis.
     binsize: int
         A bin size to reduce the bigwig signal resolution.
     clustering : str
@@ -1081,7 +1081,7 @@ def _plot_genebody(files: dict,
         values: dictionary containing sample names as the keys and signals as the values
         positions: genomic positions sorted by signals displayed in the plot
         labels: list of clustering labels if kmean clustering was performed
-        
+
     Raises
     ------
     Notes
@@ -1101,10 +1101,10 @@ def _plot_genebody(files: dict,
             raise Exception(&#34;{} does not exist.&#34;.format(v))
     bw=pwg.open(files[order[0]])
     chrom_sizes=bw.chroms()
-    
+
     if len(bed)&gt;0 and len(gff)&gt;0:
         warnings.warn(&#34;Ignoring the gff file, since the bed file is provided.&#34;)
-    
+
     if len(bed)&gt;0:
         oriset=set([&#34;+&#34;, &#34;-&#34;])
         bedchroms=set()
@@ -1114,11 +1114,11 @@ def _plot_genebody(files: dict,
                     l=l.split()
                     if not l[-1] in oriset:
                         raise Exception(&#34;The bed file must contain orientation information at the last column. e.g., chr1\t10000\t20000\t.\t.\t+&#34;)
-                    
+
                     if not l[0] in chrom_sizes:
                         raise Exception(&#34;There may be mismatches in chromosome names between the bed file and bigwig files.\n\
                     the chromosome names in the bed file are: {}\n\
-                    those in the bigwig files are: {}&#34;.format(l[0], chrom_sizes.keys())) 
+                    those in the bigwig files are: {}&#34;.format(l[0], chrom_sizes.keys()))
             posplus=[]
             posminus=[]
             seen=set()
@@ -1131,7 +1131,7 @@ def _plot_genebody(files: dict,
                         seen.add(tmp)
                     else:
                         continue
-                    
+
                     bedchroms.add(chrom)
                     if ori==&#34;+&#34;:
                         cs=int(s)-extend
@@ -1144,25 +1144,25 @@ def _plot_genebody(files: dict,
                         ce=int(e)+extend
                         if cs &lt;0 or chrom_sizes[chrom] &lt; ce:
                             continue
-    
+
                         posminus.append([chrom,cs,ce])
         else:
             posplus=bed[0]
             posminus=bed[1]
-    
+
     elif len(gff)&gt;0:
         transcripts=_readgff_transcripts(gff, extend)
-    
-    
+
+
     if len(order)==0:
         order=list(files.keys())
     data={}
     data_mean=[]
     start_time=time.time()
-    
+
     for i, sample in enumerate(order):
         bigwig=files[sample]
-        
+
         if len(gff)&gt;0:
             tid_list=[]
             pvals=[]
@@ -1176,21 +1176,21 @@ def _plot_genebody(files: dict,
             tids=transcripts[&#34;-&#34;].keys()
             mvals=Parallel(n_jobs=n_jobs)(delayed(_read_transcripts)(bigwig, transcripts[&#34;-&#34;][tid], binsize, extend)  for tid in tids)
             tid_list.extend(tids)
-            
+
         #bw=pwg.open(bigwig)
         else:
             pvals=[]
             pmean=[]
             data[sample]=[]
             pvals, pmean=zip(*Parallel(n_jobs=n_jobs)(delayed(_read_and_reshape_bw)(chrom, s, e, bigwig, binsize)  for chrom, s, e in posplus))
-            
+
             if files_minus!=None:
                 bigwig=files_minus[sample]
                 #bw=pwg.open(bigwig)
                 mvals, mmean=zip(*Parallel(n_jobs=n_jobs)(delayed(_read_and_reshape_bw)(chrom, s, e, bigwig, binsize)  for chrom, s, e in posminus))
             else:
                 mvals, mmean=zip(*Parallel(n_jobs=n_jobs)(delayed(_read_and_reshape_bw)(chrom, s, e, bigwig, binsize)  for chrom, s, e in posminus))
-        
+
         mvals=np.flip(mvals, axis=1)
         vals=np.nan_to_num(np.concatenate([pvals,mvals]))
         print(vals.shape)
@@ -1202,7 +1202,7 @@ def _plot_genebody(files: dict,
         #vals=vals.reshape([-1,vals.shape[1]//binsize,binsize]).mean(axis=2)
         print(np.amax(sums),np.amin(sums),vals.shape)
         data[sample]=vals
-        
+
         if i==0:
             data_mean=np.amax(vals,axis=1)
         # for chrom, s, e in posplus:
@@ -1278,9 +1278,9 @@ def _plot_genebody(files: dict,
         axes=[axes]
     for i, (sample, ax) in enumerate(zip(order, axes)):
         vals=data[sample]
-        
+
         vals=np.array(vals)
-        
+
         vals=vals[sortindex]
         vals=vals/np.amax(vals, axis=1)[:,None]
         ax.plot(vals[0])
@@ -1288,10 +1288,10 @@ def _plot_genebody(files: dict,
         ax.plot(vals[2])
         plt.show()
         sys.exit()
-        
+
 
         if clustering!=&#34;&#34;:
-            
+
             _labels=np.array(labels)[sortindex]
             sortindex2=np.argsort(_labels)
             vals=vals[sortindex2]
@@ -1303,25 +1303,25 @@ def _plot_genebody(files: dict,
         vals=vals[plotindex]
         print(vals.shape)
         if lognorm==True:
-            
+
             im=ax.imshow(vals,aspect=&#34;auto&#34;, cmap=palette, interpolation=&#34;none&#34;,norm=LogNorm(vmin=np.amax([1, np.quantile(sums,0.5)])))
         else:
             im=ax.imshow(vals,aspect=&#34;auto&#34;, cmap=palette, interpolation=&#34;none&#34;)
-        cbaxes = fig.add_axes([0.8*(i+1)/len(order), 0.93, 0.03, 0.06]) 
+        cbaxes = fig.add_axes([0.8*(i+1)/len(order), 0.93, 0.03, 0.06])
         cb = plt.colorbar(im, cax = cbaxes)
-        
-            
+
+
         # print(np.arange(0, vals.shape[1]+vals.shape[1]//4, vals.shape[1]//4))
         # print(np.arange(-extend, extend+extend//2, extend//2))
         ax.set_xticks(np.arange(0, vals.shape[1]+vals.shape[1]//4, vals.shape[1]//4),labels=np.arange(-extend, extend+extend//2, extend//2))
         ax.set_xlabel(&#34;Peak range [bp]&#34;)
         ax.set_title(sample)
-        
+
         if clustering!=&#34;&#34;:
             total=0
             isep=0
             for label, count in zip(ulabel, clabel):
-                
+
                 total+=count
                 if isep==ulabel.shape[0]-1:
                     break
@@ -1329,7 +1329,7 @@ def _plot_genebody(files: dict,
                 isep+=1
         ax.set_yticks([])
         ax.grid(False)
-        
+
     _save(save, &#34;heatmap&#34;)
 
     fig, axes2=plt.subplots(ncols=len(order), figsize=[4*len(order), 3])
@@ -1342,7 +1342,7 @@ def _plot_genebody(files: dict,
         labels=np.array(labels)
         if clustering !=&#34;&#34;:
             for label, count in zip(ulabel, clabel):
-                
+
                 _vals=np.mean(vals[labels==label],axis=0)
                 print(_vals.shape)
                 print(vals.shape)
@@ -1356,7 +1356,7 @@ def _plot_genebody(files: dict,
             ax.plot(np.arange(-extend, extend, 2*extend//(vals.shape[0])),vals)
             _maxval=np.max(vals)
             if maxval &lt; _maxval:
-                maxval=_maxval 
+                maxval=_maxval
         if i==0:
             ax.set_ylabel(&#34;Mean signal value&#34;)
         # print(np.arange(0, vals.shape[1]+vals.shape[1]//4, vals.shape[1]//4))
@@ -1364,7 +1364,7 @@ def _plot_genebody(files: dict,
         #ax.set_xticks(np.arange(0, vals.shape[1]+vals.shape[1]//4, vals.shape[1]//4),labels=np.arange(-extend, extend+extend//2, extend//2))
         ax.set_xlabel(&#34;Peak range [bp]&#34;)
         ax.set_title(sample)
-    
+
     for ax in axes:
         ax.set_ylim(0, maxval*1.05)
     _save(save, &#34;average&#34;)
@@ -1373,8 +1373,8 @@ def _plot_genebody(files: dict,
 def plot_bed_correlation(files:dict,
                          method: str=&#34;pearson&#34;,
                          palette: str=&#34;coolwarm&#34;,
-                         figsize: list=[6,6], 
-                         show_val: bool=True, 
+                         figsize: list=[6,6],
+                         show_val: bool=True,
                          clustermap_param: dict={},
                          step: int=100,
                          show: bool=False):
@@ -1403,7 +1403,7 @@ def plot_bed_correlation(files:dict,
     minmaxval={}
     for chrom, se in minmax.items():
         minmaxval[chrom]=[np.min(se), np.max(se)]
-    
+
     mat=[]
     samples=[]
     for sample, chrom_intervals in bedintervals.items():
@@ -1431,16 +1431,16 @@ def plot_bed_correlation(files:dict,
         #dmat+=np.identity(dmat.shape[0])
     else:
         dmat=squareform(pdist(mat, method))
-    
-            
-    
+
+
+
     g=sns.clustermap(data=dmat,xticklabels=samples,yticklabels=samples,
                method=&#34;ward&#34;, cmap=palette,
                col_cluster=True,
                row_cluster=True,
                figsize=figsize,
                rasterized=True,
-               #cbar_kws={&#34;label&#34;:&#34;Pearson correlation&#34;}, 
+               #cbar_kws={&#34;label&#34;:&#34;Pearson correlation&#34;},
                annot=show_val,
                **clustermap_param)
     if method==&#34;pearson&#34;:
@@ -1452,33 +1452,33 @@ def plot_bed_correlation(files:dict,
     plt.setp(g.ax_heatmap.get_xticklabels(), rotation=90) # For x axis
     if show:
         plt.show()
-        
+
     return {&#34;correlation&#34;: dmat,&#34;samples&#34;:samples}
-    
-    
-    
-    
+
+
+
+
 def frip_calc(files:dict,):
-    
+
     pass
-    
-    
-    
-    
+
+
+
+
 
 if __name__==&#34;__main__&#34;:
     #test=&#34;plot_bigwig&#34;
     test=&#34;plot_bigwig_correlation&#34;
-    
+
     #test=&#34;plot_bigwig&#34;
     test=&#34;plot_bed_correlation&#34;
-    
+
     test=&#34;plot_average&#34;
     #test=&#34;plot_genebody&#34;
     #test=&#34;call_superenhancer&#34;
     #test=&#34;plot_genebody&#34;
     import glob
-    
+
     if test==&#34;plot_bed_correlation&#34;:
         fs= {&#34;KMT2A&#34;:&#34;/media/koh/grasnas/home/data/omniplot/KMT2A_ENCFF644EPI_srt.bed&#34;,
              &#34;KMT2B&#34;:&#34;/media/koh/grasnas/home/data/omniplot/HepG2_KMT2B_ENCFF036WCY_srt.bed&#34;,
@@ -1486,7 +1486,7 @@ if __name__==&#34;__main__&#34;:
              &#34;HNF4G_rep2&#34;:&#34;/media/koh/grasnas/home/data/omniplot/HNF4G_ENCFF123FQW_srt.bed&#34;,
              &#34;HNF1A_rep1&#34;:&#34;/media/koh/grasnas/home/data/omniplot/HNF1A_ENCFF696TGC_srt.bed&#34;,
              &#34;HNF1A_rep2&#34;:&#34;/media/koh/grasnas/home/data/omniplot/HNF1A_ENCFF162SGM_srt.bed&#34;,}
-        
+
         plot_bed_correlation(fs,step=5000, method=&#34;correlation&#34;)
         plt.show()
     elif test==&#34;plot_bigwig&#34;:
@@ -1494,7 +1494,7 @@ if __name__==&#34;__main__&#34;:
              &#34;KMT2B&#34;:&#34;/media/koh/grasnas/home/data/omniplot/HepG2_KMT2B-human_ENCFF709UTL.bw&#34;}
         bed=&#34;/media/koh/grasnas/home/data/omniplot/tmp3.bed&#34;
         gff=&#34;/media/koh/grasnas/home/data/omniplot/gencode.v40.annotation.gff3&#34;
-        
+
         plot_bigwig(fs,bed,gff, step=10)
         plt.show()
     elif test==&#34;plot_bigwig_correlation&#34;:
@@ -1504,12 +1504,12 @@ if __name__==&#34;__main__&#34;:
              &#34;HNF1A_rep2&#34;:&#34;/media/koh/grasnas/home/data/omniplot/HepG2_HNF1A-human_ENCFF502ACF.bw&#34;,
              &#34;HNF4A_rep1&#34;:&#34;/media/koh/grasnas/home/data/omniplot/HepG2_HNF4A-human_ENCFF467SMI.bw&#34;,
              &#34;HNF4A_rep2&#34;:&#34;/media/koh/grasnas/home/data/omniplot/HepG2_HNF4A-human_ENCFF712VYA.bw&#34;,}
-        
+
         plot_bigwig_correlation(fs,step=1000)
         plt.show()
     elif test==&#34;call_superenhancer&#34;:
         gff=&#34;/media/koh/grasnas/home/data/omniplot/gencode.v40.annotation.gff3&#34;
-        
+
         gff=&#34;/media/koh/grasnas/home/data/omniplot/hg38.refGene.gtf&#34;
         gff=&#34;/media/koh/grasnas/home/data/omniplot/gencode.vM31.annotation.gff3&#34;
         f=&#34;/media/koh/grasnas/home/data/omniplot/HepG2_KMT2B-human_ENCFF709UTL.bw&#34;
@@ -1521,7 +1521,7 @@ if __name__==&#34;__main__&#34;:
                            go_analysis=False,nearest_k=3)
         plt.show()
     elif test==&#34;plot_average&#34;:
-        
+
         peak=&#34;/media/koh/grasnas/home/data/omniplot/HepG2_KMT2B_ENCFF036WCY_srt.bed&#34;
         files={&#34;KMT2B&#34;:&#34;/media/koh/grasnas/home/data/omniplot/HepG2_KMT2B-human_ENCFF709UTL.bw&#34;,
                             &#34;KMT2A&#34;:&#34;/media/koh/grasnas/home/data/omniplot/HepG2_KMT2A-human_ENCFF406SHU.bw&#34;}
@@ -1594,7 +1594,7 @@ of closest genes by "nearest_k" option.</dd>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def call_superenhancer(bigwig: str, 
+<pre><code class="python">def call_superenhancer(bigwig: str,
                        bed: str,
                        stitch=25000,
                        tss_dist: int=0,
@@ -1608,8 +1608,8 @@ of closest genes by "nearest_k" option.</dd>
                        n_jobs: int=12,
                        save: str=&#34;&#34;)-&gt;Dict:
     &#34;&#34;&#34;
-    Find super enhancers and plot an enhancer rank.  
-    
+    Find super enhancers and plot an enhancer rank.
+
     Parameters
     ----------
     bigwig : str
@@ -1623,23 +1623,23 @@ of closest genes by "nearest_k" option.</dd>
     plot_signals : bool, optional
         Drawing super enhancer regions +- 10kb
     gff: str, optional (required when tss_dist is provided)
-        A gff or gtf file that contains gene annotations. You need to chose a correct genome version of a gff/gtf file 
-    
+        A gff or gtf file that contains gene annotations. You need to chose a correct genome version of a gff/gtf file
+
     closest_genes: bool=False,
-        If this is True, closest genes of SE will be shown, instead of genomic regions. You can specify the number 
+        If this is True, closest genes of SE will be shown, instead of genomic regions. You can specify the number
         of closest genes by &#34;nearest_k&#34; option.
     nearest_k: int, optional
         The number of closest genes to be included. Default: 1.
-        
+
     go_analysis: bool, optional
         GSEA analysis based on the rank of SEs.
-        
+
     gonames: list=[&#34;GO_Biological_Process_2021&#34;,&#34;Reactome_2022&#34;,&#34;WikiPathways_2019_Human&#34;]
         Gene sets for GSEA analysis.
-    
+
     sample: str,optional
         The sample name to appear in the signal plot
-    
+
     Returns
     -------
         dict {&#34;ax&#34;: ax, &#34;positions&#34;:pos, &#34;signals&#34;:y,&#34;nearest_genes&#34;:_nearestgenes}
@@ -1653,18 +1653,18 @@ of closest genes by "nearest_k" option.</dd>
     --------
     Examples
     --------
-    &#34;&#34;&#34; 
-    
+    &#34;&#34;&#34;
+
     bw=pwg.open(bigwig)
     chrom_sizes=bw.chroms()
     peaks=_read_peaks(bed)
     #stitched=stitching(peaks, stitch)
-    
-    
+
+
     if tss_dist != 0:
         start_time=time.time()
         stitched=pr.from_dict(_stitching_for_pyrange(peaks, stitch))
-        
+
         if gff.endswith(&#34;gff&#34;) or gff.endswith(&#34;gff3&#34;):
             gff_dict=_readgff(gff, &#34;transcript&#34;,tss_dist)
         elif gff.endswith(&#34;gtf&#34;):
@@ -1672,7 +1672,7 @@ of closest genes by "nearest_k" option.</dd>
         else:
             raise Exception(&#34;The gff/gtf file name is required to have either gff, gff3, or gtf extension.&#34;)
         gffr=pr.from_dict(gff_dict)
-        
+
         _stitched=stitched.subtract(gffr, nb_cpu=n_jobs)
         stitched={}
         for chrom, s, e in zip(_stitched.Chromosome, _stitched.Start, _stitched.End):
@@ -1684,8 +1684,8 @@ of closest genes by "nearest_k" option.</dd>
         # stitched=remove_close_to_tss(stitched, tss_pos)
     else:
         stitched=_stitching(peaks, stitch)
-        
-        
+
+
     &#34;&#34;&#34;Obtaining closest genes&#34;&#34;&#34;
     _nearestgenes=[]
     if closest_genes==True:
@@ -1715,7 +1715,7 @@ of closest genes by "nearest_k" option.</dd>
                 grlist[&#34;Chromosome&#34;].append(chrom)
                 grlist[&#34;Start&#34;].append(int(s))
                 grlist[&#34;End&#34;].append(int(e))
-                
+
         gr=pr.from_dict(grlist)
         _nearestgenes_gr=gr.k_nearest(gffr, k=nearest_k, nb_cpu=n_jobs)
         # _nearestgenes=[]
@@ -1729,7 +1729,7 @@ of closest genes by "nearest_k" option.</dd>
         #         tmp=[]
         # _nearestgenes.append(tmp)
         print(&#34;Finding the nearest genes took &#34;, time.time()-start_time)
-        
+
     start_time=time.time()
     mat=[]
     pos=[]
@@ -1741,21 +1741,21 @@ of closest genes by "nearest_k" option.</dd>
                 val=0
             mat.append(val)
             pos.append(chrom+&#34;:&#34;+str(s)+&#34;-&#34;+str(e))
-            
+
     x, y, pos, sindex, srt=_find_extremes(mat, pos)
     b=-x[sindex]*np.amax(y) +y[sindex]
     print(&#34;Finding super enhancer took &#34;, time.time()-start_time, &#34;sec&#34;)
-    
+
     # print(len(_nearestgenes), _nearestgenes[:10])
     # print(srt.shape, srt[:10])
     _nearestgenes=[stiched_dit[chromse] for chromse in pos]
-    
-        
+
+
     fig, ax=plt.subplots(figsize=[6,4])
     ax.scatter(x[:sindex], y[:sindex],s=5,rasterized=True)
     ax.scatter(x[sindex:], y[sindex:], color=&#34;r&#34;,s=5,rasterized=True)
     ax.plot(x,x*np.amax(y)+b, color=&#34;gray&#34;)
-    
+
     if closest_genes==True:
         for j in range(5):
             ax.text(x[-j-1],y[-j-1], &#34;,&#34;.join(_nearestgenes[-j-1]))
@@ -1766,7 +1766,7 @@ of closest genes by "nearest_k" option.</dd>
     ax.set_xlabel(&#34;Enhancers&#34;)
     ax.set_ylabel(&#34;Signal sum&#34;)
     ax.set_ylim(0,max(y)*1.05)
-    
+
     tick_=x.shape[0]//3
     if 100&lt;tick_&lt;=1000:
         tick_=500
@@ -1778,15 +1778,15 @@ of closest genes by "nearest_k" option.</dd>
         tick_=10000
     ax.set_xticks(np.arange(0,x.shape[0], tick_)/x.shape[0],labels=np.arange(0,x.shape[0], tick_))
     plt.ticklabel_format(axis=&#34;y&#34;, style=&#34;sci&#34;, scilimits=(0,0))
-    
+
     _save(save, &#34;rank&#34;)
-    
+
     plt.subplots_adjust(right=0.620, bottom=0.130)
-    
-    
+
+
     stitched_out=os.path.splitext(bed)[0]+&#34;_SE.bed&#34;
     with open(stitched_out, &#34;w&#34;) as fout:
-        
+
         if closest_genes==True:
             rank=1
             for _pos, _sig, _gr in zip(reversed(pos[sindex:]), reversed(y[sindex:]),reversed(_nearestgenes[sindex:])):
@@ -1794,7 +1794,7 @@ of closest genes by "nearest_k" option.</dd>
                 s, e=se.split(&#34;-&#34;)
                 fout.write(&#34;\t&#34;.join([chrom,str(s),str(e), &#34;,&#34;.join(_gr), str(_sig),str(rank)+&#34;\n&#34;]))
                 rank+=1
-        
+
         else:
             rank=1
             for _pos, _sig in zip(reversed(pos[sindex:]), reversed(y[sindex:])):
@@ -1842,7 +1842,7 @@ of closest genes by "nearest_k" option.</dd>
                              )
         print(&#34;GO analysis took &#34;, time.time()-start_time)
     if plot_signals:
-        
+
         if gff==&#34;&#34;:
             raise Exception(&#34;Please provide a gff file to draw signals.&#34;)
         letters = string.ascii_lowercase
@@ -1858,9 +1858,9 @@ of closest genes by "nearest_k" option.</dd>
                 rank+=1
                 if rank==6:
                     break
-                    
-        plot_bigwig(files={sample: bigwig}, 
-                    bed=tmpfile, gff=gff, 
+
+        plot_bigwig(files={sample: bigwig},
+                    bed=tmpfile, gff=gff,
                     step=100,
                     stack_regions=&#34;vertical&#34;,
                     highlight=highlights,n_jobs=n_jobs, save=save)
@@ -1878,7 +1878,7 @@ of closest genes by "nearest_k" option.</dd>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def frip_calc(files:dict,):
-    
+
     pass</code></pre>
 </details>
 </dd>
@@ -1918,9 +1918,9 @@ labels: list of clustering labels if kmean clustering was performed
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def plot_average(files: dict, 
-                 bed: Union[str,list], 
-                 order: list=[], extend: int=500, 
+<pre><code class="python">def plot_average(files: dict,
+                 bed: Union[str,list],
+                 order: list=[], extend: int=500,
                  palette: str=&#34;coolwarm&#34;,
                  binsize: int=10,
                  clustering: str=&#34;&#34;,
@@ -1930,16 +1930,16 @@ labels: list of clustering labels if kmean clustering was performed
                  save=&#34;&#34;,
                  n_jobs: int=-1):
     &#34;&#34;&#34;
-    Plotting bigwig files centered at peak regions.  
-    
+    Plotting bigwig files centered at peak regions.
+
     Parameters
     ----------
     files : dict
-        A dictionary whose keys are sample names and values are file names 
+        A dictionary whose keys are sample names and values are file names
     bed : str
         A bed file name containing the list of genomic regions
     order : list
-        A sample order to plot. if a clustering option (except kmeans_all) is chosen, the first sample is the target of clustering analysis. 
+        A sample order to plot. if a clustering option (except kmeans_all) is chosen, the first sample is the target of clustering analysis.
     binsize: int
         A bin size to reduce the bigwig signal resolution.
     clustering : str
@@ -1952,7 +1952,7 @@ labels: list of clustering labels if kmean clustering was performed
         values: dictionary containing sample names as the keys and signals as the values
         positions: genomic positions sorted by signals displayed in the plot
         labels: list of clustering labels if kmean clustering was performed
-        
+
     Raises
     ------
     Notes
@@ -1970,14 +1970,14 @@ labels: list of clustering labels if kmean clustering was performed
         assert type(v)==str, &#34;filenames must be str, but {} was give.&#34;.format(type(v))
         if not os.path.isfile(v)==True:
             raise Exception(&#34;{} does not exist.&#34;.format(v))
-            
-    
-    
+
+
+
     bw=pwg.open(files[order[0]])
     chrom_sizes=bw.chroms()
-    
+
     if type(bed)==str:
-        
+
         pos=[]
         bedchroms=set()
         with open(bed) as fin:
@@ -1986,12 +1986,12 @@ labels: list of clustering labels if kmean clustering was performed
                     continue
                 l=l.split()
                 chrom, s, e=l[0],l[1],l[2]
-                
+
                 if not chrom in chrom_sizes:
                     raise Exception(&#34;There may be mismatches in chromosome names between the bed file and bigwig files.\n\
                 the chromosome names in the bed file are: {}\n\
-                those in the bigwig files are: {}&#34;.format(chrom, chrom_sizes.keys())) 
-                
+                those in the bigwig files are: {}&#34;.format(chrom, chrom_sizes.keys()))
+
                 s, e=int(s.replace(&#34;,&#34;,&#34;&#34;)),int(e.replace(&#34;,&#34;,&#34;&#34;))
                 center=(s+e)//2
                 cs=center-extend
@@ -2002,17 +2002,17 @@ labels: list of clustering labels if kmean clustering was performed
                 bedchroms.add(chrom)
     else:
         pos=bed
-    
-    
+
+
     data={}
     data_mean=[]
-    
+
     for i, sample in enumerate(order):
         bigwig=files[sample]
         data[sample]=[]
         vals, mean=zip(*Parallel(n_jobs=n_jobs, prefer=&#34;threads&#34;)(delayed(_read_and_reshape_bw)(chrom, s, e, bigwig, binsize) for chrom, s, e in pos))
-        
-        
+
+
         data[sample]=np.nan_to_num(vals)
         if i==0:
             data_mean=mean
@@ -2053,7 +2053,7 @@ labels: list of clustering labels if kmean clustering was performed
         kmean = KMeans(n_clusters=n_clusters, random_state=0,n_init=10)
         kmX=kmean.fit(mat)
         labels=kmX.labels_
-        
+
     sortindex=np.argsort(data_mean)[::-1]
     pos=np.array(pos)[sortindex]
 
@@ -2068,7 +2068,7 @@ labels: list of clustering labels if kmean clustering was performed
 
         vals=vals[sortindex]
         if clustering!=&#34;&#34;:
-            
+
             _labels=np.array(labels)[sortindex]
             sortindex2=np.argsort(_labels)
             vals=vals[sortindex2]
@@ -2090,24 +2090,24 @@ labels: list of clustering labels if kmean clustering was performed
             im=ax.imshow(vals,aspect=&#34;auto&#34;, cmap=palette, interpolation=&#34;none&#34;,norm=LogNorm(vmin=minval))
         else:
             im=ax.imshow(vals,aspect=&#34;auto&#34;, cmap=palette, interpolation=&#34;none&#34;,norm=LogNorm(vmin=1))
-        
-        
-        
-        cbaxes = fig.add_axes([0.8*(i+1)/len(order), 0.93, 0.03, 0.06]) 
+
+
+
+        cbaxes = fig.add_axes([0.8*(i+1)/len(order), 0.93, 0.03, 0.06])
         cb = plt.colorbar(im, cax = cbaxes)
-        
-            
+
+
         # print(np.arange(0, vals.shape[1]+vals.shape[1]//4, vals.shape[1]//4))
         # print(np.arange(-extend, extend+extend//2, extend//2))
         ax.set_xticks(np.arange(0, vals.shape[1]+vals.shape[1]//4, vals.shape[1]//4),labels=np.arange(-extend, extend+extend//2, extend//2))
         ax.set_xlabel(&#34;Peak range [bp]&#34;)
         ax.set_title(sample)
-        
+
         if clustering!=&#34;&#34;:
             total=0
             isep=0
             for label, count in zip(ulabel, clabel):
-                
+
                 total+=count
                 if isep==ulabel.shape[0]-1:
                     break
@@ -2123,11 +2123,11 @@ labels: list of clustering labels if kmean clustering was performed
     for i, (sample, ax) in enumerate(zip(order, axes2)):
         vals=data[sample]
         vals=np.array(vals)
-        
+
         labels=np.array(labels)
         if clustering !=&#34;&#34;:
             for label, count in zip(ulabel, clabel):
-                
+
                 _vals=np.mean(vals[labels==label],axis=0)
                 #print(_vals.shape)
                 #print(vals.shape)
@@ -2141,7 +2141,7 @@ labels: list of clustering labels if kmean clustering was performed
             ax.plot(np.arange(-extend, extend, 2*extend//(vals.shape[0])),vals)
             _maxval=np.max(vals)
             if maxval &lt; _maxval:
-                maxval=_maxval 
+                maxval=_maxval
         if i==0:
             ax.set_ylabel(&#34;Mean signal value&#34;)
         # print(np.arange(0, vals.shape[1]+vals.shape[1]//4, vals.shape[1]//4))
@@ -2149,12 +2149,12 @@ labels: list of clustering labels if kmean clustering was performed
         #ax.set_xticks(np.arange(0, vals.shape[1]+vals.shape[1]//4, vals.shape[1]//4),labels=np.arange(-extend, extend+extend//2, extend//2))
         ax.set_xlabel(&#34;Peak range [bp]&#34;)
         ax.set_title(sample)
-    
+
     for ax in axes2:
         ax.set_ylim(0, maxval*1.05)
-    
+
     _save(save, &#34;average&#34;)
-    
+
     return {&#34;values&#34;:data,&#34;potisons&#34;:_pos,&#34;labels&#34;:labels, &#34;axes&#34;:axes,&#34;axes2&#34;:axes2}</code></pre>
 </details>
 </dd>
@@ -2170,8 +2170,8 @@ labels: list of clustering labels if kmean clustering was performed
 <pre><code class="python">def plot_bed_correlation(files:dict,
                          method: str=&#34;pearson&#34;,
                          palette: str=&#34;coolwarm&#34;,
-                         figsize: list=[6,6], 
-                         show_val: bool=True, 
+                         figsize: list=[6,6],
+                         show_val: bool=True,
                          clustermap_param: dict={},
                          step: int=100,
                          show: bool=False):
@@ -2200,7 +2200,7 @@ labels: list of clustering labels if kmean clustering was performed
     minmaxval={}
     for chrom, se in minmax.items():
         minmaxval[chrom]=[np.min(se), np.max(se)]
-    
+
     mat=[]
     samples=[]
     for sample, chrom_intervals in bedintervals.items():
@@ -2228,16 +2228,16 @@ labels: list of clustering labels if kmean clustering was performed
         #dmat+=np.identity(dmat.shape[0])
     else:
         dmat=squareform(pdist(mat, method))
-    
-            
-    
+
+
+
     g=sns.clustermap(data=dmat,xticklabels=samples,yticklabels=samples,
                method=&#34;ward&#34;, cmap=palette,
                col_cluster=True,
                row_cluster=True,
                figsize=figsize,
                rasterized=True,
-               #cbar_kws={&#34;label&#34;:&#34;Pearson correlation&#34;}, 
+               #cbar_kws={&#34;label&#34;:&#34;Pearson correlation&#34;},
                annot=show_val,
                **clustermap_param)
     if method==&#34;pearson&#34;:
@@ -2249,7 +2249,7 @@ labels: list of clustering labels if kmean clustering was performed
     plt.setp(g.ax_heatmap.get_xticklabels(), rotation=90) # For x axis
     if show:
         plt.show()
-        
+
     return {&#34;correlation&#34;: dmat,&#34;samples&#34;:samples}</code></pre>
 </details>
 </dd>
@@ -2285,22 +2285,22 @@ Raises</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def plot_bigwig(files: dict, 
-                bed: Union[str, list], 
+<pre><code class="python">def plot_bigwig(files: dict,
+                bed: Union[str, list],
                 gff: str,
                 step: int=100,
-                stack_regions: str=&#34;horizontal&#34;, 
+                stack_regions: str=&#34;horizontal&#34;,
                 highlight: Union[str, list]=[],
                 highlightname=&#34;&#34;,
                 n_jobs=-1,
                 save: str=&#34;&#34;)-&gt;dict:
     &#34;&#34;&#34;
-    Plotting bigwig files in specified genomic regions in the bed file.  
-    
+    Plotting bigwig files in specified genomic regions in the bed file.
+
     Parameters
     ----------
     files : dict
-        A dictionary whose keys are sample names and values are file names 
+        A dictionary whose keys are sample names and values are file names
     bed : str
         A bed file name containing the list of genomic regions
     gff : str
@@ -2323,7 +2323,7 @@ Raises</p>
     --------
     Examples
     --------
-    &#34;&#34;&#34; 
+    &#34;&#34;&#34;
     for k, v in files.items():
         assert type(v)==str, &#34;filenames must be str, but {} was give.&#34;.format(type(v))
         if not os.path.isfile(v)==True:
@@ -2332,15 +2332,15 @@ Raises</p>
         posrange=[]
         pos=[]
         with open(bed) as fin:
-            
+
             for l in fin:
                 l=l.split()
                 chrom, s, e=l[0],l[1],l[2]
                 posrange.append(pr.from_dict({&#34;Chromosome&#34;: [chrom], &#34;Start&#34;: [int(s.replace(&#34;,&#34;,&#34;&#34;))], &#34;End&#34;: [int(e.replace(&#34;,&#34;,&#34;&#34;))]}))
-                pos.append([chrom,int(s.replace(&#34;,&#34;,&#34;&#34;)),int(e.replace(&#34;,&#34;,&#34;&#34;))])  
+                pos.append([chrom,int(s.replace(&#34;,&#34;,&#34;&#34;)),int(e.replace(&#34;,&#34;,&#34;&#34;))])
     else:
         pos=bed
-        
+
     if type(highlight)==str:
         _highlight=[]
         with open(bed) as fin:
@@ -2349,7 +2349,7 @@ Raises</p>
                 chrom, s, e=l[0],l[1],l[2]
                 _highlight.append([chrom,int(s.replace(&#34;,&#34;,&#34;&#34;)),int(e.replace(&#34;,&#34;,&#34;&#34;))])
         highlight=_highlight
-    
+
     time_start=time.time()
     if gff.endswith(&#34;gff&#34;) or gff.endswith(&#34;gff3&#34;):
         gff_dict=_readgff2(gff, &#34;gene&#34;, others=[&#34;gene_name&#34;, &#34;Strand&#34;])
@@ -2358,7 +2358,7 @@ Raises</p>
     else:
         raise Exception(&#34;The gff/gtf file name is required to have either gff, gff3, or gtf extension.&#34;)
     gff_ob=pr.from_dict(gff_dict)
-    
+
     #
     # if gff.endswith(&#34;gff&#34;) or gff.endswith(&#34;gff3&#34;):
     #     gff_ob=pr.read_gff3(gff)
@@ -2387,7 +2387,7 @@ Raises</p>
             #     gr2=gr2[gr2.Feature==&#34;gene&#34;]
             # elif gffformat==&#34;gtf&#34;:
             #     gr2=gr2[gr2.Feature==&#34;transcript&#34;]
-                
+
             tmp=[]
             for gene_name, start, end, ori in zip(gr2.gene_name, gr2.Start, gr2.End, gr2.Strand):
                 tmp.append([gene_name, start, end, ori])
@@ -2395,7 +2395,7 @@ Raises</p>
     #print(geneset)
     #geneset=Parallel(n_jobs=-1)(delayed(gff_ob.get_genes)(chrom, start, end) for chrom, start, end in pos)
     print(&#34;Obtaining genes took&#34;, time.time()-time_start)
-            
+
     time_start=time.time()
     mat={}
     for samplename, f in files.items():
@@ -2403,16 +2403,16 @@ Raises</p>
         #h, t=os.path.split(f)
         #samplename=t.replace(prefix, &#34;&#34;).replace(suffix_set, &#34;&#34;)
         mat[samplename]=[]
-        
+
         for chrom, s, e in pos:
             val=bw.values(chrom, s, e)
-            
+
             mat[samplename].append(val)
-    
-    
-    
+
+
+
     print(&#34;Reading bigwig files took&#34;, time.time()-time_start)
-    
+
     if stack_regions==&#34;vertical&#34;:
         fig, axes=plt.subplots(nrows=len(pos)*2,ncols=len(files),figsize=[10,10],gridspec_kw={
                            &#39;height_ratios&#39;: [2,1]*len(pos),&#34;hspace&#34;:0},
@@ -2422,7 +2422,7 @@ Raises</p>
         sample_order=sorted(mat.keys())
         ticks_labels=[]
         for si, sample in enumerate(sample_order):
-            
+
             vals=mat[sample]
             ymax=0
             for posi, (genes, val) in enumerate(zip(geneset, vals)):
@@ -2444,17 +2444,17 @@ Raises</p>
                     hchrom, hs, he=highlight[posi]
                     ax.fill_between([hs, he], [_ymax, _ymax], alpha=0.5, color=&#34;r&#34;)
                 ax.fill_between(x, val,edgecolor=&#39;face&#39;)
-                
-                
+
+
                 if si==0:
                     ax.set_title(sample+&#34; &#34;+chrom+&#34;:&#34;+str(s)+&#34;-&#34;+str(e))
                     ticks_labels.append([[np.amin(x),np.amax(x)],ax.get_xticks(), ax.get_xticklabels()])
                 ax.set_xticks([],labels=[])
             occupied=[[] for i in range(8)]
-        
-        
 
-        
+
+
+
         for posi in range(len(pos)):
             interval=pos[posi][2]-pos[posi][1]
             axes[posi*2+1,si].plot(ticks_labels[posi][0],[0,0],alpha=0)
@@ -2484,7 +2484,7 @@ Raises</p>
                     axes[posi*2+1,si].plot([ge-interval/32, ge], [slot*1+1,slot*1], color=&#34;gray&#34;)
                 elif ori==&#34;-&#34;:
                     axes[posi*2+1,si].plot([gs, gs+interval/32], [slot*1,slot*1+1], color=&#34;gray&#34;)
-                
+
                 axes[posi*2+1,si].text((gs+ge)/2, slot*1, genename, ha=&#34;center&#34;)
             for oi, ol in enumerate(occupied):
                 if len(ol)==0:
@@ -2504,7 +2504,7 @@ Raises</p>
     else:
         fig, axes=plt.subplots(nrows=len(files)+1,ncols=len(pos),gridspec_kw={
                            &#39;height_ratios&#39;: [2]*len(files)+[1]})
-        
+
         if len(axes.shape)==1:
             axes=axes.reshape([-1,1])
         sample_order=sorted(mat.keys())
@@ -2522,7 +2522,7 @@ Raises</p>
                 remains=vallen%step
                 _e=e-remains
                 x=np.arange(s, _e,step)
-                
+
                 #print(s, e, _e, vallen, step)
                 val=val[:vallen-remains].reshape(-1, step).mean(axis=1)
                 _ymax=np.amax(val)
@@ -2533,18 +2533,18 @@ Raises</p>
 
                 if posi==0:
                     ax.set_ylabel(sample)
-    
+
                 ax.set_xticks([],labels=[])
                 if si==0:
                     ax.set_title(chrom+&#34;:&#34;+str(s)+&#34;-&#34;+str(e))
                 ax.grid(False)
-                    
+
             occupied=[[] for i in range(8)]
             for posi in range(len(pos)):
                 axes[si,posi].set_ylim(0,ymax*1.01)
                 if posi &gt;0:
                     axes[si,posi].set_yticks([],labels=[])
-        
+
         for posi in range(len(pos)):
             interval=pos[posi][2]-pos[posi][1]
             for genename, gs, ge,ori in geneset[posi]:
@@ -2573,7 +2573,7 @@ Raises</p>
                     axes[si+1,posi].plot([ge-interval/32, ge], [slot*1+0.1,slot*1], color=&#34;gray&#34;)
                 elif ori==&#34;-&#34;:
                     axes[si+1,posi].plot([gs, gs+interval/32], [slot*1,slot*1+0.1], color=&#34;gray&#34;)
-                
+
                 axes[si+1,posi].text((gs+ge)/2, slot*1, genename, ha=&#34;center&#34;)
                 #axes[si+1,posi].grid(False)
             for oi, ol in enumerate(occupied):
@@ -2583,11 +2583,11 @@ Raises</p>
             axes[si+1,posi].set_ylim(-0.5,maxslot+0.5)
             axes[si+1,posi].ticklabel_format(useOffset=False)
             axes[si+1,posi].set_yticks([],labels=[])
-            
-        
+
+
         plt.tight_layout(h_pad=-1,w_pad=-1)
         _save(save, &#34;plot&#34;)
-        
+
     return {&#34;ax&#34;:axes,&#34;values&#34;:mat,&#34;genes&#34;:geneset,&#34;positions&#34;:pos}</code></pre>
 </details>
 </dd>
@@ -2629,7 +2629,7 @@ Raises</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def plot_bigwig_correlation(files: dict, 
+<pre><code class="python">def plot_bigwig_correlation(files: dict,
                             chrom: str=&#34;chr1&#34;,
                             step: int=1000,
                             palette: str=&#34;coolwarm&#34;,
@@ -2640,14 +2640,14 @@ Raises</p>
                             #show_val: bool=False,
                             show: bool=False,
                             n_jobs: int=-1, save: str=&#34;&#34;) -&gt; Dict:
-    
+
     &#34;&#34;&#34;
-    Calculate pearson correlations and draw a heatmap for bigwig files.  
-    
+    Calculate pearson correlations and draw a heatmap for bigwig files.
+
     Parameters
     ----------
     files : dict
-        A dictionary whose keys are sample names and values are bigwig file names 
+        A dictionary whose keys are sample names and values are bigwig file names
     chrom : str, optional
         A chromsome to cal
     step: int, optional
@@ -2660,7 +2660,7 @@ Raises</p>
     show : bool, optional
         Whether or not to show the figure.
     n_jobs : int, optional
-        The number of threads to use. It will use all available threads by default. 
+        The number of threads to use. It will use all available threads by default.
     Returns
     -------
     {&#34;ax&#34;:axes,&#34;values&#34;:mat,&#34;genes&#34;:geneset,&#34;positions&#34;:pos} : dict
@@ -2680,15 +2680,15 @@ Raises</p>
         assert type(v)==str, &#34;filenames must be str, but {} was give.&#34;.format(type(v))
         if not os.path.isfile(v)==True:
             raise Exception(&#34;{} does not exist.&#34;.format(v))
-    
+
     mat=[]
     samples=[]
     bw=pwg.open(list(files.values())[0])
     chrom_sizes=bw.chroms()
-    
-    
-        
-    
+
+
+
+
     if peakfile!=&#34;&#34;:
         # peaks=read_peaks(peakfile)
         # for k, f in files.items():
@@ -2705,14 +2705,14 @@ Raises</p>
         peaks=_read_peaks(peakfile)
         for k, f in files.items():
             bw=pwg.open(f)
-            
+
             tmp=Parallel(n_jobs=n_jobs)(delayed(_read_bw_stats)(chrom, s, e, f) for chrom, s, e in peaks)
             mat.append(tmp)
             samples.append(k)
-        
+
     elif chrom !=&#34;all&#34;:
         chrom_size=chrom_sizes[chrom]
-        
+
         samples=[]
         mat=[]
         #samples=list(files.keys())
@@ -2731,7 +2731,7 @@ Raises</p>
     elif chrom==&#34;all&#34;:
         chroms=chrom_sizes.keys()
         for k, f in files.items():
-            
+
             #tmp=Parallel(n_jobs=n_jobs)(delayed(read_bw)(f, chrom, 0, chrom_sizes[chrom], f) for chrom, s, e in chroms)
             bw=pwg.open(f)
             tmp=[]
@@ -2743,12 +2743,12 @@ Raises</p>
                 val=np.nan_to_num(val)
                 val=val.reshape([-1,step]).mean(axis=1)
                 tmp.append(val/np.sum(val))
-            
+
             samples.append(k)
             mat.append(np.concatenate(tmp))
     else:
         raise Exception(&#34;please specify chrom or peakfile options.&#34;)
-    
+
     mat=np.array(mat)
     dmat=Parallel(n_jobs=-1)(delayed(_calc_pearson)(ind, mat) for ind in list(it.combinations(range(mat.shape[0]), 2)))
     dmat=np.array(dmat)
@@ -2762,14 +2762,14 @@ Raises</p>
                row_cluster=True,
                figsize=figsize,
                rasterized=True,
-               #cbar_kws={&#34;label&#34;:&#34;Pearson correlation&#34;}, 
+               #cbar_kws={&#34;label&#34;:&#34;Pearson correlation&#34;},
                annot=show_val,
                **clustermap_param)
     g.cax.set_ylabel(&#34;Pearson correlation&#34;, rotation=-90,va=&#34;bottom&#34;)
     plt.setp(g.ax_heatmap.get_yticklabels(), rotation=0)  # For y axis
     plt.setp(g.ax_heatmap.get_xticklabels(), rotation=90) # For x axis
-    
-    
+
+
     _save(save, &#34;correlation&#34;)
     if show:
         plt.show()

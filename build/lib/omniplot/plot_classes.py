@@ -5,7 +5,7 @@ import os
 import numpy as np
 import pandas as pd
 class _Basic_plot():
-    
+
     def __init__(self,
                 df: pd.DataFrame,
                 x: str="",
@@ -15,7 +15,7 @@ class _Basic_plot():
                 ax: Optional[plt.Axes]=None,
                 ncols: int=1,
                 nrows: int=1,
-                figsize: List[float]=[5,5],  
+                figsize: List[float]=[5,5],
                 save: str="",
                 palette: str="",
                 palette_list=[],
@@ -32,7 +32,7 @@ class _Basic_plot():
                 xlabel: bool=False,
                 ylabel: bool=False
                 ):
-        
+
         self.save=save
         self.xscale=logscalex
         self.yscale=logscaley
@@ -47,7 +47,7 @@ class _Basic_plot():
         self.dpi=dpi
         if axes==None:
             fig, axes=plt.subplots(ncols=ncols, nrows=nrows, figsize=figsize)
-            self.fig=fig 
+            self.fig=fig
             self.axes=axes.flatten()
         else:
             if type(ax)==plt.Axes:
@@ -73,12 +73,12 @@ class _Basic_plot():
                 plt.savefig(save+"_"+suffix+".pdf", dpi=self.dpi)
 
 class _Multiple_variables(_Basic_plot):
-    
+
     def __init__(self):
         super().__init__()
-    
-    
-    def _separate_data(self, df, variables=[], 
+
+
+    def _separate_data(self, df, variables=[],
                    category=""):
         if len(variables) !=0:
             X = df[variables].values
@@ -86,8 +86,8 @@ class _Multiple_variables(_Basic_plot):
                 if type(category)==str:
                     category=[category]
                 #category_val=df[category].values
-            
-            if X.dtype!=float: 
+
+            if X.dtype!=float:
                 raise TypeError(f"variables must contain only float values.")
         elif len(category) !=0:
             if type(category)==str:
@@ -95,17 +95,15 @@ class _Multiple_variables(_Basic_plot):
             #category_val=df[category].values
             df=df.drop(category, axis=1)
             X = df.values
-            if X.dtype!=float: 
+            if X.dtype!=float:
                 raise TypeError(f"data must contain only float values except {category} column. \
             or you can specify the numeric variables with the option 'variables'.")
-            
-        else:    
+
+        else:
             X = df.values
             #category_val=[]
-            if X.dtype!=float: 
+            if X.dtype!=float:
                 raise TypeError(f"data must contain only float values. \
             or you can specify the numeric variables with the option 'variables'.")
-            
+
         return X, category
-        
-        

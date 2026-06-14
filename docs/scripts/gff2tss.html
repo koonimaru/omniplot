@@ -27,13 +27,13 @@
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">import sys
-import os 
+import os
 
 
 
 def writetss(f):
     foname=os.path.splitext(f)[0]+&#34;_tss.bed&#34;
-    
+
     tmp=[]
     with open(f) as fin, open(foname,&#34;w&#34;) as fout:
         for l in fin:
@@ -86,7 +86,7 @@ if __name__==&#34;__main__&#34;:
 </summary>
 <pre><code class="python">def writetss(f):
     foname=os.path.splitext(f)[0]+&#34;_tss.bed&#34;
-    
+
     tmp=[]
     with open(f) as fin, open(foname,&#34;w&#34;) as fout:
         for l in fin:

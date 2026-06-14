@@ -12,13 +12,13 @@ omniplot is a python module to draw a scientific plot with hassle free. It mainl
 <img src="images/example5.png" width="400"/> <img src="images/example6.png" width="260"/> <br>
 <img src="images/example11.png" width="600"/> <br>
 ## Motivation
-Although there exist many good python data visualization libraries, such as 
-[matplotlib](https://matplotlib.org/), 
-[pandas](https://pandas.pydata.org/), 
-[seaborn](https://seaborn.pydata.org/), 
-[plotly](https://plotly.com/), 
+Although there exist many good python data visualization libraries, such as
+[matplotlib](https://matplotlib.org/),
+[pandas](https://pandas.pydata.org/),
+[seaborn](https://seaborn.pydata.org/),
+[plotly](https://plotly.com/),
 [vedo](https://vedo.embl.es/) and so on,
-still several kinds of plots cannot be drawn without hassle. This module is aimed to provide convenient 
+still several kinds of plots cannot be drawn without hassle. This module is aimed to provide convenient
 tools that allow users to draw complex plots, such as a scatter plot with PCA and loadings or clustering analysis in one liner.
 
 ## Install
@@ -30,7 +30,7 @@ git clone https://github.com/koonimaru/omniplot.git --user
 cd omniplot
 pip install .
 ```
-or 
+or
 
 ```bash
 pip install cython --user
@@ -59,7 +59,7 @@ You can open jupyter notebooks with [jupyter lab](https://jupyterlab.readthedocs
 
 And, I also write articles in [medium](https://medium.com/@koh.onimaru).
 
-A formal documation is under development, but you may want to visit an auto-generated [API](https://koonimaru.github.io/omniplot/). 
+A formal documation is under development, but you may want to visit an auto-generated [API](https://koonimaru.github.io/omniplot/).
 
 ## Example usage
 ```python

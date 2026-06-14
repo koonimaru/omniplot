@@ -7,7 +7,7 @@ import pandas as pd
 from matplotlib import cm
 from matplotlib.lines import Line2D
 from collections import defaultdict
-import sys 
+import sys
 import matplotlib as mpl
 from scipy.spatial.distance import pdist, squareform
 from scipy.stats import zscore
@@ -27,11 +27,11 @@ plt.rcParams['font.sans-serif'] = ['Arial']
 plt.rcParams['svg.fonttype'] = 'none'
 sns.set_theme()
 
-def regression_single(df: pd.DataFrame, 
+def regression_single(df: pd.DataFrame,
                       x: str,
-                      y: str, 
+                      y: str,
                       method: str="ransac",
-                      category: str="", 
+                      category: str="",
                       figsize: List[int]=[5,5],
                       show=False, ransac_param={"max_trials":1000},
                       robust_param: dict={},
@@ -42,16 +42,16 @@ def regression_single(df: pd.DataFrame,
                       ax: Optional[plt.Axes]=None,
                       save: str="") -> Dict:
     """
-    Drawing a scatter plot with a single variable linear regression.  
-    
+    Drawing a scatter plot with a single variable linear regression.
+
     Parameters
     ----------
     df : pandas DataFrame
-    
+
     x: str
-        the column name of x axis. 
+        the column name of x axis.
     y: str
-        the column name of y axis. 
+        the column name of y axis.
 
     method: str, optional (default: ransac) ["ransac", "robust","lasso","elastic_net"]
         Method name for regression. Default: ransac
@@ -78,7 +78,7 @@ def regression_single(df: pd.DataFrame,
     Returns
     -------
     dict: dict {"axes":ax, "coefficient":coef,"intercept":intercept,"coefficient_pval":coef_p, "r2":r2, "fitted_model":fitted_model}
-    
+
         fitted_model:
             this can be used like: y_predict=fitted_model.predict(_X)
     Raises
@@ -91,9 +91,9 @@ def regression_single(df: pd.DataFrame,
     --------
     Examples
     --------
-    """ 
-    
-    
+    """
+
+
     Y=df[y]
     _X=np.array(df[x]).reshape([-1,1])
     X=np.array(df[x])
@@ -110,7 +110,7 @@ def regression_single(df: pd.DataFrame,
     if method=="ransac":
         _title="RANSAC regression, r2: {:.2f}, MSE: {:.2f}\ny = {:.2f} + {:.2f}x, coefficient p-value: {:.2E}"
         fitted_model, coef, coef_p, intercept, r2, x_line, y_line, ci, pi,std_error, MSE, inlier_mask, outlier_mask=_ransac(X,Y,plotline_X,random_state, ransac_param)
-        
+
         ############### Ploting
 
         _draw_ci_pi(ax, ci, pi,x_line, y_line)
@@ -124,14 +124,14 @@ def regression_single(df: pd.DataFrame,
             )
         )
         plt.plot(plotline_X.flatten(),y_line)
-        
+
         _save(save, method)
         if len(category)!=0:
             fig, ax1=plt.subplots(figsize=figsize)
             plt.subplots_adjust(left=0.15)
             _draw_ci_pi(ax1, ci, pi,x_line, y_line)
             sns.scatterplot(data=df,x=x, y=y, hue=category, ax=ax1)
-            
+
             plt.xlabel(x)
             plt.ylabel(y)
             #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
@@ -173,7 +173,7 @@ def regression_single(df: pd.DataFrame,
         fitted_model, coef, coef_p, intercept, r2, x_line, y_line, ci, pi,std_error, MSE=_ols(X, Y, plotline_X, method)
 
 
-        _draw_ci_pi(ax, ci, pi,x_line, y_line)   
+        _draw_ci_pi(ax, ci, pi,x_line, y_line)
         sns.scatterplot(data=df,x=x, y=y, color="blue")
         #print(r2, MSE,ransac_coef,ransac.estimator_.intercept_)
         plt.title(_title.format(method,
@@ -200,7 +200,7 @@ def regression_single(df: pd.DataFrame,
     if xunit!="":
         ax.text(1, 0, "({})".format(xunit), transform=ax.transAxes, ha="left",va="top")
         ax1.text(1, 0, "({})".format(xunit), transform=ax.transAxes, ha="left",va="top")
-    
+
     return {"axes":ax, "coefficient":coef,"intercept":intercept,"coefficient_pval":coef_p, "r2":r2, "fitted_model":fitted_model}
 
 
@@ -218,7 +218,7 @@ def _robust_regression(X, Y, plotline_X, robust_param):
     r2 = _calc_r2(X,Y)
     x_line = plotline_X.flatten()
     y_line = fitted_model.predict(sm.add_constant(x_line))
-    
+
     ci, pi,std_error=_ci_pi(X,Y,plotline_X.flatten(),y_model)
     MSE = 1/n * np.sum( (Y - y_model)**2 )
     return fitted_model, summary, coef, coef_p, intercept, intercept_p, r2, x_line, y_line, ci, pi,std_error, MSE
@@ -255,17 +255,17 @@ def _ransac(X,Y,plotline_X,random_state, ransac_param):
     intercept=fitted_model.estimator_.intercept_
     inlier_mask = fitted_model.inlier_mask_
     outlier_mask =np.invert(inlier_mask)
-    
+
                             # number of samples
     y_model=fitted_model.predict(_X)
 
     r2 = _calc_r2(X,Y)
     # mean squared error
     MSE = 1/n * np.sum( (Y - y_model)**2 )
-    
+
     # to plot the adjusted model
     x_line = plotline_X.flatten()
-        
+
     ci, pi, std_error=_ci_pi(X,Y,plotline_X.flatten(),y_model)
     q=((X-X.mean()).transpose() @ (X-X.mean()))
     sigma=std_error*(q**-1)**(0.5)

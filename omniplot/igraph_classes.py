@@ -1,17 +1,16 @@
-
 # This code was copied and mofified from https://igraph.readthedocs.io/en/stable/
 
-from igraph.configuration import Configuration
 from warnings import warn
-from igraph.drawing.colors import Palette, palettes
-from igraph._igraph import convex_hull, VertexSeq
-from igraph.drawing.baseclasses import AbstractGraphDrawer
-from igraph.drawing.utils import Point
 
+from igraph._igraph import VertexSeq, convex_hull
+from igraph.configuration import Configuration
+from igraph.drawing.baseclasses import AbstractGraphDrawer
+from igraph.drawing.colors import Palette, palettes
 from igraph.drawing.matplotlib.edge import MatplotlibEdgeDrawer
 from igraph.drawing.matplotlib.polygon import MatplotlibPolygonDrawer
 from igraph.drawing.matplotlib.utils import find_matplotlib
 from igraph.drawing.matplotlib.vertex import MatplotlibVertexDrawer
+from igraph.drawing.utils import Point
 
 __all__ = ("MatplotlibGraphDrawer",)
 
@@ -55,7 +54,7 @@ class MatplotlibGraphDrawer(AbstractGraphDrawer):
         self.vertex_drawer_factory = vertex_drawer_factory
         self.edge_drawer_factory = edge_drawer_factory
 
-    def draw(self, graph,alpha=0, *args, **kwds):
+    def draw(self, graph, alpha=0, *args, **kwds):
         # Deferred import to avoid a cycle in the import graph
         from igraph.clustering import VertexClustering, VertexCover
 
@@ -173,12 +172,12 @@ class MatplotlibGraphDrawer(AbstractGraphDrawer):
                 else:
                     # Expand the polygon around its center of mass
                     center = Point(
-                        *[sum(coords) / float(len(coords)) for coords in zip(*polygon)]
+                        *[
+                            sum(coords) / float(len(coords))
+                            for coords in zip(*polygon, strict=False)
+                        ]
                     )
-                    polygon = [
-                        Point(*point).towards(center, -corner_radius)
-                        for point in polygon
-                    ]
+                    polygon = [Point(*point).towards(center, -corner_radius) for point in polygon]
 
                 # Draw the hull
                 facecolor = (color[0], color[1], color[2], 0.25 * color[3])
@@ -187,7 +186,8 @@ class MatplotlibGraphDrawer(AbstractGraphDrawer):
                     polygon,
                     corner_radius=corner_radius,
                     facecolor=facecolor,
-                    edgecolor=color, alpha=alpha,
+                    edgecolor=color,
+                    alpha=alpha,
                 )
 
                 if kwds.get("legend", False):
@@ -216,12 +216,10 @@ class MatplotlibGraphDrawer(AbstractGraphDrawer):
         vs = graph.vs
         if vertex_order is None:
             # Default vertex order
-            vertex_coord_iter = zip(vs, vertex_builder, layout)
+            vertex_coord_iter = zip(vs, vertex_builder, layout, strict=False)
         else:
             # Specified vertex order
-            vertex_coord_iter = (
-                (vs[i], vertex_builder[i], layout[i]) for i in vertex_order
-            )
+            vertex_coord_iter = ((vs[i], vertex_builder[i], layout[i]) for i in vertex_order)
 
         # Draw the vertices
         drawer_method = vertex_drawer.draw
@@ -232,7 +230,7 @@ class MatplotlibGraphDrawer(AbstractGraphDrawer):
         vs = graph.vs
         if vertex_order is None:
             # Default vertex order
-            vertex_coord_iter = zip(vertex_builder, layout)
+            vertex_coord_iter = zip(vertex_builder, layout, strict=False)
         else:
             # Specified vertex order
             vertex_coord_iter = ((vertex_builder[i], layout[i]) for i in vertex_order)
@@ -251,8 +249,8 @@ class MatplotlibGraphDrawer(AbstractGraphDrawer):
                 *coords,
                 vertex.label,
                 fontsize=label_size,
-                ha='center',
-                va='center',
+                ha="center",
+                va="center",
                 # TODO: overlap, offset, etc.
             )
 
@@ -260,7 +258,7 @@ class MatplotlibGraphDrawer(AbstractGraphDrawer):
         es = graph.es
         if edge_order is None:
             # Default edge order
-            edge_coord_iter = zip(es, edge_builder)
+            edge_coord_iter = zip(es, edge_builder, strict=False)
         else:
             # Specified edge order
             edge_coord_iter = ((es[i], edge_builder[i]) for i in edge_order)
@@ -292,23 +290,25 @@ class MatplotlibGraphDrawer(AbstractGraphDrawer):
                 )
 
                 text_kwargs = {}
-                text_kwargs['ha'] = halign.value
-                text_kwargs['va'] = valign.value
+                text_kwargs["ha"] = halign.value
+                text_kwargs["va"] = valign.value
 
                 if visual_edge.background is not None:
-                    text_kwargs['bbox'] = dict(
+                    text_kwargs["bbox"] = dict(
                         facecolor=visual_edge.background,
-                        edgecolor='none',
+                        edgecolor="none",
                     )
-                    text_kwargs['ha'] = 'center'
-                    text_kwargs['va'] = 'center'
+                    text_kwargs["ha"] = "center"
+                    text_kwargs["va"] = "center"
 
                 if visual_edge.align_label:
                     # Rotate the text to align with the edge
                     rotation = edge_drawer.get_label_rotation(
-                        visual_edge, src_vertex, dest_vertex,
+                        visual_edge,
+                        src_vertex,
+                        dest_vertex,
                     )
-                    text_kwargs['rotation'] = rotation
+                    text_kwargs["rotation"] = rotation
 
                 ax.text(
                     x,

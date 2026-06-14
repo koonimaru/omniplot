@@ -1233,7 +1233,7 @@ static PyObject *__pyx_codeobj__4;
 
 /* "chipseq_utils.pyx":3
  * import itertools
- * 
+ *
  * def range_diff(list r1, list r2):             # <<<<<<<<<<<<<<
  *     cdef int s1, e1, s2, e2
  *     cdef int endpoints[4]
@@ -1346,8 +1346,8 @@ static PyObject *__pyx_pf_13chipseq_utils_range_diff(CYTHON_UNUSED PyObject *__p
       __PYX_ERR(0, 7, __pyx_L1_error)
     }
     #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
-    __pyx_t_1 = PyList_GET_ITEM(sequence, 0); 
-    __pyx_t_2 = PyList_GET_ITEM(sequence, 1); 
+    __pyx_t_1 = PyList_GET_ITEM(sequence, 0);
+    __pyx_t_2 = PyList_GET_ITEM(sequence, 1);
     __Pyx_INCREF(__pyx_t_1);
     __Pyx_INCREF(__pyx_t_2);
     #else
@@ -1382,8 +1382,8 @@ static PyObject *__pyx_pf_13chipseq_utils_range_diff(CYTHON_UNUSED PyObject *__p
       __PYX_ERR(0, 8, __pyx_L1_error)
     }
     #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
-    __pyx_t_2 = PyList_GET_ITEM(sequence, 0); 
-    __pyx_t_1 = PyList_GET_ITEM(sequence, 1); 
+    __pyx_t_2 = PyList_GET_ITEM(sequence, 0);
+    __pyx_t_1 = PyList_GET_ITEM(sequence, 1);
     __Pyx_INCREF(__pyx_t_2);
     __Pyx_INCREF(__pyx_t_1);
     #else
@@ -1522,7 +1522,7 @@ static PyObject *__pyx_pf_13chipseq_utils_range_diff(CYTHON_UNUSED PyObject *__p
  *     if endpoints[3] == e1 and endpoints[2] != e1:
  *         result.append((endpoints[2], endpoints[3]))             # <<<<<<<<<<<<<<
  *     return result
- * 
+ *
  */
     __pyx_t_7 = __Pyx_PyInt_From_int((__pyx_v_endpoints[2])); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 14, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_7);
@@ -1552,7 +1552,7 @@ static PyObject *__pyx_pf_13chipseq_utils_range_diff(CYTHON_UNUSED PyObject *__p
  *     if endpoints[3] == e1 and endpoints[2] != e1:
  *         result.append((endpoints[2], endpoints[3]))
  *     return result             # <<<<<<<<<<<<<<
- * 
+ *
  * def multirange_diff(list r1_list, list r2_list):
  */
   __Pyx_XDECREF(__pyx_r);
@@ -1562,7 +1562,7 @@ static PyObject *__pyx_pf_13chipseq_utils_range_diff(CYTHON_UNUSED PyObject *__p
 
   /* "chipseq_utils.pyx":3
  * import itertools
- * 
+ *
  * def range_diff(list r1, list r2):             # <<<<<<<<<<<<<<
  *     cdef int s1, e1, s2, e2
  *     cdef int endpoints[4]
@@ -1587,9 +1587,9 @@ static PyObject *__pyx_pf_13chipseq_utils_range_diff(CYTHON_UNUSED PyObject *__p
 
 /* "chipseq_utils.pyx":17
  *     return result
- * 
+ *
  * def multirange_diff(list r1_list, list r2_list):             # <<<<<<<<<<<<<<
- * 
+ *
  *     cdef int r1, r2
  */
 
@@ -1683,7 +1683,7 @@ static PyObject *__pyx_pf_13chipseq_utils_2multirange_diff(CYTHON_UNUSED PyObjec
   __Pyx_INCREF(__pyx_v_r1_list);
 
   /* "chipseq_utils.pyx":20
- * 
+ *
  *     cdef int r1, r2
  *     for r2 in r2_list:             # <<<<<<<<<<<<<<
  *         r1_list = list(itertools.chain(*[range_diff(r1, r2) for r1 in r1_list]))
@@ -1808,7 +1808,7 @@ static PyObject *__pyx_pf_13chipseq_utils_2multirange_diff(CYTHON_UNUSED PyObjec
     __pyx_t_6 = 0;
 
     /* "chipseq_utils.pyx":20
- * 
+ *
  *     cdef int r1, r2
  *     for r2 in r2_list:             # <<<<<<<<<<<<<<
  *         r1_list = list(itertools.chain(*[range_diff(r1, r2) for r1 in r1_list]))
@@ -1829,9 +1829,9 @@ static PyObject *__pyx_pf_13chipseq_utils_2multirange_diff(CYTHON_UNUSED PyObjec
 
   /* "chipseq_utils.pyx":17
  *     return result
- * 
+ *
  * def multirange_diff(list r1_list, list r2_list):             # <<<<<<<<<<<<<<
- * 
+ *
  *     cdef int r1, r2
  */
 
@@ -1857,7 +1857,7 @@ static PyObject *__pyx_pf_13chipseq_utils_2multirange_diff(CYTHON_UNUSED PyObjec
 }
 
 /* "carray.from_py":77
- * 
+ *
  * @cname("__Pyx_carray_from_py_int")
  * cdef int __Pyx_carray_from_py_int(object o, base_type *v, Py_ssize_t length) except -1:             # <<<<<<<<<<<<<<
  *     cdef Py_ssize_t i = length
@@ -2090,7 +2090,7 @@ static int __Pyx_carray_from_py_int(PyObject *__pyx_v_o, int *__pyx_v_v, Py_ssiz
  *             i += 1  # convert index to length
  *             if i == length:             # <<<<<<<<<<<<<<
  *                 return 0
- * 
+ *
  */
       __pyx_t_6 = ((__pyx_v_i == __pyx_v_length) != 0);
       if (__pyx_t_6) {
@@ -2099,7 +2099,7 @@ static int __Pyx_carray_from_py_int(PyObject *__pyx_v_o, int *__pyx_v_v, Py_ssiz
  *             i += 1  # convert index to length
  *             if i == length:
  *                 return 0             # <<<<<<<<<<<<<<
- * 
+ *
  *     PyErr_Format(
  */
         __pyx_r = 0;
@@ -2111,7 +2111,7 @@ static int __Pyx_carray_from_py_int(PyObject *__pyx_v_o, int *__pyx_v_v, Py_ssiz
  *             i += 1  # convert index to length
  *             if i == length:             # <<<<<<<<<<<<<<
  *                 return 0
- * 
+ *
  */
       }
     }
@@ -2150,7 +2150,7 @@ static int __Pyx_carray_from_py_int(PyObject *__pyx_v_o, int *__pyx_v_v, Py_ssiz
 
   /* "carray.from_py":93
  *                 return 0
- * 
+ *
  *     PyErr_Format(             # <<<<<<<<<<<<<<
  *         IndexError,
  *         ("too many values found during array assignment, expected %zd"
@@ -2160,7 +2160,7 @@ static int __Pyx_carray_from_py_int(PyObject *__pyx_v_o, int *__pyx_v_v, Py_ssiz
   __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
 
   /* "carray.from_py":77
- * 
+ *
  * @cname("__Pyx_carray_from_py_int")
  * cdef int __Pyx_carray_from_py_int(object o, base_type *v, Py_ssize_t length) except -1:             # <<<<<<<<<<<<<<
  *     cdef Py_ssize_t i = length
@@ -2270,7 +2270,7 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
 
   /* "chipseq_utils.pyx":3
  * import itertools
- * 
+ *
  * def range_diff(list r1, list r2):             # <<<<<<<<<<<<<<
  *     cdef int s1, e1, s2, e2
  *     cdef int endpoints[4]
@@ -2282,9 +2282,9 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
 
   /* "chipseq_utils.pyx":17
  *     return result
- * 
+ *
  * def multirange_diff(list r1_list, list r2_list):             # <<<<<<<<<<<<<<
- * 
+ *
  *     cdef int r1, r2
  */
   __pyx_tuple__3 = PyTuple_Pack(4, __pyx_n_s_r1_list, __pyx_n_s_r2_list, __pyx_n_s_r1, __pyx_n_s_r2); if (unlikely(!__pyx_tuple__3)) __PYX_ERR(0, 17, __pyx_L1_error)
@@ -2568,7 +2568,7 @@ if (!__Pyx_RefNanny) {
 
   /* "chipseq_utils.pyx":1
  * import itertools             # <<<<<<<<<<<<<<
- * 
+ *
  * def range_diff(list r1, list r2):
  */
   __pyx_t_1 = __Pyx_Import(__pyx_n_s_itertools, 0, -1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1, __pyx_L1_error)
@@ -2578,7 +2578,7 @@ if (!__Pyx_RefNanny) {
 
   /* "chipseq_utils.pyx":3
  * import itertools
- * 
+ *
  * def range_diff(list r1, list r2):             # <<<<<<<<<<<<<<
  *     cdef int s1, e1, s2, e2
  *     cdef int endpoints[4]
@@ -2590,9 +2590,9 @@ if (!__Pyx_RefNanny) {
 
   /* "chipseq_utils.pyx":17
  *     return result
- * 
+ *
  * def multirange_diff(list r1_list, list r2_list):             # <<<<<<<<<<<<<<
- * 
+ *
  *     cdef int r1, r2
  */
   __pyx_t_1 = PyCFunction_NewEx(&__pyx_mdef_13chipseq_utils_3multirange_diff, NULL, __pyx_n_s_chipseq_utils); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 17, __pyx_L1_error)
@@ -2602,7 +2602,7 @@ if (!__Pyx_RefNanny) {
 
   /* "chipseq_utils.pyx":1
  * import itertools             # <<<<<<<<<<<<<<
- * 
+ *
  * def range_diff(list r1, list r2):
  */
   __pyx_t_1 = __Pyx_PyDict_NewPresized(0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 1, __pyx_L1_error)
@@ -2611,7 +2611,7 @@ if (!__Pyx_RefNanny) {
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
   /* "carray.from_py":77
- * 
+ *
  * @cname("__Pyx_carray_from_py_int")
  * cdef int __Pyx_carray_from_py_int(object o, base_type *v, Py_ssize_t length) except -1:             # <<<<<<<<<<<<<<
  *     cdef Py_ssize_t i = length

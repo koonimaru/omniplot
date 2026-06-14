@@ -1,11 +1,11 @@
 import sys
-import os 
+import os
 
 
 
 def writetss(f):
     foname=os.path.splitext(f)[0]+"_tss.bed"
-    
+
     tmp=[]
     with open(f) as fin, open(foname,"w") as fout:
         for l in fin:

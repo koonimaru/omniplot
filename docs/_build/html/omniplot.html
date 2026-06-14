@@ -16,22 +16,22 @@
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="omniplot.cython_utils package" href="omniplot.cython_utils.html" />
     <link rel="prev" title="Welcome to omniplot’s documentation!" href="index.html" />
-   
+
   <link rel="stylesheet" href="_static/custom.css" type="text/css" />
-  
-  
+
+
   <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
 
   </head><body>
-  
+
 
     <div class="document">
       <div class="documentwrapper">
         <div class="bodywrapper">
-          
+
 
           <div class="body" role="main">
-            
+
   <section id="omniplot-package">
 <h1>omniplot package<a class="headerlink" href="#omniplot-package" title="Permalink to this heading">¶</a></h1>
 <section id="subpackages">
@@ -81,7 +81,7 @@
 </dd>
 <dt>gff: str, optional (required when tss_dist is provided)</dt><dd><p>A gff or gtf file that contains gene annotations. You need to chose a correct genome version of a gff/gtf file</p>
 </dd>
-<dt>closest_genes: bool=False,</dt><dd><p>If this is True, closest genes of SE will be shown, instead of genomic regions. You can specify the number 
+<dt>closest_genes: bool=False,</dt><dd><p>If this is True, closest genes of SE will be shown, instead of genomic regions. You can specify the number
 of closest genes by “nearest_k” option.</p>
 </dd>
 <dt>nearest_k: int, optional</dt><dd><p>The number of closest genes to be included. Default: 1.</p>
@@ -465,7 +465,7 @@ pie_features={“A”:{“frac”:np.array([50,50]),”label”:np.array([“a�
 <dl class="py function">
 <dt class="sig sig-object py" id="omniplot.networkplot.sankey_category">
 <span class="sig-prename descclassname"><span class="pre">omniplot.networkplot.</span></span><span class="sig-name descname"><span class="pre">sankey_category</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">category</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">[]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">palette</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'tab20c'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">colormode</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'independent'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">altcat</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_percentage</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_percentage_target</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fontsize</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">12</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hatch</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Axes</span></span></span><a class="reference internal" href="_modules/omniplot/networkplot.html#sankey_category"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#omniplot.networkplot.sankey_category" title="Permalink to this definition">¶</a></dt>
-<dd><p>Drawing a sankey plot to compare multiple categories in a data. The usage example may be 
+<dd><p>Drawing a sankey plot to compare multiple categories in a data. The usage example may be
 to compare between clustering results.</p>
 <section id="id35">
 <h3>Parameters<a class="headerlink" href="#id35" title="Permalink to this heading">¶</a></h3>
@@ -476,7 +476,7 @@ to compare between clustering results.</p>
 </dd>
 <dt>palette: str, optional default(“tab20c”)</dt><dd><p>Colormap name. Default: tab20c</p>
 </dd>
-<dt>colormode: str [‘shared’, ‘independent’, ‘alternative’, ‘trace’], optional default(“independent”)</dt><dd><p>The way to color categories. ‘independent’ will give each category a distinct (unrelated) colorset. 
+<dt>colormode: str [‘shared’, ‘independent’, ‘alternative’, ‘trace’], optional default(“independent”)</dt><dd><p>The way to color categories. ‘independent’ will give each category a distinct (unrelated) colorset.
 ‘shared’ will give a shared color if categories share the same names of labels. ‘alternative’ will
 color bars based on additional category specified by altcat. ‘trace’ will color all bars according
 to the first category.</p>
@@ -537,7 +537,7 @@ variables : list</p>
 </dd>
 <dt>approx_clusternum_col<span class="classifier">int, optional</span></dt><dd><p>The approximate number of column clusters to be created. Labeling the groups of leaves with different colors. The result of hierarchical clustering won’t change.</p>
 </dd>
-<dt>color_var<span class="classifier">int, optional</span></dt><dd><p>The number of potential colors in dendrograms. If some clusters in the dendrogram share a same color (because the number of clusters is too many), 
+<dt>color_var<span class="classifier">int, optional</span></dt><dd><p>The number of potential colors in dendrograms. If some clusters in the dendrogram share a same color (because the number of clusters is too many),
 give this option may solve the problem.</p>
 </dd>
 <dt>merginalsum<span class="classifier">bool, optional</span></dt><dd><p>Whether or not to draw bar plots for merginal distribution.</p>
@@ -669,8 +669,8 @@ e.g.:</p>
 </dd>
 <dt>scaling: float</dt><dd><p>The scale of dots. If resulting dots are too large (or small), you can reduce (or increase) dot sizes by adjusting this value.</p>
 </dd>
-<dt>highlight<span class="classifier">string</span></dt><dd><p>A dictionary to set color labels to leaves. The key is the name of the color label. 
-The value is the list of RGB color codes, each corresponds to the color of a leaf. 
+<dt>highlight<span class="classifier">string</span></dt><dd><p>A dictionary to set color labels to leaves. The key is the name of the color label.
+The value is the list of RGB color codes, each corresponds to the color of a leaf.
 e.g., {“color1”:[[1,0,0,1], ….]}</p>
 </dd>
 <dt>size_title<span class="classifier">string</span></dt><dd><p>The title for size values. If not set, “size_val” will be used.</p>
@@ -822,7 +822,7 @@ Available methods: [“ttest_ind”,</p>
 </dd>
 <dt>show<span class="classifier">bool, optional</span></dt><dd><p>Whether or not to show the figure.</p>
 </dd>
-<dt>significance: str [‘numeric’, ‘symbol’], optional</dt><dd><p>How to show the significance. ‘numeric’ will show -log10(p values) in the plot and 
+<dt>significance: str [‘numeric’, ‘symbol’], optional</dt><dd><p>How to show the significance. ‘numeric’ will show -log10(p values) in the plot and
 ‘symbol’ will represent significance as asterisks.</p>
 </dd>
 <dt>significance_ranges: dict, optional </dt><dd><p>thresholds of -log10(p values) that each asterisk number represents. Ignored when  significance=”numeric”.
@@ -967,7 +967,7 @@ e.g.) palette={“”}</p>
 </dd>
 <dt>show_legend: bool, optional (default: False)</dt><dd><p>Whether to show legends.</p>
 </dd>
-<dt>bin_num: dict, int, optional (default: 10)</dt><dd><p>A histogram bin number when columns with float values are selected. 
+<dt>bin_num: dict, int, optional (default: 10)</dt><dd><p>A histogram bin number when columns with float values are selected.
 You can specify the bin number of each column by using dictionary (e.g., bin_num={“A”:10,”B”,5}).</p>
 </dd>
 </dl>
@@ -1056,7 +1056,7 @@ e.g.) palette={“”}</p>
 <h3>Parameters<a class="headerlink" href="#id108" title="Permalink to this heading">¶</a></h3>
 <p>df : pandas DataFrame</p>
 <dl>
-<dt>x: str or list</dt><dd><p>The category to place in x axis. Multiple categories can be passed by a list. 
+<dt>x: str or list</dt><dd><p>The category to place in x axis. Multiple categories can be passed by a list.
 It mainly works with categorical values, including strings boolians and integers, but also can take float values by automatically creating a histogram.</p>
 </dd>
 <dt>hue: str or list</dt><dd><p>Counting samples by the hue category. Multiple categories can be passed by a list.</p>
@@ -1093,7 +1093,7 @@ e.g.) palette={“”}</p>
 </dd>
 <dt>show_legend: bool, optional (default: True)</dt><dd><p>Whether to show legends.</p>
 </dd>
-<dt>bin_num: dict, int, optional (default: 10)</dt><dd><p>A histogram bin number when columns with float values are selected. 
+<dt>bin_num: dict, int, optional (default: 10)</dt><dd><p>A histogram bin number when columns with float values are selected.
 You can specify the bin number of each column by using dictionary (e.g., bin_num={“A”:10,”B”,5}).</p>
 </dd>
 </dl>
@@ -1341,18 +1341,18 @@ ignored.</p>
 </dd>
 <dt>category: str, optional</dt><dd><p>the column name of a known sample category (if exists).</p>
 </dd>
-<dt>method: str</dt><dd><p>Method name for clustering. 
+<dt>method: str</dt><dd><p>Method name for clustering.
 “kmeans”
 “hierarchical”,
 “dbscan”: Density-Based Clustering Algorithms
 “fuzzy” : fuzzy c-mean clustering using scikit-fuzzy</p>
 </dd>
-<dt>n_clusters: int or str, optional (default: 3)</dt><dd><p>The number of clusters to be created. If “auto” is provided, it will estimate optimal 
+<dt>n_clusters: int or str, optional (default: 3)</dt><dd><p>The number of clusters to be created. If “auto” is provided, it will estimate optimal
 cluster numbers with “Sum of squared distances” for k-mean clustering and silhouette method for others.</p>
 </dd>
 <dt>eps: int or list[int]</dt><dd><p>DBSCAN’s hyper parameter. It will affect the total number of clusters.</p>
 </dd>
-<dt>reduce_dimension: str, optional (default: “umap”)</dt><dd><p>Dimensionality reduction method. if “” is passed, no reduction methods are applied. 
+<dt>reduce_dimension: str, optional (default: “umap”)</dt><dd><p>Dimensionality reduction method. if “” is passed, no reduction methods are applied.
 In this case, data must have only two dimentions or x and y options must be specified.</p>
 </dd>
 <dt>markers: bool, optional (default: False)</dt><dd><p>Whether to use different markers for each cluster/category (for a colorblind-friendly plot).</p>
@@ -1450,7 +1450,7 @@ category: list or str, optional</p>
 <div><p>the column name of a known sample category (if exists).</p>
 </div></blockquote>
 <dl>
-<dt>method: str</dt><dd><p>Method name for decomposition. 
+<dt>method: str</dt><dd><p>Method name for decomposition.
 Available methods: {“random_projection”: “Sparse random projection”,</p>
 <blockquote>
 <div><p>“linear_discriminant”: “Linear discriminant analysis”,
@@ -1534,7 +1534,7 @@ e.g.)</p>
 </dd>
 <dt>piesize: float, optional (default: 0.01) </dt><dd><p>pie chart size.</p>
 </dd>
-<dt>label: str, optional (default: “all”)</dt><dd><p>“all”: all 
+<dt>label: str, optional (default: “all”)</dt><dd><p>“all”: all
 “topn_of_sum”: top n samples are labeled
 “”: no labels</p>
 </dd>
@@ -1668,7 +1668,7 @@ ignored.</p>
 </dd>
 <dt>palette_val: str=”coolwarm”,</dt><dd><p>The color palette for the color gradient specified by the “colors” option.</p>
 </dd>
-<dt>show_labels: dict, optional</dt><dd><p>A dictionary to specify the condition to add labels to the points. dataframe index will be labeld to points. 
+<dt>show_labels: dict, optional</dt><dd><p>A dictionary to specify the condition to add labels to the points. dataframe index will be labeld to points.
 It may contain “val” and “topn” keys. if you want all points to labeled, pass {“topn”:0} to the option.
 To add labels to the only top n points of specific values, pass a dictionary like {“val”: “body_mass_g”, “topn”:5}.
 “val” specify the column name to rank points and “topn” specify the number of points to be labeled.</p>
@@ -1751,7 +1751,7 @@ axlabel: str=”single”, [“single”, “each”]</p>
 
 
           </div>
-          
+
         </div>
       </div>
       <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
@@ -1893,18 +1893,18 @@ axlabel: str=”single”, [“single”, “each”]</p>
     </div>
     <div class="footer">
       &copy;2023, Author.
-      
+
       |
       Powered by <a href="http://sphinx-doc.org/">Sphinx 6.1.3</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
-      
+
       |
       <a href="_sources/omniplot.rst.txt"
           rel="nofollow">Page source</a>
     </div>
 
-    
 
-    
+
+
   </body>
 </html>

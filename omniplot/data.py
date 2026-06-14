@@ -1,13 +1,14 @@
-
-import pandas as pd
 import numpy as np
-from typing import Union, Dict, List, Optional
+import pandas as pd
+
 
 class Data_processor:
-    
     X: np.ndarray
-    
-    def __init__(self, df: pd.DataFrame, 
-                 category: Union[List, str]=[],
-                 values: Union[List, str]=[],):
+
+    def __init__(
+        self,
+        df: pd.DataFrame,
+        category: list | str = [],
+        values: list | str = [],
+    ):
         pass

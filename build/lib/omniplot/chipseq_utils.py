@@ -9,7 +9,7 @@ try:
 except ImportError:
     pass
 import time
-import os 
+import os
 import scipy.stats
 from scipy.spatial.distance import squareform
 from scipy.spatial import distance
@@ -86,7 +86,7 @@ class gff_parser():
                     for m in meta:
                         k, v=m.split("=")
                         tmp[k]=v
-                    
+
 
                     # if not chrom in data:
                     #     data[chrom]={"pos":[], "kind":[],"ori":[],"meta":[]}
@@ -96,32 +96,32 @@ class gff_parser():
                     # data[chrom]["pos"].append([s, e])
                     # data[chrom]["kind"].append(kind)
                     # data[chrom]["ori"].append(ori)
-                    # data[chrom]["meta"].append(tmp)        
+                    # data[chrom]["meta"].append(tmp)
                     if not chrom in data:
                         data[chrom]={}
-                  
+
                     _s=self.resolution*(s//self.resolution)
                     if not _s in data[chrom]:
                         data[chrom][_s]={"pos":[], "kind":[],"ori":[],"meta":[]}
                     data[chrom][_s]["pos"].append([s, e])
                     data[chrom][_s]["kind"].append(kind)
                     data[chrom][_s]["ori"].append(ori)
-                    data[chrom][_s]["meta"].append(tmp)  
+                    data[chrom][_s]["meta"].append(tmp)
             with open(gffchache, "wb") as fin:
                 pickle.dump(data, fin)
             with open(gffchache_info, "wb") as fin:
-                pickle.dump(info, fin)         
+                pickle.dump(info, fin)
         self.data=data
         self.info=info
         print(time.time()-time_start)
     def get_genes(self, chrom: str,
-                  start: int, 
+                  start: int,
                   end: int,
                   gene_type: set=set(["protein_coding"])) -> list:
         _data=self.data[chrom]
         genes=[]
-        
-        
+
+
         _start=start//self.resolution
         _end=end//self.resolution
         for h in range(_start, _end+1):
@@ -134,8 +134,8 @@ class gff_parser():
                 if s>end:
                     break
                 if kind=="gene" and meta["gene_type"] in gene_type:
-                    
-                
+
+
                     if start<=s and e<=end:
                         genename=meta["gene_name"]
                         genes.append([genename,s,e,ori])
@@ -145,8 +145,8 @@ class gff_parser():
                     elif s<start and start<=e<=end  and meta["gene_type"] in gene_type:
                         genename=meta["gene_name"]
                         genes.append([genename,start,e,ori])
-        
-        
+
+
         # _data=self.data[chrom]
         # genes=[]
         # for i, (se, kind, meta, ori) in enumerate(zip(_data["pos"], _data["kind"], _data["meta"], _data["ori"])):
@@ -167,14 +167,14 @@ class gff_parser():
         #         elif s<start and start<=e<=end  and meta["gene_type"] in gene_type:
         #             genename=meta["gene_name"]
         #             genes.append([genename,start,e,ori])
-                
-            
+
+
 
         return genes
     def get_tss(self, gene_type=set(["protein_coding"])):
-        
+
         tss={}
-        
+
         for chrom, _data in self.data.items():
             tss[chrom]={"pos":[],"genes":[]}
             for i, (s,e) in enumerate(_data["pos"]):
@@ -184,13 +184,13 @@ class gff_parser():
                         tss[chrom]["pos"].append(s)
                     else:
                         tss[chrom]["pos"].append(e)
-        
-        return tss 
-    
+
+        return tss
+
     def get_tss_extend(self, gene_type=set(["protein_coding"]), extend=5000):
-        
+
         tss={}
-        
+
         for chrom, _data in self.data.items():
             tss[chrom]={"pos":[],"genes":[]}
             for i, (s,e) in enumerate(_data["pos"]):
@@ -200,12 +200,12 @@ class gff_parser():
                         tss[chrom]["pos"].append([s-extend,s+extend])
                     else:
                         tss[chrom]["pos"].append([e-extend,e+extend])
-        
+
         return tss
-    
+
     def closest_genes(self, peaks, K=1):
         tss=self.get_tss()
-        
+
         if type(peaks)==list:
             _peaks={}
             for chrom, s, e in peaks:
@@ -223,12 +223,12 @@ class gff_parser():
             _genes=np.array(tss[chrom]["genes"])
             _peaks=np.array(peaks[chrom]["center"]).reshape([-1,1])
             tree = BallTree(_tss)
-            dist, ind = tree.query(_peaks, k=K) 
+            dist, ind = tree.query(_peaks, k=K)
             for _ind, _dist, (s,e) in zip(list(ind), list(dist),peaks[chrom]["se"]):
                 _closest=_genes[_ind]
                 genes_peaks.append([chrom, s, e, ",".join(list(_closest)), ",".join(map(str, list(_dist)))])
         return genes_peaks
-    
+
 def _calc_pearson2(_ind, _mat):
     _a, _b=_mat[_ind[0]], _mat[_ind[1]]
     _af=_a>np.quantile(_a, 0.75)
@@ -266,7 +266,7 @@ def _read_peaks(peakfile):
 
 def _stitching(peakfile, stitchdist):
     speaks={}
-    
+
     for chrom, intervals in peakfile.items():
         intervals.sort()
         stack = []
@@ -284,7 +284,7 @@ def _stitching(peakfile, stitchdist):
 
 def _stitching_for_pyrange(peakfile, stitchdist):
     speaks={"Chromosome":[],"Start":[],"End":[]}
-    
+
     for chrom, intervals in peakfile.items():
         intervals.sort()
         stack = []
@@ -315,10 +315,10 @@ def _read_tss(tss, tss_dist):
                 tss_pos[l[0]].append([int(l[1])-tss_dist,int(l[1])+tss_dist])
             elif l[4]=="-":
                 tss_pos[l[0]].append([int(l[2])-tss_dist,int(l[2])+tss_dist])
-            
+
             else:
                 raise Exception("TSS bed file format must look like 'chromsome\tstart\tend\tname\torientation'")
-            
+
     return tss_pos
 
 def _interval_subtraction(list1, list2):
@@ -345,7 +345,7 @@ def _remove_close_to_tss(stitched, tss_pos):
     #
     #     tsslist=tss_pos[chrom]
     #     _stitched[chrom]=multirange_diff(se, tsslist)
-        
+
     #
     # for s, e in se:
     #     news=[s]
@@ -388,7 +388,7 @@ def _find_extremes(signals, pos):
     signals=signals[srt]
     pos=np.array(pos)
     pos=pos[srt]
-    
+
     y=signals
     _y=y/np.amax(y)
     x=np.linspace(0,1, y.shape[0])
@@ -400,8 +400,8 @@ def _find_extremes(signals, pos):
         possitives.append(np.sum(_y-__y>0))
 
     index=len(possitives)-np.argmax(possitives)
-    
-    
+
+
     return x, y, pos, index, srt
 
 def _readgff(_gff, _kind, tss_dist):
@@ -458,7 +458,7 @@ def _readgff2(_gff, _kind, others=[]):
             tmp={}
             #print(meta)
             meta=meta.split(";")
-            
+
             for m in meta:
                 k, v=m.split("=")
                 if k in others:
@@ -475,9 +475,9 @@ def _readgff2(_gff, _kind, others=[]):
     return gff_dict
 
 def _readgff_transcripts(_gff, _extend, avoid="chrM"):
-    
+
     transcripts={"+":{},"-":{}}
-    
+
     with open(_gff) as fin:
         for l in fin:
             if l.startswith("#"):
@@ -490,7 +490,7 @@ def _readgff_transcripts(_gff, _extend, avoid="chrM"):
                 tmp={}
                 #print(meta)
                 meta=meta.split(";")
-                
+
                 for m in meta:
                     k, v=m.split("=")
                     tmp[k]=v
@@ -508,7 +508,7 @@ def _readgff_transcripts(_gff, _extend, avoid="chrM"):
                 total_len=0
                 i=0
                 for chrom, s, e in exons:
-            
+
                     total_len+=e-s
                     if i==0:
                         s=s-_extend
@@ -522,7 +522,7 @@ def _readgff_transcripts(_gff, _extend, avoid="chrM"):
                     else:
                         _transcripts[strand][tid].append([chrom, s, e])
                     i+=1
-                
+
         elif strand=="-":
             for tid, exons in tids.items():
                 _transcripts[strand][tid]=[]
@@ -590,14 +590,14 @@ def _read_and_reshape_bw(chrom, s, e, _bw, binsize):
     # mean=bw.stats(chrom, s, e, exact=True)[0]
     # if mean==None:
     #     mean=0
-    return val, mean 
+    return val, mean
 
 def _read_bw_stats(chrom, s, e, _bw):
     bw=pwg.open(_bw)
     val=bw.stats(chrom, s, e)[0]
     if val==None:
         val=0
-    return val 
+    return val
 def _read_and_reshape_np(s, e, bw, binsize):
     val=bw[s:e]
     #print(val)
@@ -615,7 +615,7 @@ def _flatten_gen_comp(lst: List[Any]) -> Iterable[Any]:
                 return (item
                         for sublist in lst
                         for item in sublist)
-                
+
 def _read_transcripts(_bw, _pos, binsize, extend):
     expected=2*extend//binsize
     bw=pwg.open(_bw)
@@ -626,20 +626,14 @@ def _read_transcripts(_bw, _pos, binsize, extend):
         except RuntimeError as e:
             print(chrom, s, e)
         vals.append(val)
-        
+
     #print(val)
     val=np.nan_to_num(list(_flatten_gen_comp(vals)))
-    
-    
-    
+
+
+
     val=val.reshape([-1,binsize]).mean(axis=1)
     if val.shape[0]<expected:
-        
+
         val =np.concatenate([val, np.zeros([expected-val.shape[0]])])
     return val
-    
-    
-    
-    
-    
-    

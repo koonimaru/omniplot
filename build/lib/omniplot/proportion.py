@@ -15,7 +15,7 @@ from matplotlib.patches import Rectangle
 import scipy.cluster.hierarchy as sch
 import fastcluster as fcl
 from matplotlib.patches import Patch
-import sys 
+import sys
 import matplotlib as mpl
 from sklearn.cluster import KMeans, DBSCAN
 from sklearn.metrics import silhouette_score
@@ -59,14 +59,14 @@ def _stacked_barplot(df: pd.DataFrame,
                     yunit: str="",
                     title: str="",
                     hatch: bool=False)-> Dict:
-    
+
     """
-    Drawing a stacked barplot with or without the fisher's exact test 
-    
+    Drawing a stacked barplot with or without the fisher's exact test
+
     Parameters
     ----------
     df : pandas DataFrame
-    
+
     x: str or list
         The category to place in x axis. Only str values are accepted.
     hue: str or list
@@ -83,17 +83,17 @@ def _stacked_barplot(df: pd.DataFrame,
                     ["Adelie","Gentoo" ]]
     show_values: bool, optional
         Wheter to exhibit the values of fractions/counts/percentages.
-    
+
     show : bool, optional
         Whether or not to show the figure.
-    
+
     figsize : List[int], optional
         The figure size, e.g., [4, 6].
-     
+
     Returns
     -------
     dict("p values":pvalues,"axes":ax)
-    
+
     Raises
     ------
     Notes
@@ -105,16 +105,16 @@ def _stacked_barplot(df: pd.DataFrame,
     Examples
     --------
     """
-    
+
     data: Dict={}
-    
+
     if df[x].isnull().values.any():
         df[x]=df[x].replace(np.nan, "NA")
-    
+
     if df[hue].isnull().values.any():
         df[hue]=df[hue].replace(np.nan, "NA")
-    
-    
+
+
     if len(order)==0:
         u=np.unique(df[x])
         keys=sorted(list(u))
@@ -124,7 +124,7 @@ def _stacked_barplot(df: pd.DataFrame,
         u=np.unique(df[hue])
         hues=sorted(list(u))
     else:
-    
+
         hues=hue_order
     for key in keys:
         data[key]=[]
@@ -132,7 +132,7 @@ def _stacked_barplot(df: pd.DataFrame,
             data[key].append(np.sum((df[x]==key) & (df[hue]==h)))
     pvals={}
     if len(test_pairs) >0:
-        
+
         for i, h in enumerate(hues):
             pvals[h]=[]
             for p1,p2 in test_pairs:
@@ -144,7 +144,7 @@ def _stacked_barplot(df: pd.DataFrame,
                 no_and_hue=data[keys[idx2]][i]
                 table=[[yes_and_hue, no_and_hue],
                        [yes_total-yes_and_hue, no_total-no_and_hue]]
-                
+
                 odd, pval=fisher_exact(table)
                 pvals[h].append([idx1, idx2, pval])
     if scale=="fraction":
@@ -166,9 +166,9 @@ def _stacked_barplot(df: pd.DataFrame,
     pos={}
     #_hatch_list=[hatch_list[i] for i in range(len(keys))]
     for i, h in enumerate(hues):
-        
+
         heights=np.array([data[key][i] for key in keys])
-        
+
         if hatch==True:
             plt.bar(keys, heights,width=0.5, bottom=bottom, color=cmap(i/len(hues)), label=h, hatch=hatch_list[i])
         else:
@@ -176,10 +176,10 @@ def _stacked_barplot(df: pd.DataFrame,
         if show_values==True:
             for j in range(len(keys)):
                 if scale=="absolute":
-                    plt.text(j,bottom[j]+heights[j]/2,"{}{}".format(heights[j],unit), 
+                    plt.text(j,bottom[j]+heights[j]/2,"{}{}".format(heights[j],unit),
                          bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="y", lw=1, alpha=0.8))
                 else:
-                    plt.text(j,bottom[j]+heights[j]/2,"{:.2f}{}".format(heights[j],unit), 
+                    plt.text(j,bottom[j]+heights[j]/2,"{:.2f}{}".format(heights[j],unit),
                          bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="y", lw=1, alpha=0.8))
         plt.xticks(rotation=90)
         pos[h]={key: [he, bo] for key, he, bo in zip(keys, heights, bottom)}
@@ -193,7 +193,7 @@ def _stacked_barplot(df: pd.DataFrame,
     elif scale=="percentage":
         ylabel="Percentage"
     ax.set_ylabel(ylabel)
-    
+
     if len(pvals)>0:
         print("mlp stands for -log10(p value)")
         for i, h in enumerate(hues):
@@ -221,9 +221,9 @@ def _stacked_barplot(df: pd.DataFrame,
                         angle= -angle
                     #print(angle)
                     _line_annotate( "mlp="+str(np.round(-np.log10(pval), decimals=1)), line, (idx1+idx2)/2, color="magenta")
-                    # plt.text((idx1+idx2)/2, 0.5*(he1/2+bot1+he2/2+bot2), "mlp="+str(np.round(-np.log10(pval), decimals=1)), 
+                    # plt.text((idx1+idx2)/2, 0.5*(he1/2+bot1+he2/2+bot2), "mlp="+str(np.round(-np.log10(pval), decimals=1)),
                     #          color="magenta", va="center",ha="center", rotation=360*angle/(2*np.pi),)
-                    # plt.annotate("mlp="+str(np.round(-np.log10(pval), decimals=1)),[(r1[0]+r2[0])/2, 0.5*(r1[1]+r2[1])],   
+                    # plt.annotate("mlp="+str(np.round(-np.log10(pval), decimals=1)),[(r1[0]+r2[0])/2, 0.5*(r1[1]+r2[1])],
                     #          color="magenta",ha="center", rotation=360*angle/(2*np.pi),xycoords='figure pixels')
                     #
     if show:
@@ -277,7 +277,7 @@ def _float2cat(val, bin_num=10):
     _n=np.abs(np.amin(_val))
     minval=round(_n,-round(np.log10(n)))
     if np.amin(_val)<minval:
-        
+
 
         minval-=binsize
         if np.amin(_val) >0 and minval <0:
@@ -338,16 +338,16 @@ def stacked_barplot(df: pd.DataFrame,
                     show_legend:bool=True,
                     bin_num: Union[dict, int]=10,
                     ylim: Optional[int]=None)-> Dict:
-    
+
     """
-    Drawing a stacked barplot by counting observations with or without the fisher's exact test. 
-    
+    Drawing a stacked barplot by counting observations with or without the fisher's exact test.
+
     Parameters
     ----------
     df : pandas DataFrame
-    
+
     x: str or list
-        The category to place in x axis. Multiple categories can be passed by a list. 
+        The category to place in x axis. Multiple categories can be passed by a list.
         It mainly works with categorical values, including strings boolians and integers, but also can take float values by automatically creating a histogram.
     hue: str or list
         Counting samples by the hue category. Multiple categories can be passed by a list.
@@ -373,7 +373,7 @@ def stacked_barplot(df: pd.DataFrame,
 
     show : bool, optional
         Whether or not to show the figure.
-    
+
     figsize : List[int], optional
         The figure size, e.g., [4, 6].
     title: str optional, (default:"")
@@ -387,13 +387,13 @@ def stacked_barplot(df: pd.DataFrame,
     show_legend: bool, optional (default: True)
         Whether to show legends.
     bin_num: dict, int, optional (default: 10)
-        A histogram bin number when columns with float values are selected. 
+        A histogram bin number when columns with float values are selected.
         You can specify the bin number of each column by using dictionary (e.g., bin_num={"A":10,"B",5}).
 
     Returns
     -------
     {"pval":pvals,"axes":ax,"data":data} : dict
-    
+
     Raises
     ------
     Notes
@@ -415,7 +415,7 @@ def stacked_barplot(df: pd.DataFrame,
         hue=[hue]
         if hue_order!=None:
             hue_order=[hue_order]
-    
+
     for _x in x:
 
         if df[_x].dtype==float:
@@ -439,7 +439,7 @@ def stacked_barplot(df: pd.DataFrame,
     xkeys: dict={}
     keysx: dict={}
     meankey_len=0
-    for i, _x in enumerate(x):              
+    for i, _x in enumerate(x):
         if order==None:
             u=np.unique(df[_x])
             keys=sorted(list(u))
@@ -456,15 +456,15 @@ def stacked_barplot(df: pd.DataFrame,
             u=np.unique(df[_hue])
             hues=sorted(list(u))
         else:
-        
+
             hues=hue_order[i]
         huekeys[_hue]=hues
-    
-    
+
+
     for _x, keys in xkeys.items():
         data[_x]={}
         for key in keys:
-            
+
             for _hue, hues in  huekeys.items():
                 if _x==_hue:
                     continue
@@ -474,23 +474,23 @@ def stacked_barplot(df: pd.DataFrame,
                 for h in hues:
                     data[_x][_hue][key].append(np.sum((df[_x]==key) & (df[_hue]==h)))
 
-    
+
     pvals={}
     if len(test_pairs) >0:
         print("mlp stands for -log10(p value)")
         for _hue in hue:
-            
+
             for i, h in enumerate(huekeys[_hue]):
-                
+
                 for p1,p2 in test_pairs:
                     _x=keysx[p1]
                     __x=keysx[p2]
                     if _x!=__x:
                         raise Exception("{} and {} can not be compared.".format(p1, p2))
-                    
+
                     if _x==_hue:
                         continue
-                    
+
                     if not _x in pvals:
                         pvals[_x]={}
                     if not _hue in pvals[_x]:
@@ -506,7 +506,7 @@ def stacked_barplot(df: pd.DataFrame,
                     no_and_hue=data[_x][_hue][keys[idx2]][i]
                     table=[[yes_and_hue, no_and_hue],
                            [yes_total-yes_and_hue, no_total-no_and_hue]]
-        
+
                     odd, pval=fisher_exact(table)
                     pvals[_x][_hue][h].append([idx1, idx2, pval])
     if scale=="fraction":
@@ -525,7 +525,7 @@ def stacked_barplot(df: pd.DataFrame,
                     data[_x][_hue][key]=np.array(data[_x][_hue][key])/np.sum(data[_x][_hue][key])*100
     if type(palette)==str:
         cmap=plt.get_cmap(palette)
-        
+
     ncols=len(x)*len(hue)-len(set(x)&set(hue))
     if ncols<1:
         ncols=1
@@ -546,7 +546,7 @@ def stacked_barplot(df: pd.DataFrame,
         axes=[axes]
     else:
         axes=axes.flatten()
-    
+
     if scale=="absolute":
         unit=""
     elif scale=="fraction":
@@ -567,9 +567,9 @@ def stacked_barplot(df: pd.DataFrame,
             bottom=np.zeros([len(keys)])
             for i, h in enumerate(hues):
                 ax=axes[axindex]
-                
+
                 heights=np.array([data[_x][_hue][key][i] for key in keys])
-                
+
                 if type(palette)==dict:
                     _color=palette[h]
                 else:
@@ -578,33 +578,33 @@ def stacked_barplot(df: pd.DataFrame,
                     _hatch=hatch_list[i]
                 else:
                     _hatch=None
-                if orientation=="vertical":                    
-                    ax.bar(keys, heights,width=0.5, 
-                        bottom=bottom, 
-                        color=_color, 
-                        label=h, 
+                if orientation=="vertical":
+                    ax.bar(keys, heights,width=0.5,
+                        bottom=bottom,
+                        color=_color,
+                        label=h,
                             hatch=_hatch)
                 elif orientation=="horizontal":
-                    ax.barh(keys, width=heights,height=0.5, 
-                        left=bottom, 
-                        color=_color, 
-                        label=h, 
+                    ax.barh(keys, width=heights,height=0.5,
+                        left=bottom,
+                        color=_color,
+                        label=h,
                             hatch=_hatch)
-                    
+
                 if show_values==True:
                     for j in range(len(keys)):
-                        if orientation=="vertical":        
+                        if orientation=="vertical":
                             _tmpx, _tmpy=j,bottom[j]+heights[j]/2
                         elif orientation=="horizontal":
                             _tmpy, _tmpx=j,bottom[j]+heights[j]/2
 
                         if scale=="absolute":
-                            ax.text(_tmpx, _tmpy,"{}{}".format(heights[j],unit), 
+                            ax.text(_tmpx, _tmpy,"{}{}".format(heights[j],unit),
                                  bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="y", lw=1, alpha=0.8))
                         else:
-                            ax.text(_tmpx, _tmpy,"{:.2f}{}".format(heights[j],unit), 
+                            ax.text(_tmpx, _tmpy,"{:.2f}{}".format(heights[j],unit),
                                  bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="y", lw=1, alpha=0.8))
-                
+
                 pos[_x][_hue][h]={key: [he, bo] for key, he, bo in zip(keys, heights, bottom)}
                 bottom+=heights
             if len(keys)==1:
@@ -630,21 +630,21 @@ def stacked_barplot(df: pd.DataFrame,
             #ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
             if show_legend==True:
                 ax.legend(title=_hue,loc=[1.01,0])
-            
+
             if scale=="absolute":
                 ylabel="Counts"
             elif scale=="fraction":
                 ylabel="Fraction"
             elif scale=="percentage":
                 ylabel="Percentage"
-            if orientation=="vertical": 
+            if orientation=="vertical":
                 ax.set_ylabel(ylabel)
             elif orientation=="horizontal":
                 ax.set_xlabel(ylabel)
-            
+
             axindex+=1
             if len(pvals)>0 and _x in pvals:
-                
+
                 # for _hue in hue:
 
                 if _x==_hue:
@@ -685,10 +685,10 @@ def stacked_barplot(df: pd.DataFrame,
                 ax.set_ylim(0, ylim)
 
     if len(x)==1 and len(hue)==1:
-        plt.subplots_adjust(top=0.93,left=0.1,right=0.7, bottom=0.17)                            
+        plt.subplots_adjust(top=0.93,left=0.1,right=0.7, bottom=0.17)
     else:
         plt.tight_layout(w_pad=2)
-    
+
     if title !="" and fig !=None:
         fig.suptitle(title)
     if show:
@@ -720,22 +720,22 @@ def stacked_barplot_num(df: pd.DataFrame,
                     legend_row_num: int=2,
                     bar_width: float=0.75,
                     show_ticklabels: bool=True)-> Dict:
-    
+
     """
-    Drawing a stacked barplot by taking values as an input with or without the fisher's exact test. 
-    
+    Drawing a stacked barplot by taking values as an input with or without the fisher's exact test.
+
     Parameters
     ----------
     df : pandas DataFrame
         A wide-form data format.
-        e.g., 
+        e.g.,
                   Bournemouth    Brighton
         Possession         36          64
         Shots              14          16
         Shots on Target     3           6
         Corners             5           5
         Fouls              11           5
-    
+
     x: str
         The category to place in x axis. If not set, it will use the index of the input dataframe.
     scale: str, optional
@@ -756,7 +756,7 @@ def stacked_barplot_num(df: pd.DataFrame,
 
     show : bool, optional
         Whether or not to show the figure.
-    
+
     figsize : List[int], optional
         The figure size, e.g., [4, 6].
     title: str optional, (default:"")
@@ -770,13 +770,13 @@ def stacked_barplot_num(df: pd.DataFrame,
     show_legend: bool, optional (default: True)
         Whether to show legends.
     bin_num: dict, int, optional (default: 10)
-        A histogram bin number when columns with float values are selected. 
+        A histogram bin number when columns with float values are selected.
         You can specify the bin number of each column by using dictionary (e.g., bin_num={"A":10,"B",5}).
 
     Returns
     -------
     {"pval":pvals,"axes":ax,"data":data}: dict
-    
+
     Raises
     ------
     Notes
@@ -793,14 +793,14 @@ def stacked_barplot_num(df: pd.DataFrame,
 
     if type(df)==Dict:
         df=pd.DataFrame(df)
-   
+
     pvals={}
     # if len(test_pairs) >0:
     #     print("mlp stands for -log10(p value)")
     #     for _hue in hue:
-            
+
     #         for i, h in enumerate(huekeys[_hue]):
-                
+
     #     for p1,p2 in test_pairs:
     #         yes_total=np.sum(data[_x][_hue][keys[idx1]])
     #         no_total=np.sum(data[_x][_hue][keys[idx2]])
@@ -811,8 +811,8 @@ def stacked_barplot_num(df: pd.DataFrame,
 
     #         odd, pval=fisher_exact(table)
     #         pvals[_x][_hue][h].append([idx1, idx2, pval])
-    
-    
+
+
     if len(gridspec_kw)==0:
         if orientation=="horizontal":
             gridspec_kw=dict(top=0.75,left=0.25,right=0.9, bottom=0.17)
@@ -859,10 +859,10 @@ def stacked_barplot_num(df: pd.DataFrame,
 
 
     if type(palette)==str:
-        cmap=plt.get_cmap(palette, len(_df.columns)) 
+        cmap=plt.get_cmap(palette, len(_df.columns))
     pos={}
     bottom=np.zeros([len(keys)])
-    
+
     for i, col in enumerate(_df.columns):
         # print(col)
         heights=_df[col].values
@@ -892,9 +892,9 @@ def stacked_barplot_num(df: pd.DataFrame,
                 else:
                     ax.bar(keys, heights,width=bar_width, bottom=bottom, color=cmap(i), label=col)
         if show_values==True:
-            
+
             for j, k in enumerate(keys):
-                
+
                 if type(unit)==dict:
                     if k in unit:
                         u=unit[k]
@@ -918,11 +918,11 @@ def stacked_barplot_num(df: pd.DataFrame,
                     else:
                         ax.text(j,bottom[j]+heights[j]/2,"{:.2f}{}".format(heights[j],u), ha="center",
                                 bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="y", lw=1, alpha=0.8))
-                    
-            
+
+
         pos[col]={key: [he, bo] for key, he, bo in zip(keys, heights, bottom)}
         bottom+=heights
-    
+
     #ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
     if show_legend==True:
         if orientation=="horizontal":
@@ -950,7 +950,7 @@ def stacked_barplot_num(df: pd.DataFrame,
                     xlabel="Fraction"
                 elif scale=="percentage":
                     xlabel="Percentage"
-        
+
         ax.set_xlabel(xlabel)
     else:
         if rotation==None:
@@ -976,7 +976,7 @@ def stacked_barplot_num(df: pd.DataFrame,
         ax.set_ylabel(ylabel)
 
     # if len(pvals)>0:
-        
+
     #     for _hue in hue:
     #         if _x==_hue:
     #             continue
@@ -988,7 +988,7 @@ def stacked_barplot_num(df: pd.DataFrame,
     #             #print(pos[_x])
     #             _pos=pos[_x][_hue][h]
     #             for idx1, idx2, pval in pvals[_x][_hue][h]:
-                    
+
     #                 he1, bot1=_pos[keys[idx1]]
     #                 he2, bot2=_pos[keys[idx2]]
     #                 line, =ax.plot([idx1,idx2],[he1/2+bot1,he2/2+bot2],color="gray")
@@ -1028,7 +1028,7 @@ def stacked_barplot_num(df: pd.DataFrame,
         plt.show()
     return {"pval":pvals,"axes":ax}
 
-def nice_piechart(df: pd.DataFrame, 
+def nice_piechart(df: pd.DataFrame,
                   category: Union[str, List[str]],
                   palette: str="tab20c",
                   order: str="largest",
@@ -1045,7 +1045,7 @@ def nice_piechart(df: pd.DataFrame,
                   top=0.9,left=0.1) ->Dict:
     """
     Drawing a nice pichart by counting the occurrence of values from pandas dataframe. if you want to draw a pie chart from numerical values, try nice_piechart_num.
-    
+
     Parameters
     ----------
     df : pandas DataFrame
@@ -1058,16 +1058,16 @@ def nice_piechart(df: pd.DataFrame,
     ncols: int, optional (default: 2)
         The column number of the figure.
     ignore : float, optional (default: 0.05)
-        Remove annotations of which the fraction is smaller than this value. 
+        Remove annotations of which the fraction is smaller than this value.
     palette : str or dict, optional (default: "tab20c")
         A matplotlib colormap name or dictionary in which keys are values of the hue category and values are RGB array.
         e.g.) palette={""}
     show_values: bool, optional
         Wheter to exhibit the values of fractions/counts/percentages.
-    
+
     show : bool, optional
         Whether or not to show the figure.
-    
+
     figsize : List[int], optional
         The figure size, e.g., [4, 6].
     title: str optional, (default:"")
@@ -1077,13 +1077,13 @@ def nice_piechart(df: pd.DataFrame,
     show_legend: bool, optional (default: False)
         Whether to show legends.
     bin_num: dict, int, optional (default: 10)
-        A histogram bin number when columns with float values are selected. 
+        A histogram bin number when columns with float values are selected.
         You can specify the bin number of each column by using dictionary (e.g., bin_num={"A":10,"B",5}).
 
     Returns
     -------
     {"axes":ax}: dict
-    
+
     Raises
     ------
     Notes
@@ -1121,9 +1121,9 @@ def nice_piechart(df: pd.DataFrame,
         u=u[srt]
         c=c[srt]
         _c=c/np.sum(c)
-        
-        
-        
+
+
+
         _cmap=plt.get_cmap(palette, c.shape[0])
         colors=[_cmap(i) for i in range(c.shape[0])]
         for j in range(c.shape[0]):
@@ -1134,17 +1134,17 @@ def nice_piechart(df: pd.DataFrame,
             if show_values==True:
                 u[j]=u[j]+"\n("+str(100*np.round(_c[j],1))+"%)"
         if hatch==True:
-            piekw=dict(labels=u, 
+            piekw=dict(labels=u,
                 counterclock=False,
-                startangle=90, 
+                startangle=90,
                 colors=colors,
                 radius=1.25,
                 hatch=hatch_list[:c.shape[0]],
                 labeldistance=None)
         else:
-            piekw=dict(labels=u, 
+            piekw=dict(labels=u,
                     counterclock=False,
-                    startangle=90, 
+                    startangle=90,
                     colors=colors,
                     radius=1.25,
                     labeldistance=None)
@@ -1156,7 +1156,7 @@ def nice_piechart(df: pd.DataFrame,
 
 
         ax.set_title(cat,backgroundcolor='lavender',pad=10)
-    
+
 
 
     if len(category)!=ncols*nrows:
@@ -1172,7 +1172,7 @@ def nice_piechart(df: pd.DataFrame,
 def nice_piechart_num(df: pd.DataFrame,
                       variables: List[str]=[],
                       category: str="" ,
-                  
+
                   palette: str="tab20c",
                   ncols: int=2,
                   ignore: float=0.05,
@@ -1181,30 +1181,30 @@ def nice_piechart_num(df: pd.DataFrame,
                   figsize=[]) ->Dict:
     """
     Drawing a nice pichart by taking numerical values.
-    
+
     Parameters
     ----------
     df : pandas DataFrame
-        It must be a wide-form data. Each pie chart will be drawn from each row, and by default, index values are used for pie chart titles. 
-        
+        It must be a wide-form data. Each pie chart will be drawn from each row, and by default, index values are used for pie chart titles.
+
     variables: list, optional
         The column names to calculate fractions. If not given, all columns will be used for calculation (in this case, all columns must contain only numerical values).
-    
+
     order: str, optional (default: "largest") ["largest", "smallest"]
         How to sort values in the chart
     ncols: int, optional (default: 2)
         The column number of the figure.
     ignore : float, optional (default: 0.05)
-        Remove annotations of which the fraction is smaller than this value. 
+        Remove annotations of which the fraction is smaller than this value.
     palette : str or dict, optional (default: "tab20c")
         A matplotlib colormap name or dictionary in which keys are values of the hue category and values are RGB array.
         e.g.) palette={""}
     show_values: bool, optional
         Wheter to exhibit the values of fractions/counts/percentages.
-    
+
     show : bool, optional
         Whether or not to show the figure.
-    
+
     figsize : List[int], optional
         The figure size, e.g., [4, 6].
     title: str optional, (default:"")
@@ -1213,11 +1213,11 @@ def nice_piechart_num(df: pd.DataFrame,
         Adding hatches to the bars
     show_legend: bool, optional (default: True)
         Whether to show legends.
- 
+
     Returns
     -------
     dict {"axes":ax}
-    
+
     Raises
     ------
     Notes
@@ -1236,7 +1236,7 @@ def nice_piechart_num(df: pd.DataFrame,
         category=list(df.index)
     if len(variables)!=0:
         df=df[variables]
-        
+
     srt=np.argsort(df.sum(axis=0))[::-1]
     df=df[df.columns[srt]]
     variables=list(df.columns)
@@ -1250,9 +1250,9 @@ def nice_piechart_num(df: pd.DataFrame,
     for cat, ax in zip(category, axes):
         c=df.loc[cat]
         _c=c/np.sum(c)
-        ax.pie(c, 
+        ax.pie(c,
                counterclock=False,
-               startangle=90, 
+               startangle=90,
                colors=colors,
                labeldistance=0.6,
                radius=1.25)
@@ -1262,16 +1262,16 @@ def nice_piechart_num(df: pd.DataFrame,
             fig.delaxes(axes[-(i+1)])
     plt.tight_layout(h_pad=1)
     plt.subplots_adjust(top=0.95, right=0.81)
-    
+
     legend_elements = [Line2D([0], [0], marker='o', color='lavender', label=huelabel,markerfacecolor=color, markersize=10)
                       for color, huelabel in zip(colors, variables)]
-    
+
     fig.legend(handles=legend_elements,bbox_to_anchor=(1, 1))
     if title!="":
         plt.title(title)
     return {"axes":ax}
 
-def _nested_piechart(df: pd.DataFrame, 
+def _nested_piechart(df: pd.DataFrame,
                   category: List[str],
                   variable: str="",
                   palette: str="tab20b",
@@ -1290,7 +1290,7 @@ def _nested_piechart(df: pd.DataFrame,
                   order: str="smallest",) ->Dict:
     """
     Drawing a nested pichart by counting the occurrence of string (or integer/boolian) values from pandas dataframe.
-    
+
     Parameters
     ----------
     df : pandas DataFrame
@@ -1300,18 +1300,18 @@ def _nested_piechart(df: pd.DataFrame,
 
     order: str, optional (default: "largest") ["largest", "smallest"]
         How to sort values in the chart
-    
+
     ignore : float, optional (default: 0.05)
-        Remove annotations of which the fraction is smaller than this value. 
+        Remove annotations of which the fraction is smaller than this value.
     palette : str or dict, optional (default: "tab20c")
         A matplotlib colormap name or dictionary in which keys are values of the hue category and values are RGB array.
         e.g.) palette={""}
     show_values: bool, optional
         Wheter to exhibit the values of fractions/counts/percentages.
-    
+
     show : bool, optional
         Whether or not to show the figure.
-    
+
     figsize : List[int], optional
         The figure size, e.g., [4, 6].
     title: str optional, (default:"")
@@ -1320,12 +1320,12 @@ def _nested_piechart(df: pd.DataFrame,
         Adding hatches to the bars
     show_legend: bool, optional (default: False)
         Whether to show legends.
-   
+
 
     Returns
     -------
     {"axes":ax}: dict
-    
+
     Raises
     ------
     Notes
@@ -1346,7 +1346,7 @@ def _nested_piechart(df: pd.DataFrame,
             alllabels[i].append(u)
             alllabel_sets.add(u)
     alllabel_sets=sorted(list(alllabel_sets))
-    
+
     if colormode=="independent":
         _cmap=plt.get_cmap(palette, len(alllabel_sets))
         color_lut={u: _cmap(i) for i, u in enumerate(alllabel_sets)}
@@ -1354,7 +1354,7 @@ def _nested_piechart(df: pd.DataFrame,
     elif colormode=="hierarchical" or colormode=="top":
         _cmap=plt.get_cmap(palette, len(alllabels[0]))
         color_lut={u: _cmap(i) for i, u in enumerate(alllabels[0])}
-    
+
 
 
     data={}
@@ -1363,7 +1363,7 @@ def _nested_piechart(df: pd.DataFrame,
         for p in it.product(*[alllabels[j] for j in range(i+1)]):
             tmp=df
             for k, _p in enumerate(p):
-                
+
                 tmp=tmp.loc[tmp[category[k]]==_p]
             #print(p, len(tmp))
             if variable !="":
@@ -1406,7 +1406,7 @@ def _nested_piechart(df: pd.DataFrame,
                 _color=_color+grad*(len(_label)-1)/len(category)
                 _color=np.where(_color>1,1.0,_color)
                 edgecolor="darkgray"
-            
+
             if hatch==True:
                 _baumkuchen(ax,s, -_x, _bottom, _bottom+height, int(100*_x/np.sum(xpi)), _color,edgecolor=edgecolor, linewidth =1,hatch=marker_lut[_label[-1]])
             else:
@@ -1416,12 +1416,12 @@ def _nested_piechart(df: pd.DataFrame,
             txt=""
             if show_legend==False or colormode!="independent":
                 txt= _label[-1]
-            
+
             if show_values==True:
                 if x[i]>10000 or x[i] < 0.0001:
                     txt=txt+"\n{:.3E} {}".format(x[i], unit)
                 else:
-                    
+
                     txt=txt+"\n{:.3f} {}".format(x[i], unit)
             if show_percentage==True:
                 txt=txt+"\n({}%)".format(percent[i])
@@ -1433,31 +1433,31 @@ def _nested_piechart(df: pd.DataFrame,
                 showlabel=True
             elif colormode!="independent":
                 showlabel=True
-            
+
             if _x/(2*np.pi)>=ignore and showlabel==True:
                 ax.text(np.cos(s-_x/2)*(_bottom+height/2), np.sin(s-_x/2)*(_bottom+height/2),txt, ha="center",
                         bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="y", lw=1, alpha=0.8))
             elif _x/(2*np.pi)>=ignore and (show_values==True or show_percentage==True):
-                
+
                 ax.text(np.cos(s-_x/2)*(_bottom+height/2), np.sin(s-_x/2)*(_bottom+height/2),txt, ha="center",
                         bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="y", lw=1, alpha=0.8))
-                
+
 
             s-=_x
-            
+
         _bottom+=height
         height=height*0.6
     if show_legend==True or hatch==True:
         if colormode=="independent":
             for i, cat in enumerate(category):
-                
+
                 if hatch==True:
                     handles = [
-                        Patch(facecolor=color_lut[label], label=label, hatch=marker_lut[label]) 
+                        Patch(facecolor=color_lut[label], label=label, hatch=marker_lut[label])
                         for label in alllabels[i]]
                 else:
                     handles = [
-                        Patch(facecolor=color_lut[label], label=label) 
+                        Patch(facecolor=color_lut[label], label=label)
                         for label in alllabels[i]]
                 legend=ax.legend(handles=handles,bbox_to_anchor=[bbox_to_anchor[0], bbox_to_anchor[0]-i*0.3], title=cat, loc="center left")
                 #legend=fig.legend(handles=handles,loc="outside right upper", title=cat)
@@ -1473,7 +1473,7 @@ def _nested_piechart(df: pd.DataFrame,
 
 
 
-def nested_piechart(df: pd.DataFrame, 
+def nested_piechart(df: pd.DataFrame,
                   category: List[str],
                   variable: str="",
                   palette: str="tab20b",
@@ -1493,7 +1493,7 @@ def nested_piechart(df: pd.DataFrame,
                   order: str="intact",) ->Dict:
     """
     Drawing a nested pichart by counting the occurrence of string (or integer/boolian) values from pandas dataframe.
-    
+
     Parameters
     ----------
     df : pandas DataFrame
@@ -1503,23 +1503,23 @@ def nested_piechart(df: pd.DataFrame,
 
     order: str, optional (default: "largest") ["largest", "smallest", "intact"]
         How to sort values in the chart
-    
+
     ignore : float, optional (default: 0.05)
-        Remove annotations of which the fraction is smaller than this value. 
-    
+        Remove annotations of which the fraction is smaller than this value.
+
     palette : str or dict, optional (default: "tab20b")
         A matplotlib colormap name or dictionary in which keys are values of the hue category and values are RGB array.
         e.g.) palette={""}
-    
+
     show_values: bool, optional
         Wheter to exhibit values/counts.
 
     show_percentage: bool, optional
         Wheter to exhibit percentages.
-    
+
     show : bool, optional
         Whether or not to show the figure.
-    
+
     figsize : List[int], optional
         The figure size, e.g., [4, 6].
     title: str optional, (default:"")
@@ -1532,7 +1532,7 @@ def nested_piechart(df: pd.DataFrame,
         Choosing the ways to color labels. "independent" will give each label a different color (from a single color palette).
         "top" will give different colors to only labels in the top, and other labels follow the same color with the top category they belong to.
         "hierarchical" is similar to "top", but give fainter colors to labels in the lower hierarchical categories.
-    
+
     bbox_to_anchor: list, optional (default:[1.1, 1])
         the location of legends to appear
     right: float, optional (default: 0.7)
@@ -1547,7 +1547,7 @@ def nested_piechart(df: pd.DataFrame,
     Returns
     -------
     {"axes":ax}: dict
-    
+
     Raises
     ------
     Notes
@@ -1568,7 +1568,7 @@ def nested_piechart(df: pd.DataFrame,
             alllabels[i].append(u)
             alllabel_sets.add(u)
     alllabel_sets=sorted(list(alllabel_sets))
-    
+
     if colormode=="independent":
         _cmap=plt.get_cmap(palette, len(alllabel_sets))
         color_lut={u: _cmap(i) for i, u in enumerate(alllabel_sets)}
@@ -1576,7 +1576,7 @@ def nested_piechart(df: pd.DataFrame,
     elif colormode=="hierarchical" or colormode=="top":
         _cmap=plt.get_cmap(palette, len(alllabels[0]))
         color_lut={u: _cmap(i) for i, u in enumerate(alllabels[0])}
-    
+
 
 
     # counting data in each level of categories.
@@ -1600,7 +1600,7 @@ def nested_piechart(df: pd.DataFrame,
         for p in it.product(*[alllabels[j] for j in range(i+1)]):
             tmp=df
             for k, _p in enumerate(p):
-                
+
                 tmp=tmp.loc[tmp[category[k]]==_p]
             #print(p, len(tmp))
             if variable !="":
@@ -1617,9 +1617,9 @@ def nested_piechart(df: pd.DataFrame,
         fig, ax = plt.subplots(figsize =figsize)
     else:
         fig=None
-    
+
     # Reorganizing data in order to sort the counts
-    # 
+    #
     _data2=[]
     lastk=np.amax(list(data.keys()))
     #print(lastk)
@@ -1637,7 +1637,7 @@ def nested_piechart(df: pd.DataFrame,
         elif order=="intact":
             pass
         else:
-            raise Exception("Unknown order type.") 
+            raise Exception("Unknown order type.")
 
         tmp=[]
         latmp=[]
@@ -1650,13 +1650,13 @@ def nested_piechart(df: pd.DataFrame,
         else:
             # a brutal way to resort data according to the parent category order
             # this will not work for a large dataset
-            for parentd in _data2[-1]:                             
+            for parentd in _data2[-1]:
                 key=list(parentd.keys())[0]
                 for l, c in zip(v["labels"], v["counts"]):
                     _l="|:|".join(l)
                     if _l.startswith(key):
                         latmp.append(_l)
-                        tmp.append({_l:{"labels":[],"counts":[]}}) 
+                        tmp.append({_l:{"labels":[],"counts":[]}})
                         cotmp.append(c)
         if len(_data2)!=0:
             for la, co in zip(latmp, cotmp):
@@ -1679,28 +1679,28 @@ def nested_piechart(df: pd.DataFrame,
         _data2.append(tmp)
     #print(data)
     print(_data2)
-    # Drawing the pie chart. 
+    # Drawing the pie chart.
     # _data2 looks like the bellow. A nested list ordered from the top to bottom hierarchical categories (in the below, (species, sex, island)).
     # The element of the list is also a list consists of dictionaries (if sorted, ordered according to the parent category) of which keys are from
-    # the parent category. And the values are dictionaries containing labels and counts. These labels are combination of those in the parent and 
-    # present categories. 
-    #  
-    #  
+    # the parent category. And the values are dictionaries containing labels and counts. These labels are combination of those in the parent and
+    # present categories.
+    #
+    #
     # [
-    # [{'top': {'labels': ['Adelie', 'Gentoo', 'Chinstrap'], 'counts': [152, 124, 68]}}], 
-    # 
-    # [{'Adelie': {'labels': ['Adelie|:|Female', 'Adelie|:|Male', 'Adelie|:|NA'], 'counts': [73, 73, 6]}}, 
-    #  {'Gentoo': {'labels': ['Gentoo|:|Male', 'Gentoo|:|Female', 'Gentoo|:|NA'], 'counts': [61, 58, 5]}}, 
-    #  {'Chinstrap': {'labels': ['Chinstrap|:|Female', 'Chinstrap|:|Male', 'Chinstrap|:|NA'], 'counts': [34, 34, 0]}}], 
-    # 
-    # [{'Adelie|:|Female': {'labels': ['Adelie|:|Female|:|Dream', 'Adelie|:|Female|:|Torgersen', 'Adelie|:|Female|:|Biscoe'], 'counts': [27, 24, 22]}}, 
-    #  {'Adelie|:|Male': {'labels': ['Adelie|:|Male|:|Dream', 'Adelie|:|Male|:|Torgersen', 'Adelie|:|Male|:|Biscoe'], 'counts': [28, 23, 22]}}, 
-    #  {'Adelie|:|NA': {'labels': ['Adelie|:|NA|:|Torgersen', 'Adelie|:|NA|:|Dream', 'Adelie|:|NA|:|Biscoe'], 'counts': [5, 1, 0]}}, 
-    #  {'Gentoo|:|Male': {'labels': ['Gentoo|:|Male|:|Biscoe', 'Gentoo|:|Male|:|Torgersen', 'Gentoo|:|Male|:|Dream'], 'counts': [61, 0, 0]}}, 
-    #  {'Gentoo|:|Female': {'labels': ['Gentoo|:|Female|:|Biscoe', 'Gentoo|:|Female|:|Torgersen', 'Gentoo|:|Female|:|Dream'], 'counts': [58, 0, 0]}}, 
-    #  {'Gentoo|:|NA': {'labels': ['Gentoo|:|NA|:|Biscoe', 'Gentoo|:|NA|:|Dream', 'Gentoo|:|NA|:|Torgersen'], 'counts': [5, 0, 0]}}, 
-    #  {'Chinstrap|:|Female': {'labels': ['Chinstrap|:|Female|:|Dream', 'Chinstrap|:|Female|:|Torgersen', 'Chinstrap|:|Female|:|Biscoe'], 'counts': [34, 0, 0]}}, 
-    #  {'Chinstrap|:|Male': {'labels': ['Chinstrap|:|Male|:|Dream', 'Chinstrap|:|Male|:|Biscoe', 'Chinstrap|:|Male|:|Torgersen'], 'counts': [34, 0, 0]}}, 
+    # [{'top': {'labels': ['Adelie', 'Gentoo', 'Chinstrap'], 'counts': [152, 124, 68]}}],
+    #
+    # [{'Adelie': {'labels': ['Adelie|:|Female', 'Adelie|:|Male', 'Adelie|:|NA'], 'counts': [73, 73, 6]}},
+    #  {'Gentoo': {'labels': ['Gentoo|:|Male', 'Gentoo|:|Female', 'Gentoo|:|NA'], 'counts': [61, 58, 5]}},
+    #  {'Chinstrap': {'labels': ['Chinstrap|:|Female', 'Chinstrap|:|Male', 'Chinstrap|:|NA'], 'counts': [34, 34, 0]}}],
+    #
+    # [{'Adelie|:|Female': {'labels': ['Adelie|:|Female|:|Dream', 'Adelie|:|Female|:|Torgersen', 'Adelie|:|Female|:|Biscoe'], 'counts': [27, 24, 22]}},
+    #  {'Adelie|:|Male': {'labels': ['Adelie|:|Male|:|Dream', 'Adelie|:|Male|:|Torgersen', 'Adelie|:|Male|:|Biscoe'], 'counts': [28, 23, 22]}},
+    #  {'Adelie|:|NA': {'labels': ['Adelie|:|NA|:|Torgersen', 'Adelie|:|NA|:|Dream', 'Adelie|:|NA|:|Biscoe'], 'counts': [5, 1, 0]}},
+    #  {'Gentoo|:|Male': {'labels': ['Gentoo|:|Male|:|Biscoe', 'Gentoo|:|Male|:|Torgersen', 'Gentoo|:|Male|:|Dream'], 'counts': [61, 0, 0]}},
+    #  {'Gentoo|:|Female': {'labels': ['Gentoo|:|Female|:|Biscoe', 'Gentoo|:|Female|:|Torgersen', 'Gentoo|:|Female|:|Dream'], 'counts': [58, 0, 0]}},
+    #  {'Gentoo|:|NA': {'labels': ['Gentoo|:|NA|:|Biscoe', 'Gentoo|:|NA|:|Dream', 'Gentoo|:|NA|:|Torgersen'], 'counts': [5, 0, 0]}},
+    #  {'Chinstrap|:|Female': {'labels': ['Chinstrap|:|Female|:|Dream', 'Chinstrap|:|Female|:|Torgersen', 'Chinstrap|:|Female|:|Biscoe'], 'counts': [34, 0, 0]}},
+    #  {'Chinstrap|:|Male': {'labels': ['Chinstrap|:|Male|:|Dream', 'Chinstrap|:|Male|:|Biscoe', 'Chinstrap|:|Male|:|Torgersen'], 'counts': [34, 0, 0]}},
     #  {'Chinstrap|:|NA': {'labels': ['Chinstrap|:|NA|:|Torgersen', 'Chinstrap|:|NA|:|Biscoe', 'Chinstrap|:|NA|:|Dream'], 'counts': [0, 0, 0]}}]
     # ]
     #
@@ -1721,9 +1721,9 @@ def nested_piechart(df: pd.DataFrame,
                 y=np.ones(x.shape)*height
                 percent=np.round(100*x/total,2)
                 xpi=x/total*2*np.pi
-                
+
                 label=d["labels"]
-                
+
                 #print(label, x)
                 for i, (_x,_label) in enumerate(zip(xpi,label)):
                     _label=_label.split("|:|")
@@ -1742,7 +1742,7 @@ def nested_piechart(df: pd.DataFrame,
                         _color=_color+grad*(len(_label)-1)/len(category)
                         _color=np.where(_color>1,1.0,_color)
                         edgecolor="darkgray"
-                    
+
                     if hatch==True:
                         _baumkuchen(ax,s, -_x, _bottom, _bottom+height, int(100*_x/np.sum(xpi)), _color,edgecolor=edgecolor, linewidth =1,hatch=marker_lut[_label[-1]])
                     else:
@@ -1752,12 +1752,12 @@ def nested_piechart(df: pd.DataFrame,
                     txt=""
                     if show_legend==False or colormode!="independent":
                         txt= _label[-1]
-                    
+
                     if show_values==True:
                         if x[i]>10000 or x[i] < 0.0001:
                             txt=txt+"\n{:.3E} {}".format(x[i], unit)
                         else:
-                            
+
                             txt=txt+"\n{:.3f} {}".format(x[i], unit)
                     if show_percentage==True:
                         txt=txt+"\n({}%)".format(percent[i])
@@ -1769,28 +1769,28 @@ def nested_piechart(df: pd.DataFrame,
                         showlabel=True
                     elif colormode!="independent":
                         showlabel=True
-                    
+
                     if _x/(2*np.pi)>=ignore and showlabel:
                         ax.text(np.cos(s-_x/2)*(_bottom+height/2), np.sin(s-_x/2)*(_bottom+height/2),txt, ha="center",
                                 bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="y", lw=1, alpha=0.8))
                     elif _x/(2*np.pi)>=ignore and (show_values==True or show_percentage==True):
-                        
+
                         ax.text(np.cos(s-_x/2)*(_bottom+height/2), np.sin(s-_x/2)*(_bottom+height/2),txt, ha="center",
                                 bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="y", lw=1, alpha=0.8))
-                        
+
 
                     s-=_x
-            
+
         _bottom+=height
         height=height*0.6
-    
+
 
     # Drawing legend. if hatch is True, because it will be too messy to add texts to the pie chart, it will automatically draw legends.
 
     if show_legend==True or hatch==True:
         if colormode=="independent":
             for i, cat in enumerate(category):
-                
+
                 if hatch==True:
                     handles = []
                     for label in alllabels[i]:
@@ -1802,7 +1802,7 @@ def nested_piechart(df: pd.DataFrame,
                     for label in alllabels[i]:
                         if skip_na==True and label=="NA":
                             continue
-                        handles.append(Patch(facecolor=color_lut[label], label=label) ) 
+                        handles.append(Patch(facecolor=color_lut[label], label=label) )
                 legend=ax.legend(handles=handles,bbox_to_anchor=[bbox_to_anchor[0], bbox_to_anchor[0]-i*0.3], title=cat, loc="center left")
                 #legend=fig.legend(handles=handles,loc="outside right upper", title=cat)
                 #bbox_to_anchor[1]-=0.3
@@ -1817,7 +1817,7 @@ def nested_piechart(df: pd.DataFrame,
 
 
 
-def stackedlines(df: pd.DataFrame, 
+def stackedlines(df: pd.DataFrame,
                 x: str,
                 y: list,
                 sort: bool=True,
@@ -1843,32 +1843,32 @@ def stackedlines(df: pd.DataFrame,
                 title: str="",
                 hatch: bool=False):
     """
-    Drawing a scatter plot of which points are represented by pie charts. 
-    
+    Drawing a scatter plot of which points are represented by pie charts.
+
     Parameters
     ----------
     df : pandas DataFrame
         A wide form dataframe. It accepts negative values.
-        e.g.) 
+        e.g.)
               year    biofuel_consumption    coal_consumption    gas_consumption    hydro_consumption    nuclear_consumption    oil_consumption
         90    1990                 16.733            5337.998           5170.609              864.271               1723.004           9306.913
         91    1991                 19.389            5287.613           5283.972              849.620               1829.645           9108.509
         92    1992                 22.045            5324.031           5463.509              743.463               1848.197           9297.387
         93    1993                 25.759            5522.452           5599.419              825.742               1822.853           9376.045
         94    1994                 28.846            5543.144           5731.081              766.870               1912.903           9619.746
-        95    1995                 30.942            5593.053           5979.829              920.274               2011.356           9597.527            
+        95    1995                 30.942            5593.053           5979.829              920.274               2011.356           9597.527
     x : str
         the name of a column to be the x axis of the plot.
-        
+
     y: list
         the names of values to display as stacked lines
     sort: bool, optional (default: True)
         Whether to sort lines based on their values
     show_values: bool, optional (default: False)
         Whether to show percentages at the end of lines.
-    
-    remove_all_zero: bool, optional (default: False)    
-    
+
+    remove_all_zero: bool, optional (default: False)
+
     pie_palette : str
         A colormap name
     xlabel: str, optional
@@ -1884,7 +1884,7 @@ def stackedlines(df: pd.DataFrame,
     right: float=0.7,
     bottom: float=0.120,
     show_legend: bool=True,
-    
+
     yunit: str="", optional (default: "")
         The y axis unit. it will appear at the top of the y axis.
     xunit: str="", optional (default: "")
@@ -1897,7 +1897,7 @@ def stackedlines(df: pd.DataFrame,
     Returns
     -------
     dict
-    
+
     Raises
     ------
     Notes
@@ -1921,7 +1921,7 @@ def stackedlines(df: pd.DataFrame,
         X=X[_filter]
     Ydict={col:[] for col in y}
     if sort==True:
-        
+
         if inverse==True:
             for i, _x in enumerate(X):
                 _Y=Y[:,i]
@@ -1967,7 +1967,7 @@ def stackedlines(df: pd.DataFrame,
                     _bottom_neg+=yval
     if ax ==None:
         fig, ax=plt.subplots(figsize=figsize)
-        
+
     cmap=plt.get_cmap(palette, len(y))
     colorlut={col: cmap(i) for i, col in enumerate(y)}
     last_vals=[]
@@ -1983,13 +1983,13 @@ def stackedlines(df: pd.DataFrame,
         last_pos.append(vals[-1,1]/2+vals[-1,0]/2)
         i+=1
 
-    
+
 
     if show_values==True:
         last_vals=100*np.array(last_vals)/np.sum(last_vals)
         for val, pos in zip(last_vals, last_pos):
             ax.text(X[-1], pos, str(np.round(val, 1))+"%")
-            
+
     if show_legend==True:
         plt.legend(bbox_to_anchor=bbox_to_anchor)
     plt.subplots_adjust(right=right, bottom=bottom)
@@ -2004,7 +2004,7 @@ def stackedlines(df: pd.DataFrame,
     if xunit!="":
         ax.text(1, 0, "({})".format(xunit), transform=ax.transAxes, ha="left",va="top")
     if xformat!="":
-        
+
         ax.xaxis.set_major_formatter(StrMethodFormatter(xformat))
     if yformat !="":
         ax.yaxis.set_major_formatter(StrMethodFormatter(yformat))

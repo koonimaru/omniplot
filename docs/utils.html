@@ -26,7 +26,7 @@
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">import numpy as np 
+<pre><code class="python">import numpy as np
 from collections import defaultdict
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -48,7 +48,7 @@ from matplotlib.transforms import Affine2D
 import os
 import copy
 
-__all__=[&#34;_create_color_markerlut&#34;, 
+__all__=[&#34;_create_color_markerlut&#34;,
          &#34;_separate_data&#34;, &#34;_line_annotate&#34;, &#34;_dendrogram_threshold&#34;, &#34;_radialtree2&#34;,
          &#34;_get_cluster_classes&#34;,&#34;_calc_curveture&#34;, &#34;_draw_ci_pi&#34;,&#34;_calc_r2&#34;,
          &#34;_ci_pi&#34;, &#34;_save&#34;,&#34;_baumkuchen&#34;, &#34;_baumkuchen_xy&#34;, &#34;_get_embedding&#34;]
@@ -113,9 +113,9 @@ class LineAnnotation(Annotation):
 
             i = inds[0]
             return np.asarray([(xs[i], ys[i]), (xs[i+1], ys[i+1])])
-        
+
         self.neighbours = n1, n2 = neighbours(x, xs, ys)
-        
+
         # Calculate y by interpolating neighbouring points
         y = n1[1] + ((x - n1[0]) * (n2[1] - n1[1]) / (n2[0] - n1[0]))
 
@@ -219,13 +219,13 @@ def _dendrogram_threshold(Z, approx_clusternum):
     for t in thre:
         crossbranches=np.sum(lbranches[:,1]&gt;t)+np.sum(rbranches[:,0]&gt;t)-np.sum(lbranches[:,0]&gt;t)-np.sum(rbranches[:,1]&gt;t)
         if crossbranches&gt;=approx_clusternum:
-            break 
+            break
     return t
 
 def _radialtree(Z2,fontsize: int=8,
                figsize: Optional[list]=None,
-               palette: str=&#34;gist_rainbow&#34;, 
-               addlabels: bool=True, 
+               palette: str=&#34;gist_rainbow&#34;,
+               addlabels: bool=True,
                show: bool=False,
                sample_classes: Optional[dict]=None,
                colorlabels: Optional[dict]=None,
@@ -246,19 +246,19 @@ def _radialtree(Z2,fontsize: int=8,
     palette : string
         Matlab colormap name.
     sample_classes : dict
-        A dictionary that contains lists of sample subtypes or classes. These classes appear 
-        as color labels of each leaf. Colormaps are automatically assigned. Not compatible 
+        A dictionary that contains lists of sample subtypes or classes. These classes appear
+        as color labels of each leaf. Colormaps are automatically assigned. Not compatible
         with options &#34;colorlabels&#34; and &#34;colorlabels_legend&#34;.
-        e.g., {&#34;color1&#34;:[&#34;Class1&#34;,&#34;Class2&#34;,&#34;Class1&#34;,&#34;Class3&#34;, ....]} 
+        e.g., {&#34;color1&#34;:[&#34;Class1&#34;,&#34;Class2&#34;,&#34;Class1&#34;,&#34;Class3&#34;, ....]}
     colorlabels : dict
-        A dictionary to set color labels to leaves. The key is the name of the color label. 
-        The value is the list of RGB color codes, each corresponds to the color of a leaf. 
-        e.g., {&#34;color1&#34;:[[1,0,0,1], ....]}   
+        A dictionary to set color labels to leaves. The key is the name of the color label.
+        The value is the list of RGB color codes, each corresponds to the color of a leaf.
+        e.g., {&#34;color1&#34;:[[1,0,0,1], ....]}
     colorlabels_legend : dict
-        A nested dictionary to generate the legends of color labels. The key is the name of 
-        the color label. The value is a dictionary that has two keys &#34;colors&#34; and &#34;labels&#34;. 
-        The value of &#34;colors&#34; is the list of RGB color codes, each corresponds to the class of a leaf. 
-        e.g., {&#34;color1&#34;:{&#34;colors&#34;:[[1,0,0,1], ....], &#34;labels&#34;:[&#34;label1&#34;,&#34;label2&#34;,...]}}   
+        A nested dictionary to generate the legends of color labels. The key is the name of
+        the color label. The value is a dictionary that has two keys &#34;colors&#34; and &#34;labels&#34;.
+        The value of &#34;colors&#34; is the list of RGB color codes, each corresponds to the class of a leaf.
+        e.g., {&#34;color1&#34;:{&#34;colors&#34;:[[1,0,0,1], ....], &#34;labels&#34;:[&#34;label1&#34;,&#34;label2&#34;,...]}}
     show : bool
         Whether or not to show the figure.
     Returns
@@ -292,10 +292,10 @@ def _radialtree(Z2,fontsize: int=8,
         print(offset)
     else:
         offset=0
-    
+
     xmax=np.amax(Z2[&#39;icoord&#39;])
     ymax=np.amax(Z2[&#39;dcoord&#39;])
-    
+
     ucolors=sorted(set(Z2[&#34;color_list&#34;]))
     #cmap = cm.gist_rainbow(np.linspace(0, 1, len(ucolors)))
     cmp=plt.get_cmap(palette, len(ucolors))
@@ -312,9 +312,9 @@ def _radialtree(Z2,fontsize: int=8,
         _color=cmap[ucolors.index(c)]
         if c==&#34;C0&#34;: #np.abs(_xr1)&lt;0.000000001 and np.abs(_yr1) &lt;0.000000001:
             _color=&#34;black&#34;
-        
+
         # transforming original x coordinates into relative circumference positions and y into radius
-        # the rightmost leaf is going to [1, 0] 
+        # the rightmost leaf is going to [1, 0]
         r=R*(1-np.array(y)/ymax)
         _x=np.cos(2*np.pi*np.array([x[0],x[2]])/xmax) # transforming original x coordinates into x circumference positions
         _xr0=_x[0]*r[0]
@@ -327,21 +327,21 @@ def _radialtree(Z2,fontsize: int=8,
         _yr2=_y[1]*r[2]
         _yr3=_y[1]*r[3]
         #plt.scatter([_xr0, _xr1, _xr2, _xr3],[_yr0, _yr1, _yr2,_yr3], c=&#34;b&#34;)
-        
-        
+
+
         #if y[0]&gt;0 and y[3]&gt;0:
             #_color=&#34;black&#34;
         #plotting radial lines
         plt.plot([_xr0, _xr1], [_yr0, _yr1], c=_color,linewidth=linewidth, rasterized=True)
         plt.plot([_xr2, _xr3], [_yr2,_yr3], c=_color,linewidth=linewidth, rasterized=True)
-        
+
         #plotting circular links between nodes
         if _yr1&gt; 0 and _yr2&gt;0:
             link=np.sqrt(r[1]**2-np.linspace(_xr1, _xr2, 100)**2)
             plt.plot(np.linspace(_xr1, _xr2, 100), link, c=_color,linewidth=linewidth, rasterized=True)
         elif _yr1 &lt;0 and _yr2 &lt;0:
             link=-np.sqrt(r[1]**2-np.linspace(_xr1, _xr2, 100)**2)
-            
+
             plt.plot(np.linspace(_xr1, _xr2, 100), link, c=_color,linewidth=linewidth, rasterized=True)
         elif _yr1&gt; 0 and _yr2 &lt; 0:
             _r=r[1]
@@ -351,9 +351,9 @@ def _radialtree(Z2,fontsize: int=8,
             plt.plot(np.linspace(_xr1, _r, 100), link, c=_color,linewidth=linewidth, rasterized=True)
             link=-np.sqrt(r[1]**2-np.linspace(_r, _xr2, 100)**2)
             plt.plot(np.linspace(_r, _xr2, 100), link, c=_color,linewidth=linewidth, rasterized=True)
-        
+
         #Calculating the x, y coordinates and rotation angles of labels
-        
+
         if y[0]==0:
             label_coords.append([(1.05+offset)*_xr0, (1.05+offset)*_yr0,360*x[0]/xmax])
             #plt.text(1.05*_xr0, 1.05*_yr0, Z2[&#39;ivl&#39;][i],{&#39;va&#39;: &#39;center&#39;},rotation_mode=&#39;anchor&#39;, rotation=360*x[0]/xmax)
@@ -362,20 +362,20 @@ def _radialtree(Z2,fontsize: int=8,
             label_coords.append([(1.05+offset)*_xr3, (1.05+offset)*_yr3,360*x[2]/xmax])
             #plt.text(1.05*_xr3, 1.05*_yr3, Z2[&#39;ivl&#39;][i],{&#39;va&#39;: &#39;center&#39;},rotation_mode=&#39;anchor&#39;, rotation=360*x[2]/xmax)
             i+=1
-    
+
 
     if addlabels==True:
-        assert len(Z2[&#39;ivl&#39;])==len(label_coords), &#34;Internal error, label numbers &#34;+str(len(Z2[&#39;ivl&#39;])) +&#34; and &#34;+str(len(label_coords))+&#34; must be equal!&#34; 
-        
+        assert len(Z2[&#39;ivl&#39;])==len(label_coords), &#34;Internal error, label numbers &#34;+str(len(Z2[&#39;ivl&#39;])) +&#34; and &#34;+str(len(label_coords))+&#34; must be equal!&#34;
+
         #Adding labels
         for (_x, _y,_rot), label in zip(label_coords, Z2[&#39;ivl&#39;]):
             plt.text(_x, _y, label,{&#39;va&#39;: &#39;center&#39;},rotation_mode=&#39;anchor&#39;, rotation=_rot,fontsize=fontsize)
-    
-    
-    
+
+
+
     if colorlabels != None:
-        assert len(Z2[&#39;ivl&#39;])==len(label_coords), &#34;Internal error, label numbers &#34;+str(len(Z2[&#39;ivl&#39;])) +&#34; and &#34;+str(len(label_coords))+&#34; must be equal!&#34; 
-        
+        assert len(Z2[&#39;ivl&#39;])==len(label_coords), &#34;Internal error, label numbers &#34;+str(len(Z2[&#39;ivl&#39;])) +&#34; and &#34;+str(len(label_coords))+&#34; must be equal!&#34;
+
         j=0
         outerrad=R*1.05+width*len(colorlabels)+space*(len(colorlabels)-1)
         print(outerrad)
@@ -406,7 +406,7 @@ def _radialtree(Z2,fontsize: int=8,
             plt.gca().add_patch(circle)
             labelnames.append(labelname)
             j+=1
-        
+
         if colorlabels_legend!=None:
             for i, labelname in enumerate(labelnames):
                 print(colorlabels_legend[labelname][&#34;colors&#34;])
@@ -417,10 +417,10 @@ def _radialtree(Z2,fontsize: int=8,
                            colorlabels_legend[labelname][&#34;labels&#34;],
                        bbox_to_anchor=(1.5+0.3*i, 1.0),
                        title=labelname)
-                plt.gca().add_artist(leg)   
+                plt.gca().add_artist(leg)
     elif sample_classes!=None:
-        assert len(Z2[&#39;ivl&#39;])==len(label_coords), &#34;Internal error, label numbers &#34;+str(len(Z2[&#39;ivl&#39;])) +&#34; and &#34;+str(len(label_coords))+&#34; must be equal!&#34; 
-        
+        assert len(Z2[&#39;ivl&#39;])==len(label_coords), &#34;Internal error, label numbers &#34;+str(len(Z2[&#39;ivl&#39;])) +&#34; and &#34;+str(len(label_coords))+&#34; must be equal!&#34;
+
         j=0
         outerrad=R*1.05+width*len(sample_classes)+space*(len(sample_classes)-1)
         print(outerrad)
@@ -460,7 +460,7 @@ def _radialtree(Z2,fontsize: int=8,
             colorlabels_legend[labelname][&#34;colors&#34;]=_cmp(np.linspace(0, 1, type_num))
             colorlabels_legend[labelname][&#34;labels&#34;]=ucolors
             j+=1
-        
+
         if colorlabels_legend!=None:
             for i, labelname in enumerate(labelnames):
                 print(colorlabels_legend[labelname][&#34;colors&#34;])
@@ -480,7 +480,7 @@ def _radialtree(Z2,fontsize: int=8,
     ax.set_rasterization_zorder(None)
     plt.xticks([])
     plt.yticks([])
-    
+
     if colorlabels!=None:
         maxr=R*1.05+width*len(colorlabels)+space*(len(colorlabels)-1)
     elif sample_classes !=None:
@@ -498,8 +498,8 @@ def _radialtree(Z2,fontsize: int=8,
 
 def _radialtree2(Z2,fontsize: int=8,
                figsize: Optional[list]=None,
-               palette: str=&#34;gist_rainbow&#34;, 
-               addlabels: bool=True, 
+               palette: str=&#34;gist_rainbow&#34;,
+               addlabels: bool=True,
                show: bool=False,
                sample_classes: Optional[dict]=None,
                colorlabels: Optional[dict]=None,
@@ -522,19 +522,19 @@ def _radialtree2(Z2,fontsize: int=8,
     palette : string
         Matlab colormap name.
     sample_classes : dict
-        A dictionary that contains lists of sample subtypes or classes. These classes appear 
-        as color labels of each leaf. Colormaps are automatically assigned. Not compatible 
+        A dictionary that contains lists of sample subtypes or classes. These classes appear
+        as color labels of each leaf. Colormaps are automatically assigned. Not compatible
         with options &#34;colorlabels&#34; and &#34;colorlabels_legend&#34;.
-        e.g., {&#34;color1&#34;:[&#34;Class1&#34;,&#34;Class2&#34;,&#34;Class1&#34;,&#34;Class3&#34;, ....]} 
+        e.g., {&#34;color1&#34;:[&#34;Class1&#34;,&#34;Class2&#34;,&#34;Class1&#34;,&#34;Class3&#34;, ....]}
     colorlabels : dict
-        A dictionary to set color labels to leaves. The key is the name of the color label. 
-        The value is the list of RGB color codes, each corresponds to the color of a leaf. 
-        e.g., {&#34;color1&#34;:[[1,0,0,1], ....]}   
+        A dictionary to set color labels to leaves. The key is the name of the color label.
+        The value is the list of RGB color codes, each corresponds to the color of a leaf.
+        e.g., {&#34;color1&#34;:[[1,0,0,1], ....]}
     colorlabels_legend : dict
-        A nested dictionary to generate the legends of color labels. The key is the name of 
-        the color label. The value is a dictionary that has two keys &#34;colors&#34; and &#34;labels&#34;. 
-        The value of &#34;colors&#34; is the list of RGB color codes, each corresponds to the class of a leaf. 
-        e.g., {&#34;color1&#34;:{&#34;colors&#34;:[[1,0,0,1], ....], &#34;labels&#34;:[&#34;label1&#34;,&#34;label2&#34;,...]}}   
+        A nested dictionary to generate the legends of color labels. The key is the name of
+        the color label. The value is a dictionary that has two keys &#34;colors&#34; and &#34;labels&#34;.
+        The value of &#34;colors&#34; is the list of RGB color codes, each corresponds to the class of a leaf.
+        e.g., {&#34;color1&#34;:{&#34;colors&#34;:[[1,0,0,1], ....], &#34;labels&#34;:[&#34;label1&#34;,&#34;label2&#34;,...]}}
     show : bool
         Whether or not to show the figure.
     Returns
@@ -569,11 +569,11 @@ def _radialtree2(Z2,fontsize: int=8,
         #print(offset)
     else:
         offset=0
-    
+
     xmax=np.amax(Z2[&#39;icoord&#39;])
     xmin = np.amin(Z2[&#34;icoord&#34;])
     ymax=np.amax(Z2[&#39;dcoord&#39;])
-    
+
     ucolors=sorted(set(Z2[&#34;color_list&#34;]))
     #cmap = cm.gist_rainbow(np.linspace(0, 1, len(ucolors)))
     cmp=plt.get_cmap(palette, len(ucolors))
@@ -592,11 +592,11 @@ def _radialtree2(Z2,fontsize: int=8,
         _color=cmap[ucolors.index(c)]
         if c==&#34;C0&#34;: #np.abs(_xr1)&lt;0.000000001 and np.abs(_yr1) &lt;0.000000001:
             _color=&#34;black&#34;
-        
+
         # transforming original x coordinates into relative circumference positions and y into radius
         # the rightmost leaf is going to [1, 0]
         xinterval=np.array([x[0],x[2]])/xmax
-        
+
         r=R*(1-np.array(y)/ymax)
         _x=np.cos(2*np.pi*xinterval) # transforming original x coordinates into x circumference positions
         _xr0=_x[0]*r[0]
@@ -609,14 +609,14 @@ def _radialtree2(Z2,fontsize: int=8,
         _yr2=_y[1]*r[2]
         _yr3=_y[1]*r[3]
         #plt.scatter([_xr0, _xr1, _xr2, _xr3],[_yr0, _yr1, _yr2,_yr3], c=&#34;b&#34;)
-        
-        
+
+
         #if y[0]&gt;0 and y[3]&gt;0:
             #_color=&#34;black&#34;
         #plotting radial lines
         ax.plot([_xr0, _xr1], [_yr0, _yr1], c=_color,linewidth=linewidth, rasterized=True)
         ax.plot([_xr2, _xr3], [_yr2,_yr3], c=_color,linewidth=linewidth, rasterized=True)
-        
+
         #plotting circular links between nodes
         lineres=np.amax([int(np.abs(xinterval[0]-xinterval[1])*_lineres),10])
         if _yr1&gt; 0 and _yr2&gt;0:
@@ -624,7 +624,7 @@ def _radialtree2(Z2,fontsize: int=8,
             ax.plot(np.linspace(_xr1, _xr2, lineres), link, c=_color,linewidth=linewidth, rasterized=True)
         elif _yr1 &lt;0 and _yr2 &lt;0:
             link=-np.sqrt(r[1]**2-np.linspace(_xr1, _xr2, lineres)**2)
-            
+
             ax.plot(np.linspace(_xr1, _xr2, lineres), link, c=_color,linewidth=linewidth, rasterized=True)
         elif _yr1&gt; 0 and _yr2 &lt; 0:
             _r=r[1]
@@ -634,7 +634,7 @@ def _radialtree2(Z2,fontsize: int=8,
             ax.plot(np.linspace(_xr1, _r, lineres), link, c=_color,linewidth=linewidth, rasterized=True)
             link=-np.sqrt(r[1]**2-np.linspace(_r, _xr2, lineres)**2)
             ax.plot(np.linspace(_r, _xr2, lineres), link, c=_color,linewidth=linewidth, rasterized=True)
-        
+
         #Calculating the x, y coordinates and rotation angles of labels
 
         # _append=False
@@ -671,28 +671,28 @@ def _radialtree2(Z2,fontsize: int=8,
                 np.sin(place * np.pi) * (1.05 + offset),  # _y
                 place * 180,  # _rot
             ]
-        )    
+        )
 
     if addlabels==True:
-        assert len(Z2[&#39;ivl&#39;])==len(label_coords), &#34;Internal error, label numbers &#34;+str(len(Z2[&#39;ivl&#39;])) +&#34; and &#34;+str(len(label_coords))+&#34; must be equal!&#34; 
-        
+        assert len(Z2[&#39;ivl&#39;])==len(label_coords), &#34;Internal error, label numbers &#34;+str(len(Z2[&#39;ivl&#39;])) +&#34; and &#34;+str(len(label_coords))+&#34; must be equal!&#34;
+
         #Adding labels
         for (_x, _y,_rot), label in zip(label_coords, Z2[&#39;ivl&#39;]):
-            ax.text(_x, 
-                    _y, 
+            ax.text(_x,
+                    _y,
                     label,
                     {&#39;va&#39;: &#39;center&#39;},
-                    rotation_mode=&#39;anchor&#39;, 
+                    rotation_mode=&#39;anchor&#39;,
                     rotation=_rot,
                     fontsize=fontsize)
-    
-    
-    
+
+
+
     if sample_classes!=None:
         assert len(Z2[&#39;ivl&#39;])==len(label_coords), \
             &#34;Internal error, label numbers &#34;+str(len(Z2[&#39;ivl&#39;])) +\
-                &#34; and &#34;+str(len(label_coords))+&#34; must be equal!&#34; 
-        
+                &#34; and &#34;+str(len(label_coords))+&#34; must be equal!&#34;
+
         classcounter=0
         outerrad=R*1.05+width*len(sample_classes)+space*(len(sample_classes)-1)
         intervals=[]
@@ -711,7 +711,7 @@ def _radialtree2(Z2,fontsize: int=8,
                 outerrad=outerrad-width-space
             innerrad=outerrad-width
             #print(outerrad, innerrad,_colorlist[:10])
-            
+
             for i in range(len(label_coords)):
                 _xl,_yl,_rotl =label_coords[i-1]
                 if i==0:
@@ -722,13 +722,13 @@ def _radialtree2(Z2,fontsize: int=8,
                     _rotr+=360
                 else:
                     _xr,_yr,_rotr =label_coords[i+1]
-                
+
                 start=(2*np.pi/360)*_rotl*0.5+(2*np.pi/360)*_rot*0.5
                 theta=(2*np.pi/360)*((_rotr*0.5+_rot*0.5)-(_rotl*0.5+_rot*0.5))
                 #print(start, theta,_rotl, _rotr)
                 #print(start, theta, innerrad, outerrad,10, _colorlist[i])
                 _baumkuchen(ax, start, theta, innerrad, outerrad,10, _colorlist[i] ) #,edgecolor = &#34;gray&#34;,linewidth=0.5)
-                
+
             # patches, texts =plt.pie(colorpos, colors=_colorlist,
             #         radius=outerrad,
             #         counterclock=True,
@@ -740,7 +740,7 @@ def _radialtree2(Z2,fontsize: int=8,
             colorlabels_legend[labelname][&#34;colors&#34;]=_cmp(np.linspace(0, 1, type_num))
             colorlabels_legend[labelname][&#34;labels&#34;]=ucolors
             classcounter+=1
-        
+
         if colorlabels_legend!=None:
             for i, labelname in enumerate(labelnames):
                 #print(colorlabels_legend[labelname][&#34;colors&#34;])
@@ -760,7 +760,7 @@ def _radialtree2(Z2,fontsize: int=8,
     #ax.set_rasterization_zorder(None)
     ax.set_xticks([])
     ax.set_yticks([])
-    
+
     if colorlabels!=None:
         maxr=R*1.1+width*len(colorlabels)+space*(len(colorlabels)-1)
     elif sample_classes !=None:
@@ -778,7 +778,7 @@ def _radialtree2(Z2,fontsize: int=8,
 def _complex_clustermap(df,row_plot=[],col_plot=[],approx_clusternum=10,color_var=0,merginalsum=False,show=True,method=&#34;ward&#34;, **kwargs):
     rnum, cnum=df.shape
     sns.set(font_scale=1)
-    
+
     if merginalsum:
         white_bgr=np.ones([rnum, 4])
         white_bgc=np.ones([cnum, 4])
@@ -787,20 +787,20 @@ def _complex_clustermap(df,row_plot=[],col_plot=[],approx_clusternum=10,color_va
         r=np.sum(mat, axis=1)
         g.ax_row_colors.barh(np.arange(r.shape[0])+0.5, r[leaves_list(g.dendrogram_row.linkage)]/np.amax(r))
         g.ax_row_colors.invert_xaxis()
-        
+
         c=np.sum(mat, axis=0)
         #print(leaves_list(g.dendrogram_col.linkage))
         g.ax_col_colors.bar(np.arange(c.shape[0])+0.5,c[leaves_list(g.dendrogram_col.linkage)]/np.amax(c))
         g.ax_col_colors.invert_yaxis()
-    
+
     elif len(row_plot)&gt;0:
-        
+
         white_bg=[np.ones([rnum, 4]) for _ in range(len(row_plot))]
         g=sns.clustermap(df, row_colors=white_bg,method=method,**kwargs)#hot(cbenign))
         for i, r in enumerate(row_plot):
             g.ax_row_colors.plot(r[leaves_list(g.dendrogram_row.linkage)]/np.amax(r)+i, np.arange(r.shape[0])+0.5)
         g.ax_row_colors.invert_xaxis()
-        
+
     else:
         g=sns.clustermap(df,method=method,**kwargs)
     if color_var&gt;0:
@@ -815,14 +815,14 @@ def _complex_clustermap(df,row_plot=[],col_plot=[],approx_clusternum=10,color_va
         #print(np.sum(lbranches[:,1]&gt;t),np.sum(rbranches[:,0]&gt;t),np.sum(lbranches[:,0]&gt;t),np.sum(rbranches[:,1]&gt;t))
         crossbranches=np.sum(lbranches[:,1]&gt;t)+np.sum(rbranches[:,0]&gt;t)-np.sum(lbranches[:,0]&gt;t)-np.sum(rbranches[:,1]&gt;t)
         #print(crossbranches)
-        
+
         if crossbranches&gt;approx_clusternum:
             break
-    
+
     den=hierarchy.dendrogram(g.dendrogram_row.linkage,
                                              labels = g.data.index,
                                              color_threshold=t,ax=g.ax_row_dendrogram,
-                        orientation=&#34;left&#34;)  
+                        orientation=&#34;left&#34;)
     g.ax_row_dendrogram.invert_yaxis()
     clusters = _get_cluster_classes(den)
     cdata={&#34;Cluster&#34;:[],&#34;Index&#34;:[],&#34;RGB&#34;:[]}
@@ -862,36 +862,36 @@ def _ci_pi(X: np.ndarray,Y: np.ndarray, plotline_X: np.ndarray, y_model: np.ndar
     dof = n - m                       # degrees of freedom
     t = stats.t.ppf(0.975, dof)       # Students statistic of interval confidence
     residual = Y - y_model
-        
+
     std_error = (np.sum(residual**2) / dof)**.5   # Standard deviation of the error
     # to plot the adjusted model
     x_line = plotline_X.flatten()
     y_line = y_model
-    
+
     # confidence interval
     ci = t * std_error * (1/n + (x_line - x_mean)**2 / np.sum((X - x_mean)**2))**.5
     # predicting interval
     pi = t * std_error * (1 + 1/n + (x_line - x_mean)**2 / np.sum((X - x_mean)**2))**.5
     return ci, pi,std_error
-def _draw_ci_pi(ax: plt.Axes, 
-               ci: np.ndarray, 
+def _draw_ci_pi(ax: plt.Axes,
+               ci: np.ndarray,
                pi: np.ndarray,
-               x_line: np.ndarray, 
+               x_line: np.ndarray,
                y_line: np.ndarray, pi_color: str=&#39;lightcyan&#39;,ci_color: str=&#39;skyblue&#39;, alpha: float=0.5):
     &#34;&#34;&#34;
-    Drawing a confidence interval and a prediction interval 
+    Drawing a confidence interval and a prediction interval
     &#34;&#34;&#34;
-    ax.fill_between(x_line, y_line + ci, 
-                    y_line - ci, color = ci_color, 
+    ax.fill_between(x_line, y_line + ci,
+                    y_line - ci, color = ci_color,
                     label = &#39;95% confidence interval&#39;,
                     alpha=alpha)
-    
-    ax.fill_between(x_line, y_line + pi, y_line - pi, 
-                color = pi_color, 
+
+    ax.fill_between(x_line, y_line + pi, y_line - pi,
+                color = pi_color,
                 label = &#39;95% prediction interval&#39;,
                 alpha=alpha*0.5)
-    
-    
+
+
 from sklearn.cluster import KMeans
 def _optimal_kmeans(X: Union[np.ndarray, list], testrange: list, topn: int=2)-&gt; List[int]:
     Sum_of_squared_distances = []
@@ -908,7 +908,7 @@ def _optimal_kmeans(X: Union[np.ndarray, list], testrange: list, topn: int=2)-&g
     plt.subplots()
     plt.plot(K, Sum_of_squared_distances, &#39;-&#39;, label=&#39;Sum of squared distances&#39;)
     plt.plot(K, perp*np.amax(Sum_of_squared_distances), label=&#34;curveture&#34;)
-    
+
     plt.plot([K[srtindex[0]],K[srtindex[0]]],[0,np.amax(Sum_of_squared_distances)], &#34;--&#34;, color=&#34;r&#34;)
     plt.text(K[srtindex[0]], np.amax(Sum_of_squared_distances)*0.95, &#34;N=&#34;+str(K[srtindex[0]]))
     plt.plot([K[srtindex[1]],K[srtindex[1]]],[0,np.amax(Sum_of_squared_distances)], &#34;--&#34;, color=&#34;r&#34;)
@@ -916,7 +916,7 @@ def _optimal_kmeans(X: Union[np.ndarray, list], testrange: list, topn: int=2)-&g
     plt.xticks(K)
     plt.xlabel(&#39;K&#39;)
     plt.ylabel(&#39;Sum of squared distances&#39;)
-    plt.title(&#39;Elbow method for optimal cluster number&#39;)    
+    plt.title(&#39;Elbow method for optimal cluster number&#39;)
     plt.legend()
     print(&#34;Top two optimal cluster No are: {}, {}&#34;.format(K[srtindex[0]],K[srtindex[1]]))
     n_clusters=[K[srtindex[i]] for i in range(topn)]
@@ -931,7 +931,7 @@ def _multipage(filename, figs=None, dpi=200):
     for fig in figs:
         fig.savefig(pp, format=&#39;pdf&#39;)
     pp.close()
-    
+
 def _save(save, suffix, fig=None):
     if save !=&#34;&#34;:
         if save.endswith(&#34;.pdf&#34;) or save.endswith(&#34;.png&#34;) or save.endswith(&#34;.svg&#34;):
@@ -944,7 +944,7 @@ def _save(save, suffix, fig=None):
             if fig!=None:
                 fig.savefig(h+&#34;_&#34;+suffix+t)
             else:
-                
+
                 plt.savefig(save+&#34;_&#34;+suffix+&#34;.pdf&#34;)
 
 
@@ -953,8 +953,8 @@ from sklearn.pipeline import make_pipeline
 from sklearn.random_projection import SparseRandomProjection
 
 def _get_embedding(method=&#34;umap&#34;,param={}):
-    
-    
+
+
     defaul_params={&#34;tsne&#34;: dict(n_components=2,n_iter=500,
                                 n_iter_without_progress=150,
                                 perplexity=10,
@@ -983,54 +983,54 @@ def _get_embedding(method=&#34;umap&#34;,param={}):
         SpectralEmbedding,
         TSNE,)
     from sklearn.neighbors import NeighborhoodComponentsAnalysis
-    
-    if method==&#34;random_projection&#34;: 
+
+    if method==&#34;random_projection&#34;:
         embedding=SparseRandomProjection(**params[method]
         )
-    elif method==&#34;linear_discriminant&#34;: 
+    elif method==&#34;linear_discriminant&#34;:
         embedding=LinearDiscriminantAnalysis(**params[method])
-    elif method==&#34;isomap&#34;: 
+    elif method==&#34;isomap&#34;:
         embedding=Isomap(**params[method])
-    
-    elif method==&#34;lle&#34;: 
+
+    elif method==&#34;lle&#34;:
         embedding=LocallyLinearEmbedding(method=&#34;standard&#34;, **params[method]
         )
-    elif method==&#34;modlle&#34;: 
-        embedding=LocallyLinearEmbedding(method=&#34;modified&#34;,**params[&#34;lle&#34;] 
+    elif method==&#34;modlle&#34;:
+        embedding=LocallyLinearEmbedding(method=&#34;modified&#34;,**params[&#34;lle&#34;]
         )
-    elif method==&#34;hessian_lle&#34;: 
-        embedding=LocallyLinearEmbedding(method=&#34;hessian&#34;, **params[&#34;lle&#34;] 
+    elif method==&#34;hessian_lle&#34;:
+        embedding=LocallyLinearEmbedding(method=&#34;hessian&#34;, **params[&#34;lle&#34;]
         )
-    elif method==&#34;ltsa_lle&#34;: 
-        embedding=LocallyLinearEmbedding( method=&#34;ltsa&#34;, **params[&#34;lle&#34;] 
+    elif method==&#34;ltsa_lle&#34;:
+        embedding=LocallyLinearEmbedding( method=&#34;ltsa&#34;, **params[&#34;lle&#34;]
         )
-    elif method==&#34;mds&#34;: 
+    elif method==&#34;mds&#34;:
         embedding=MDS(**params[method]
         )
-    elif method==&#34;random_trees&#34;: 
+    elif method==&#34;random_trees&#34;:
         embedding=make_pipeline(
             RandomTreesEmbedding(**params[method]),
             TruncatedSVD(**params[&#34;svd&#34;], ),
         )
-    elif method==&#34;spectral&#34;: 
+    elif method==&#34;spectral&#34;:
         embedding=SpectralEmbedding(**params[method],
         )
-    elif method==&#34;tsne&#34;: 
-        embedding=TSNE(**params[method], 
+    elif method==&#34;tsne&#34;:
+        embedding=TSNE(**params[method],
         )
-    elif method==&#34;nca&#34;: 
+    elif method==&#34;nca&#34;:
         embedding=NeighborhoodComponentsAnalysis(
             **params[method]
         )
     elif method==&#34;umap&#34;:
-        import umap 
+        import umap
         embedding=umap.UMAP(**params[method])
     else:
         raise Exception(f&#34;Medthod {method} does not exist.&#34;)
     return embedding
 
 
-def _separate_data(df, variables=[], 
+def _separate_data(df, variables=[],
                    category=&#34;&#34;):
     if len(variables) !=0:
         x = np.array(df[variables].values)
@@ -1038,8 +1038,8 @@ def _separate_data(df, variables=[],
             if type(category)==str:
                 category=[category]
             #category_val=df[category].values
-        
-        #if x.dtype!=np.number: 
+
+        #if x.dtype!=np.number:
         if np.issubdtype(x.dtype, np.number)==False:
             raise TypeError(f&#34;variables must contain only float values. {x.dtype} was given&#34;)
     elif len(category) !=0:
@@ -1048,17 +1048,17 @@ def _separate_data(df, variables=[],
         #category_val=df[category].values
         df=df.drop(category, axis=1)
         x = np.array(df.values)
-        if x.dtype!=np.number: 
+        if x.dtype!=np.number:
             raise TypeError(f&#34;data must contain only float values except {category} column. \
         or you can specify the numeric variables with the option &#39;variables&#39;.&#34;)
-        
-    else:    
+
+    else:
         x = df.values
         #category_val=[]
-        if x.dtype!=float: 
+        if x.dtype!=float:
             raise TypeError(f&#34;data must contain only float values. \
         or you can specify the numeric variables with the option &#39;variables&#39;.&#34;)
-        
+
     return x, category
 
 def _create_color_markerlut(df, cat, palette, markers=[]):
@@ -1070,9 +1070,9 @@ def _create_color_markerlut(df, cat, palette, markers=[]):
     uniq_labels=sorted(list(set(df[cat])))
     if type(palette)==str:
         _cmap=plt.get_cmap(palette, len(uniq_labels))
-        
+
         color_lut={u: _cmap(i) for i, u in enumerate(uniq_labels)}
-        
+
         if len(markers)!=0:
             if len(markers) &lt; len(uniq_labels):
                 while len(markers) &lt; len(uniq_labels):
@@ -1190,12 +1190,12 @@ def _create_color_markerlut(df, cat, palette, markers=[]):
     dof = n - m                       # degrees of freedom
     t = stats.t.ppf(0.975, dof)       # Students statistic of interval confidence
     residual = Y - y_model
-        
+
     std_error = (np.sum(residual**2) / dof)**.5   # Standard deviation of the error
     # to plot the adjusted model
     x_line = plotline_X.flatten()
     y_line = y_model
-    
+
     # confidence interval
     ci = t * std_error * (1/n + (x_line - x_mean)**2 / np.sum((X - x_mean)**2))**.5
     # predicting interval
@@ -1221,9 +1221,9 @@ def _create_color_markerlut(df, cat, palette, markers=[]):
     uniq_labels=sorted(list(set(df[cat])))
     if type(palette)==str:
         _cmap=plt.get_cmap(palette, len(uniq_labels))
-        
+
         color_lut={u: _cmap(i) for i, u in enumerate(uniq_labels)}
-        
+
         if len(markers)!=0:
             if len(markers) &lt; len(uniq_labels):
                 while len(markers) &lt; len(uniq_labels):
@@ -1254,7 +1254,7 @@ def _create_color_markerlut(df, cat, palette, markers=[]):
     for t in thre:
         crossbranches=np.sum(lbranches[:,1]&gt;t)+np.sum(rbranches[:,0]&gt;t)-np.sum(lbranches[:,0]&gt;t)-np.sum(rbranches[:,1]&gt;t)
         if crossbranches&gt;=approx_clusternum:
-            break 
+            break
     return t</code></pre>
 </details>
 </dd>
@@ -1267,21 +1267,21 @@ def _create_color_markerlut(df, cat, palette, markers=[]):
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def _draw_ci_pi(ax: plt.Axes, 
-               ci: np.ndarray, 
+<pre><code class="python">def _draw_ci_pi(ax: plt.Axes,
+               ci: np.ndarray,
                pi: np.ndarray,
-               x_line: np.ndarray, 
+               x_line: np.ndarray,
                y_line: np.ndarray, pi_color: str=&#39;lightcyan&#39;,ci_color: str=&#39;skyblue&#39;, alpha: float=0.5):
     &#34;&#34;&#34;
-    Drawing a confidence interval and a prediction interval 
+    Drawing a confidence interval and a prediction interval
     &#34;&#34;&#34;
-    ax.fill_between(x_line, y_line + ci, 
-                    y_line - ci, color = ci_color, 
+    ax.fill_between(x_line, y_line + ci,
+                    y_line - ci, color = ci_color,
                     label = &#39;95% confidence interval&#39;,
                     alpha=alpha)
-    
-    ax.fill_between(x_line, y_line + pi, y_line - pi, 
-                color = pi_color, 
+
+    ax.fill_between(x_line, y_line + pi, y_line - pi,
+                color = pi_color,
                 label = &#39;95% prediction interval&#39;,
                 alpha=alpha*0.5)</code></pre>
 </details>
@@ -1321,8 +1321,8 @@ def _create_color_markerlut(df, cat, palette, markers=[]):
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def _get_embedding(method=&#34;umap&#34;,param={}):
-    
-    
+
+
     defaul_params={&#34;tsne&#34;: dict(n_components=2,n_iter=500,
                                 n_iter_without_progress=150,
                                 perplexity=10,
@@ -1351,47 +1351,47 @@ def _create_color_markerlut(df, cat, palette, markers=[]):
         SpectralEmbedding,
         TSNE,)
     from sklearn.neighbors import NeighborhoodComponentsAnalysis
-    
-    if method==&#34;random_projection&#34;: 
+
+    if method==&#34;random_projection&#34;:
         embedding=SparseRandomProjection(**params[method]
         )
-    elif method==&#34;linear_discriminant&#34;: 
+    elif method==&#34;linear_discriminant&#34;:
         embedding=LinearDiscriminantAnalysis(**params[method])
-    elif method==&#34;isomap&#34;: 
+    elif method==&#34;isomap&#34;:
         embedding=Isomap(**params[method])
-    
-    elif method==&#34;lle&#34;: 
+
+    elif method==&#34;lle&#34;:
         embedding=LocallyLinearEmbedding(method=&#34;standard&#34;, **params[method]
         )
-    elif method==&#34;modlle&#34;: 
-        embedding=LocallyLinearEmbedding(method=&#34;modified&#34;,**params[&#34;lle&#34;] 
+    elif method==&#34;modlle&#34;:
+        embedding=LocallyLinearEmbedding(method=&#34;modified&#34;,**params[&#34;lle&#34;]
         )
-    elif method==&#34;hessian_lle&#34;: 
-        embedding=LocallyLinearEmbedding(method=&#34;hessian&#34;, **params[&#34;lle&#34;] 
+    elif method==&#34;hessian_lle&#34;:
+        embedding=LocallyLinearEmbedding(method=&#34;hessian&#34;, **params[&#34;lle&#34;]
         )
-    elif method==&#34;ltsa_lle&#34;: 
-        embedding=LocallyLinearEmbedding( method=&#34;ltsa&#34;, **params[&#34;lle&#34;] 
+    elif method==&#34;ltsa_lle&#34;:
+        embedding=LocallyLinearEmbedding( method=&#34;ltsa&#34;, **params[&#34;lle&#34;]
         )
-    elif method==&#34;mds&#34;: 
+    elif method==&#34;mds&#34;:
         embedding=MDS(**params[method]
         )
-    elif method==&#34;random_trees&#34;: 
+    elif method==&#34;random_trees&#34;:
         embedding=make_pipeline(
             RandomTreesEmbedding(**params[method]),
             TruncatedSVD(**params[&#34;svd&#34;], ),
         )
-    elif method==&#34;spectral&#34;: 
+    elif method==&#34;spectral&#34;:
         embedding=SpectralEmbedding(**params[method],
         )
-    elif method==&#34;tsne&#34;: 
-        embedding=TSNE(**params[method], 
+    elif method==&#34;tsne&#34;:
+        embedding=TSNE(**params[method],
         )
-    elif method==&#34;nca&#34;: 
+    elif method==&#34;nca&#34;:
         embedding=NeighborhoodComponentsAnalysis(
             **params[method]
         )
     elif method==&#34;umap&#34;:
-        import umap 
+        import umap
         embedding=umap.UMAP(**params[method])
     else:
         raise Exception(f&#34;Medthod {method} does not exist.&#34;)
@@ -1486,8 +1486,8 @@ e.g., {"color1":{"colors":[[1,0,0,1], ....], "labels":["label1","label2",&hellip
 </summary>
 <pre><code class="python">def _radialtree2(Z2,fontsize: int=8,
                figsize: Optional[list]=None,
-               palette: str=&#34;gist_rainbow&#34;, 
-               addlabels: bool=True, 
+               palette: str=&#34;gist_rainbow&#34;,
+               addlabels: bool=True,
                show: bool=False,
                sample_classes: Optional[dict]=None,
                colorlabels: Optional[dict]=None,
@@ -1510,19 +1510,19 @@ e.g., {"color1":{"colors":[[1,0,0,1], ....], "labels":["label1","label2",&hellip
     palette : string
         Matlab colormap name.
     sample_classes : dict
-        A dictionary that contains lists of sample subtypes or classes. These classes appear 
-        as color labels of each leaf. Colormaps are automatically assigned. Not compatible 
+        A dictionary that contains lists of sample subtypes or classes. These classes appear
+        as color labels of each leaf. Colormaps are automatically assigned. Not compatible
         with options &#34;colorlabels&#34; and &#34;colorlabels_legend&#34;.
-        e.g., {&#34;color1&#34;:[&#34;Class1&#34;,&#34;Class2&#34;,&#34;Class1&#34;,&#34;Class3&#34;, ....]} 
+        e.g., {&#34;color1&#34;:[&#34;Class1&#34;,&#34;Class2&#34;,&#34;Class1&#34;,&#34;Class3&#34;, ....]}
     colorlabels : dict
-        A dictionary to set color labels to leaves. The key is the name of the color label. 
-        The value is the list of RGB color codes, each corresponds to the color of a leaf. 
-        e.g., {&#34;color1&#34;:[[1,0,0,1], ....]}   
+        A dictionary to set color labels to leaves. The key is the name of the color label.
+        The value is the list of RGB color codes, each corresponds to the color of a leaf.
+        e.g., {&#34;color1&#34;:[[1,0,0,1], ....]}
     colorlabels_legend : dict
-        A nested dictionary to generate the legends of color labels. The key is the name of 
-        the color label. The value is a dictionary that has two keys &#34;colors&#34; and &#34;labels&#34;. 
-        The value of &#34;colors&#34; is the list of RGB color codes, each corresponds to the class of a leaf. 
-        e.g., {&#34;color1&#34;:{&#34;colors&#34;:[[1,0,0,1], ....], &#34;labels&#34;:[&#34;label1&#34;,&#34;label2&#34;,...]}}   
+        A nested dictionary to generate the legends of color labels. The key is the name of
+        the color label. The value is a dictionary that has two keys &#34;colors&#34; and &#34;labels&#34;.
+        The value of &#34;colors&#34; is the list of RGB color codes, each corresponds to the class of a leaf.
+        e.g., {&#34;color1&#34;:{&#34;colors&#34;:[[1,0,0,1], ....], &#34;labels&#34;:[&#34;label1&#34;,&#34;label2&#34;,...]}}
     show : bool
         Whether or not to show the figure.
     Returns
@@ -1557,11 +1557,11 @@ e.g., {"color1":{"colors":[[1,0,0,1], ....], "labels":["label1","label2",&hellip
         #print(offset)
     else:
         offset=0
-    
+
     xmax=np.amax(Z2[&#39;icoord&#39;])
     xmin = np.amin(Z2[&#34;icoord&#34;])
     ymax=np.amax(Z2[&#39;dcoord&#39;])
-    
+
     ucolors=sorted(set(Z2[&#34;color_list&#34;]))
     #cmap = cm.gist_rainbow(np.linspace(0, 1, len(ucolors)))
     cmp=plt.get_cmap(palette, len(ucolors))
@@ -1580,11 +1580,11 @@ e.g., {"color1":{"colors":[[1,0,0,1], ....], "labels":["label1","label2",&hellip
         _color=cmap[ucolors.index(c)]
         if c==&#34;C0&#34;: #np.abs(_xr1)&lt;0.000000001 and np.abs(_yr1) &lt;0.000000001:
             _color=&#34;black&#34;
-        
+
         # transforming original x coordinates into relative circumference positions and y into radius
         # the rightmost leaf is going to [1, 0]
         xinterval=np.array([x[0],x[2]])/xmax
-        
+
         r=R*(1-np.array(y)/ymax)
         _x=np.cos(2*np.pi*xinterval) # transforming original x coordinates into x circumference positions
         _xr0=_x[0]*r[0]
@@ -1597,14 +1597,14 @@ e.g., {"color1":{"colors":[[1,0,0,1], ....], "labels":["label1","label2",&hellip
         _yr2=_y[1]*r[2]
         _yr3=_y[1]*r[3]
         #plt.scatter([_xr0, _xr1, _xr2, _xr3],[_yr0, _yr1, _yr2,_yr3], c=&#34;b&#34;)
-        
-        
+
+
         #if y[0]&gt;0 and y[3]&gt;0:
             #_color=&#34;black&#34;
         #plotting radial lines
         ax.plot([_xr0, _xr1], [_yr0, _yr1], c=_color,linewidth=linewidth, rasterized=True)
         ax.plot([_xr2, _xr3], [_yr2,_yr3], c=_color,linewidth=linewidth, rasterized=True)
-        
+
         #plotting circular links between nodes
         lineres=np.amax([int(np.abs(xinterval[0]-xinterval[1])*_lineres),10])
         if _yr1&gt; 0 and _yr2&gt;0:
@@ -1612,7 +1612,7 @@ e.g., {"color1":{"colors":[[1,0,0,1], ....], "labels":["label1","label2",&hellip
             ax.plot(np.linspace(_xr1, _xr2, lineres), link, c=_color,linewidth=linewidth, rasterized=True)
         elif _yr1 &lt;0 and _yr2 &lt;0:
             link=-np.sqrt(r[1]**2-np.linspace(_xr1, _xr2, lineres)**2)
-            
+
             ax.plot(np.linspace(_xr1, _xr2, lineres), link, c=_color,linewidth=linewidth, rasterized=True)
         elif _yr1&gt; 0 and _yr2 &lt; 0:
             _r=r[1]
@@ -1622,7 +1622,7 @@ e.g., {"color1":{"colors":[[1,0,0,1], ....], "labels":["label1","label2",&hellip
             ax.plot(np.linspace(_xr1, _r, lineres), link, c=_color,linewidth=linewidth, rasterized=True)
             link=-np.sqrt(r[1]**2-np.linspace(_r, _xr2, lineres)**2)
             ax.plot(np.linspace(_r, _xr2, lineres), link, c=_color,linewidth=linewidth, rasterized=True)
-        
+
         #Calculating the x, y coordinates and rotation angles of labels
 
         # _append=False
@@ -1659,28 +1659,28 @@ e.g., {"color1":{"colors":[[1,0,0,1], ....], "labels":["label1","label2",&hellip
                 np.sin(place * np.pi) * (1.05 + offset),  # _y
                 place * 180,  # _rot
             ]
-        )    
+        )
 
     if addlabels==True:
-        assert len(Z2[&#39;ivl&#39;])==len(label_coords), &#34;Internal error, label numbers &#34;+str(len(Z2[&#39;ivl&#39;])) +&#34; and &#34;+str(len(label_coords))+&#34; must be equal!&#34; 
-        
+        assert len(Z2[&#39;ivl&#39;])==len(label_coords), &#34;Internal error, label numbers &#34;+str(len(Z2[&#39;ivl&#39;])) +&#34; and &#34;+str(len(label_coords))+&#34; must be equal!&#34;
+
         #Adding labels
         for (_x, _y,_rot), label in zip(label_coords, Z2[&#39;ivl&#39;]):
-            ax.text(_x, 
-                    _y, 
+            ax.text(_x,
+                    _y,
                     label,
                     {&#39;va&#39;: &#39;center&#39;},
-                    rotation_mode=&#39;anchor&#39;, 
+                    rotation_mode=&#39;anchor&#39;,
                     rotation=_rot,
                     fontsize=fontsize)
-    
-    
-    
+
+
+
     if sample_classes!=None:
         assert len(Z2[&#39;ivl&#39;])==len(label_coords), \
             &#34;Internal error, label numbers &#34;+str(len(Z2[&#39;ivl&#39;])) +\
-                &#34; and &#34;+str(len(label_coords))+&#34; must be equal!&#34; 
-        
+                &#34; and &#34;+str(len(label_coords))+&#34; must be equal!&#34;
+
         classcounter=0
         outerrad=R*1.05+width*len(sample_classes)+space*(len(sample_classes)-1)
         intervals=[]
@@ -1699,7 +1699,7 @@ e.g., {"color1":{"colors":[[1,0,0,1], ....], "labels":["label1","label2",&hellip
                 outerrad=outerrad-width-space
             innerrad=outerrad-width
             #print(outerrad, innerrad,_colorlist[:10])
-            
+
             for i in range(len(label_coords)):
                 _xl,_yl,_rotl =label_coords[i-1]
                 if i==0:
@@ -1710,13 +1710,13 @@ e.g., {"color1":{"colors":[[1,0,0,1], ....], "labels":["label1","label2",&hellip
                     _rotr+=360
                 else:
                     _xr,_yr,_rotr =label_coords[i+1]
-                
+
                 start=(2*np.pi/360)*_rotl*0.5+(2*np.pi/360)*_rot*0.5
                 theta=(2*np.pi/360)*((_rotr*0.5+_rot*0.5)-(_rotl*0.5+_rot*0.5))
                 #print(start, theta,_rotl, _rotr)
                 #print(start, theta, innerrad, outerrad,10, _colorlist[i])
                 _baumkuchen(ax, start, theta, innerrad, outerrad,10, _colorlist[i] ) #,edgecolor = &#34;gray&#34;,linewidth=0.5)
-                
+
             # patches, texts =plt.pie(colorpos, colors=_colorlist,
             #         radius=outerrad,
             #         counterclock=True,
@@ -1728,7 +1728,7 @@ e.g., {"color1":{"colors":[[1,0,0,1], ....], "labels":["label1","label2",&hellip
             colorlabels_legend[labelname][&#34;colors&#34;]=_cmp(np.linspace(0, 1, type_num))
             colorlabels_legend[labelname][&#34;labels&#34;]=ucolors
             classcounter+=1
-        
+
         if colorlabels_legend!=None:
             for i, labelname in enumerate(labelnames):
                 #print(colorlabels_legend[labelname][&#34;colors&#34;])
@@ -1748,7 +1748,7 @@ e.g., {"color1":{"colors":[[1,0,0,1], ....], "labels":["label1","label2",&hellip
     #ax.set_rasterization_zorder(None)
     ax.set_xticks([])
     ax.set_yticks([])
-    
+
     if colorlabels!=None:
         maxr=R*1.1+width*len(colorlabels)+space*(len(colorlabels)-1)
     elif sample_classes !=None:
@@ -1784,7 +1784,7 @@ e.g., {"color1":{"colors":[[1,0,0,1], ....], "labels":["label1","label2",&hellip
             if fig!=None:
                 fig.savefig(h+&#34;_&#34;+suffix+t)
             else:
-                
+
                 plt.savefig(save+&#34;_&#34;+suffix+&#34;.pdf&#34;)</code></pre>
 </details>
 </dd>
@@ -1797,7 +1797,7 @@ e.g., {"color1":{"colors":[[1,0,0,1], ....], "labels":["label1","label2",&hellip
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def _separate_data(df, variables=[], 
+<pre><code class="python">def _separate_data(df, variables=[],
                    category=&#34;&#34;):
     if len(variables) !=0:
         x = np.array(df[variables].values)
@@ -1805,8 +1805,8 @@ e.g., {"color1":{"colors":[[1,0,0,1], ....], "labels":["label1","label2",&hellip
             if type(category)==str:
                 category=[category]
             #category_val=df[category].values
-        
-        #if x.dtype!=np.number: 
+
+        #if x.dtype!=np.number:
         if np.issubdtype(x.dtype, np.number)==False:
             raise TypeError(f&#34;variables must contain only float values. {x.dtype} was given&#34;)
     elif len(category) !=0:
@@ -1815,17 +1815,17 @@ e.g., {"color1":{"colors":[[1,0,0,1], ....], "labels":["label1","label2",&hellip
         #category_val=df[category].values
         df=df.drop(category, axis=1)
         x = np.array(df.values)
-        if x.dtype!=np.number: 
+        if x.dtype!=np.number:
             raise TypeError(f&#34;data must contain only float values except {category} column. \
         or you can specify the numeric variables with the option &#39;variables&#39;.&#34;)
-        
-    else:    
+
+    else:
         x = df.values
         #category_val=[]
-        if x.dtype!=float: 
+        if x.dtype!=float:
             raise TypeError(f&#34;data must contain only float values. \
         or you can specify the numeric variables with the option &#39;variables&#39;.&#34;)
-        
+
     return x, category</code></pre>
 </details>
 </dd>

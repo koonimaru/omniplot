@@ -79,9 +79,9 @@ linestyles = [
      (&#39;densely dashdotdotted&#39;, (0, (3, 1, 1, 1, 1, 1)))]
 
 
-def sankey_category(df, 
-                    category: list=[], 
-                    palette: str=&#34;tab20c&#34;, 
+def sankey_category(df,
+                    category: list=[],
+                    palette: str=&#34;tab20c&#34;,
                     colormode: str=&#34;independent&#34;,
                     altcat: str=&#34;&#34;,
                     show_percentage=False,
@@ -90,9 +90,9 @@ def sankey_category(df,
                     hatch: bool=False) -&gt; plt.Axes:
     #plt.rcParams.update({&#39;font.size&#39;: 12})
     &#34;&#34;&#34;
-    Drawing a sankey plot to compare multiple categories in a data. The usage example may be 
+    Drawing a sankey plot to compare multiple categories in a data. The usage example may be
     to compare between clustering results.
-    
+
     Parameters
     ----------
     df : pandas dataframe
@@ -102,18 +102,18 @@ def sankey_category(df,
     palette: str, optional default(&#34;tab20c&#34;)
         Colormap name. Default: tab20c
     colormode: str [&#39;shared&#39;, &#39;independent&#39;, &#39;alternative&#39;, &#39;trace&#39;], optional default(&#34;independent&#34;)
-        The way to color categories. &#39;independent&#39; will give each category a distinct (unrelated) colorset. 
+        The way to color categories. &#39;independent&#39; will give each category a distinct (unrelated) colorset.
         &#39;shared&#39; will give a shared color if categories share the same names of labels. &#39;alternative&#39; will
         color bars based on additional category specified by altcat. &#39;trace&#39; will color all bars according
-        to the first category.  
-        
+        to the first category.
+
     altcat : str, optional (but required when colormode=&#39;alternative&#39;)
-        
+
 
     Returns
     -------
     axis
-    
+
     Raises
     ------
     Notes
@@ -130,12 +130,12 @@ def sankey_category(df,
     else:
         df = df.sort_values(category)
     df=df.reset_index(drop=True)
-    
+
     #print(df)
     blockwidth=0.2
     xinterval=0.5
     space=0.02
-    
+
     link_counts=[]
     catval=df[category].values
     catval=np.array(catval,dtype=str)
@@ -148,8 +148,8 @@ def sankey_category(df,
         for _sv, _tv in zip(sval,tval):
             links.append(&#34;--&gt;&gt;&#34;.join([str(_sv),str(_tv)]))
         ul, cl=np.unique(links, return_counts=True)
-        link_counts.append([ul,cl])        
-    
+        link_counts.append([ul,cl])
+
     heights={}
     xyh={}
     scolors={}
@@ -210,13 +210,13 @@ def sankey_category(df,
         for i, a in enumerate(altcat_unique):
             altcat_dict[a]=_tmp(altcat_unique.index(a))
             hatchmap[a]=linestyles[i][1]
-            
+
         altcat_colors=[]
         hatches=[]
         for a in altcat_list:
             altcat_colors.append(altcat_dict[a])
             hatches.append(hatchmap[a])
-    
+
     fig, ax=plt.subplots(figsize=[2+len(category),7])
     blocks=[]
     facecolors=[]
@@ -240,17 +240,17 @@ def sankey_category(df,
                     bbox=dict(boxstyle=&#34;round,pad=0.3&#34;, fc=&#34;white&#34;, ec=&#34;b&#34;, lw=1, alpha=0.7))
         hs.append(h)
     if colormode==&#34;alternative&#34; or colormode==&#34;trace&#34;:
-        
+
         for i,(cat, (u, ac)) in enumerate(heights.items()):
             k=0
             for j, _u in enumerate(u):
                 dfcat=np.array(df[cat], dtype=str)
                 _df=df.loc[dfcat==_u]
-                _df=_df.sort_values(altcat)                
+                _df=_df.sort_values(altcat)
                 x, h, _c, _ac=xyh[cat][_u]
                 if hatch==True:
                     for l, label in enumerate(_df[altcat]):
-                        plt.plot([x,x+blockwidth],[h-_c-space+_c*l/_ac,h-_c-space+_c*l/_ac], 
+                        plt.plot([x,x+blockwidth],[h-_c-space+_c*l/_ac,h-_c-space+_c*l/_ac],
                                  color=altcat_dict[label],
                                 linestyle=hatchmap[label])
                         k+=1
@@ -266,7 +266,7 @@ def sankey_category(df,
             plt.legend([Line2D([0], [0], color=altcat_dict[label]) for label in altcat_dict.keys()],
                    altcat_dict.keys(),loc=[1.01,0.9], fontsize=fontsize)
         plt.subplots_adjust(right=0.7)
-        
+
     # draw links between categories
     resolution=100 # resolution of lines for the links
     for i, (ul, cl) in enumerate(link_counts):
@@ -277,8 +277,8 @@ def sankey_category(df,
         scats=set()
         tcats=set()
         for _ul, _cl in zip(ul, cl):
-            
-            
+
+
             s, t=_ul.split(&#34;--&gt;&gt;&#34;)
             sx, sy, sh, _=xyh[scat][s]
             tx, ty, th, _=xyh[tcat][t]
@@ -289,7 +289,7 @@ def sankey_category(df,
                 sbottom[s]=sy-space-sh
             _scl=sh*_cl/(heights[scat][1][heights[scat][0]==s])[0]
             _tcl=th*_cl/(heights[tcat][1][heights[tcat][0]==t])[0]
-            
+
             # morphing links by convolution
             xconv=np.linspace(sx+blockwidth, tx,resolution-20*2+2)
             byconv=np.array((resolution//2) * [sbottom[s]] + (resolution//2) * [tbottom[t]])
@@ -299,13 +299,13 @@ def sankey_category(df,
             tyconv=np.array((resolution//2) * [_scl+sbottom[s]] + (resolution//2) * [tbottom[t]+_tcl])
             tyconv = np.convolve(tyconv, 0.05 * np.ones(20), mode=&#39;valid&#39;)
             tyconv = np.convolve(tyconv, 0.05 * np.ones(20), mode=&#39;valid&#39;)
-            
+
             #ax.plot(xconv,yconv)
             plt.fill_between(
                 xconv, byconv, tyconv, alpha=0.65,
                 color=&#34;b&#34;
             )
-            
+
             if show_percentage==True:
                 plt.text(sx, sh/2+sy-space-sh,str(np.round(100*sh,1))+&#34;%&#34;,ha=&#34;right&#34;,
                          va=&#34;center&#34;,
@@ -322,10 +322,10 @@ def sankey_category(df,
                          ha=&#34;left&#34;,va=&#34;center&#34;,
                          rotation=90,
                          bbox=dict(boxstyle=&#34;round,pad=0.3&#34;, fc=&#34;white&#34;, ec=&#34;y&#34;, lw=1, alpha=0.8))
-                
+
             sbottom[s]+=_scl
             tbottom[t]+=_tcl
-            
+
 
     if hatch==True:
         for b, c, h in zip(blocks, facecolors, facehatches):
@@ -335,34 +335,34 @@ def sankey_category(df,
         pc = PatchCollection(blocks,facecolor=facecolors,edgecolor=&#34;black&#34;,linewidth=2)
         ax.add_collection(pc)
 
-    
-    
-    
-    
+
+
+
+
     plt.xlim(-blockwidth*0.5, xinterval*(len(heights)-1)+blockwidth*1.5)
     plt.ylim(-0.01, np.amax(hs)*1.1)
-    plt.xticks([i*xinterval+blockwidth/2 for i in range(len(category))],category, rotation=90, 
+    plt.xticks([i*xinterval+blockwidth/2 for i in range(len(category))],category, rotation=90,
                fontsize=fontsize)
     plt.yticks([])
     plt.subplots_adjust(bottom=0.2)
     return ax
 
 
-def pienodes(g: igraph.Graph,  
+def pienodes(g: igraph.Graph,
              node_features: Union[pd.DataFrame, Dict],
-             vertex_label: list=[], 
+             vertex_label: list=[],
              pie_frac: str=&#34;frac&#34;,
              pie_label: str=&#34;label&#34;,
-             pie_palette: Union[str , dict]=&#34;tab20c&#34;, 
+             pie_palette: Union[str , dict]=&#34;tab20c&#34;,
              node_label: str=&#34;all&#34;,
              piesize: Optional[float]=None,
              label_color: str=&#34;black&#34;,
              figsize: list=[],
              save: str=&#34;&#34;,
-             **kwargs) -&gt; Dict: 
+             **kwargs) -&gt; Dict:
     &#34;&#34;&#34;
     Drawing a network whose noses are pie charts.
-    
+
     Parameters
     ----------
     g : igraph object
@@ -380,19 +380,19 @@ def pienodes(g: igraph.Graph,
     pie_frac : str
         The key value for the fractions of the pie charts. Default: &#34;frac&#34; (as the example of the above pie_features).
     pie_label : str
-        The key value for the labels of the pie charts. Default: &#34;label&#34; (as the example of the above pie_features). 
+        The key value for the labels of the pie charts. Default: &#34;label&#34; (as the example of the above pie_features).
     pie_palette: str or dict
-        If string is provided, it must be one of the matplotlib colormap names for the pie charts. If dict, then  
+        If string is provided, it must be one of the matplotlib colormap names for the pie charts. If dict, then
     node_label: str
         Whether to label all nodes or not. If partial, labels show up only for 0.05 upper quantile of nodes with a high degree.
-    
+
     piesize : float
-        Scaling pie chart sizes if they are too large/small.    
+        Scaling pie chart sizes if they are too large/small.
 
     Returns
     -------
     axis
-    
+
     Raises
     ------
     Notes
@@ -403,14 +403,14 @@ def pienodes(g: igraph.Graph,
     --------
     Examples
     --------
-    &#34;&#34;&#34;#print(kwargs)    
-    
-    
-    
+    &#34;&#34;&#34;#print(kwargs)
+
+
+
     if type(pie_palette)== str:
         colors={}
         if type(node_features)==dict:
-            
+
             unique_labels=set()
             for k, v in node_features.items():
                 for la in v[pie_label]:
@@ -418,9 +418,9 @@ def pienodes(g: igraph.Graph,
             unique_labels=list(unique_labels)
         else:
             node_features=node_features.pivot_table(index=&#34;node&#34;,columns=pie_label)
-            
+
             unique_labels=[nf[1] for nf in node_features.columns]
-            
+
         cmap=plt.get_cmap(pie_palette)
         unique_labels=nts(unique_labels)
         labelnum=len(unique_labels)
@@ -431,7 +431,7 @@ def pienodes(g: igraph.Graph,
         unique_labels=nts(colors.keys())
     else:
         raise Exception(&#34;Unknown pie_palette type.&#34;)
-    
+
     pos=np.array(kwargs[&#34;layout&#34;].coords)
     posmax=np.amax(pos)
     if len(figsize)==0:
@@ -439,7 +439,7 @@ def pienodes(g: igraph.Graph,
     fig, ax = plt.subplots(figsize=figsize)
     plt.subplots_adjust(right=0.8)
     mgd=igraph_classes.MatplotlibGraphDrawer(ax)
-    
+
     _deg=np.array([d for d in g.degree()])
     _deg=np.log(_deg+2)
     _deg=0.05*posmax*(_deg/_deg.max())
@@ -459,20 +459,20 @@ def pienodes(g: igraph.Graph,
     xycoord=[]
     text_pos=[]
     for i, n in enumerate(nodes):
-        
-        
+
+
         x, y=pos[i]
         if type(node_features)==dict:
             frac=node_features[n][pie_frac]
             frac=2*np.pi*np.array(frac)/np.sum(frac)
-            
+
             _colors=[colors[f] for f in node_features[n][pie_label]]
         else:
             _node_features=node_features.loc[n]
             frac=list(_node_features.loc[pie_frac,unique_labels])
             frac=2*np.pi*np.array(frac)/np.sum(frac)
             _colors=[colors[f] for f in unique_labels]
-            
+
         angle=0
         for fr, co in zip(frac, _colors):
             if piesize!=None:
@@ -491,7 +491,7 @@ def pienodes(g: igraph.Graph,
         #
         # a.pie(node_features[n][pie_frac], colors=[colors[f] for f in node_features[n][pie_label]])
         # a.margins(0,0)
-        
+
         if node_label==&#34;all&#34;:
             text_pos.append([x, y,n])
         elif node_label==&#34;partial&#34;:
@@ -505,14 +505,14 @@ def pienodes(g: igraph.Graph,
         ax.zorder=i+j
     legend_elements = [Line2D([0], [0], marker=&#39;o&#39;, color=&#39;lavender&#39;, label=ul,markerfacecolor=colors[ul], markersize=10)
                       for ul in unique_labels]
-    
+
     ax.legend(handles=legend_elements,bbox_to_anchor=(0.95, 1))
     _save(save, &#34;pienodes&#34;)
     return {&#34;axes&#34;:ax}
 
 
 def sankey_flow(df):
-    
+
     pass
 
 def _bundlle_edges(G, pos):
@@ -522,19 +522,19 @@ def _bundlle_edges(G, pos):
     for n in G.nodes:
         nodes_to_int[n]=i
         i+=1
-    
-    
+
+
     nodes_py = [[nodes_to_int[name], pos[name][0], pos[name][1]] for name in G.nodes]
-    ds_nodes = pd.DataFrame(nodes_py, columns=[&#39;name&#39;, &#39;x&#39;, &#39;y&#39;])       
-    
+    ds_nodes = pd.DataFrame(nodes_py, columns=[&#39;name&#39;, &#39;x&#39;, &#39;y&#39;])
+
     ds_edges_py = [[nodes_to_int[n0], nodes_to_int[n1]] for (n0, n1) in G.edges]
     ds_edges = pd.DataFrame(ds_edges_py, columns=[&#39;source&#39;, &#39;target&#39;])
-    
+
     hb = hammer_bundle(ds_nodes, ds_edges)
     return hb
-    
 
-def correlation(df: pd.DataFrame, 
+
+def correlation(df: pd.DataFrame,
                 variables: list=[],
                 category: Union[str, list]=[],
                 method=&#34;pearson&#34;,
@@ -564,12 +564,12 @@ def correlation(df: pd.DataFrame,
     &#34;&#34;&#34;
     Drawing a network based on correlations or distances between observations.
     Parameters
-    
+
     ----------
     df : pandas DataFrame
     variables: list, optional (default: [])
         the names of values to calculate correlations
-         
+
     category: str or list, optional (default: [])
         the names of categorical values to display as color labels
     method: str, optional (default: &#34;pearson&#34;)
@@ -591,11 +591,11 @@ def correlation(df: pd.DataFrame,
         Networkx layout parameters related to the layout option
     node_edge_color: str, optional (default: &#34;black&#34;)
         The colors of node edges.
-        
+
     edge_color: str, optional (default: &#34;weight&#34;)
         The color of edges. The default will color edges based on the edge weights calculated based on pearson/distance methods.
     edge_cmap: str, optional (default: &#34;hot&#34;)
-        
+
     edge_width: Union[str, float]=&#34;weight&#34;,
     node_size: float=50,
     node_alpha: float=0.85,
@@ -607,11 +607,11 @@ def correlation(df: pd.DataFrame,
     node_color=&#34;b&#34;,
     bundle: bool=True,
     show_edges: bool=True
-    
+
     Returns
     -------
     dict
-    
+
     Raises
     ------
     Notes
@@ -626,9 +626,9 @@ def correlation(df: pd.DataFrame,
     clustering_options=[&#34;&#34;,&#34;louvain&#34;, &#34;greedy_modularity&#34;, &#34;kernighan_lin_bisection&#34;, &#34;asyn_lpa_communities&#34;,&#34;asyn_fluidc&#34;]
     if not clustering in clustering_options:
         raise Exception(&#34;Available clustering methods are &#34;+&#34;, &#34;.join(clustering_options))
-    
-    
-    
+
+
+
     original_index=list(df.index)
     X, category=_separate_data(df, variables=variables, category=category)
     if ztransform==True:
@@ -640,7 +640,7 @@ def correlation(df: pd.DataFrame,
         # dmat=squareform(dmat)
         # #print(dmat)
         # dmat+=np.identity(dmat.shape[0])
-        
+
         dmat=np.corrcoef(X)
         print(&#34;correlation calc: &#34;, time.time()-starttime)
     else:
@@ -655,14 +655,14 @@ def correlation(df: pd.DataFrame,
     for i, j in list(it.combinations(range(dmat.shape[0]), 2)):
         if dmat[i,j]&gt;=threshold:
             G.add_edge(original_index[i], original_index[j], weight=dmat[i,j])
-    
-    if clustering ==&#34;louvain&#34;: 
+
+    if clustering ==&#34;louvain&#34;:
         try:
             import community
         except ImportError as e:
             raise Exception(&#34;can not import community. Try &#39;pip install python-louvain&#39;&#34;)
         comm=community.best_partition(G, **clustering_param)
-    
+
     elif clustering ==&#34;greedy_modularity&#34;:
         from networkx.algorithms import community
         comm=community.greedy_modularity_communities(G, **clustering_param)
@@ -686,7 +686,7 @@ def correlation(df: pd.DataFrame,
     for s, t, w in G.edges(data=True):
         weights.append(w[&#39;weight&#39;])
     weights=np.array(weights)
-    
+
     #pos = nx.spring_layout(G, weight = &#39;weight&#39;, **spring_layout_param)
     layoutfunction = getattr(nx, layout)
     if layout==&#34;spring_layout&#34; and len(layout_param)==0:
@@ -708,7 +708,7 @@ def correlation(df: pd.DataFrame,
         colors[cat]=[]
         for g in G.nodes:
             colors[cat].append(_cmap_dict[_cats[original_index.index(g)]])
-            
+
     if clustering!=&#34;&#34;:
         if clustering ==&#34;louvain&#34;:
             u=set()
@@ -729,7 +729,7 @@ def correlation(df: pd.DataFrame,
                 for i, com in enumerate(comm):
                     if g in com:
                         colors[clustering].append(_cmap_dict[i])
-    
+
     if edge_color==&#34;weight&#34;:
         edge_color=weights
     if edge_width==&#34;weight&#34;:
@@ -738,13 +738,13 @@ def correlation(df: pd.DataFrame,
 
     if len(category)==0 and clustering==&#34;&#34;:
         fig, ax=plt.subplots()
-        nx.draw_networkx_nodes(G = G, node_color=node_color, 
+        nx.draw_networkx_nodes(G = G, node_color=node_color,
                                    node_size=node_size,
-                                   pos=pos,linewidths=linewidths, 
-                                   ax=ax,edgecolors=node_edge_color, 
+                                   pos=pos,linewidths=linewidths,
+                                   ax=ax,edgecolors=node_edge_color,
                                    alpha=node_alpha)
         nx.draw_networkx_edges(G = G,pos=pos, edge_color=edge_color, edge_cmap=plt.get_cmap(edge_cmap),
-                               alpha=edges_alpha, 
+                               alpha=edges_alpha,
                                width=edge_width, ax=ax)
     else:
         if len(figsize)==0:
@@ -752,23 +752,23 @@ def correlation(df: pd.DataFrame,
         if len(rows_cols)==0:
             rows_cols=[1, len(cat)+int(clustering!=&#34;&#34;)]
         fig, axes=plt.subplots(figsize=figsize, ncols=rows_cols[1], nrows=rows_cols[0])
-        
+
         axes=axes.flatten()
-        
+
         if bundle==True:
             hb=_bundlle_edges(G, pos)
-        
-        
+
+
         for ax, cat in zip(axes, category):
             #nx.draw(G=G,pos=pos, font_size=8,linewidths=0)
-            nx.draw_networkx_nodes(G = G, node_color=colors[cat], 
+            nx.draw_networkx_nodes(G = G, node_color=colors[cat],
                                    node_size=node_size,
-                                   pos=pos,linewidths=linewidths, 
-                                   ax=ax,edgecolors=node_edge_color, 
+                                   pos=pos,linewidths=linewidths,
+                                   ax=ax,edgecolors=node_edge_color,
                                    alpha=node_alpha)
             if show_edges==True:
                 nx.draw_networkx_edges(G = G,pos=pos, edge_color=edge_color, edge_cmap=plt.get_cmap(edge_cmap),
-                                   alpha=edges_alpha, 
+                                   alpha=edges_alpha,
                                    width=edge_width, ax=ax)
                                     #,arrows=True,connectionstyle=&#34;arc3,rad=0.3&#34;)
             ax.set_title(method+&#34;, colored by &#34;+cat)
@@ -780,14 +780,14 @@ def correlation(df: pd.DataFrame,
             if bundle==True:
                 ax.plot(hb.x, hb.y, &#34;y&#34;, zorder=1, linewidth=3)
         if clustering!=&#34;&#34;:
-            nx.draw_networkx_nodes(G = G, node_color=colors[clustering], 
+            nx.draw_networkx_nodes(G = G, node_color=colors[clustering],
                                    node_size=node_size,
-                                   pos=pos,linewidths=linewidths, 
-                                   ax=axes[-1],edgecolors=node_edge_color, 
+                                   pos=pos,linewidths=linewidths,
+                                   ax=axes[-1],edgecolors=node_edge_color,
                                    alpha=node_alpha)
             if show_edges==True:
                 nx.draw_networkx_edges(G = G,pos=pos, edge_color=edge_color, edge_cmap=plt.get_cmap(edge_cmap),
-                                   alpha=edges_alpha, 
+                                   alpha=edges_alpha,
                                    width=edge_width, ax=axes[-1])
                                     #,arrows=True,connectionstyle=&#34;arc3,rad=0.3&#34;)
             axes[-1].set_title(method+&#34;, colored by &#34;+clustering)
@@ -802,7 +802,7 @@ def correlation(df: pd.DataFrame,
 
 
 if __name__==&#34;__main__&#34;:
-    
+
     test=&#34;sankey_category&#34;
     test=&#34;pienode&#34;
     test=&#34;correlation&#34;
@@ -810,12 +810,12 @@ if __name__==&#34;__main__&#34;:
         df=sns.load_dataset(&#34;penguins&#34;)
         df=df.dropna(axis=0)
         df=df.reset_index()
-        correlation(df, category=[&#34;species&#34;, &#34;island&#34;,&#34;sex&#34;], 
-                    method=&#34;pearson&#34;, 
+        correlation(df, category=[&#34;species&#34;, &#34;island&#34;,&#34;sex&#34;],
+                    method=&#34;pearson&#34;,
                     ztransform=True,
                     clustering =&#34;asyn_fluidc&#34;,show_edges=True, bundle=False)
         plt.show()
-        
+
     elif test==&#34;sankey_category&#34;:
         df=pd.read_csv(&#34;../data/kmeans_result.csv&#34;)
         sankey_category(df, [&#34;kmeans2&#34;,&#34;kmeans3&#34;,&#34;sex&#34;],
@@ -834,7 +834,7 @@ if __name__==&#34;__main__&#34;:
                       &#34;D&#34;:{&#34;frac&#34;:np.array([100]),&#34;label&#34;:np.array([&#34;b&#34;])},
                       &#34;E&#34;:{&#34;frac&#34;:np.array([100]),&#34;label&#34;:np.array([&#34;a&#34;])},
                       &#34;F&#34;:{&#34;frac&#34;:np.array([10,20,30]),&#34;label&#34;:np.array([&#34;a&#34;,&#34;b&#34;,&#34;c&#34;])}}
-        
+
         g=igraph.Graph(edges=edges)
         layout = g.layout(&#34;fr&#34;)
         fraclist=[100,50,20,0]
@@ -846,9 +846,9 @@ if __name__==&#34;__main__&#34;:
                 pie_features[&#34;node&#34;].append(n)
                 pie_features[&#34;label&#34;].append(l)
                 pie_features[&#34;frac&#34;].append(f)
-                
+
         pie_features=pd.DataFrame(pie_features)
-        pienodes(g, 
+        pienodes(g,
                  vertex_label=nodes,
                  node_features=pie_features,
                  piesize=0.1,
@@ -929,7 +929,7 @@ show_edges: bool=True</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def correlation(df: pd.DataFrame, 
+<pre><code class="python">def correlation(df: pd.DataFrame,
                 variables: list=[],
                 category: Union[str, list]=[],
                 method=&#34;pearson&#34;,
@@ -959,12 +959,12 @@ show_edges: bool=True</p>
     &#34;&#34;&#34;
     Drawing a network based on correlations or distances between observations.
     Parameters
-    
+
     ----------
     df : pandas DataFrame
     variables: list, optional (default: [])
         the names of values to calculate correlations
-         
+
     category: str or list, optional (default: [])
         the names of categorical values to display as color labels
     method: str, optional (default: &#34;pearson&#34;)
@@ -986,11 +986,11 @@ show_edges: bool=True</p>
         Networkx layout parameters related to the layout option
     node_edge_color: str, optional (default: &#34;black&#34;)
         The colors of node edges.
-        
+
     edge_color: str, optional (default: &#34;weight&#34;)
         The color of edges. The default will color edges based on the edge weights calculated based on pearson/distance methods.
     edge_cmap: str, optional (default: &#34;hot&#34;)
-        
+
     edge_width: Union[str, float]=&#34;weight&#34;,
     node_size: float=50,
     node_alpha: float=0.85,
@@ -1002,11 +1002,11 @@ show_edges: bool=True</p>
     node_color=&#34;b&#34;,
     bundle: bool=True,
     show_edges: bool=True
-    
+
     Returns
     -------
     dict
-    
+
     Raises
     ------
     Notes
@@ -1021,9 +1021,9 @@ show_edges: bool=True</p>
     clustering_options=[&#34;&#34;,&#34;louvain&#34;, &#34;greedy_modularity&#34;, &#34;kernighan_lin_bisection&#34;, &#34;asyn_lpa_communities&#34;,&#34;asyn_fluidc&#34;]
     if not clustering in clustering_options:
         raise Exception(&#34;Available clustering methods are &#34;+&#34;, &#34;.join(clustering_options))
-    
-    
-    
+
+
+
     original_index=list(df.index)
     X, category=_separate_data(df, variables=variables, category=category)
     if ztransform==True:
@@ -1035,7 +1035,7 @@ show_edges: bool=True</p>
         # dmat=squareform(dmat)
         # #print(dmat)
         # dmat+=np.identity(dmat.shape[0])
-        
+
         dmat=np.corrcoef(X)
         print(&#34;correlation calc: &#34;, time.time()-starttime)
     else:
@@ -1050,14 +1050,14 @@ show_edges: bool=True</p>
     for i, j in list(it.combinations(range(dmat.shape[0]), 2)):
         if dmat[i,j]&gt;=threshold:
             G.add_edge(original_index[i], original_index[j], weight=dmat[i,j])
-    
-    if clustering ==&#34;louvain&#34;: 
+
+    if clustering ==&#34;louvain&#34;:
         try:
             import community
         except ImportError as e:
             raise Exception(&#34;can not import community. Try &#39;pip install python-louvain&#39;&#34;)
         comm=community.best_partition(G, **clustering_param)
-    
+
     elif clustering ==&#34;greedy_modularity&#34;:
         from networkx.algorithms import community
         comm=community.greedy_modularity_communities(G, **clustering_param)
@@ -1081,7 +1081,7 @@ show_edges: bool=True</p>
     for s, t, w in G.edges(data=True):
         weights.append(w[&#39;weight&#39;])
     weights=np.array(weights)
-    
+
     #pos = nx.spring_layout(G, weight = &#39;weight&#39;, **spring_layout_param)
     layoutfunction = getattr(nx, layout)
     if layout==&#34;spring_layout&#34; and len(layout_param)==0:
@@ -1103,7 +1103,7 @@ show_edges: bool=True</p>
         colors[cat]=[]
         for g in G.nodes:
             colors[cat].append(_cmap_dict[_cats[original_index.index(g)]])
-            
+
     if clustering!=&#34;&#34;:
         if clustering ==&#34;louvain&#34;:
             u=set()
@@ -1124,7 +1124,7 @@ show_edges: bool=True</p>
                 for i, com in enumerate(comm):
                     if g in com:
                         colors[clustering].append(_cmap_dict[i])
-    
+
     if edge_color==&#34;weight&#34;:
         edge_color=weights
     if edge_width==&#34;weight&#34;:
@@ -1133,13 +1133,13 @@ show_edges: bool=True</p>
 
     if len(category)==0 and clustering==&#34;&#34;:
         fig, ax=plt.subplots()
-        nx.draw_networkx_nodes(G = G, node_color=node_color, 
+        nx.draw_networkx_nodes(G = G, node_color=node_color,
                                    node_size=node_size,
-                                   pos=pos,linewidths=linewidths, 
-                                   ax=ax,edgecolors=node_edge_color, 
+                                   pos=pos,linewidths=linewidths,
+                                   ax=ax,edgecolors=node_edge_color,
                                    alpha=node_alpha)
         nx.draw_networkx_edges(G = G,pos=pos, edge_color=edge_color, edge_cmap=plt.get_cmap(edge_cmap),
-                               alpha=edges_alpha, 
+                               alpha=edges_alpha,
                                width=edge_width, ax=ax)
     else:
         if len(figsize)==0:
@@ -1147,23 +1147,23 @@ show_edges: bool=True</p>
         if len(rows_cols)==0:
             rows_cols=[1, len(cat)+int(clustering!=&#34;&#34;)]
         fig, axes=plt.subplots(figsize=figsize, ncols=rows_cols[1], nrows=rows_cols[0])
-        
+
         axes=axes.flatten()
-        
+
         if bundle==True:
             hb=_bundlle_edges(G, pos)
-        
-        
+
+
         for ax, cat in zip(axes, category):
             #nx.draw(G=G,pos=pos, font_size=8,linewidths=0)
-            nx.draw_networkx_nodes(G = G, node_color=colors[cat], 
+            nx.draw_networkx_nodes(G = G, node_color=colors[cat],
                                    node_size=node_size,
-                                   pos=pos,linewidths=linewidths, 
-                                   ax=ax,edgecolors=node_edge_color, 
+                                   pos=pos,linewidths=linewidths,
+                                   ax=ax,edgecolors=node_edge_color,
                                    alpha=node_alpha)
             if show_edges==True:
                 nx.draw_networkx_edges(G = G,pos=pos, edge_color=edge_color, edge_cmap=plt.get_cmap(edge_cmap),
-                                   alpha=edges_alpha, 
+                                   alpha=edges_alpha,
                                    width=edge_width, ax=ax)
                                     #,arrows=True,connectionstyle=&#34;arc3,rad=0.3&#34;)
             ax.set_title(method+&#34;, colored by &#34;+cat)
@@ -1175,14 +1175,14 @@ show_edges: bool=True</p>
             if bundle==True:
                 ax.plot(hb.x, hb.y, &#34;y&#34;, zorder=1, linewidth=3)
         if clustering!=&#34;&#34;:
-            nx.draw_networkx_nodes(G = G, node_color=colors[clustering], 
+            nx.draw_networkx_nodes(G = G, node_color=colors[clustering],
                                    node_size=node_size,
-                                   pos=pos,linewidths=linewidths, 
-                                   ax=axes[-1],edgecolors=node_edge_color, 
+                                   pos=pos,linewidths=linewidths,
+                                   ax=axes[-1],edgecolors=node_edge_color,
                                    alpha=node_alpha)
             if show_edges==True:
                 nx.draw_networkx_edges(G = G,pos=pos, edge_color=edge_color, edge_cmap=plt.get_cmap(edge_cmap),
-                                   alpha=edges_alpha, 
+                                   alpha=edges_alpha,
                                    width=edge_width, ax=axes[-1])
                                     #,arrows=True,connectionstyle=&#34;arc3,rad=0.3&#34;)
             axes[-1].set_title(method+&#34;, colored by &#34;+clustering)
@@ -1241,21 +1241,21 @@ pie_features={"A":{"frac":np.array([50,50]),"label":np.array(["a","b"])},
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def pienodes(g: igraph.Graph,  
+<pre><code class="python">def pienodes(g: igraph.Graph,
              node_features: Union[pd.DataFrame, Dict],
-             vertex_label: list=[], 
+             vertex_label: list=[],
              pie_frac: str=&#34;frac&#34;,
              pie_label: str=&#34;label&#34;,
-             pie_palette: Union[str , dict]=&#34;tab20c&#34;, 
+             pie_palette: Union[str , dict]=&#34;tab20c&#34;,
              node_label: str=&#34;all&#34;,
              piesize: Optional[float]=None,
              label_color: str=&#34;black&#34;,
              figsize: list=[],
              save: str=&#34;&#34;,
-             **kwargs) -&gt; Dict: 
+             **kwargs) -&gt; Dict:
     &#34;&#34;&#34;
     Drawing a network whose noses are pie charts.
-    
+
     Parameters
     ----------
     g : igraph object
@@ -1273,19 +1273,19 @@ pie_features={"A":{"frac":np.array([50,50]),"label":np.array(["a","b"])},
     pie_frac : str
         The key value for the fractions of the pie charts. Default: &#34;frac&#34; (as the example of the above pie_features).
     pie_label : str
-        The key value for the labels of the pie charts. Default: &#34;label&#34; (as the example of the above pie_features). 
+        The key value for the labels of the pie charts. Default: &#34;label&#34; (as the example of the above pie_features).
     pie_palette: str or dict
-        If string is provided, it must be one of the matplotlib colormap names for the pie charts. If dict, then  
+        If string is provided, it must be one of the matplotlib colormap names for the pie charts. If dict, then
     node_label: str
         Whether to label all nodes or not. If partial, labels show up only for 0.05 upper quantile of nodes with a high degree.
-    
+
     piesize : float
-        Scaling pie chart sizes if they are too large/small.    
+        Scaling pie chart sizes if they are too large/small.
 
     Returns
     -------
     axis
-    
+
     Raises
     ------
     Notes
@@ -1296,14 +1296,14 @@ pie_features={"A":{"frac":np.array([50,50]),"label":np.array(["a","b"])},
     --------
     Examples
     --------
-    &#34;&#34;&#34;#print(kwargs)    
-    
-    
-    
+    &#34;&#34;&#34;#print(kwargs)
+
+
+
     if type(pie_palette)== str:
         colors={}
         if type(node_features)==dict:
-            
+
             unique_labels=set()
             for k, v in node_features.items():
                 for la in v[pie_label]:
@@ -1311,9 +1311,9 @@ pie_features={"A":{"frac":np.array([50,50]),"label":np.array(["a","b"])},
             unique_labels=list(unique_labels)
         else:
             node_features=node_features.pivot_table(index=&#34;node&#34;,columns=pie_label)
-            
+
             unique_labels=[nf[1] for nf in node_features.columns]
-            
+
         cmap=plt.get_cmap(pie_palette)
         unique_labels=nts(unique_labels)
         labelnum=len(unique_labels)
@@ -1324,7 +1324,7 @@ pie_features={"A":{"frac":np.array([50,50]),"label":np.array(["a","b"])},
         unique_labels=nts(colors.keys())
     else:
         raise Exception(&#34;Unknown pie_palette type.&#34;)
-    
+
     pos=np.array(kwargs[&#34;layout&#34;].coords)
     posmax=np.amax(pos)
     if len(figsize)==0:
@@ -1332,7 +1332,7 @@ pie_features={"A":{"frac":np.array([50,50]),"label":np.array(["a","b"])},
     fig, ax = plt.subplots(figsize=figsize)
     plt.subplots_adjust(right=0.8)
     mgd=igraph_classes.MatplotlibGraphDrawer(ax)
-    
+
     _deg=np.array([d for d in g.degree()])
     _deg=np.log(_deg+2)
     _deg=0.05*posmax*(_deg/_deg.max())
@@ -1352,20 +1352,20 @@ pie_features={"A":{"frac":np.array([50,50]),"label":np.array(["a","b"])},
     xycoord=[]
     text_pos=[]
     for i, n in enumerate(nodes):
-        
-        
+
+
         x, y=pos[i]
         if type(node_features)==dict:
             frac=node_features[n][pie_frac]
             frac=2*np.pi*np.array(frac)/np.sum(frac)
-            
+
             _colors=[colors[f] for f in node_features[n][pie_label]]
         else:
             _node_features=node_features.loc[n]
             frac=list(_node_features.loc[pie_frac,unique_labels])
             frac=2*np.pi*np.array(frac)/np.sum(frac)
             _colors=[colors[f] for f in unique_labels]
-            
+
         angle=0
         for fr, co in zip(frac, _colors):
             if piesize!=None:
@@ -1384,7 +1384,7 @@ pie_features={"A":{"frac":np.array([50,50]),"label":np.array(["a","b"])},
         #
         # a.pie(node_features[n][pie_frac], colors=[colors[f] for f in node_features[n][pie_label]])
         # a.margins(0,0)
-        
+
         if node_label==&#34;all&#34;:
             text_pos.append([x, y,n])
         elif node_label==&#34;partial&#34;:
@@ -1398,7 +1398,7 @@ pie_features={"A":{"frac":np.array([50,50]),"label":np.array(["a","b"])},
         ax.zorder=i+j
     legend_elements = [Line2D([0], [0], marker=&#39;o&#39;, color=&#39;lavender&#39;, label=ul,markerfacecolor=colors[ul], markersize=10)
                       for ul in unique_labels]
-    
+
     ax.legend(handles=legend_elements,bbox_to_anchor=(0.95, 1))
     _save(save, &#34;pienodes&#34;)
     return {&#34;axes&#34;:ax}</code></pre>
@@ -1440,9 +1440,9 @@ to the first category.</dd>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def sankey_category(df, 
-                    category: list=[], 
-                    palette: str=&#34;tab20c&#34;, 
+<pre><code class="python">def sankey_category(df,
+                    category: list=[],
+                    palette: str=&#34;tab20c&#34;,
                     colormode: str=&#34;independent&#34;,
                     altcat: str=&#34;&#34;,
                     show_percentage=False,
@@ -1451,9 +1451,9 @@ to the first category.</dd>
                     hatch: bool=False) -&gt; plt.Axes:
     #plt.rcParams.update({&#39;font.size&#39;: 12})
     &#34;&#34;&#34;
-    Drawing a sankey plot to compare multiple categories in a data. The usage example may be 
+    Drawing a sankey plot to compare multiple categories in a data. The usage example may be
     to compare between clustering results.
-    
+
     Parameters
     ----------
     df : pandas dataframe
@@ -1463,18 +1463,18 @@ to the first category.</dd>
     palette: str, optional default(&#34;tab20c&#34;)
         Colormap name. Default: tab20c
     colormode: str [&#39;shared&#39;, &#39;independent&#39;, &#39;alternative&#39;, &#39;trace&#39;], optional default(&#34;independent&#34;)
-        The way to color categories. &#39;independent&#39; will give each category a distinct (unrelated) colorset. 
+        The way to color categories. &#39;independent&#39; will give each category a distinct (unrelated) colorset.
         &#39;shared&#39; will give a shared color if categories share the same names of labels. &#39;alternative&#39; will
         color bars based on additional category specified by altcat. &#39;trace&#39; will color all bars according
-        to the first category.  
-        
+        to the first category.
+
     altcat : str, optional (but required when colormode=&#39;alternative&#39;)
-        
+
 
     Returns
     -------
     axis
-    
+
     Raises
     ------
     Notes
@@ -1491,12 +1491,12 @@ to the first category.</dd>
     else:
         df = df.sort_values(category)
     df=df.reset_index(drop=True)
-    
+
     #print(df)
     blockwidth=0.2
     xinterval=0.5
     space=0.02
-    
+
     link_counts=[]
     catval=df[category].values
     catval=np.array(catval,dtype=str)
@@ -1509,8 +1509,8 @@ to the first category.</dd>
         for _sv, _tv in zip(sval,tval):
             links.append(&#34;--&gt;&gt;&#34;.join([str(_sv),str(_tv)]))
         ul, cl=np.unique(links, return_counts=True)
-        link_counts.append([ul,cl])        
-    
+        link_counts.append([ul,cl])
+
     heights={}
     xyh={}
     scolors={}
@@ -1571,13 +1571,13 @@ to the first category.</dd>
         for i, a in enumerate(altcat_unique):
             altcat_dict[a]=_tmp(altcat_unique.index(a))
             hatchmap[a]=linestyles[i][1]
-            
+
         altcat_colors=[]
         hatches=[]
         for a in altcat_list:
             altcat_colors.append(altcat_dict[a])
             hatches.append(hatchmap[a])
-    
+
     fig, ax=plt.subplots(figsize=[2+len(category),7])
     blocks=[]
     facecolors=[]
@@ -1601,17 +1601,17 @@ to the first category.</dd>
                     bbox=dict(boxstyle=&#34;round,pad=0.3&#34;, fc=&#34;white&#34;, ec=&#34;b&#34;, lw=1, alpha=0.7))
         hs.append(h)
     if colormode==&#34;alternative&#34; or colormode==&#34;trace&#34;:
-        
+
         for i,(cat, (u, ac)) in enumerate(heights.items()):
             k=0
             for j, _u in enumerate(u):
                 dfcat=np.array(df[cat], dtype=str)
                 _df=df.loc[dfcat==_u]
-                _df=_df.sort_values(altcat)                
+                _df=_df.sort_values(altcat)
                 x, h, _c, _ac=xyh[cat][_u]
                 if hatch==True:
                     for l, label in enumerate(_df[altcat]):
-                        plt.plot([x,x+blockwidth],[h-_c-space+_c*l/_ac,h-_c-space+_c*l/_ac], 
+                        plt.plot([x,x+blockwidth],[h-_c-space+_c*l/_ac,h-_c-space+_c*l/_ac],
                                  color=altcat_dict[label],
                                 linestyle=hatchmap[label])
                         k+=1
@@ -1627,7 +1627,7 @@ to the first category.</dd>
             plt.legend([Line2D([0], [0], color=altcat_dict[label]) for label in altcat_dict.keys()],
                    altcat_dict.keys(),loc=[1.01,0.9], fontsize=fontsize)
         plt.subplots_adjust(right=0.7)
-        
+
     # draw links between categories
     resolution=100 # resolution of lines for the links
     for i, (ul, cl) in enumerate(link_counts):
@@ -1638,8 +1638,8 @@ to the first category.</dd>
         scats=set()
         tcats=set()
         for _ul, _cl in zip(ul, cl):
-            
-            
+
+
             s, t=_ul.split(&#34;--&gt;&gt;&#34;)
             sx, sy, sh, _=xyh[scat][s]
             tx, ty, th, _=xyh[tcat][t]
@@ -1650,7 +1650,7 @@ to the first category.</dd>
                 sbottom[s]=sy-space-sh
             _scl=sh*_cl/(heights[scat][1][heights[scat][0]==s])[0]
             _tcl=th*_cl/(heights[tcat][1][heights[tcat][0]==t])[0]
-            
+
             # morphing links by convolution
             xconv=np.linspace(sx+blockwidth, tx,resolution-20*2+2)
             byconv=np.array((resolution//2) * [sbottom[s]] + (resolution//2) * [tbottom[t]])
@@ -1660,13 +1660,13 @@ to the first category.</dd>
             tyconv=np.array((resolution//2) * [_scl+sbottom[s]] + (resolution//2) * [tbottom[t]+_tcl])
             tyconv = np.convolve(tyconv, 0.05 * np.ones(20), mode=&#39;valid&#39;)
             tyconv = np.convolve(tyconv, 0.05 * np.ones(20), mode=&#39;valid&#39;)
-            
+
             #ax.plot(xconv,yconv)
             plt.fill_between(
                 xconv, byconv, tyconv, alpha=0.65,
                 color=&#34;b&#34;
             )
-            
+
             if show_percentage==True:
                 plt.text(sx, sh/2+sy-space-sh,str(np.round(100*sh,1))+&#34;%&#34;,ha=&#34;right&#34;,
                          va=&#34;center&#34;,
@@ -1683,10 +1683,10 @@ to the first category.</dd>
                          ha=&#34;left&#34;,va=&#34;center&#34;,
                          rotation=90,
                          bbox=dict(boxstyle=&#34;round,pad=0.3&#34;, fc=&#34;white&#34;, ec=&#34;y&#34;, lw=1, alpha=0.8))
-                
+
             sbottom[s]+=_scl
             tbottom[t]+=_tcl
-            
+
 
     if hatch==True:
         for b, c, h in zip(blocks, facecolors, facehatches):
@@ -1696,13 +1696,13 @@ to the first category.</dd>
         pc = PatchCollection(blocks,facecolor=facecolors,edgecolor=&#34;black&#34;,linewidth=2)
         ax.add_collection(pc)
 
-    
-    
-    
-    
+
+
+
+
     plt.xlim(-blockwidth*0.5, xinterval*(len(heights)-1)+blockwidth*1.5)
     plt.ylim(-0.01, np.amax(hs)*1.1)
-    plt.xticks([i*xinterval+blockwidth/2 for i in range(len(category))],category, rotation=90, 
+    plt.xticks([i*xinterval+blockwidth/2 for i in range(len(category))],category, rotation=90,
                fontsize=fontsize)
     plt.yticks([])
     plt.subplots_adjust(bottom=0.2)
@@ -1719,7 +1719,7 @@ to the first category.</dd>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def sankey_flow(df):
-    
+
     pass</code></pre>
 </details>
 </dd>

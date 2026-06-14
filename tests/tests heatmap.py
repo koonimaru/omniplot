@@ -1,10 +1,12 @@
-from omniplot import plot as op
+import random
+import string
+
+import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import seaborn as sns
-import numpy as np
-import matplotlib.pyplot as plt
-import string
-import random
+
+from omniplot import plot as op
 
 # test="dotplot"
 # test="triangle_heatmap"
@@ -82,7 +84,6 @@ elif test == "triangle_heatmap":
         grid_labels=["A", "B", "C", "D"],
     )
 elif test == "complex_clustermap":
-
     df = sns.load_dataset("penguins")
 
     df = df.dropna(axis=0)

@@ -15,7 +15,7 @@ def range_diff(list r1, list r2):
     return result
 
 def multirange_diff(list r1_list, list r2_list):
-    
+
     cdef int r1, r2
     for r2 in r2_list:
         r1_list = list(itertools.chain(*[range_diff(r1, r2) for r1 in r1_list]))
