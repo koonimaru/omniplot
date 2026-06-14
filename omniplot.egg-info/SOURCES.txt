@@ -151,7 +151,6 @@ ipynb/kmeans.pdf
 ipynb/linear_regression.ipynb
 ipynb/network_correlation.ipynb
 ipynb/nice_piecharts.ipynb
-ipynb/owid-energy-data.csv.1
 ipynb/pie_scatter.ipynb
 ipynb/pyramid_heatmap.ipynb
 ipynb/radialtree.ipynb
@@ -240,10 +239,8 @@ tests/heatmap.ipynb
 tests/test.png
 tests/test2.png
 tests/test_chipseq.py
-tests/test_network.py
 tests/tests heatmap.py
 tests/tests.ipynb
-tests/tests.py
 tests/tests_scatter.py
 tests/.ipynb_checkpoints/heatmap-checkpoint.ipynb
 tests/.ipynb_checkpoints/scatter_test-checkpoint.ipynb

@@ -1,6 +1,6 @@
-Metadata-Version: 2.1
+Metadata-Version: 2.4
 Name: omniplot
-Version: 0.4.9
+Version: 0.4.10
 Summary: To draw scientific plots easily
 Home-page: https://github.com/koonimaru/omniplot
 Author: Koh Onimaru
@@ -41,6 +41,15 @@ Requires-Dist: scikit-fuzzy
 Requires-Dist: scikit-image
 Requires-Dist: adjustText
 Requires-Dist: bioframe
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: description
+Dynamic: home-page
+Dynamic: license-file
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary
 
 
 omniplot is a python module to draw a scientific plot with hassle free. It mainly focuses on bioinfomatics data.

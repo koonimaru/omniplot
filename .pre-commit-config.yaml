@@ -1,35 +1,35 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v4.6.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
         args: ["--unsafe"]
       - id: check-added-large-files
-  - repo: https://github.com/psf/black
-    rev: 22.3.0
+      - id: check-toml
+
+  # Lint/type-check hooks are scoped to omniplot/render/ + tests/ for now.
+  # The pre-refactor modules (scatter.py, heatmap.py, plot.py, networkplot.py,
+  # chipseq.py, proportion.py, ...) carry hundreds of pre-existing ruff/mypy
+  # findings that are out of scope for incremental migration commits; they'll
+  # be addressed module-by-module as each is migrated to omniplot/render (see
+  # the migration plan). Widen these `files` patterns as modules are cleaned up.
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
     hooks:
-      - id: black
-        files: \.py$
-      - id: black-jupyter
-        files: \.ipynb$
-  - repo: https://github.com/PyCQA/flake8
-    rev: 5.0.4
-    hooks:
-      - id: flake8
-        args: ['--ignore=E501,W503,E203']
-        files: \.py$
-  - repo: https://github.com/pre-commit/mirrors-prettier
-    rev: v3.1.0
-    hooks:
-      - id: prettier
-        files: greengrass/components/(frontend_cms|frontend_cmsrgb)/src/
-        types_or: [ts, tsx, javascript, css]
+      - id: ruff
+        args: [--fix]
+        files: ^(omniplot/render|tests)/.*\.py$
+        exclude: ^tests/(gather_ids\.py|tests_scatter\.py|tests heatmap\.py)$
+      - id: ruff-format
+        files: ^(omniplot/render|tests)/.*\.py$
+        exclude: ^tests/(gather_ids\.py|tests_scatter\.py|tests heatmap\.py)$
+
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v0.971
+    rev: v1.11.2
     hooks:
-     -  id: mypy
+      - id: mypy
         args: [--follow-imports=skip, --show-error-codes]
-        additional_dependencies: ['types-requests', 'types-pyyaml']
-        files: src/rtcode/
+        additional_dependencies: ['pandera>=0.20', 'types-requests']
+        files: ^omniplot/render/

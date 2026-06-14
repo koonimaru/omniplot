@@ -1,27 +1,23 @@
-import os
 import copy
-
-import numpy as np
+import os
 from collections import defaultdict
-import matplotlib.pyplot as plt
-import seaborn as sns
-import pandas as pd
+
 import matplotlib
-from typing import Optional, List, Union
-from matplotlib.lines import Line2D
-from scipy.cluster.hierarchy import leaves_list
-from matplotlib import cm
-from scipy.cluster import hierarchy
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import scipy.stats as stats
+import seaborn as sns
+from matplotlib.backends.backend_pdf import PdfPages
+from matplotlib.lines import Line2D
+from matplotlib.text import Annotation
+from matplotlib.transforms import Affine2D
+from scipy.cluster import hierarchy
+from scipy.cluster.hierarchy import leaves_list
+from sklearn.cluster import KMeans
 from sklearn.decomposition import TruncatedSVD
 from sklearn.pipeline import make_pipeline
 from sklearn.random_projection import SparseRandomProjection
-from sklearn.cluster import KMeans
-
-from matplotlib.text import Annotation
-from matplotlib.transforms import Affine2D
-
-from matplotlib.backends.backend_pdf import PdfPages
 
 colormap_list = [
     "tab20b",
@@ -151,9 +147,7 @@ class LineAnnotation(Annotation):
     ax.add_artist(LineAnnotation("text", line, 1.5))
     """
 
-    def __init__(
-        self, text, line, x, xytext=(0, 5), textcoords="offset points", **kwargs
-    ):
+    def __init__(self, text, line, x, xytext=(0, 5), textcoords="offset points", **kwargs):
         """Annotate the point at *x* of the graph *line* with text *text*.
 
         By default, the text is displayed with the same rotation as the slope of the
@@ -253,9 +247,7 @@ def _line_annotate(text, line, x, *args, **kwargs):
     return a
 
 
-def _baumkuchen(
-    ax, start, theta, rin, rout, res, _color, edgecolor="", linewidth=2, hatch=None
-):
+def _baumkuchen(ax, start, theta, rin, rout, res, _color, edgecolor="", linewidth=2, hatch=None):
     move = np.linspace(0, theta, res)
     xf = np.concatenate(
         [
@@ -303,7 +295,7 @@ def _baumkuchen_xy(ax, x, y, start, theta, rin, rout, res, _color, edgecolor="")
 
 def _calc_curveture(normx, normy):
     perp = []
-    for i, (nx, ny) in enumerate(zip(normx, normy)):
+    for i, (nx, ny) in enumerate(zip(normx, normy, strict=False)):
         if i == 0:
             perp.append(0)
             continue
@@ -323,11 +315,11 @@ def _get_cluster_classes2(den, above_threshold_color, label="ivl"):
     ab = 0
 
     icoord, dcoord, color_list = zip(
-        *sorted(zip(den["icoord"], den["dcoord"], den["color_list"]))
+        *sorted(zip(den["icoord"], den["dcoord"], den["color_list"], strict=False)), strict=False
     )
 
-    for _color, pi, pj in zip(color_list, icoord, dcoord):
-        for leg, bottom in zip(pi[1:3], [pj[0], pj[3]]):
+    for _color, pi, pj in zip(color_list, icoord, dcoord, strict=False):
+        for leg, bottom in zip(pi[1:3], [pj[0], pj[3]], strict=False):
             l, r = str(leg).split(".")
             # print(leg, l, r)
             # i = (leg - 5.0) / 10.0
@@ -343,14 +335,12 @@ def _get_cluster_classes2(den, above_threshold_color, label="ivl"):
     return _cnums_dict, ccolor_unique
 
 
-def _get_cluster_classes(
-    den, label="ivl", above_threshold_color="C0", original_rows=[]
-):
+def _get_cluster_classes(den, label="ivl", above_threshold_color="C0", original_rows=[]):
     original_rows = list(original_rows)
     cluster_idxs = defaultdict(list)
     ab = 0
-    for _color, pi, pj in zip(den["color_list"], den["icoord"], den["dcoord"]):
-        for leg, bottom in zip(pi[1:3], [pj[0], pj[3]]):
+    for _color, pi, pj in zip(den["color_list"], den["icoord"], den["dcoord"], strict=False):
+        for leg, bottom in zip(pi[1:3], [pj[0], pj[3]], strict=False):
             l, r = str(leg).split(".")
             # print(leg, l, r)
             # i = (leg - 5.0) / 10.0
@@ -399,13 +389,13 @@ def _dendrogram_threshold(Z, approx_clusternum):
 def _radialtree(
     Z2,
     fontsize: int = 8,
-    figsize: Optional[list] = None,
+    figsize: list | None = None,
     palette: str = "gist_rainbow",
     addlabels: bool = True,
     show: bool = False,
-    sample_classes: Optional[dict] = None,
-    colorlabels: Optional[dict] = None,
-    colorlabels_legend: Optional[dict] = None,
+    sample_classes: dict | None = None,
+    colorlabels: dict | None = None,
+    colorlabels_legend: dict | None = None,
 ) -> plt.Axes:
     """
     Drawing a radial dendrogram from a scipy dendrogram output.
@@ -461,16 +451,10 @@ def _radialtree(
     width = R * 0.1
     space = R * 0.05
     if colorlabels is not None:
-        offset = (
-            width * len(colorlabels) / R + space * (len(colorlabels) - 1) / R + 0.05
-        )
+        offset = width * len(colorlabels) / R + space * (len(colorlabels) - 1) / R + 0.05
         print(offset)
     elif sample_classes is not None:
-        offset = (
-            width * len(sample_classes) / R
-            + space * (len(sample_classes) - 1) / R
-            + 0.05
-        )
+        offset = width * len(sample_classes) / R + space * (len(sample_classes) - 1) / R + 0.05
         print(offset)
     else:
         offset = 0
@@ -489,7 +473,7 @@ def _radialtree(
     fig, ax = plt.subplots(figsize=figsize)
     i = 0
     label_coords = []
-    for x, y, c in sorted(zip(Z2["icoord"], Z2["dcoord"], Z2["color_list"])):
+    for x, y, c in sorted(zip(Z2["icoord"], Z2["dcoord"], Z2["color_list"], strict=False)):
         # x, y = Z2['icoord'][0], Z2['dcoord'][0]
         _color = cmap[ucolors.index(c)]
         if c == "C0":  # np.abs(_xr1)<0.000000001 and np.abs(_yr1) <0.000000001:
@@ -517,12 +501,8 @@ def _radialtree(
         # if y[0]>0 and y[3]>0:
         # _color="black"
         # plotting radial lines
-        plt.plot(
-            [_xr0, _xr1], [_yr0, _yr1], c=_color, linewidth=linewidth, rasterized=True
-        )
-        plt.plot(
-            [_xr2, _xr3], [_yr2, _yr3], c=_color, linewidth=linewidth, rasterized=True
-        )
+        plt.plot([_xr0, _xr1], [_yr0, _yr1], c=_color, linewidth=linewidth, rasterized=True)
+        plt.plot([_xr2, _xr3], [_yr2, _yr3], c=_color, linewidth=linewidth, rasterized=True)
 
         # plotting circular links between nodes
         if _yr1 > 0 and _yr2 > 0:
@@ -568,15 +548,11 @@ def _radialtree(
         # Calculating the x, y coordinates and rotation angles of labels
 
         if y[0] == 0:
-            label_coords.append(
-                [(1.05 + offset) * _xr0, (1.05 + offset) * _yr0, 360 * x[0] / xmax]
-            )
+            label_coords.append([(1.05 + offset) * _xr0, (1.05 + offset) * _yr0, 360 * x[0] / xmax])
             # plt.text(1.05*_xr0, 1.05*_yr0, Z2['ivl'][i],{'va': 'center'},rotation_mode='anchor', rotation=360*x[0]/xmax)
             i += 1
         if y[3] == 0:
-            label_coords.append(
-                [(1.05 + offset) * _xr3, (1.05 + offset) * _yr3, 360 * x[2] / xmax]
-            )
+            label_coords.append([(1.05 + offset) * _xr3, (1.05 + offset) * _yr3, 360 * x[2] / xmax])
             # plt.text(1.05*_xr3, 1.05*_yr3, Z2['ivl'][i],{'va': 'center'},rotation_mode='anchor', rotation=360*x[2]/xmax)
             i += 1
 
@@ -590,7 +566,7 @@ def _radialtree(
         )
 
         # Adding labels
-        for (_x, _y, _rot), label in zip(label_coords, Z2["ivl"]):
+        for (_x, _y, _rot), label in zip(label_coords, Z2["ivl"], strict=False):
             plt.text(
                 _x,
                 _y,
@@ -667,9 +643,7 @@ def _radialtree(
         )
 
         j = 0
-        outerrad = (
-            R * 1.05 + width * len(sample_classes) + space * (len(sample_classes) - 1)
-        )
+        outerrad = R * 1.05 + width * len(sample_classes) + space * (len(sample_classes) - 1)
         print(outerrad)
         # sort_index=np.argsort(Z2['icoord'])
         # print(sort_index)
@@ -736,9 +710,7 @@ def _radialtree(
     if colorlabels is not None:
         maxr = R * 1.05 + width * len(colorlabels) + space * (len(colorlabels) - 1)
     elif sample_classes is not None:
-        maxr = (
-            R * 1.05 + width * len(sample_classes) + space * (len(sample_classes) - 1)
-        )
+        maxr = R * 1.05 + width * len(sample_classes) + space * (len(sample_classes) - 1)
     else:
         maxr = R * 1.05
     plt.xlim(-maxr, maxr)
@@ -753,15 +725,15 @@ def _radialtree(
 def _radialtree2(
     Z2,
     fontsize: int = 8,
-    figsize: Optional[list] = None,
+    figsize: list | None = None,
     palette: str = "gist_rainbow",
     addlabels: bool = True,
     show: bool = False,
-    sample_classes: Optional[dict] = None,
-    colorlabels: Optional[dict] = None,
-    colorlabels_legend: Optional[dict] = None,
+    sample_classes: dict | None = None,
+    colorlabels: dict | None = None,
+    colorlabels_legend: dict | None = None,
     xticks=set(),
-    ax: Optional[plt.Axes] = None,
+    ax: plt.Axes | None = None,
     linewidth: float = 1,
 ) -> plt.Axes:
     """
@@ -819,16 +791,10 @@ def _radialtree2(
     width = R * 0.1
     space = R * 0.05
     if colorlabels is not None:
-        offset = (
-            width * len(colorlabels) / R + space * (len(colorlabels) - 1) / R + 0.05
-        )
+        offset = width * len(colorlabels) / R + space * (len(colorlabels) - 1) / R + 0.05
         # print(offset)
     elif sample_classes is not None:
-        offset = (
-            width * len(sample_classes) / R
-            + space * (len(sample_classes) - 1) / R
-            + 0.05
-        )
+        offset = width * len(sample_classes) / R + space * (len(sample_classes) - 1) / R + 0.05
         # print(offset)
     else:
         offset = 0
@@ -850,7 +816,7 @@ def _radialtree2(
     i = 0
     label_coords = []
     _lineres = 1000
-    for x, y, c in sorted(zip(Z2["icoord"], Z2["dcoord"], Z2["color_list"])):
+    for x, y, c in sorted(zip(Z2["icoord"], Z2["dcoord"], Z2["color_list"], strict=False)):
         # x, y = Z2['icoord'][0], Z2['dcoord'][0]
         _color = cmap[ucolors.index(c)]
         if c == "C0":  # np.abs(_xr1)<0.000000001 and np.abs(_yr1) <0.000000001:
@@ -880,12 +846,8 @@ def _radialtree2(
         # if y[0]>0 and y[3]>0:
         # _color="black"
         # plotting radial lines
-        ax.plot(
-            [_xr0, _xr1], [_yr0, _yr1], c=_color, linewidth=linewidth, rasterized=True
-        )
-        ax.plot(
-            [_xr2, _xr3], [_yr2, _yr3], c=_color, linewidth=linewidth, rasterized=True
-        )
+        ax.plot([_xr0, _xr1], [_yr0, _yr1], c=_color, linewidth=linewidth, rasterized=True)
+        ax.plot([_xr2, _xr3], [_yr2, _yr3], c=_color, linewidth=linewidth, rasterized=True)
 
         # plotting circular links between nodes
         lineres = np.amax([int(np.abs(xinterval[0] - xinterval[1]) * _lineres), 10])
@@ -977,7 +939,7 @@ def _radialtree2(
         )
 
         # Adding labels
-        for (_x, _y, _rot), label in zip(label_coords, Z2["ivl"]):
+        for (_x, _y, _rot), label in zip(label_coords, Z2["ivl"], strict=False):
             ax.text(
                 _x,
                 _y,
@@ -998,9 +960,7 @@ def _radialtree2(
         )
 
         classcounter = 0
-        outerrad = (
-            R * 1.05 + width * len(sample_classes) + space * (len(sample_classes) - 1)
-        )
+        outerrad = R * 1.05 + width * len(sample_classes) + space * (len(sample_classes) - 1)
 
         labelnames = []
         colorlabels_legend = {}
@@ -1097,9 +1057,7 @@ def _complex_clustermap(
     if merginalsum:
         white_bgr = np.ones([rnum, 4])
         white_bgc = np.ones([cnum, 4])
-        g = sns.clustermap(
-            df, col_colors=white_bgc, row_colors=white_bgr, method=method, **kwargs
-        )
+        g = sns.clustermap(df, col_colors=white_bgc, row_colors=white_bgr, method=method, **kwargs)
         mat = df.to_numpy()
         r = np.sum(mat, axis=1)
         g.ax_row_colors.barh(
@@ -1117,11 +1075,8 @@ def _complex_clustermap(
         g.ax_col_colors.invert_yaxis()
 
     elif len(row_plot) > 0:
-
         white_bg = [np.ones([rnum, 4]) for _ in range(len(row_plot))]
-        g = sns.clustermap(
-            df, row_colors=white_bg, method=method, **kwargs
-        )  # hot(cbenign))
+        g = sns.clustermap(df, row_colors=white_bg, method=method, **kwargs)  # hot(cbenign))
         for i, r in enumerate(row_plot):
             g.ax_row_colors.plot(
                 r[leaves_list(g.dendrogram_row.linkage)] / np.amax(r) + i,
@@ -1135,9 +1090,7 @@ def _complex_clustermap(
         cmap = plt.get_cmap("nipy_spectral")(np.linspace(0, 1, color_var))
     else:
         cmap = plt.get_cmap("nipy_spectral")(np.linspace(0, 1, approx_clusternum + 5))
-    hierarchy.set_link_color_palette(
-        [matplotlib.colors.rgb2hex(rgb[:3]) for rgb in cmap]
-    )
+    hierarchy.set_link_color_palette([matplotlib.colors.rgb2hex(rgb[:3]) for rgb in cmap])
     lbranches = np.array(g.dendrogram_row.dendrogram["dcoord"])[:, :2]
     rbranches = np.array(g.dendrogram_row.dendrogram["dcoord"])[:, 2:]
     thre = np.linspace(0, np.amax(g.dendrogram_row.dendrogram["dcoord"]), 100)[::-1]
@@ -1194,9 +1147,7 @@ def _calc_r2(X, Y):
     return r2
 
 
-def _ci_pi(
-    X: np.ndarray, Y: np.ndarray, plotline_X: np.ndarray, y_model: np.ndarray
-) -> list:
+def _ci_pi(X: np.ndarray, Y: np.ndarray, plotline_X: np.ndarray, y_model: np.ndarray) -> list:
     x_mean = np.mean(X)
     _ = np.mean(Y)
     n = X.shape[0]  # number of samples
@@ -1211,17 +1162,9 @@ def _ci_pi(
     _ = y_model
 
     # confidence interval
-    ci = (
-        t
-        * std_error
-        * (1 / n + (x_line - x_mean) ** 2 / np.sum((X - x_mean) ** 2)) ** 0.5
-    )
+    ci = t * std_error * (1 / n + (x_line - x_mean) ** 2 / np.sum((X - x_mean) ** 2)) ** 0.5
     # predicting interval
-    pi = (
-        t
-        * std_error
-        * (1 + 1 / n + (x_line - x_mean) ** 2 / np.sum((X - x_mean) ** 2)) ** 0.5
-    )
+    pi = t * std_error * (1 + 1 / n + (x_line - x_mean) ** 2 / np.sum((X - x_mean) ** 2)) ** 0.5
     return ci, pi, std_error
 
 
@@ -1260,14 +1203,10 @@ def _draw_ci_pi(
     else:
         ax.fill_between(x_line, y_line + ci, y_line - ci, color=ci_color, alpha=alpha)
 
-        ax.fill_between(
-            x_line, y_line + pi, y_line - pi, color=pi_color, alpha=alpha * 0.5
-        )
+        ax.fill_between(x_line, y_line + pi, y_line - pi, color=pi_color, alpha=alpha * 0.5)
 
 
-def _optimal_kmeans(
-    X: Union[np.ndarray, list], testrange: list, topn: int = 2
-) -> List[int]:
+def _optimal_kmeans(X: np.ndarray | list, testrange: list, topn: int = 2) -> list[int]:
     Sum_of_squared_distances = []
     K = list(range(*testrange))
     for k in K:
@@ -1310,9 +1249,7 @@ def _optimal_kmeans(
     plt.ylabel("Sum of squared distances")
     plt.title("Elbow method for optimal cluster number")
     plt.legend()
-    print(
-        "Top two optimal cluster No are: {}, {}".format(K[srtindex[0]], K[srtindex[1]])
-    )
+    print(f"Top two optimal cluster No are: {K[srtindex[0]]}, {K[srtindex[1]]}")
     n_clusters = [K[srtindex[i]] for i in range(topn)]
     return n_clusters
 
@@ -1338,29 +1275,23 @@ def _save(save, suffix, fig=None):
             if fig is not None:
                 fig.savefig(h + "_" + suffix + t)
             else:
-
                 plt.savefig(save + "_" + suffix + ".pdf")
 
 
 def _get_embedding(method: str = "umap", param: dict = {}):
-
     defaul_params = {
         "tsne": dict(
             n_components=2,
-            n_iter=500,
+            max_iter=500,
             n_iter_without_progress=150,
             perplexity=10,
             n_jobs=2,
             random_state=42,
         ),
-        "random_projection": dict(
-            n_components=2, random_state=42, eigen_solver="arpack"
-        ),
+        "random_projection": dict(n_components=2, random_state=42, eigen_solver="arpack"),
         "svd": dict(n_components=2),
         "random_trees": dict(n_estimators=200, max_depth=5, random_state=42),
-        "mds": dict(
-            n_components=2, n_init=1, max_iter=120, n_jobs=2, normalized_stress="auto"
-        ),
+        "mds": dict(n_components=2, n_init=1, max_iter=120, n_jobs=2, normalized_stress="auto"),
         "lle": dict(
             n_neighbors=5,
             n_components=2,
@@ -1377,11 +1308,11 @@ def _get_embedding(method: str = "umap", param: dict = {}):
     from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
     from sklearn.ensemble import RandomTreesEmbedding
     from sklearn.manifold import (
+        MDS,
+        TSNE,
         Isomap,
         LocallyLinearEmbedding,
-        MDS,
         SpectralEmbedding,
-        TSNE,
     )
     from sklearn.neighbors import NeighborhoodComponentsAnalysis
 
@@ -1428,9 +1359,7 @@ def _get_embedding(method: str = "umap", param: dict = {}):
     return embedding
 
 
-def _separate_data(
-    df: pd.DataFrame, variables: Optional[list] = None, category: str = ""
-) -> List:
+def _separate_data(df: pd.DataFrame, variables: list | None = None, category: str = "") -> list:
     if variables is not None and len(variables) != 0:
         x = np.array(df[variables].values)
         if len(category) != 0:
@@ -1440,9 +1369,7 @@ def _separate_data(
 
         # if x.dtype!=np.number:
         if np.issubdtype(x.dtype, np.number) is False:
-            raise TypeError(
-                f"variables must contain only float values. {x.dtype} was given"
-            )
+            raise TypeError(f"variables must contain only float values. {x.dtype} was given")
     elif len(category) != 0:
         if isinstance(category, str):
             category = [category]

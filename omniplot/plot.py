@@ -1,33 +1,31 @@
 """
-A main plotting module for omniplot.
+Core plotting module for omniplot.
 """
+
+from __future__ import annotations
+
 import copy
-from typing import Union, Optional, Dict
-import numpy as np
-import seaborn as sns
-import pandas as pd
+
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import scipy.cluster.hierarchy as sch
+import scipy.stats as stats
+import seaborn as sns
+from matplotlib.ticker import StrMethodFormatter
 from scipy.spatial.distance import pdist, squareform
 from scipy.stats import zscore
-import scipy.stats as stats
-from matplotlib.ticker import StrMethodFormatter
-from omniplot.scatter import *
-from omniplot.proportion import *
-from omniplot.heatmap import *
-from omniplot.utils import linestyle_list
+
+from omniplot.scatter import _robust_regression
 from omniplot.utils import (
+    _dendrogram_threshold,
+    _draw_ci_pi,
+    _get_cluster_classes,
+    _radialtree2,
     _save,
     _separate_data,
-    _dendrogram_threshold,
-    _radialtree2,
-    _get_cluster_classes,
-    _draw_ci_pi,
-)  #
-from omniplot.scatter import _robust_regression
-
-# hatch_list: list = ['//', '\\\\', '||', '--', '++', 'xx', 'oo', 'OO', '..', '**','/o', '\\|', '|*', '-\\', '+o', 'x*', 'o-', 'O|', 'O.', '*-']
-# marker_list: list=['.', '_' , '+','|', 'x', 'v', '^', '<', '>', 's', 'p', '*', 'h', 'D', 'd', 'P', 'X','o', '1', '2', '3', '4','|', '_']
+    linestyle_list,
+)
 
 plt.rcParams["font.family"] = "sans-serif"
 plt.rcParams["font.sans-serif"] = ["Arial"]
@@ -39,18 +37,18 @@ def radialtree(
     df: pd.DataFrame,
     n_clusters: int = 3,
     x: str = "",
-    variables: Optional[list] = None,
-    category: Optional[Union[str, list[str]]] = None,
+    variables: list | None = None,
+    category: str | list[str] | None = None,
     ztransform: bool = True,
     save: str = "",
     distance_method="euclidean",
     tree_method="ward",
     title: str = "",
-    y: Optional[list] = None,
+    y: list | None = None,
     linewidth: float = 1,
-    figsize: Optional[tuple] = None,
-    **kwargs
-) -> Dict:
+    figsize: tuple | None = None,
+    **kwargs,
+) -> dict:
     """
     Drawing a radial dendrogram with color labels.
 
@@ -128,7 +126,7 @@ def radialtree(
         addlabels=False,
         linewidth=linewidth,
         figsize=figsize,
-        **kwargs
+        **kwargs,
     )
     if title != "":
         ax.set_title(title)
@@ -145,11 +143,11 @@ def catplot(
     df: pd.DataFrame,
     x: str,
     y: str,
-    pairs: Optional[list] = None,
+    pairs: list | None = None,
     test: str = "ttest_ind",
     alternative: str = "two-sided",
     significance: str = "numeric",
-    significance_ranges: Dict[str, float] = {"*": -np.log10(0.05), "**": 4, "***": 10},
+    significance_ranges: dict[str, float] = {"*": -np.log10(0.05), "**": 4, "***": 10},
     swarm: bool = False,
     xorder: tuple = (),
     equal_var: bool = False,
@@ -157,14 +155,14 @@ def catplot(
     title: str = "",
     save: str = "",
     inner: str = "quartile",
-    ax: Optional[plt.Axes] = None,
+    ax: plt.Axes | None = None,
     plotkw: dict = {},
     violinkw: dict = {},
     color: str = "lightgray",
     kind: str = "violin",
     points: str = "",
-    **kwargs
-) -> Dict:
+    **kwargs,
+) -> dict:
     """
     Draw a boxplot with a statistical test
 
@@ -242,24 +240,17 @@ def catplot(
     if len(xorder) == 0:
         xorder = sorted(list(set(df[x])))
     pvals = []
-    if isinstance(pairs, type(None)):
+    if pairs is None:
         pairs = []
     for p1, p2 in pairs:
-
         statstest = getattr(stats, test)
         if test == "wilcoxon" or test == "ttest_rel":
             _, pval, _ = statstest(
-                df[y][df[x] == p1],
-                df[y][df[x] == p2],
-                alternative=alternative,
-                **kwargs
+                df[y][df[x] == p1], df[y][df[x] == p2], alternative=alternative, **kwargs
             )
         elif test == "median_test":
             _, pval, _, _ = statstest(
-                df[y][df[x] == p1],
-                df[y][df[x] == p2],
-                alternative=alternative,
-                **kwargs
+                df[y][df[x] == p1], df[y][df[x] == p2], alternative=alternative, **kwargs
             )
         elif test == "ttest_ind":
             _, pval = statstest(
@@ -267,15 +258,12 @@ def catplot(
                 df[y][df[x] == p2],
                 alternative=alternative,
                 equal_var=equal_var,
-                **kwargs
+                **kwargs,
             )
 
         else:
             _, pval = statstest(
-                df[y][df[x] == p1],
-                df[y][df[x] == p2],
-                alternative=alternative,
-                **kwargs
+                df[y][df[x] == p1], df[y][df[x] == p2], alternative=alternative, **kwargs
             )
 
         p1ind = xorder.index(p1)
@@ -293,14 +281,12 @@ def catplot(
             ]
         )
     pvals = sorted(pvals, key=lambda x: (x[0], x[1]))
-    if isinstance(ax, type(None)):
+    if ax is None:
         fig, ax = plt.subplots(**plotkw)
     else:
         fig = None
     if kind == "violin":
-        sns.violinplot(
-            data=df, x=x, y=y, order=xorder, inner=inner, ax=ax, color=color, **violinkw
-        )
+        sns.violinplot(data=df, x=x, y=y, order=xorder, inner=inner, ax=ax, color=color, **violinkw)
     elif kind == "box":
         sns.boxenplot(data=df, x=x, y=y, order=xorder, ax=ax, color=color, **violinkw)
     elif kind == "lines":
@@ -348,26 +334,15 @@ def catplot(
                         annotate = "n.s."
                         break
                 else:
-                    if (
-                        significance_ranges[keys[j - 1]]
-                        < p
-                        <= significance_ranges[keys[j]]
-                    ):
+                    if significance_ranges[keys[j - 1]] < p <= significance_ranges[keys[j]]:
                         annotate = keys[j]
                         break
             if annotate == "NA":
                 annotate = keys[-1]
-        plt.text(
-            (pval[1] + pval[2]) / 2, ymax + (ymax - ymin) * (0.06 + i * 0.051), annotate
-        )
+        plt.text((pval[1] + pval[2]) / 2, ymax + (ymax - ymin) * (0.06 + i * 0.051), annotate)
     if significance == "symbol":
         ax.annotate(
-            "\n".join(
-                [
-                    "{}: p < {:.2E}".format(k, 10 ** (-significance_ranges[k]))
-                    for k in keys
-                ]
-            ),
+            "\n".join([f"{k}: p < {10 ** (-significance_ranges[k]):.2E}" for k in keys]),
             xy=(0.9, 0.9),
             xycoords="axes fraction",
             textcoords="offset points",
@@ -377,10 +352,10 @@ def catplot(
         plt.subplots_adjust(right=0.850)
 
     if yunit != "":
-        ax.text(0, 1, "({})".format(yunit), transform=ax.transAxes, ha="right")
+        ax.text(0, 1, f"({yunit})", transform=ax.transAxes, ha="right")
 
     if title != "":
-        if isinstance(fig, type(None)):
+        if fig is None:
             ax.set_title(title)
         else:
             fig.suptitle(title)
@@ -391,16 +366,16 @@ def catplot(
 
 
 def violinplot2(
-    df: Union[pd.DataFrame, np.ndarray],
+    df: pd.DataFrame | np.ndarray,
     x: str = "",
     y: str = "",
     xlabels: tuple = (),
     order: tuple = (),
-    pairs: Optional[list] = None,
+    pairs: list | None = None,
     test: str = "ttest_ind",
     alternative: str = "two-sided",
     significance: str = "numeric",
-    significance_ranges: Dict[str, float] = {"*": -np.log10(0.05), "**": 4, "***": 10},
+    significance_ranges: dict[str, float] = {"*": -np.log10(0.05), "**": 4, "***": 10},
     swarm: bool = False,
     xorder: tuple = (),
     equal_var: bool = False,
@@ -408,10 +383,10 @@ def violinplot2(
     title: str = "",
     orientation: str = "vertical",
     save: str = "",
-    ax: Optional[plt.Axes] = None,
+    ax: plt.Axes | None = None,
     scale_prop=False,
     cut_negatives: bool = False,
-    **kwargs
+    **kwargs,
 ):
     """
     Draw a boxplot with a statistical test
@@ -499,9 +474,7 @@ def violinplot2(
             if test == "wilcoxon" or test == "ttest_rel":
                 _, pval, _ = statstest(p1val, p2val, alternative=alternative, **kwargs)
             elif test == "median_test":
-                _, pval, _, _ = statstest(
-                    p1val, p2val, alternative=alternative, **kwargs
-                )
+                _, pval, _, _ = statstest(p1val, p2val, alternative=alternative, **kwargs)
             elif test == "ttest_ind":
                 _, pval = statstest(
                     p1val, p2val, alternative=alternative, equal_var=equal_var, **kwargs
@@ -575,11 +548,7 @@ def violinplot2(
                             annotate = "n.s."
                             break
                     else:
-                        if (
-                            significance_ranges[keys[j - 1]]
-                            < p
-                            <= significance_ranges[keys[j]]
-                        ):
+                        if significance_ranges[keys[j - 1]] < p <= significance_ranges[keys[j]]:
                             annotate = keys[j]
                             break
                 if annotate == "NA":
@@ -595,12 +564,7 @@ def violinplot2(
                 )
         if significance == "symbol":
             ax.annotate(
-                "\n".join(
-                    [
-                        "{}: p < {:.2E}".format(k, 10 ** (-significance_ranges[k]))
-                        for k in keys
-                    ]
-                ),
+                "\n".join([f"{k}: p < {10 ** (-significance_ranges[k]):.2E}" for k in keys]),
                 xy=(0.9, 0.9),
                 xycoords="axes fraction",
                 textcoords="offset points",
@@ -611,31 +575,31 @@ def violinplot2(
 
     if yunit != "":
         if orientation == "vertical":
-            ax.text(0, 1, "({})".format(yunit), transform=ax.transAxes, ha="right")
+            ax.text(0, 1, f"({yunit})", transform=ax.transAxes, ha="right")
         else:
-            ax.text(1, 0, "({})".format(yunit), transform=ax.transAxes, ha="left")
+            ax.text(1, 0, f"({yunit})", transform=ax.transAxes, ha="left")
     _save(save, "violin")
 
     return {"p values": newpvals, "axes": ax}
 
 
 def _violinplot(
-    df: Union[pd.DataFrame, np.ndarray],
+    df: pd.DataFrame | np.ndarray,
     x: str = "",
     y: str = "",
-    xlabels: Optional[list] = None,
-    order: Optional[list] = None,
-    ax: Optional[plt.Axes] = None,
+    xlabels: list | None = None,
+    order: list | None = None,
+    ax: plt.Axes | None = None,
     orientation: str = "vertical",
     show_points: bool = True,
     point_color: str = "blue",
     box_color: str = "black",
-    violine_color: Union[str, list, dict] = "gray",
+    violine_color: str | list | dict = "gray",
     point_kw={"s": 10},
     scale_prop: bool = False,
     cut_negatives: bool = False,
 ):
-    if isinstance(ax, type(None)):
+    if ax is None:
         fig, ax = plt.subplots()
     if isinstance(df, pd.DataFrame):
         if isinstance(order, list) and len(order) != 0:
@@ -692,9 +656,7 @@ def _violinplot(
 
         if orientation == "horizontal":
             ax.fill_between(xinterval, i + estimate, i - estimate, color=vc)
-            ax.fill_between(
-                [q1, q3], [i - 0.05, i - 0.05], [i + 0.05, i + 0.05], color=box_color
-            )
+            ax.fill_between([q1, q3], [i - 0.05, i - 0.05], [i + 0.05, i + 0.05], color=box_color)
 
             ax.plot([_bottom_limit, _top_limit], [i, i], lw=1, color=box_color)
             ax.plot([q2, q2], [i - 0.05, i + 0.05], color="w")
@@ -703,7 +665,7 @@ def _violinplot(
                     X,
                     i + 0.5 * np.random.uniform(size=X.shape[0]) - 0.25,
                     color=point_color,
-                    **point_kw
+                    **point_kw,
                 )
 
         elif orientation == "vertical":
@@ -727,18 +689,19 @@ def _violinplot(
                     i + 0.5 * np.random.uniform(size=X.shape[0]) - 0.25,
                     X,
                     color=point_color,
-                    **point_kw
+                    **point_kw,
                 )
     if orientation == "horizontal":
         ax.set_yticks(np.arange(len(mat)), labels=xlabels)
 
     elif orientation == "vertical":
-        ax.set_xticks(np.arange(len(mat)), labels=xlabels, rotation=90)
+        ax.set_xticks(np.arange(len(mat)), labels=xlabels)
+        ax.tick_params(axis="x", labelrotation=90)
         plt.subplots_adjust(bottom=0.2)
 
 
 def _boxplot(
-    df: Union[pd.DataFrame, np.ndarray],
+    df: pd.DataFrame | np.ndarray,
     x: str = "",
     y: str = "",
     xlabels: list = [],
@@ -748,11 +711,11 @@ def _boxplot(
     show_points: bool = True,
     point_color: str = "blue",
     box_color: str = "black",
-    violine_color: Union[str, list, dict] = "gray",
+    violine_color: str | list | dict = "gray",
     point_kw={"s": 10},
     scale_prop=False,
 ):
-    if isinstance(ax, type(None)):
+    if ax is None:
         fig, ax = plt.subplots()
     if isinstance(df, pd.DataFrame):
         if len(order) != 0:
@@ -794,9 +757,7 @@ def _boxplot(
             vc = violine_color
         if orientation == "horizontal":
             ax.fill_between(xinterval, i + estimate, i - estimate, color=vc)
-            ax.fill_between(
-                [q1, q3], [i - 0.05, i - 0.05], [i + 0.05, i + 0.05], color=box_color
-            )
+            ax.fill_between([q1, q3], [i - 0.05, i - 0.05], [i + 0.05, i + 0.05], color=box_color)
 
             ax.plot([q1 - iqr * 1.5, q3 + iqr * 1.5], [i, i], lw=1, color=box_color)
             ax.plot([q2, q2], [i - 0.05, i + 0.05], color="w")
@@ -805,7 +766,7 @@ def _boxplot(
                     X,
                     i + 0.5 * np.random.uniform(size=X.shape[0]) - 0.25,
                     color=point_color,
-                    **point_kw
+                    **point_kw,
                 )
 
         elif orientation == "vertical":
@@ -829,27 +790,28 @@ def _boxplot(
                     i + 0.5 * np.random.uniform(size=X.shape[0]) - 0.25,
                     X,
                     color=point_color,
-                    **point_kw
+                    **point_kw,
                 )
     if orientation == "horizontal":
         ax.set_yticks(np.arange(len(mat)), labels=xlabels)
     elif orientation == "vertical":
-        ax.set_xticks(np.arange(len(mat)), labels=xlabels, rotation=90)
+        ax.set_xticks(np.arange(len(mat)), labels=xlabels)
+        ax.tick_params(axis="x", labelrotation=90)
         plt.subplots_adjust(bottom=0.2)
 
 
 def lineplot(
     df: pd.DataFrame,
     x: str = "",
-    y: Union[str, list] = "",
-    variables: Union[str, list] = "",
+    y: str | list = "",
+    variables: str | list = "",
     split: bool = False,
     ax: plt.Axes = None,
-    palette: Union[str, dict] = "tab20b",
+    palette: str | dict = "tab20b",
     xlabel: str = "",
     ylabel: str = "",
     xunit: str = "",
-    yunit: Union[str, dict] = "",
+    yunit: str | dict = "",
     xformat: str = "",
     yformat: str = "",
     logscalex: bool = False,
@@ -857,7 +819,7 @@ def lineplot(
     title: str = "",
     plotkw: dict = {},
     show_legend: bool = True,
-    bbox_to_anchor: Union[list, tuple] = (1.05, 1),
+    bbox_to_anchor: list | tuple = (1.05, 1),
     right=0.75,
     left=0.15,
     bottom=0.15,
@@ -865,8 +827,8 @@ def lineplot(
     rows_cols: tuple = (),
     estimate: str = "",
     robust_param: dict = {},
-    linestyle: Union[bool, dict, list, str] = False,
-) -> Dict:
+    linestyle: bool | dict | list | str = False,
+) -> dict:
     """
     Drawing line plots with some extra features.
 
@@ -957,7 +919,7 @@ def lineplot(
             line_lut[_y] = linestyle
     elif isinstance(linestyle, bool):
         if linestyle is True:
-            for _l, _y in zip(linestyle_list, y):
+            for _l, _y in zip(linestyle_list, y, strict=False):
                 line_lut[_y] = _l
         else:
             for _y in y:
@@ -965,7 +927,7 @@ def lineplot(
     elif isinstance(linestyle, dict):
         line_lut = linestyle
     elif isinstance(linestyle, list):
-        for _l, _y in zip(linestyle_list, y):
+        for _l, _y in zip(linestyle_list, y, strict=False):
             line_lut[_y] = _l
 
     _stats = {}
@@ -973,12 +935,10 @@ def lineplot(
     if split is False:
         if len(figsize) == 0:
             figsize = [6, 4]
-        if isinstance(ax, type(None)):
+        if ax is None:
             fig, ax = plt.subplots(figsize=figsize)
         for _y in y:
-            ax.plot(
-                X, df[_y], color=lut[_y], label=_y, linestyle=line_lut[_y], **plotkw
-            )
+            ax.plot(X, df[_y], color=lut[_y], label=_y, linestyle=line_lut[_y], **plotkw)
             if estimate == "moving_average":
                 ax.plot(
                     X,
@@ -1051,13 +1011,11 @@ def lineplot(
             rows_cols = [plotnum // 3 + int(plotnum % 3 != 0), 3]
         if len(figsize) == 0:
             figsize = [6, 2 * (plotnum // 3 + int(plotnum % 3 != 0))]
-        if isinstance(ax, type(None)):
-            fig, ax = plt.subplots(
-                nrows=rows_cols[0], ncols=rows_cols[1], figsize=figsize
-            )
+        if ax is None:
+            fig, ax = plt.subplots(nrows=rows_cols[0], ncols=rows_cols[1], figsize=figsize)
             ax = ax.flatten()
 
-        for _ax, _y in zip(ax, y):
+        for _ax, _y in zip(ax, y, strict=False):
             _ax.plot(X, df[_y], color=lut[_y], linestyle=line_lut[_y], **plotkw)
             if estimate == "moving_average":
                 _ax.plot(
@@ -1118,9 +1076,7 @@ def lineplot(
                 _ax.text(
                     0,
                     0.8,
-                    "coef: {:.3f} (-log10p: {:.1f})\nR2: {:.3f}".format(
-                        coef, mlog10, r2
-                    ),
+                    f"coef: {coef:.3f} (-log10p: {mlog10:.1f})\nR2: {r2:.3f}",
                     transform=_ax.transAxes,
                     ha="left",
                     fontsize=8,
@@ -1143,9 +1099,7 @@ def lineplot(
     return {"axes": ax, "stats": _stats}
 
 
-def _set_axis(
-    ax, x, xlabel, ylabel, xunit, yunit, xformat, yformat, logscalex, logscaley, title
-):
+def _set_axis(ax, x, xlabel, ylabel, xunit, yunit, xformat, yformat, logscalex, logscaley, title):
     if xlabel != "":
         ax.set_xlabel(xlabel)
     else:
@@ -1154,11 +1108,10 @@ def _set_axis(
         ax.set_ylabel(ylabel)
     ax.set_title(title)
     if yunit != "":
-        ax.text(0, 1, "({})".format(yunit), transform=ax.transAxes, ha="right")
+        ax.text(0, 1, f"({yunit})", transform=ax.transAxes, ha="right")
     if xunit != "":
-        ax.text(1, 0, "({})".format(xunit), transform=ax.transAxes, ha="left", va="top")
+        ax.text(1, 0, f"({xunit})", transform=ax.transAxes, ha="left", va="top")
     if xformat != "":
-
         ax.xaxis.set_major_formatter(StrMethodFormatter(xformat))
     if yformat != "":
         ax.yaxis.set_major_formatter(StrMethodFormatter(yformat))

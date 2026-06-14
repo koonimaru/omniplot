@@ -1,33 +1,31 @@
 """
 Heatmap functions
 """
-import matplotlib.collections as mc
-import matplotlib.pyplot as plt
-import numpy as np
-import seaborn as sns
-import pandas as pd
-from matplotlib import cm
-from matplotlib.lines import Line2D
-from scipy.cluster.hierarchy import leaves_list
-from joblib import Parallel, delayed
 
-# from collections import defaultdict
-import matplotlib.colors
-from natsort import natsort_keygen, natsorted
-import scipy.cluster.hierarchy as sch
+import copy
+import textwrap
+
 import fastcluster as fcl
 
 # from decimal import Decimal
 # import sys
 import matplotlib as mpl
-from sklearn.cluster import KMeans  # , DBSCAN
+import matplotlib.collections as mc
 
-# from sklearn.metrics import silhouette_score
-from scipy.spatial.distance import pdist, squareform
+# from collections import defaultdict
+import matplotlib.colors
 
-# from sklearn.decomposition import PCA, NMF, LatentDirichletAllocation
-# from scipy.stats import fisher_exact
-from scipy.stats import zscore
+# from matplotlib.transforms import Affine2D
+# import mpl_toolkits.axisartist.floating_axes as floating_axes
+import matplotlib.patheffects as patheffects
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import scipy.cluster.hierarchy as sch
+import seaborn as sns
+from joblib import Parallel, delayed
+from matplotlib import cm
+from matplotlib.artist import Artist
 
 # from itertools import combinations
 # import os
@@ -36,26 +34,31 @@ from scipy.stats import zscore
 # import scipy.stats as stats
 # import itertools as it
 from matplotlib.collections import PatchCollection
-from matplotlib.patches import Rectangle, Ellipse, Polygon  # , Circle, RegularPolygon
-import copy
-import textwrap
-from matplotlib.artist import Artist
+from matplotlib.lines import Line2D
+from matplotlib.patches import Ellipse, Polygon, Rectangle  # , Circle, RegularPolygon
+from natsort import natsort_keygen, natsorted
+from scipy.cluster.hierarchy import leaves_list
 
-# from matplotlib.transforms import Affine2D
-# import mpl_toolkits.axisartist.floating_axes as floating_axes
-import matplotlib.patheffects as patheffects
-from typing import Union, Optional, Dict, List
+# from sklearn.metrics import silhouette_score
+from scipy.spatial.distance import pdist, squareform
+
+# from sklearn.decomposition import PCA, NMF, LatentDirichletAllocation
+# from scipy.stats import fisher_exact
+from scipy.stats import zscore
+from sklearn.cluster import KMeans  # , DBSCAN
 
 from omniplot.utils import (
-    _separate_data,
-    _save,
     _create_color_markerlut,
-    _get_cluster_classes2,
     _dendrogram_threshold,
     _get_cluster_classes,
+    _get_cluster_classes2,
+    _save,
     _separate_cdata,
+    _separate_data,
+    colormap_list,
+    marker_list,
+    shape_list,
 )  #
-from omniplot.utils import colormap_list, shape_list, marker_list
 
 __all__ = [
     "correlation",
@@ -68,7 +71,7 @@ __all__ = [
 
 def correlation(
     df: pd.DataFrame,
-    category: Union[str, tuple] = (),
+    category: str | tuple = (),
     variables: tuple = (),
     method="pearson",
     palette: str = "coolwarm",
@@ -79,7 +82,7 @@ def correlation(
     xticklabels: bool = False,
     yticklabels: bool = False,
     title: str = "",
-) -> Dict:
+) -> dict:
     """
     Drawing a heatmap with correlations or distances between observations
 
@@ -153,10 +156,9 @@ def correlation(
             yticklabels=yticklabels,
             figsize=figsize,
             ctitle=ctitle,
-            **clustermap_param
+            **clustermap_param,
         )
     else:
-
         res = complex_clustermap(
             dfm,
             heatmap_col=colnames,
@@ -172,7 +174,7 @@ def correlation(
             # rasterized=True,
             # cbar_kws={"label":"Pearson correlation"},
             # annot=show_values,
-            **clustermap_param
+            **clustermap_param,
         )
     return res
     # g.cax.set_ylabel(ctitle, rotation=-90,va="bottom")
@@ -189,7 +191,6 @@ def triangle_heatmap(
     save: str = "",
     title: str = "",
 ) -> dict:
-
     """
     Creating a heatmap with 45 degree rotation.
 
@@ -286,9 +287,7 @@ def triangle_heatmap(
         leng = 0
     spacing = (N / 10) * leng * 0.4
 
-    rect = Rectangle(
-        [0, -spacing], N * (2**0.5), spacing, color="whitesmoke", alpha=1, linewidth=0
-    )
+    rect = Rectangle([0, -spacing], N * (2**0.5), spacing, color="whitesmoke", alpha=1, linewidth=0)
     ax.add_patch(rect)
 
     rect = Rectangle(
@@ -352,7 +351,7 @@ def triangle_heatmap(
 def complex_clustermap(
     df: pd.DataFrame,
     variables: tuple = (),
-    dfcol: Optional[pd.DataFrame] = None,
+    dfcol: pd.DataFrame | None = None,
     row_colors: tuple = (),
     col_colors: tuple = (),
     row_plot: tuple = (),
@@ -379,7 +378,7 @@ def complex_clustermap(
     heatmap_palette: str = "coolwarm",
     heatmap_col: list = [],
     treepalette: str = "tab20b",
-    **kwargs
+    **kwargs,
 ):
     """
     Drawing a clustered heatmap with marginal plots.
@@ -500,7 +499,6 @@ def complex_clustermap(
         # print(np.shape(_col_colors))
         if len(row_colors) > 0:
             for k in row_colors:
-
                 u = np.array(natsorted(np.unique(df[k])))
                 _cmap = plt.get_cmap(colormap_list[colormap_index], u.shape[0])
                 lut = {}
@@ -562,13 +560,12 @@ def complex_clustermap(
                 figsize=figsize,
                 dendrogram_ratio=0.1,
                 cbar_kws=dict(cmap=heatmap_palette, orientation="horizontal"),
-                **kwargs
+                **kwargs,
             )
 
             g.ax_col_colors.invert_yaxis()
             g.ax_row_colors.invert_xaxis()
         elif len(_col_colors) > 0:
-
             g = sns.clustermap(
                 df[variables],
                 col_colors=_col_colors,
@@ -578,7 +575,7 @@ def complex_clustermap(
                 dendrogram_ratio=0.1,
                 cbar_kws=dict(cmap=heatmap_palette, orientation="horizontal"),
                 figsize=figsize,
-                **kwargs
+                **kwargs,
             )
             g.ax_col_colors.invert_yaxis()
         elif len(_row_colors) > 0:
@@ -592,7 +589,7 @@ def complex_clustermap(
                 dendrogram_ratio=0.1,
                 figsize=figsize,
                 cbar_kws=dict(orientation="horizontal"),
-                **kwargs
+                **kwargs,
             )
             g.ax_row_colors.invert_xaxis()
 
@@ -624,9 +621,7 @@ def complex_clustermap(
                 )
 
             else:
-                g.ax_row_colors.barh(
-                    np.arange(r.shape[0]) + 0.5, r / np.amax(r), height=1
-                )
+                g.ax_row_colors.barh(np.arange(r.shape[0]) + 0.5, r / np.amax(r), height=1)
             # g.ax_row_colors.set_xticks([0,1],labels=[0,np.amax(r)])
             c = np.sum(mat, axis=0)
             # print(mat, c)
@@ -634,7 +629,6 @@ def complex_clustermap(
             if "col_cluster" in kwargs:
                 col_cluster = kwargs["col_cluster"]
             if col_cluster is True:
-
                 # print(leaves_list(g.dendrogram_col.linkage))
                 g.ax_col_colors.bar(
                     np.arange(c.shape[0]) + 0.5,
@@ -642,9 +636,7 @@ def complex_clustermap(
                     width=1,
                 )
             else:
-                g.ax_col_colors.bar(
-                    np.arange(c.shape[0]) + 0.5, c / np.amax(c), width=1
-                )
+                g.ax_col_colors.bar(np.arange(c.shape[0]) + 0.5, c / np.amax(c), width=1)
             # g.ax_col_colors.set_yticks([0,1],labels=[0,np.amax(c)])
             col_labels.append(0)
             col_labels.append(np.amax(c))
@@ -814,7 +806,6 @@ def complex_clustermap(
 
                 colplotcount += 1
         if g.ax_row_colors is not None:
-
             g.ax_row_colors.set_xticks(np.arange(len(_row_colors_title)) + 0.5)
             g.ax_row_colors.set_xticklabels(_row_colors_title, rotation=90)
         if g.ax_col_colors is not None:
@@ -826,12 +817,9 @@ def complex_clustermap(
             colax_otherside.grid(False)
         if g.ax_col_dendrogram is not None:
             col = g.ax_col_dendrogram.get_position()
-            g.ax_col_dendrogram.set_position(
-                [col.x0, col.y0, col.width * 0.5, col.height * 0.5]
-            )
+            g.ax_col_dendrogram.set_position([col.x0, col.y0, col.width * 0.5, col.height * 0.5])
 
         if show_plot_labels is True:
-
             rowax_otherside = g.ax_row_colors.twiny()
             rowax_otherside.invert_xaxis()
             rowax_otherside.grid(False)
@@ -839,17 +827,13 @@ def complex_clustermap(
                 row_ticks, labels=np.round(row_labels, 2), rotation=90, fontsize=8
             )
             col_ticks = np.array(col_ticks)
-            g.ax_col_colors.set_yticks(
-                col_ticks, labels=np.round(col_labels, 2), fontsize=8
-            )
+            g.ax_col_colors.set_yticks(col_ticks, labels=np.round(col_labels, 2), fontsize=8)
 
         legend_num = 0
         for _title, colorlut in _row_color_legend.items():
             legendhandles = []
             for label, color in colorlut.items():
-                legendhandles.append(
-                    Line2D([0], [0], color=color, linewidth=5, label=label)
-                )
+                legendhandles.append(Line2D([0], [0], color=color, linewidth=5, label=label))
             legend1 = g.ax_heatmap.legend(
                 handles=legendhandles,
                 loc="upper left",
@@ -861,9 +845,7 @@ def complex_clustermap(
         for _title, colorlut in _col_color_legend.items():
             legendhandles = []
             for label, color in colorlut.items():
-                legendhandles.append(
-                    Line2D([0], [0], color=color, linewidth=5, label=label)
-                )
+                legendhandles.append(Line2D([0], [0], color=color, linewidth=5, label=label))
 
             legend1 = g.ax_heatmap.legend(
                 handles=legendhandles,
@@ -884,11 +866,10 @@ def complex_clustermap(
             yticklabels=yticklabels,
             dendrogram_ratio=0.1,
             figsize=figsize,
-            **kwargs
+            **kwargs,
         )
     _cmap = plt.get_cmap(treepalette)
     if color_var > 0:
-
         cmap = _cmap(np.linspace(0, 1, color_var))
     else:
         cmap = _cmap(np.linspace(0, 1, approx_clusternum + 5))
@@ -922,7 +903,6 @@ def complex_clustermap(
                 ckeys[k] = "C" + str(i)
                 i += 1
         for c, v in clusters.items():
-
             _c = ckeys[c]
             if c.startswith("C0_"):
                 c = "#000000"
@@ -956,7 +936,6 @@ def complex_clustermap(
                 col_ckeys[k] = "C" + str(i)
                 i += 1
         for c, v in col_clusters.items():
-
             _c = col_ckeys[c]
             if c.startswith("C0_"):
                 c = "#000000"
@@ -1010,7 +989,7 @@ def dotplot(
     title: str = "",
     row: str = "",
     col: str = "",
-) -> Dict[str, plt.Axes]:
+) -> dict[str, plt.Axes]:
     """
     Drawing a dotplot that can represent two different variables as dot sizes and colors on a regular grid.
     This function is assumed to plot GO enrichment analysis with multiple gene sets.
@@ -1187,9 +1166,7 @@ def dotplot(
     if len(dfc) != 0:
         norm = mpl.colors.Normalize(vmin=np.min(cmat), vmax=np.amax(cmat))
 
-        cb1 = mpl.colorbar.ColorbarBase(
-            ax3, cmap=viridis, norm=norm, orientation="horizontal"
-        )
+        cb1 = mpl.colorbar.ColorbarBase(ax3, cmap=viridis, norm=norm, orientation="horizontal")
         cb1.set_label(color_title)
     # ax[1]=fig.add_axes([1,0.3,0.1,1])
 
@@ -1204,7 +1181,7 @@ def dotplot(
     ax2.add_collection(collection2)
     ax2.axis("off")
     ax2.margins(0.3)
-    for text, (x, y) in zip([middle0, middle1, maxsize], lxy):
+    for text, (x, y) in zip([middle0, middle1, maxsize], lxy, strict=False):
         ax2.text(x + 0.01, y, str(text), ha="left", va="center", color="black")
     if size_title == "":
         size_title = size_val
@@ -1232,7 +1209,7 @@ def heatmap(
     colors: str = "",
     dtype: str = "numerical",
     column_wise_color: bool = False,
-    sizes: Union[str, list, np.ndarray, pd.DataFrame] = "",
+    sizes: str | list | np.ndarray | pd.DataFrame = "",
     size_title: str = "",
     clustering_method: str = "hierarchical",
     kmeans_kw: dict = {},
@@ -1243,31 +1220,31 @@ def heatmap(
     col_cluster: bool = True,
     col_split: bool = False,
     shape: str = "rectangle",
-    shape_colors: Union[np.ndarray, list, dict] = [],
+    shape_colors: np.ndarray | list | dict = [],
     edgecolor: str = "w",
     rowlabels: str = "",
-    row_ticklabels: Union[bool, str] = True,
+    row_ticklabels: bool | str = True,
     rowrot: int = 0,
-    col_ticklabels: Union[bool, str] = True,
+    col_ticklabels: bool | str = True,
     colrot: int = 90,
     palette: str = "coolwarm",
     cpalette: str = "tab20b",
-    row_colors: Union[dict, list] = {},
-    col_colors: Union[dict, list] = {},
-    row_heatmap: Union[dict, list] = {},
-    col_heatmap: Union[dict, list] = {},
-    row_plot: Union[dict, list] = {},
-    col_plot: Union[dict, list] = {},
+    row_colors: dict | list = {},
+    col_colors: dict | list = {},
+    row_heatmap: dict | list = {},
+    col_heatmap: dict | list = {},
+    row_plot: dict | list = {},
+    col_plot: dict | list = {},
     plotkw: dict = {},
-    row_scatter: Union[dict, list] = {},
-    col_scatter: Union[dict, list] = {},
+    row_scatter: dict | list = {},
+    col_scatter: dict | list = {},
     scatterkw: dict = {},
-    row_bar: Union[dict, list] = {},
-    col_bar: Union[dict, list] = {},
+    row_bar: dict | list = {},
+    col_bar: dict | list = {},
     barkw: dict = {},
     row_axis: int = 0,
     col_axis: int = 0,
-    approx_clusternum: Union[int, str] = 3,
+    approx_clusternum: int | str = 3,
     approx_clusternum_col: int = 3,
     cunit: str = "",
     show: bool = False,
@@ -1283,14 +1260,14 @@ def heatmap(
     rowplot_format: str = "{x:.1f}",
     colplot_format: str = "{x:.1f}",
     boxlabels: bool = False,
-    box_textwidth: Optional[int] = None,
-    box_max_lines: Optional[int] = None,
+    box_textwidth: int | None = None,
+    box_max_lines: int | None = None,
     n_jobs: int = -1,
     show_values: bool = False,
     text_color: str = "w",
     val_format: str = "",
     font: str = "Arial",
-) -> Dict:
+) -> dict:
     """
     Drawing a heatmap. The function is mostly overlapping with the complex_clustermap, but has more flexibility, but may be slower.
     The main difference is this heatmap uses patch collections instead of pcolormech.
@@ -1579,7 +1556,7 @@ def heatmap(
     Xshape = X.shape
     if np.sum(Xshape) > 200:
         edgecolor = None
-    show_legend = int(rowplot_num > 0 or Xsize)
+    show_legend = int(rowplot_num > 0 or Xsize is not None)
 
     if len(figsize) == 0:
         figure_height = np.amin([np.amax([X.shape[0] / 5, 3]), 10])
@@ -1589,9 +1566,7 @@ def heatmap(
                 [
                     np.amax(
                         [
-                            figure_height * X.shape[1] / X.shape[0]
-                            + 1
-                            + int(boxlabels) * 6,
+                            figure_height * X.shape[1] / X.shape[0] + 1 + int(boxlabels) * 6,
                             5,
                         ]
                     ),
@@ -1685,9 +1660,9 @@ def heatmap(
             if len(shape_colors) > 0:
                 scX = scX[sortindexr]
         elif clustering_method == "kmeans":
-            _kmeans = KMeans(
-                n_clusters=approx_clusternum, random_state=0, n_init="auto"
-            ).fit(X, *kmeans_kw)
+            _kmeans = KMeans(n_clusters=approx_clusternum, random_state=0, n_init="auto").fit(
+                X, *kmeans_kw
+            )
             row_colors["kmeans_row"] = _kmeans.labels_.astype(str)
             sortindexr = np.lexsort((X.mean(axis=1), _kmeans.labels_))
             X = X[sortindexr]
@@ -1697,7 +1672,7 @@ def heatmap(
                 scX = scX[sortindexr]
             rowlabels = rowlabels[sortindexr]
             _klabels = _kmeans.labels_[sortindexr]
-            for i, (kclass, label) in enumerate(zip(_klabels, rowlabels)):
+            for i, (kclass, label) in enumerate(zip(_klabels, rowlabels, strict=False)):
                 if kclass not in rclusters:
                     rclusters[kclass] = []
                 rclusters[kclass].append(label)
@@ -1721,7 +1696,7 @@ def heatmap(
                 scX = scX[sortindexr]
             rowlabels = rowlabels[sortindexr]
             _klabels = clusters[sortindexr]
-            for i, (kclass, label) in enumerate(zip(_klabels, rowlabels)):
+            for i, (kclass, label) in enumerate(zip(_klabels, rowlabels, strict=False)):
                 if kclass not in rclusters:
                     rclusters[kclass] = []
                 rclusters[kclass].append(label)
@@ -1731,10 +1706,15 @@ def heatmap(
 
     # Column-wise clustering
     if col_cluster is True:
-
         if clustering_method == "hierarchical":
             ax1 = fig.add_axes([hmapx, ttreey, ttreew, ttreeh])
-            X, Xsize, Zt, collabels, cclusters, = _dendrogram(
+            (
+                X,
+                Xsize,
+                Zt,
+                collabels,
+                cclusters,
+            ) = _dendrogram(
                 X,
                 Xsize,
                 ax1,
@@ -1753,9 +1733,9 @@ def heatmap(
                 scX = scX[:, sortindexc]
             ax_dict["toptree"] = ax1
         elif clustering_method == "kmeans":
-            _ckmeans = KMeans(
-                n_clusters=approx_clusternum, random_state=0, n_init="auto"
-            ).fit(X.T, *kmeans_kw)
+            _ckmeans = KMeans(n_clusters=approx_clusternum, random_state=0, n_init="auto").fit(
+                X.T, *kmeans_kw
+            )
             col_colors["kmeans_column"] = _ckmeans.labels_.astype(str)
             sortindexc = np.lexsort((X.mean(axis=0), _ckmeans.labels_))
             X = X[:, sortindexc]
@@ -1767,7 +1747,7 @@ def heatmap(
 
             collabels = collabels[sortindexc]
             _cklabels = _ckmeans.labels_[sortindexc]
-            for i, (kclass, label) in enumerate(zip(_cklabels, collabels)):
+            for i, (kclass, label) in enumerate(zip(_cklabels, collabels, strict=False)):
                 if kclass not in cclusters:
                     cclusters[kclass] = []
                 cclusters[kclass].append(label)
@@ -1792,7 +1772,7 @@ def heatmap(
             collabels = collabels[sortindexc]
             _cklabels = clustersc[sortindexc]
             # print(_cklabels,collabels )
-            for i, (kclass, label) in enumerate(zip(_cklabels, collabels)):
+            for i, (kclass, label) in enumerate(zip(_cklabels, collabels, strict=False)):
                 if kclass not in cclusters:
                     cclusters[kclass] = []
                 cclusters[kclass].append(label)
@@ -1874,7 +1854,6 @@ def heatmap(
         if column_wise_color is False:
             _uniq_labels = np.unique(X.flatten())
             if shape == "by_category":
-
                 _shape_lut = {u: shape_list[i] for i, u in enumerate(_uniq_labels)}
                 _shape_legend_elements = {"ao": [], "labels": [], "handler": {}}
                 for _cat, _shape in _shape_lut.items():
@@ -1885,7 +1864,6 @@ def heatmap(
                     _shape_legend_elements["handeler"][ao] = obshape
                 shape_legend_elements["categorical"] = _shape_legend_elements
             else:
-
                 _cmap = plt.get_cmap(cpalette, len(_uniq_labels) + 2)
                 _color_lut = {u: _cmap(i + 1) for i, u in enumerate(_uniq_labels)}
 
@@ -1909,9 +1887,7 @@ def heatmap(
                 _uniq_labels = np.unique(__X)
                 if shape == "by_category":
                     _shape_legend_elements = {"ao": [], "labels": [], "handler": {}}
-                    _shape_tmp_lut = {
-                        u: shape_list[i] for i, u in enumerate(_uniq_labels)
-                    }
+                    _shape_tmp_lut = {u: shape_list[i] for i, u in enumerate(_uniq_labels)}
                     for _cat, _shape in _shape_tmp_lut.items():
                         ao = _AnyObject()
                         obshape = _AnyObjectHandler(facecolor="black", shape=_shape)
@@ -1959,9 +1935,7 @@ def heatmap(
     # the number of members in column clusters
     if col_cluster is True:
         if clustering_method == "hierarchical":
-            _col_cnums_dict, col_ccolor_unique = _get_cluster_classes2(
-                Zt, above_threshold_color
-            )
+            _col_cnums_dict, col_ccolor_unique = _get_cluster_classes2(Zt, above_threshold_color)
             # print("_cnums_dict", "ccolor_unique", _cnums_dict, ccolor_unique)
             col_cnums = np.array([_col_cnums_dict[k] for k in col_ccolor_unique])
         else:
@@ -1986,7 +1960,7 @@ def heatmap(
         boxfont = 12
         ax = fig.add_axes([hmapx + hmapw, yori + _y, boxwidth, hmaph])
         ax.axis("off")
-        for i, (_c, c) in enumerate(zip(_cnums, cnums)):
+        for i, (_c, c) in enumerate(zip(_cnums, cnums, strict=False)):
             text = ", ".join(rowlabels[_r : _r + c])
             word_list = wrapper.wrap(text=text)
             # print(word_list)
@@ -1996,9 +1970,7 @@ def heatmap(
                 "\n".join(word_list),
                 fontsize=boxfont,
                 va="top",
-                bbox=dict(
-                    boxstyle="round,pad=0.3", fc="white", ec="gray", lw=1, alpha=0.8
-                ),
+                bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", lw=1, alpha=0.8),
             )
             bb = t.get_window_extent(renderer=render)
             # print("width", rwidth, bb.width)
@@ -2033,11 +2005,10 @@ def heatmap(
     if Xshape[0] >= 512 or Xshape[1] >= 512:
         pcolormesh = True
     if row_split is True and row_cluster is True:
-
         # print(cnums, _cnums)
         _y = 0
         _r = 0
-        for i, (_c, c) in enumerate(zip(_cnums, cnums)):
+        for i, (_c, c) in enumerate(zip(_cnums, cnums, strict=False)):
             # print([hmapx,yori+_y,hmapw,hmaph*_c])
             ax = fig.add_axes([hmapx, yori + _y, hmapw, hmaph * _c])
             Xsub = X[_r : _r + c]
@@ -2075,9 +2046,7 @@ def heatmap(
                     _Xsize = Xsize[_r : _r + c]
                     _Xsize = (_Xsize - Xsizemin) / (Xsizemax - Xsizemin)
                     _Xsize = _Xsize.flatten()
-                row_col = [
-                    [j, i] for i in range(Xsub.shape[0]) for j in range(Xsub.shape[1])
-                ]
+                row_col = [[j, i] for i in range(Xsub.shape[0]) for j in range(Xsub.shape[1])]
 
                 _add_patches(
                     facecolors,
@@ -2098,7 +2067,7 @@ def heatmap(
                     n_jobs=n_jobs,
                 )
                 if show_values is True:
-                    for (_xtmp, _ytmp), text in zip(row_col, Xsub.flatten()):
+                    for (_xtmp, _ytmp), text in zip(row_col, Xsub.flatten(), strict=False):
                         txt = ax.text(
                             _xtmp,
                             _ytmp,
@@ -2129,11 +2098,10 @@ def heatmap(
             axis_dict["heatmap" + str(i)] = ax
 
     elif col_split is True and col_cluster is True:
-
         # print(cnums, _cnums)
         _y = 0
         _r = 0
-        for i, (_c, c) in enumerate(zip(_col_cnums, col_cnums)):
+        for i, (_c, c) in enumerate(zip(_col_cnums, col_cnums, strict=False)):
             # print([hmapx,yori+_y,hmapw,hmaph*_c])
             ax = fig.add_axes([hmapx + _y, yori, hmapw * _c, hmaph])
 
@@ -2171,9 +2139,7 @@ def heatmap(
                     Xsizesub = Xsize[:, _r : _r + c]
                     _Xsize = Xsizesub.flatten()
                     _Xsize = (_Xsize - Xsizemin) / (Xsizemax - Xsizemin)
-                row_col = [
-                    [j, i] for i in range(Xsub.shape[0]) for j in range(Xsub.shape[1])
-                ]
+                row_col = [[j, i] for i in range(Xsub.shape[0]) for j in range(Xsub.shape[1])]
 
                 _add_patches(
                     facecolors,
@@ -2194,7 +2160,7 @@ def heatmap(
                     n_jobs=n_jobs,
                 )
                 if show_values is True:
-                    for (_xtmp, _ytmp), text in zip(row_col, Xsub.flatten()):
+                    for (_xtmp, _ytmp), text in zip(row_col, Xsub.flatten(), strict=False):
                         txt = ax.text(
                             _xtmp,
                             _ytmp,
@@ -2236,7 +2202,6 @@ def heatmap(
                     )
                 )
         else:
-
             _X = X.flatten()
             _Xsize = None
             if Xsize is not None:
@@ -2248,7 +2213,6 @@ def heatmap(
             elif dtype == "categorical":
                 if type(shape) == dict:
                     if len(shape_colors) > 0:
-
                         _scX = scX.flatten()
                         _scX = (_scX - scXmin) / (scXmax - scXmin)
                         facecolors = cmap(_scX)
@@ -2280,7 +2244,7 @@ def heatmap(
             )
 
             if show_values is True:
-                for (_xtmp, _ytmp), text in zip(row_col, X.flatten()):
+                for (_xtmp, _ytmp), text in zip(row_col, X.flatten(), strict=False):
                     txt = ax.text(
                         _xtmp,
                         _ytmp,
@@ -2289,9 +2253,7 @@ def heatmap(
                         ha="center",
                         va="center",
                     )
-                    txt.set_path_effects(
-                        [patheffects.withStroke(linewidth=1, foreground="black")]
-                    )
+                    txt.set_path_effects([patheffects.withStroke(linewidth=1, foreground="black")])
 
             ax.margins(x=margin, y=margin)
         ax.tick_params(pad=1, axis="both", which="both", length=0)
@@ -2300,9 +2262,7 @@ def heatmap(
     # Setting categorical color legends
     legendnum = 0
     if len(legend_elements_dict) > 0:
-        for legendnum, (cat, legend_elements) in enumerate(
-            legend_elements_dict.items()
-        ):
+        for legendnum, (cat, legend_elements) in enumerate(legend_elements_dict.items()):
             axlegend = fig.add_axes(
                 [
                     hmapx + hmapw + boxwidth + 0.01,
@@ -2400,9 +2360,7 @@ def heatmap(
     if dtype == "numerical":
         axc = fig.add_axes([hmapx + hmapw + 0.02, 0.09, 0.15, 0.02])
         norm = mpl.colors.Normalize(vmin=np.amin(X), vmax=np.amax(X))
-        cb1 = mpl.colorbar.ColorbarBase(
-            axc, cmap=cmap, norm=norm, orientation="horizontal"
-        )
+        cb1 = mpl.colorbar.ColorbarBase(axc, cmap=cmap, norm=norm, orientation="horizontal")
         if cbar_title != "":
             axc.set_title(cbar_title)
         if ztranform is True:
@@ -2413,9 +2371,7 @@ def heatmap(
     elif len(shape_colors) > 0:
         axc = fig.add_axes([hmapx + hmapw + 0.02, 0.09, 0.15, 0.02])
         norm = mpl.colors.Normalize(vmin=np.amin(scX), vmax=np.amax(scX))
-        cb1 = mpl.colorbar.ColorbarBase(
-            axc, cmap=cmap, norm=norm, orientation="horizontal"
-        )
+        cb1 = mpl.colorbar.ColorbarBase(axc, cmap=cmap, norm=norm, orientation="horizontal")
         if cbar_title != "":
             axc.set_title(cbar_title)
         if cunit != "":
@@ -2438,9 +2394,9 @@ def heatmap(
 
 
 def _add_patches(
-    facecolors: Union[List, np.ndarray],
-    Xshape: Union[List, tuple, np.ndarray],
-    shape: Union[str, dict],
+    facecolors: list | np.ndarray,
+    Xshape: list | tuple | np.ndarray,
+    shape: str | dict,
     row_col: list,
     edgecolor,
     Xsize,
@@ -2456,13 +2412,10 @@ def _add_patches(
     Xflatten=None,
     n_jobs=-1,
 ):
-
     if Xsize is not None:
         _row_col = np.array(row_col)
         _shapes = [
-            Rectangle(
-                (-0.5, -0.5), np.amax(_row_col[:, 0]) + 1, np.amax(_row_col[:, 1]) + 1
-            )
+            Rectangle((-0.5, -0.5), np.amax(_row_col[:, 0]) + 1, np.amax(_row_col[:, 1]) + 1)
         ]
         _pc = PatchCollection(_shapes, facecolor="w", alpha=1, edgecolor="w")
         ax.add_collection(_pc)
@@ -2471,22 +2424,23 @@ def _add_patches(
         if Xsize is not None:
             shapes = Parallel(n_jobs=n_jobs)(
                 delayed(_create_polygon)(shape[val], x, y, wh)
-                for (x, y), wh, val in zip(row_col, _Xsize, Xflatten)
+                for (x, y), wh, val in zip(row_col, _Xsize, Xflatten, strict=False)
             )
 
         else:
             shapes = Parallel(n_jobs=n_jobs)(
                 delayed(_create_polygon)(shape[val], x, y, 1)
-                for (x, y), val in zip(row_col, Xflatten)
+                for (x, y), val in zip(row_col, Xflatten, strict=False)
             )
     else:
         if Xsize is not None:
             shapes = [
-                _create_polygon(shape, x, y, wh) for (x, y), wh in zip(row_col, _Xsize)
+                _create_polygon(shape, x, y, wh)
+                for (x, y), wh in zip(row_col, _Xsize, strict=False)
             ]
             shapes = Parallel(n_jobs=n_jobs)(
                 delayed(_create_polygon)(shape, x, y, wh)
-                for (x, y), wh in zip(row_col, _Xsize)
+                for (x, y), wh in zip(row_col, _Xsize, strict=False)
             )
         else:
             shapes = Parallel(n_jobs=n_jobs)(
@@ -2494,9 +2448,7 @@ def _add_patches(
             )
     # Create patch collection with specified colour/alpha
     if edgecolor is None:
-        pc = PatchCollection(
-            shapes, facecolor=facecolors, alpha=1, edgecolor=facecolors
-        )
+        pc = PatchCollection(shapes, facecolor=facecolors, alpha=1, edgecolor=facecolors)
     else:
         pc = PatchCollection(shapes, facecolor=facecolors, alpha=1, edgecolor=edgecolor)
     pc.set_rasterized(rasterized)
@@ -2574,18 +2526,11 @@ def _create_polygon(shape, x, y, r, ry=None, **kwargs):
         if n % m == 0:
             _n = n // m
             for _m in range(m):
-
                 for _l in range(_n + 1):
                     rs.append(
                         [
-                            x
-                            + 0.5
-                            * r
-                            * np.cos(np.pi / 2 + (_l + _m / m) * 2 * np.pi / l),
-                            y
-                            + 0.5
-                            * ry
-                            * np.sin(np.pi / 2 + (_l + _m / m) * 2 * np.pi / l),
+                            x + 0.5 * r * np.cos(np.pi / 2 + (_l + _m / m) * 2 * np.pi / l),
+                            y + 0.5 * ry * np.sin(np.pi / 2 + (_l + _m / m) * 2 * np.pi / l),
                         ]
                     )
         else:
@@ -2599,9 +2544,7 @@ def _create_polygon(shape, x, y, r, ry=None, **kwargs):
         return Polygon(rs, **kwargs)
     else:
         raise ValueError(
-            "Unknown shape! you gave {}, but it only accepts 'rectangle', 'circle', 'star', 'polygon:n', 'star:n:m'".format(
-                shape
-            )
+            f"Unknown shape! you gave {shape}, but it only accepts 'rectangle', 'circle', 'star', 'polygon:n', 'star:n:m'"
         )
 
 
@@ -2652,9 +2595,7 @@ def _row_plot(
             ax = fig.add_axes([lcatx + row_plot_index * lcatw, yori, lcatw, hmaph])
             facecolors = [lut[cat]["colorlut"][_cat] for _cat in _df[cat]]
             _shapes = [Rectangle((-0.5, _y - 0.5), 1.0, 1.0) for _y in range(Xshape[0])]
-            _pc = PatchCollection(
-                _shapes, facecolor=facecolors, alpha=1, edgecolor=facecolors
-            )
+            _pc = PatchCollection(_shapes, facecolor=facecolors, alpha=1, edgecolor=facecolors)
             ax.add_collection(_pc)
             ax.set_xticks([])
             ax.set_yticks([])
@@ -2691,9 +2632,7 @@ def _row_plot(
             color_lut = {u: _cmap(i) for i, u in enumerate(uniq_labels)}
             facecolors = [color_lut[_cat] for _cat in val]
             _shapes = [Rectangle((-0.5, _y - 0.5), 1.0, 1.0) for _y in range(Xshape[0])]
-            _pc = PatchCollection(
-                _shapes, facecolor=facecolors, alpha=1, edgecolor=facecolors
-            )
+            _pc = PatchCollection(_shapes, facecolor=facecolors, alpha=1, edgecolor=facecolors)
             ax.add_collection(_pc)
             ax.set_xticks([])
             ax.set_yticks([])
@@ -2729,7 +2668,6 @@ def _row_plot(
                 row_plot_index += 1
                 axis_dict["row_" + cat] = ax
         elif type(row_plot) == dict:
-
             for cat, val in row_plot.items():
                 val = np.array(val)[leaves]
                 ax = fig.add_axes([lcatx + row_plot_index * lcatw, yori, lcatw, hmaph])
@@ -2749,7 +2687,6 @@ def _row_plot(
                 row_plot_index += 1
                 axis_dict["row_" + cat] = ax
         elif type(row_scatter) == dict:
-
             for cat, val in row_scatter.items():
                 val = np.array(val)[leaves]
                 ax = fig.add_axes([lcatx + row_plot_index * lcatw, yori, lcatw, hmaph])
@@ -2768,7 +2705,6 @@ def _row_plot(
                 row_plot_index += 1
                 axis_dict["row_" + cat] = ax
         elif type(row_bar) == dict:
-
             for cat, val in row_bar.items():
                 val = np.array(val)[leaves]
                 ax = fig.add_axes([lcatx + row_plot_index * lcatw, yori, lcatw, hmaph])
@@ -2837,9 +2773,7 @@ def _col_plot(
             color_lut = {u: _cmap(i) for i, u in enumerate(uniq_labels)}
             facecolors = [color_lut[_cat] for _cat in val]
             _shapes = [Rectangle((_y - 0.5, -0.5), 1.0, 1.0) for _y in range(Xshape[1])]
-            _pc = PatchCollection(
-                _shapes, facecolor=facecolors, alpha=1, edgecolor=facecolors
-            )
+            _pc = PatchCollection(_shapes, facecolor=facecolors, alpha=1, edgecolor=facecolors)
             ax.add_collection(_pc)
             ax.set_xticks([])
             ax.set_yticks([])
@@ -2868,7 +2802,6 @@ def _col_plot(
         if type(col_plot) == list:
             raise Exception("Currently, 'col_plot' option accepts only dictionary")
         elif type(col_plot) == dict:
-
             for cat, val in col_plot.items():
                 val = np.array(val)[leaves]
                 ax = fig.add_axes([hmapx, tcaty + row_plot_index * tcatw, hmapw, tcatw])
@@ -2881,7 +2814,6 @@ def _col_plot(
             raise Exception("Currently, 'col_scatter' option accepts only dictionary")
 
         elif type(col_scatter) == dict:
-
             for cat, val in col_scatter.items():
                 val = np.array(val)[leaves]
                 ax = fig.add_axes([hmapx, tcaty + row_plot_index * tcatw, hmapw, tcatw])
@@ -2894,7 +2826,6 @@ def _col_plot(
             raise Exception("Currently, 'col_scatter' option accepts only dictionary")
 
         elif type(col_bar) == dict:
-
             for cat, val in col_bar.items():
                 val = np.array(val)[leaves]
                 ax = fig.add_axes([hmapx, tcaty + row_plot_index * tcatw, hmapw, tcatw])
@@ -2945,7 +2876,10 @@ def _process_vdata(
                 except Exception:
                     size_title = ""
         elif type(sizes) == dict:
-            size_title, Xsize, = (
+            (
+                size_title,
+                Xsize,
+            ) = (
                 list(sizes.keys())[0],
                 list(sizes.values())[0],
             )
@@ -2962,7 +2896,7 @@ def _process_vdata(
             df = df.drop([rowlabels], axis=1)
         X, category = _separate_data(df, variables, category)
 
-        for cat, _palette in zip(category, colormap_list):
+        for cat, _palette in zip(category, colormap_list, strict=False):
             _clut, _mlut = _create_color_markerlut(df, cat, _palette, marker_list)
             lut[cat] = {"colorlut": _clut, "markerlut": _mlut}
         if type(sizes) == pd.DataFrame:
@@ -3031,7 +2965,10 @@ def _process_cdata(
                 except Exception:
                     size_title = ""
         elif type(sizes) == dict:
-            size_title, Xsize, = (
+            (
+                size_title,
+                Xsize,
+            ) = (
                 list(sizes.keys())[0],
                 list(sizes.values())[0],
             )
@@ -3049,7 +2986,7 @@ def _process_cdata(
 
         X, category = _separate_cdata(df, variables, category)
 
-        for cat, _palette in zip(category, colormap_list):
+        for cat, _palette in zip(category, colormap_list, strict=False):
             _clut, _mlut = _create_color_markerlut(df, cat, _palette, marker_list)
             lut[cat] = {"colorlut": _clut, "markerlut": _mlut}
         if type(sizes) == pd.DataFrame:
@@ -3096,7 +3033,6 @@ def _dendrogram(
     above_threshold_color,
     orientation,
 ):
-
     _tcmap = plt.get_cmap(treepalette)
     tcmap = _tcmap(np.linspace(0, 1, approx_clusternum))
     sch.set_link_color_palette([mpl.colors.rgb2hex(rgb[:3]) for rgb in tcmap])
@@ -3178,8 +3114,8 @@ def _axis_loc_sizes(
     rowplot_num: int,
     colplot_num: int,
     collabels: np.ndarray,
-    Xshape: Union[np.ndarray, list, tuple],
-) -> List:
+    Xshape: np.ndarray | list | tuple,
+) -> list:
     # determining the size and positionn of axes
 
     if col_ticklabels is True:

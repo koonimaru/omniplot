@@ -18,14 +18,7 @@ dist/omniplot-0.2.3.tar.gz
 build/lib/omniplot/__init__.py
 .gitignore
 tests/scatter_test.ipynb
-tests/scatter1_scatter.png
-tests/scatter2_scatter.png
-tests/scatter3_scatter.png
-tests/scatter4_scatter.png
-tests/scatter5_scatter.png
-tests/scatter6_scatter.png
-tests/scatter7_scatter.png
-tests/scatter8_scatter.png
+tests/*.png
 data/volcano.csv
 tests/test_2.ipynb
 tests/Untitled.ipynb
@@ -40,3 +33,10 @@ tests/tests heatmap.py
 tests/tests heatmap.py
 tests/tests heatmap.py
 .git/*
+**/*.pyc
+dist/*
+build/*
+*.egg-info
+*.egg
+__pycache__/
+.ipynb_checkpoints/

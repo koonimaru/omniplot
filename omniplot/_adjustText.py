@@ -22,18 +22,31 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from __future__ import division, annotations
-import numpy as np
-import matplotlib
-from matplotlib import pyplot as plt
-from matplotlib.patches import FancyArrowPatch
-from matplotlib.path import get_path_collection_extents
-import bioframe as bf
-import scipy.spatial.distance
+from __future__ import annotations
+
 import logging
 from timeit import default_timer as timer
 
-from ._version import __version__
+import matplotlib
+import numpy as np
+import scipy.spatial.distance
+from matplotlib import pyplot as plt
+from matplotlib.patches import FancyArrowPatch
+from matplotlib.path import get_path_collection_extents
+
+
+def _overlap_intervals(
+    starts1: np.ndarray, ends1: np.ndarray, starts2: np.ndarray, ends2: np.ndarray
+) -> np.ndarray:
+    """Return (i, j) pairs where interval i from set-1 overlaps interval j from set-2.
+
+    Two half-open intervals [s, e) overlap when s1 < e2 AND s2 < e1.
+    This replaces the bioframe.core.arrops.overlap_intervals dependency.
+    """
+    # broadcasting: shape (N1, N2)
+    overlap = (starts1[:, None] < ends2[None, :]) & (starts2[None, :] < ends1[:, None])
+    idx = np.argwhere(overlap)  # shape (K, 2)
+    return idx
 
 
 def get_renderer(fig):
@@ -75,7 +88,7 @@ def get_bboxes_pathcollection(sc, ax):
             # often you may have a single scatter size, but several offsets
             transforms = [transforms[0]] * len(offsets)
 
-        for p, o, t in zip(paths, offsets, transforms):
+        for p, o, t in zip(paths, offsets, transforms, strict=False):
             result = get_path_collection_extents(
                 transform.frozen(), [p], [t], [o], transOffset.frozen()
             )
@@ -124,29 +137,21 @@ def get_2d_coordinates(objs):
     except:
         ax = objs.axes
     bboxes = get_bboxes(objs, get_renderer(ax.get_figure()), (1.0, 1.0), ax)
-    xs = [
-        (ax.convert_xunits(bbox.xmin), ax.convert_yunits(bbox.xmax)) for bbox in bboxes
-    ]
-    ys = [
-        (ax.convert_xunits(bbox.ymin), ax.convert_yunits(bbox.ymax)) for bbox in bboxes
-    ]
+    xs = [(ax.convert_xunits(bbox.xmin), ax.convert_yunits(bbox.xmax)) for bbox in bboxes]
+    ys = [(ax.convert_xunits(bbox.ymin), ax.convert_yunits(bbox.ymax)) for bbox in bboxes]
     coords = np.hstack([np.array(xs), np.array(ys)])
     return coords
 
 
 def get_shifts_texts(coords):
     N = coords.shape[0]
-    xoverlaps = bf.core.arrops.overlap_intervals(
-        coords[:, 0], coords[:, 1], coords[:, 0], coords[:, 1]
-    )
+    xoverlaps = _overlap_intervals(coords[:, 0], coords[:, 1], coords[:, 0], coords[:, 1])
     xoverlaps = xoverlaps[xoverlaps[:, 0] != xoverlaps[:, 1]]
-    yoverlaps = bf.core.arrops.overlap_intervals(
-        coords[:, 2], coords[:, 3], coords[:, 2], coords[:, 3]
-    )
+    yoverlaps = _overlap_intervals(coords[:, 2], coords[:, 3], coords[:, 2], coords[:, 3])
     yoverlaps = yoverlaps[yoverlaps[:, 0] != yoverlaps[:, 1]]
     overlaps = yoverlaps[(yoverlaps[:, None] == xoverlaps).all(-1).any(-1)]
     if len(overlaps) == 0:
-        return np.zeros((coords.shape[0])), np.zeros((coords.shape[0]))
+        return np.zeros(coords.shape[0]), np.zeros(coords.shape[0])
     diff = coords[overlaps[:, 1]] - coords[overlaps[:, 0]]
     xshifts = np.where(np.abs(diff[:, 0]) < np.abs(diff[:, 1]), diff[:, 0], diff[:, 1])
     yshifts = np.where(np.abs(diff[:, 2]) < np.abs(diff[:, 3]), diff[:, 2], diff[:, 3])
@@ -158,16 +163,16 @@ def get_shifts_texts(coords):
 def get_shifts_extra(coords, extra_coords):
     N = coords.shape[0]
 
-    xoverlaps = bf.core.arrops.overlap_intervals(
+    xoverlaps = _overlap_intervals(
         coords[:, 0], coords[:, 1], extra_coords[:, 0], extra_coords[:, 1]
     )
-    yoverlaps = bf.core.arrops.overlap_intervals(
+    yoverlaps = _overlap_intervals(
         coords[:, 2], coords[:, 3], extra_coords[:, 2], extra_coords[:, 3]
     )
     overlaps = yoverlaps[(yoverlaps[:, None] == xoverlaps).all(-1).any(-1)]
 
     if len(overlaps) == 0:
-        return np.zeros((coords.shape[0])), np.zeros((coords.shape[0]))
+        return np.zeros(coords.shape[0]), np.zeros(coords.shape[0])
 
     diff = coords[overlaps[:, 0]] - extra_coords[overlaps[:, 1]]
 
@@ -207,7 +212,7 @@ def apply_shifts(coords, shifts_x, shifts_y):
 
 def force_into_bbox(coords, bbox):
     xmin, xmax, ymin, ymax = bbox
-    dx, dy = np.zeros((coords.shape[0])), np.zeros((coords.shape[0]))
+    dx, dy = np.zeros(coords.shape[0]), np.zeros(coords.shape[0])
     if np.any((coords[:, 0] < xmin) & (coords[:, 1] > xmax)):
         logging.warn("Some labels are too long, can't fit inside the X axis")
     if np.any((coords[:, 2] < ymin) & (coords[:, 3] > ymax)):
@@ -256,16 +261,13 @@ def iterate(
     bbox_to_contain=False,
     only_move={"text": "xy", "static": "xy", "explode": "xy", "pull": "xy"},
 ):
-
-    text_shifts_x, text_shifts_y = get_shifts_texts(
-        expand_coords(coords, expand[0], expand[1])
-    )
+    text_shifts_x, text_shifts_y = get_shifts_texts(expand_coords(coords, expand[0], expand[1]))
     if static_coords.shape[0] > 0:
         static_shifts_x, static_shifts_y = get_shifts_extra(
             expand_coords(coords, expand[0], expand[1]), static_coords
         )
     else:
-        static_shifts_x, static_shifts_y = np.zeros((1)), np.zeros((1))
+        static_shifts_x, static_shifts_y = np.zeros(1), np.zeros(1)
     error_x = np.abs(text_shifts_x) + np.abs(static_shifts_x)
     error_y = np.abs(text_shifts_y) + np.abs(static_shifts_y)
     error = np.sum(np.append(error_x, error_y))
@@ -489,9 +491,7 @@ def adjust_text(
             explode_x = np.zeros_like(explode_x)
         if "y" not in only_move["explode"]:
             explode_y = np.zeros_like(explode_y)
-        coords = apply_shifts(
-            coords, -explode_x * force_explode[0], -explode_y * force_explode[1]
-        )
+        coords = apply_shifts(coords, -explode_x * force_explode[0], -explode_y * force_explode[1])
 
     error = np.Inf
 
